@@ -4,45 +4,118 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MuffetBot — Acceso Pendiente</title>
-<link href="https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=VT323&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-:root{--purple:#9147ff;--purple-dim:#4a2080;--bg:#0a0a0c;--bg2:#111115;--text:#f0d0da;--text-dim:#8a6a72;--yellow:#f0c060;--mono:'Share Tech Mono',monospace;--display:'VT323',monospace;--title:'Silkscreen',monospace;}
-html,body{width:100%;height:100%;background:var(--bg);font-family:var(--mono);color:var(--text);display:flex;align-items:center;justify-content:center;}
-.bg-grid{position:fixed;top:0;left:0;width:100%;height:100%;background-image:linear-gradient(rgba(145,71,255,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(145,71,255,0.05) 1px,transparent 1px);background-size:40px 40px;animation:gridMove 20s linear infinite;pointer-events:none;}
-@keyframes gridMove{0%{background-position:0 0}100%{background-position:40px 40px}}
-.card{position:relative;z-index:10;background:var(--bg2);border:2px solid var(--purple-dim);padding:40px;width:100%;max-width:460px;text-align:center;box-shadow:0 0 40px rgba(145,71,255,0.15);}
-.muffet{width:70px;height:70px;image-rendering:pixelated;margin:0 auto 16px;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 0 8px rgba(240,192,96,0.6));}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-.title{font-family:var(--display);font-size:42px;color:var(--yellow);letter-spacing:2px;line-height:1;}
-.subtitle{font-family:var(--title);font-size:8px;color:var(--text-dim);letter-spacing:3px;margin:8px 0 24px;}
-.msg{font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:24px;}
-.msg strong{color:var(--text);}
-.divider{width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--purple-dim),transparent);margin:20px 0;}
-.status{display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--title);font-size:9px;color:var(--yellow);letter-spacing:2px;margin-bottom:20px;}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--yellow);animation:pulse 1.5s ease-in-out infinite;}
+:root{
+  --purple:#9147ff;--purple-dim:rgba(145,71,255,0.12);--purple-border:rgba(145,71,255,0.25);
+  --purple-light:#b388ff;--yellow:#f0c060;
+  --bg:#0d0d0f;--bg2:#141416;--bg3:#1a1a1e;
+  --text:#e8e8f0;--text-dim:#6b6b80;--text-muted:#3a3a4a;
+  --sans:'Inter',sans-serif;
+  --radius:12px;--radius-sm:8px;
+}
+html,body{width:100%;height:100%;background:var(--bg);font-family:var(--sans);color:var(--text);display:flex;align-items:center;justify-content:center;}
+
+.bg-glow{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;background:radial-gradient(ellipse at 50% 30%, rgba(145,71,255,0.07) 0%, transparent 60%);}
+
+.container{position:relative;z-index:10;width:100%;max-width:480px;padding:24px;text-align:center;}
+
+/* Logo */
+.logo{display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:48px;}
+.logo img{width:28px;height:28px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(145,71,255,0.5));}
+.logo-text{font-size:15px;font-weight:600;color:var(--text);}
+
+/* Card */
+.card{background:var(--bg2);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius);padding:40px 36px;}
+
+/* Muffet animada */
+.muffet-wrap{margin:0 auto 28px;width:64px;height:64px;}
+.muffet-wrap img{width:64px;height:64px;image-rendering:pixelated;filter:drop-shadow(0 0 12px rgba(145,71,255,0.4));animation:float 3s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+/* Status pill */
+.status-pill{display:inline-flex;align-items:center;gap:8px;background:rgba(240,192,96,0.1);border:1px solid rgba(240,192,96,0.25);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:500;color:var(--yellow);margin-bottom:24px;}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--yellow);animation:pulse 1.5s ease-in-out infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-.btn-logout{background:transparent;border:1px solid var(--purple-dim);color:var(--text-dim);font-family:var(--title);font-size:8px;letter-spacing:1px;padding:8px 20px;cursor:pointer;transition:all 0.2s;}
-.btn-logout:hover{border-color:#e05a7a;color:#e05a7a;}
-.footer{font-size:9px;color:var(--text-dim);margin-top:16px;opacity:0.5;}
+
+.card-title{font-size:22px;font-weight:600;color:var(--text);letter-spacing:-0.3px;margin-bottom:10px;}
+.card-desc{font-size:14px;color:var(--text-dim);line-height:1.7;margin-bottom:32px;}
+.card-desc strong{color:var(--text);}
+
+/* Steps */
+.steps{display:flex;flex-direction:column;gap:12px;margin-bottom:32px;text-align:left;}
+.step{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:var(--bg3);border-radius:var(--radius-sm);}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--purple-dim);border:1px solid var(--purple-border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--purple-light);flex-shrink:0;}
+.step-text{font-size:13px;color:var(--text-dim);line-height:1.5;}
+.step-text strong{color:var(--text);}
+
+/* Divider */
+.divider{width:100%;height:1px;background:rgba(255,255,255,0.06);margin:28px 0;}
+
+/* Buttons */
+.btn-twitch{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-family:var(--sans);font-size:14px;font-weight:500;cursor:pointer;text-decoration:none;transition:all 0.15s;margin-bottom:10px;}
+.btn-twitch:hover{background:#7d2ff7;}
+.btn-twitch svg{width:16px;height:16px;fill:white;}
+.btn-logout{width:100%;padding:11px;background:transparent;border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);font-family:var(--sans);font-size:13px;cursor:pointer;transition:all 0.15s;}
+.btn-logout:hover{border-color:rgba(255,255,255,0.16);color:var(--text);}
+
+.footer{margin-top:20px;font-size:12px;color:var(--text-muted);}
+
+@media(max-width:480px){
+  .card{padding:28px 20px;}
+}
 </style>
 </head>
 <body>
-<div class="bg-grid"></div>
-<div class="card">
-  <img class="muffet" src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
-  <div class="title">ACCESO PENDIENTE</div>
-  <div class="subtitle">🕷️ ESPERANDO APROBACIÓN DEL REY 🐻</div>
-  <div class="status"><div class="dot"></div>EN ESPERA DE APROBACIÓN</div>
-  <p class="msg">
-    ¡Bienvenido/a a la telaraña, dearie! 🕷️<br><br>
-    Tu cuenta está <strong>pendiente de aprobación</strong> por el administrador.<br>
-    Cuando seas aprobado/a recibirás acceso completo al panel de MuffetBot.<br><br>
-    Contacta a <strong>ElOsoKing1</strong> en Twitch para acelerar el proceso~ ♥
-  </p>
-  <div class="divider"></div>
-  <button class="btn-logout" onclick="window.location='/logout'">🚪 CERRAR SESIÓN</button>
-  <div class="footer">🕷️ MuffetBot — Panel del Reino 🐻👑</div>
+<div class="bg-glow"></div>
+<div class="container">
+
+  <div class="logo">
+    <img src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
+    <span class="logo-text">MuffetBot</span>
+  </div>
+
+  <div class="card">
+    <div class="muffet-wrap">
+      <img src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
+    </div>
+
+    <div class="status-pill">
+      <div class="status-dot"></div>
+      Esperando aprobación
+    </div>
+
+    <h1 class="card-title">Tu cuenta está pendiente</h1>
+    <p class="card-desc">
+      Tu solicitud fue recibida. El administrador revisará tu cuenta y te dará acceso pronto.
+    </p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Contacta al administrador</strong> — Escríbele a <strong>ElOsoKing1</strong> en Twitch para acelerar el proceso.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Espera la aprobación</strong> — Una vez aprobado, podrás acceder al panel completo de MuffetBot.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text"><strong>Configura tu bot</strong> — Personaliza comandos, IA y moderación desde tu dashboard.</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <a href="https://twitch.tv/elosoking1" target="_blank" class="btn-twitch">
+      <svg viewBox="0 0 24 24"><path d="M4 2L2 6v14h5v3h3l3-3h4l5-5V2H4zm17 13l-3 3h-5l-3 3v-3H5V4h16v11zM11 7h2v6h-2zm5 0h2v6h-2z"/></svg>
+      Contactar a ElOsoKing1 en Twitch
+    </a>
+    <button class="btn-logout" onclick="window.location='/logout'">Cerrar sesión</button>
+  </div>
+
+  <div class="footer">MuffetBot — Panel de Control 🕷️</div>
 </div>
 </body>
 </html>
