@@ -4,277 +4,240 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MuffetBot — Dashboard</title>
-<link href="https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=VT323&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --pink:#e05a7a;--purple:#9147ff;--purple-dim:#4a2080;--purple-light:#b388ff;
-  --bg:#0a0a0c;--bg2:#111115;--bg3:#1a0022;--bg4:#0f0f18;
-  --text:#f0d0da;--text-dim:#8a6a72;--green:#40d090;--yellow:#f0c060;
-  --mono:'Share Tech Mono',monospace;--display:'VT323',monospace;--title:'Silkscreen',monospace;
+  --purple:#9147ff;--purple-dim:rgba(145,71,255,0.15);--purple-border:rgba(145,71,255,0.25);
+  --purple-light:#b388ff;--pink:#e05a7a;--green:#40d090;--yellow:#f0c060;
+  --bg:#0d0d0f;--bg2:#141416;--bg3:#1a1a1e;--bg4:#0f0f12;
+  --text:#e8e8f0;--text-dim:#6b6b80;--text-muted:#3a3a4a;
+  --sans:'Inter',sans-serif;--display:'VT323',monospace;
+  --radius:10px;--radius-sm:6px;
 }
-html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--mono);color:var(--text);}
+html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans);color:var(--text);}
 
 /* ── SIDEBAR ── */
 .sidebar{
-  position:fixed;top:0;left:0;width:220px;height:100vh;
-  background:var(--bg2);border-right:1px solid var(--purple-dim);
-  display:flex;flex-direction:column;z-index:100;
-  overflow-y:auto;
+  position:fixed;top:0;left:0;width:240px;height:100vh;
+  background:var(--bg2);border-right:1px solid rgba(255,255,255,0.06);
+  display:flex;flex-direction:column;z-index:100;overflow-y:auto;
 }
 .sidebar-logo{
-  padding:20px 16px;border-bottom:1px solid var(--purple-dim);
-  display:flex;align-items:center;gap:10px;
+  padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.06);
+  display:flex;align-items:center;gap:12px;
 }
-.sidebar-logo img{width:36px;height:36px;image-rendering:pixelated;filter:drop-shadow(0 0 6px rgba(145,71,255,0.6));}
-.logo-text{font-family:var(--display);font-size:26px;color:var(--purple);letter-spacing:2px;}
-.logo-sub{font-family:var(--title);font-size:7px;color:var(--text-dim);letter-spacing:1px;}
+.sidebar-logo img{width:32px;height:32px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(145,71,255,0.5));}
+.logo-text{font-size:15px;font-weight:600;color:var(--text);letter-spacing:-0.3px;}
+.logo-badge{font-size:10px;color:var(--purple);font-weight:500;}
 
 .user-card{
-  padding:14px 16px;border-bottom:1px solid var(--purple-dim);
+  padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.06);
   display:flex;align-items:center;gap:10px;
 }
-.user-avatar{width:36px;height:36px;border-radius:50%;border:2px solid var(--purple-dim);}
-.user-info{}
-.user-name{font-size:11px;color:var(--text);letter-spacing:1px;}
-.user-role{font-family:var(--title);font-size:7px;color:var(--purple);letter-spacing:1px;}
+.user-avatar{width:32px;height:32px;border-radius:50%;border:2px solid var(--purple-border);}
+.user-name{font-size:13px;font-weight:500;color:var(--text);}
+.user-plan{font-size:11px;color:var(--text-dim);margin-top:1px;}
 
-.nav{flex:1;padding:10px 0;}
-.nav-section{font-family:var(--title);font-size:7px;color:var(--text-dim);letter-spacing:2px;padding:10px 16px 4px;}
+.nav{flex:1;padding:8px 12px;}
+.nav-section{font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text-muted);padding:12px 8px 4px;text-transform:uppercase;}
 .nav-item{
   display:flex;align-items:center;gap:10px;
-  padding:10px 16px;cursor:pointer;
-  font-size:10px;color:var(--text-dim);letter-spacing:1px;
-  transition:all 0.2s;border-left:3px solid transparent;
+  padding:9px 10px;cursor:pointer;border-radius:var(--radius-sm);
+  font-size:13px;font-weight:400;color:var(--text-dim);
+  transition:all 0.15s;margin-bottom:1px;
 }
-.nav-item:hover{background:rgba(145,71,255,0.1);color:var(--text);}
-.nav-item.active{background:rgba(145,71,255,0.15);color:var(--purple-light);border-left-color:var(--purple);}
-.nav-icon{font-size:16px;width:20px;text-align:center;}
+.nav-item:hover{background:rgba(255,255,255,0.05);color:var(--text);}
+.nav-item.active{background:var(--purple-dim);color:var(--purple-light);font-weight:500;}
+.nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
 
-.sidebar-footer{
-  padding:14px 16px;border-top:1px solid var(--purple-dim);
-}
+.sidebar-footer{padding:12px;border-top:1px solid rgba(255,255,255,0.06);}
 .btn-logout{
-  width:100%;padding:8px;background:transparent;
-  border:1px solid var(--purple-dim);color:var(--text-dim);
-  font-family:var(--title);font-size:8px;letter-spacing:1px;
-  cursor:pointer;transition:all 0.2s;
+  width:100%;padding:9px;background:transparent;border-radius:var(--radius-sm);
+  border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);
+  font-family:var(--sans);font-size:13px;cursor:pointer;transition:all 0.15s;
 }
 .btn-logout:hover{border-color:var(--pink);color:var(--pink);}
 
 /* ── MAIN ── */
-.main{margin-left:220px;min-height:100vh;padding:24px;}
-
-/* ── HEADER ── */
-.page-header{margin-bottom:24px;}
-.page-title{font-family:var(--display);font-size:36px;color:var(--purple);letter-spacing:2px;line-height:1;}
-.page-subtitle{font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-top:4px;}
-
-/* ── PANELS ── */
-.panel{background:var(--bg2);border:1px solid var(--purple-dim);margin-bottom:16px;}
-.panel-header{
-  background:var(--bg3);padding:10px 16px;
-  border-bottom:1px solid var(--purple-dim);
-  display:flex;align-items:center;justify-content:space-between;
-}
-.panel-title-text{font-family:var(--title);font-size:9px;color:var(--text);letter-spacing:2px;}
-.panel-body{padding:16px;}
-
-/* ── SECTIONS ── */
+.main{margin-left:240px;min-height:100vh;padding:32px;}
 .section{display:none;}
 .section.active{display:block;}
 
-/* ── STATS GRID ── */
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
-.stat-card{
-  background:var(--bg2);border:1px solid var(--purple-dim);
-  padding:16px;text-align:center;
-}
-.stat-icon{font-size:24px;margin-bottom:6px;}
-.stat-value{font-family:var(--display);font-size:32px;color:var(--purple);line-height:1;}
-.stat-label{font-family:var(--title);font-size:7px;color:var(--text-dim);letter-spacing:1px;margin-top:4px;}
+/* ── PAGE HEADER ── */
+.page-header{margin-bottom:28px;}
+.page-title{font-size:22px;font-weight:600;color:var(--text);letter-spacing:-0.3px;}
+.page-subtitle{font-size:13px;color:var(--text-dim);margin-top:4px;}
 
-/* ── TOGGLE SWITCH ── */
-.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid rgba(145,71,255,0.1);}
-.toggle-row:last-child{border-bottom:none;}
-.toggle-info{}
-.toggle-label{font-size:11px;color:var(--text);letter-spacing:1px;}
-.toggle-desc{font-size:9px;color:var(--text-dim);margin-top:2px;}
-.toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+/* ── CARDS STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.stat-card{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:16px 20px;}
+.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.stat-label{font-size:12px;font-weight:500;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;}
+.stat-icon{font-size:16px;}
+.stat-value{font-size:26px;font-weight:600;color:var(--text);letter-spacing:-0.5px;}
+.stat-value.on{color:var(--green);}
+.stat-value.off{color:var(--text-dim);}
+
+/* ── PANELS ── */
+.panel{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;}
+.panel-header{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;}
+.panel-title-text{font-size:13px;font-weight:600;color:var(--text);}
+.panel-body{padding:20px;}
+
+/* ── TOGGLE ── */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.toggle-row:last-child{border-bottom:none;padding-bottom:0;}
+.toggle-row:first-child{padding-top:0;}
+.toggle-label{font-size:14px;color:var(--text);font-weight:500;}
+.toggle-desc{font-size:12px;color:var(--text-dim);margin-top:3px;}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0;}
 .toggle input{opacity:0;width:0;height:0;}
-.toggle-slider{
-  position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;
-  background:#2a1a3a;transition:.3s;border:1px solid var(--purple-dim);
-}
-.toggle-slider:before{
-  content:"";position:absolute;height:16px;width:16px;
-  left:3px;bottom:3px;background:var(--text-dim);transition:.3s;
-}
-input:checked + .toggle-slider{background:var(--purple-dim);border-color:var(--purple);}
-input:checked + .toggle-slider:before{transform:translateX(20px);background:var(--purple);}
+.toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#2a2a35;transition:.2s;border-radius:11px;}
+.toggle-slider:before{content:"";position:absolute;height:16px;width:16px;left:3px;bottom:3px;background:var(--text-dim);transition:.2s;border-radius:50%;}
+input:checked+.toggle-slider{background:var(--purple);}
+input:checked+.toggle-slider:before{transform:translateX(18px);background:white;}
 
-/* ── INPUTS ── */
-.form-group{margin-bottom:14px;}
-.form-label{font-family:var(--title);font-size:8px;color:var(--text-dim);letter-spacing:2px;margin-bottom:6px;display:block;}
+/* ── FORMS ── */
+.form-group{margin-bottom:16px;}
+.form-label{display:block;font-size:12px;font-weight:500;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px;}
 .form-input,.form-textarea{
-  width:100%;background:var(--bg4);border:1px solid var(--purple-dim);
-  color:var(--text);font-family:var(--mono);font-size:11px;
-  padding:10px 12px;outline:none;transition:border-color 0.2s;
+  width:100%;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);
+  color:var(--text);font-family:var(--sans);font-size:13px;padding:10px 14px;outline:none;transition:border-color .2s;
 }
 .form-input:focus,.form-textarea:focus{border-color:var(--purple);}
-.form-textarea{resize:vertical;min-height:100px;line-height:1.5;}
+.form-input:disabled{opacity:0.5;cursor:default;}
+.form-textarea{resize:vertical;min-height:120px;line-height:1.5;}
 
-/* ── BOTONES ── */
-.btn{
-  font-family:var(--title);font-size:9px;letter-spacing:1px;
-  padding:8px 16px;border:none;cursor:pointer;transition:all 0.2s;
-}
+/* ── BUTTONS ── */
+.btn{font-family:var(--sans);font-size:13px;font-weight:500;padding:9px 18px;border:none;border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s;}
 .btn-primary{background:var(--purple);color:white;}
-.btn-primary:hover{background:#7d2ff7;box-shadow:0 0 15px rgba(145,71,255,0.3);}
-.btn-danger{background:transparent;color:var(--pink);border:1px solid var(--pink);}
+.btn-primary:hover{background:#7d2ff7;}
+.btn-danger{background:transparent;color:var(--pink);border:1px solid rgba(224,90,122,0.3);}
 .btn-danger:hover{background:rgba(224,90,122,0.1);}
-.btn-success{background:transparent;color:var(--green);border:1px solid var(--green);}
+.btn-success{background:transparent;color:var(--green);border:1px solid rgba(64,208,144,0.3);}
 .btn-success:hover{background:rgba(64,208,144,0.1);}
-.btn-sm{padding:5px 10px;font-size:8px;}
+.btn-sm{padding:6px 12px;font-size:12px;}
 
-/* ── COMANDOS ── */
-.command-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
-.command-item{
-  display:flex;flex-direction:column;gap:6px;
-  background:var(--bg4);border:1px solid #2a1a3a;padding:10px;
-}
+/* ── COMMANDS ── */
+.command-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.command-item{background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:12px;}
 .command-top{display:flex;align-items:center;gap:8px;}
-.command-trigger{
-  background:var(--bg3);border:1px solid var(--purple-dim);
-  color:var(--purple-light);font-family:var(--mono);font-size:11px;
-  padding:6px 10px;width:140px;outline:none;
-}
-.command-response{
-  flex:1;background:var(--bg3);border:1px solid var(--purple-dim);
-  color:var(--text);font-family:var(--mono);font-size:11px;
-  padding:6px 10px;outline:none;
-}
-.command-trigger:focus,.command-response:focus{border-color:var(--purple);}
-
-/* Permisos */
-.command-perms{display:flex;gap:6px;flex-wrap:wrap;padding:4px 0;}
-.perm-label{
-  display:flex;align-items:center;gap:4px;
-  font-size:8px;font-family:var(--title);letter-spacing:1px;
-  padding:3px 8px;border:1px solid #2a1a3a;cursor:pointer;
-  user-select:none;transition:all 0.15s;
-}
+.command-trigger{background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--purple-light);font-family:var(--sans);font-size:13px;padding:8px 12px;width:140px;outline:none;}
+.command-trigger:focus{border-color:var(--purple);}
+.command-response{flex:1;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 12px;outline:none;}
+.command-response:focus{border-color:var(--purple);}
+.command-perms{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;align-items:center;}
+.perm-title{font-size:11px;color:var(--text-muted);margin-right:2px;}
+.perm-label{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:500;padding:3px 8px;border:1px solid rgba(255,255,255,0.08);border-radius:20px;cursor:pointer;user-select:none;transition:all 0.15s;color:var(--text-dim);}
 .perm-label input{display:none;}
-.perm-label.everyone  { color:#aaa; border-color:#444; }
-.perm-label.sub       { color:#f0c060; border-color:#806020; }
-.perm-label.vip       { color:#e05a7a; border-color:#802040; }
-.perm-label.mod       { color:#40d090; border-color:#206040; }
-.perm-label.broadcaster{ color:#9147ff; border-color:#4a2080; }
-.perm-label.active.everyone  { background:rgba(170,170,170,0.15); border-color:#aaa; }
-.perm-label.active.sub       { background:rgba(240,192,96,0.15);  border-color:#f0c060; }
-.perm-label.active.vip       { background:rgba(224,90,122,0.15);  border-color:#e05a7a; }
-.perm-label.active.mod       { background:rgba(64,208,144,0.15);  border-color:#40d090; }
-.perm-label.active.broadcaster{ background:rgba(145,71,255,0.15); border-color:#9147ff; }
-.perm-title{font-size:8px;color:var(--text-dim);letter-spacing:1px;margin-right:4px;}
+.perm-label.active.everyone{color:#aaa;border-color:rgba(170,170,170,0.4);background:rgba(170,170,170,0.1);}
+.perm-label.active.sub{color:var(--yellow);border-color:rgba(240,192,96,0.4);background:rgba(240,192,96,0.1);}
+.perm-label.active.vip{color:var(--pink);border-color:rgba(224,90,122,0.4);background:rgba(224,90,122,0.1);}
+.perm-label.active.mod{color:var(--green);border-color:rgba(64,208,144,0.4);background:rgba(64,208,144,0.1);}
+.perm-label.active.broadcaster{color:var(--purple-light);border-color:rgba(145,71,255,0.4);background:rgba(145,71,255,0.1);}
 
-/* ── AUTO MESSAGES ── */
-.msg-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
-.msg-item{display:flex;align-items:center;gap:8px;background:var(--bg4);border:1px solid #2a1a3a;padding:10px;}
-.msg-input{flex:1;background:var(--bg3);border:1px solid var(--purple-dim);color:var(--text);font-family:var(--mono);font-size:11px;padding:6px 10px;outline:none;}
+/* ── AUTO MSGS ── */
+.msg-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.msg-item{display:flex;align-items:center;gap:8px;}
+.msg-input{flex:1;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:10px 14px;outline:none;}
 .msg-input:focus{border-color:var(--purple);}
 
 /* ── BANNED WORDS ── */
-.words-container{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;min-height:40px;padding:8px;background:var(--bg4);border:1px solid var(--purple-dim);}
-.word-tag{
-  display:flex;align-items:center;gap:4px;
-  background:rgba(224,90,122,0.15);border:1px solid rgba(224,90,122,0.3);
-  padding:3px 8px;font-size:10px;color:var(--pink);
-}
-.word-tag button{background:none;border:none;color:var(--pink);cursor:pointer;font-size:12px;line-height:1;padding:0;}
+.words-container{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:10px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);margin-bottom:10px;}
+.word-tag{display:flex;align-items:center;gap:5px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.25);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--pink);}
+.word-tag button{background:none;border:none;color:var(--pink);cursor:pointer;font-size:14px;line-height:1;padding:0;opacity:0.7;}
+.word-tag button:hover{opacity:1;}
+
+/* ── STATS BARS ── */
+.stat-bar-item{margin-bottom:14px;}
+.stat-bar-header{display:flex;justify-content:space-between;margin-bottom:6px;}
+.stat-bar-cmd{font-size:13px;color:var(--purple-light);font-weight:500;}
+.stat-bar-count{font-size:12px;color:var(--text-dim);}
+.stat-bar-track{background:var(--bg3);height:6px;border-radius:3px;overflow:hidden;}
+.stat-bar-fill{background:var(--purple);height:100%;border-radius:3px;transition:width 0.6s ease;}
 
 /* ── TOAST ── */
-.toast{
-  position:fixed;bottom:20px;right:20px;z-index:1000;
-  background:var(--bg2);border:1px solid var(--green);
-  color:var(--green);font-family:var(--title);font-size:9px;
-  letter-spacing:1px;padding:12px 20px;
-  transform:translateY(100px);opacity:0;
-  transition:all 0.3s;
-}
+.toast{position:fixed;bottom:24px;right:24px;z-index:1000;background:var(--bg2);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius);color:var(--text);font-size:13px;font-weight:500;padding:12px 18px;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(20px);opacity:0;transition:all 0.25s;}
 .toast.show{transform:translateY(0);opacity:1;}
-.toast.error{border-color:var(--pink);color:var(--pink);}
+.toast.success{border-color:rgba(64,208,144,0.3);}
+.toast.error{border-color:rgba(224,90,122,0.3);color:var(--pink);}
 
-/* Status dot */
-.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+/* ── STATUS DOT ── */
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-right:6px;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 
-/* Loading */
-.loading{text-align:center;padding:40px;color:var(--text-dim);font-family:var(--display);font-size:24px;}
+/* ── LOADING ── */
+.loading{text-align:center;padding:60px;color:var(--text-dim);font-size:14px;}
+
+/* ── UPGRADE BANNER ── */
+.upgrade-banner{background:linear-gradient(135deg,rgba(145,71,255,0.1),rgba(145,71,255,0.05));border:1px solid var(--purple-border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:12px;}
+.upgrade-text{font-size:13px;color:var(--text-dim);}
+.upgrade-text strong{color:var(--text);}
+
+/* ── MOBILE ── */
+.hamburger{display:none;position:fixed;top:16px;left:16px;z-index:200;background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:8px 10px;cursor:pointer;font-size:18px;color:var(--text);}
+.overlay-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99;}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);transition:transform 0.25s;}
+  .sidebar.open{transform:translateX(0);}
+  .main{margin-left:0;padding:20px 16px;padding-top:64px;}
+  .stats-grid{grid-template-columns:repeat(2,1fr);}
+  .hamburger{display:flex;align-items:center;}
+  .overlay-bg.show{display:block;}
+  .command-top{flex-wrap:wrap;}
+  .command-trigger{width:100%;}
+}
 </style>
 </head>
 <body>
 
+<button class="hamburger" onclick="toggleSidebar()">☰</button>
+<div class="overlay-bg" id="overlayBg" onclick="toggleSidebar()"></div>
+
 <!-- SIDEBAR -->
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <img src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
     <div>
-      <div class="logo-text">MUFFET</div>
-      <div class="logo-sub">🐻 PANEL DEL REINO 🕷️</div>
+      <div class="logo-text">MuffetBot</div>
+      <div class="logo-badge">Panel de Control</div>
     </div>
   </div>
 
   <div class="user-card">
     <img class="user-avatar" id="userAvatar" src="" alt="">
-    <div class="user-info">
+    <div>
       <div class="user-name" id="userName">Cargando...</div>
-      <div class="user-role">👑 REY DEL CANAL</div>
+      <div class="user-plan" id="userPlan">—</div>
     </div>
   </div>
 
   <nav class="nav">
-    <div class="nav-section">GENERAL</div>
-    <div class="nav-item active" onclick="showSection('overview')">
-      <span class="nav-icon">🏠</span> INICIO
-    </div>
-    <div class="nav-item" onclick="showSection('personality')">
-      <span class="nav-icon">🕷️</span> PERSONALIDAD
-    </div>
-
-    <div class="nav-section">BOT</div>
-    <div class="nav-item" onclick="showSection('commands')">
-      <span class="nav-icon">⚡</span> COMANDOS
-    </div>
-    <div class="nav-item" onclick="showSection('automessages')">
-      <span class="nav-icon">💬</span> AUTO MENSAJES
-    </div>
-    <div class="nav-item" onclick="showSection('moderation')">
-      <span class="nav-icon">🛡️</span> MODERACIÓN
-    </div>
-
-    <div class="nav-section">SISTEMA</div>
-    <div class="nav-item" onclick="showSection('stats')">
-      <span class="nav-icon">📊</span> ESTADÍSTICAS
-    </div>
-    <div class="nav-item" onclick="window.location='/plans'">
-      <span class="nav-icon">💎</span> PLANES
-    </div>
-    <div class="nav-item" onclick="showSection('settings')">
-      <span class="nav-icon">⚙️</span> AJUSTES
-    </div>
-    <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'">
-      <span class="nav-icon">👑</span> PANEL ADMIN
-    </div>
+    <div class="nav-section">General</div>
+    <div class="nav-item active" onclick="showSection('overview')"><span class="nav-icon">🏠</span> Inicio</div>
+    <div class="nav-item" onclick="showSection('personality')"><span class="nav-icon">🕷️</span> Personalidad</div>
+    <div class="nav-section">Bot</div>
+    <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
+    <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
+    <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
+    <div class="nav-section">Análisis</div>
+    <div class="nav-item" onclick="showSection('stats')"><span class="nav-icon">📊</span> Estadísticas</div>
+    <div class="nav-section">Cuenta</div>
+    <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
+    <div class="nav-item" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Ajustes</div>
+    <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'"><span class="nav-icon">👑</span> Admin</div>
   </nav>
 
   <div class="sidebar-footer">
-    <button class="btn-logout" onclick="window.location='/logout'">🚪 CERRAR SESIÓN</button>
+    <button class="btn-logout" onclick="window.location='/logout'">Cerrar sesión</button>
   </div>
 </div>
 
 <!-- MAIN -->
 <div class="main" id="mainContent">
-  <div class="loading">🐻🕷️ Cargando la cueva...</div>
+  <div class="loading">Cargando tu panel...</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -283,7 +246,11 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 let streamerData = null;
 let userData = null;
 
-// ── Cargar datos ──
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlayBg').classList.toggle('show');
+}
+
 async function loadData() {
   const res = await fetch('/api/streamer');
   const json = await res.json();
@@ -292,34 +259,32 @@ async function loadData() {
 
   document.getElementById('userName').textContent = userData.display_name;
   document.getElementById('userAvatar').src = userData.avatar;
+  document.getElementById('userPlan').textContent =
+    userData.role === 'admin' ? '👑 Admin' :
+    streamerData.plan === 'pro' ? '⭐ Plan Pro' : '🆓 Plan Gratuito';
 
-  // Mostrar botón admin solo si es admin
-  if (userData.role === 'admin') {
-    document.getElementById('adminNavItem').style.display = 'flex';
-  }
-
+  if (userData.role === 'admin') document.getElementById('adminNavItem').style.display = 'flex';
   renderMain();
   showSection('overview');
 }
 
-// ── Mostrar sección ──
 function showSection(name) {
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
-  event?.target?.closest('.nav-item')?.classList.add('active');
+  const clicked = event?.target?.closest('.nav-item');
+  if(clicked) clicked.classList.add('active');
   const sec = document.getElementById('sec-' + name);
   if(sec) sec.classList.add('active');
+  if(window.innerWidth <= 768) toggleSidebar();
 }
 
-// ── Toast ──
 function showToast(msg, type='success') {
   const t = document.getElementById('toast');
   t.textContent = msg;
-  t.className = 'toast show' + (type==='error' ? ' error' : '');
+  t.className = `toast show ${type}`;
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
-// ── Render todo ──
 function renderMain() {
   const s = streamerData;
   const commands = s.commands || {};
@@ -331,57 +296,37 @@ function renderMain() {
   <!-- OVERVIEW -->
   <div id="sec-overview" class="section active">
     <div class="page-header">
-      <div class="page-title">🐻 BIENVENIDO AL REINO</div>
-      <div class="page-subtitle"><span class="status-dot"></span>BOT ACTIVO — ${userData.display_name.toUpperCase()}</div>
+      <div class="page-title"><span class="status-dot"></span>Bienvenido, ${userData.display_name}</div>
+      <div class="page-subtitle">Tu bot está activo y corriendo en la nube 24/7</div>
     </div>
-
     <div class="stats-grid">
       <div class="stat-card">
-        <div class="stat-icon">⚡</div>
+        <div class="stat-top"><span class="stat-label">Comandos</span><span class="stat-icon">⚡</span></div>
         <div class="stat-value">${Object.keys(commands).length}</div>
-        <div class="stat-label">COMANDOS</div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">💬</div>
+        <div class="stat-top"><span class="stat-label">Auto mensajes</span><span class="stat-icon">💬</span></div>
         <div class="stat-value">${autoMessages.length}</div>
-        <div class="stat-label">AUTO MSGS</div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">🤖</div>
-        <div class="stat-value">${s.ai_enabled ? 'ON' : 'OFF'}</div>
-        <div class="stat-label">IA MUFFET</div>
+        <div class="stat-top"><span class="stat-label">IA Muffet</span><span class="stat-icon">🤖</span></div>
+        <div class="stat-value ${s.ai_enabled ? 'on' : 'off'}">${s.ai_enabled ? 'ON' : 'OFF'}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-icon">🛡️</div>
-        <div class="stat-value">${s.mod_enabled ? 'ON' : 'OFF'}</div>
-        <div class="stat-label">MODERACIÓN</div>
+        <div class="stat-top"><span class="stat-label">Moderación</span><span class="stat-icon">🛡️</span></div>
+        <div class="stat-value ${s.mod_enabled ? 'on' : 'off'}">${s.mod_enabled ? 'ON' : 'OFF'}</div>
       </div>
     </div>
-
     <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">🕷️ ESTADO DEL BOT</span>
-      </div>
+      <div class="panel-header"><span class="panel-title-text">Estado del bot</span></div>
       <div class="panel-body">
         <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">🤖 Respuestas con IA (Groq)</div>
-            <div class="toggle-desc">Muffet responde preguntas con personalidad usando IA</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" ${s.ai_enabled ? 'checked' : ''} onchange="toggleAI(this.checked)">
-            <span class="toggle-slider"></span>
-          </label>
+          <div><div class="toggle-label">Respuestas con IA</div><div class="toggle-desc">Muffet responde preguntas con personalidad usando IA</div></div>
+          <label class="toggle"><input type="checkbox" ${s.ai_enabled?'checked':''} onchange="toggleAI(this.checked)"><span class="toggle-slider"></span></label>
         </div>
         <div class="toggle-row">
-          <div class="toggle-info">
-            <div class="toggle-label">🛡️ Moderación automática</div>
-            <div class="toggle-desc">Muffet advierte por palabras prohibidas</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" ${s.mod_enabled ? 'checked' : ''} onchange="toggleMod(this.checked)">
-            <span class="toggle-slider"></span>
-          </label>
+          <div><div class="toggle-label">Moderación automática</div><div class="toggle-desc">Muffet detecta y advierte por mensajes inapropiados</div></div>
+          <label class="toggle"><input type="checkbox" ${s.mod_enabled?'checked':''} onchange="toggleMod(this.checked)"><span class="toggle-slider"></span></label>
         </div>
       </div>
     </div>
@@ -389,394 +334,212 @@ function renderMain() {
 
   <!-- PERSONALIDAD -->
   <div id="sec-personality" class="section">
-    <div class="page-header">
-      <div class="page-title">🕷️ PERSONALIDAD</div>
-      <div class="page-subtitle">DEFINE CÓMO HABLA MUFFET EN TU CANAL</div>
-    </div>
+    <div class="page-header"><div class="page-title">Personalidad</div><div class="page-subtitle">Define cómo habla Muffet en tu canal</div></div>
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">PROMPT DE MUFFET</span></div>
+      <div class="panel-header"><span class="panel-title-text">Prompt de Muffet</span></div>
       <div class="panel-body">
         <div class="form-group">
-          <label class="form-label">INSTRUCCIONES DE PERSONALIDAD</label>
-          <textarea class="form-textarea" id="promptInput" style="min-height:200px">${s.bot_prompt || ''}</textarea>
+          <label class="form-label">Instrucciones de personalidad</label>
+          <textarea class="form-textarea" id="promptInput" style="min-height:180px">${s.bot_prompt||''}</textarea>
         </div>
-        <button class="btn btn-primary" onclick="savePrompt()">💾 GUARDAR PERSONALIDAD</button>
+        <button class="btn btn-primary" onclick="savePrompt()">Guardar personalidad</button>
       </div>
     </div>
   </div>
 
   <!-- COMANDOS -->
   <div id="sec-commands" class="section">
-    <div class="page-header">
-      <div class="page-title">⚡ COMANDOS</div>
-      <div class="page-subtitle">GESTIONA LOS COMANDOS DEL CHAT</div>
-    </div>
+    <div class="page-header"><div class="page-title">Comandos</div><div class="page-subtitle">Gestiona los comandos del chat</div></div>
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title-text">LISTA DE COMANDOS</span>
-        <button class="btn btn-success btn-sm" onclick="addCommand()">+ AGREGAR</button>
+        <span class="panel-title-text">Lista de comandos</span>
+        <button class="btn btn-success btn-sm" onclick="addCommand()">+ Agregar</button>
       </div>
       <div class="panel-body">
         <div class="command-list" id="commandList">
-          ${Object.entries(commands).map(([trigger, val]) => {
-            const response = typeof val === 'object' ? val.response : val;
-            const perms = typeof val === 'object' && val.perms ? val.perms : ['everyone'];
-            return `
-            <div class="command-item">
+          ${Object.entries(commands).map(([trigger,val])=>{
+            const response=typeof val==='object'?val.response:val;
+            const perms=typeof val==='object'&&val.perms?val.perms:['everyone'];
+            return `<div class="command-item">
               <div class="command-top">
                 <input class="command-trigger" value="${trigger}" placeholder="!comando">
                 <input class="command-response" value="${response.replace(/"/g,'&quot;')}" placeholder="Respuesta de Muffet...">
                 <button class="btn btn-danger btn-sm" onclick="removeCommand(this)">✕</button>
               </div>
               <div class="command-perms">
-                <span class="perm-title">PERMISOS:</span>
-                ${['everyone','sub','vip','mod','broadcaster'].map(p => `
-                  <label class="perm-label ${p} ${perms.includes(p) ? 'active' : ''}" onclick="togglePerm(this,'${p}')">
-                    <input type="checkbox" ${perms.includes(p) ? 'checked' : ''} data-perm="${p}">
-                    ${{everyone:'👥 TODOS', sub:'⭐ SUBS', vip:'💎 VIPS', mod:'🛡️ MODS', broadcaster:'👑 YO'}[p]}
-                  </label>
-                `).join('')}
+                <span class="perm-title">Permisos:</span>
+                ${['everyone','sub','vip','mod','broadcaster'].map(p=>`
+                  <label class="perm-label ${p} ${perms.includes(p)?'active':''}" onclick="togglePerm(this,'${p}')">
+                    <input type="checkbox" ${perms.includes(p)?'checked':''} data-perm="${p}">
+                    ${{everyone:'Todos',sub:'Subs',vip:'VIPs',mod:'Mods',broadcaster:'Yo'}[p]}
+                  </label>`).join('')}
               </div>
             </div>`;
           }).join('')}
         </div>
-        <button class="btn btn-primary" onclick="saveCommands()">💾 GUARDAR COMANDOS</button>
+        <button class="btn btn-primary" onclick="saveCommands()">Guardar comandos</button>
       </div>
     </div>
   </div>
 
   <!-- AUTO MENSAJES -->
   <div id="sec-automessages" class="section">
-    <div class="page-header">
-      <div class="page-title">💬 AUTO MENSAJES</div>
-      <div class="page-subtitle">MENSAJES AUTOMÁTICOS CADA 20 MINUTOS</div>
-    </div>
+    <div class="page-header"><div class="page-title">Auto mensajes</div><div class="page-subtitle">Mensajes automáticos cada 20 minutos</div></div>
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title-text">LISTA DE MENSAJES</span>
-        <button class="btn btn-success btn-sm" onclick="addAutoMsg()">+ AGREGAR</button>
+        <span class="panel-title-text">Lista de mensajes</span>
+        <button class="btn btn-success btn-sm" onclick="addAutoMsg()">+ Agregar</button>
       </div>
       <div class="panel-body">
         <div class="msg-list" id="msgList">
-          ${autoMessages.map(msg => `
+          ${autoMessages.map(msg=>`
             <div class="msg-item">
               <input class="msg-input" value="${msg.replace(/"/g,'&quot;')}" placeholder="Mensaje automático...">
               <button class="btn btn-danger btn-sm" onclick="removeMsg(this)">✕</button>
-            </div>
-          `).join('')}
+            </div>`).join('')}
         </div>
-        <button class="btn btn-primary" onclick="saveAutoMessages()">💾 GUARDAR MENSAJES</button>
+        <button class="btn btn-primary" onclick="saveAutoMessages()">Guardar mensajes</button>
       </div>
     </div>
   </div>
 
   <!-- MODERACIÓN -->
   <div id="sec-moderation" class="section">
-    <div class="page-header">
-      <div class="page-title">🛡️ MODERACIÓN</div>
-      <div class="page-subtitle">PROTEGE TU CUEVA CON ESTILO</div>
-    </div>
+    <div class="page-header"><div class="page-title">Moderación</div><div class="page-subtitle">Protege tu chat con estilo</div></div>
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">PALABRAS PROHIBIDAS</span></div>
+      <div class="panel-header"><span class="panel-title-text">Palabras prohibidas</span></div>
       <div class="panel-body">
         <div class="form-group">
-          <label class="form-label">PALABRAS (presiona Enter para agregar)</label>
+          <label class="form-label">Palabras (presiona Enter para agregar)</label>
           <div class="words-container" id="wordsContainer">
-            ${bannedWords.map(w => `
-              <span class="word-tag">${w}<button onclick="removeWord(this,'${w}')">×</button></span>
-            `).join('')}
+            ${bannedWords.map(w=>`<span class="word-tag">${w}<button onclick="removeWord(this,'${w}')">×</button></span>`).join('')}
           </div>
           <input class="form-input" id="wordInput" placeholder="Escribe una palabra y presiona Enter..." onkeydown="addWord(event)">
         </div>
         <div class="form-group">
-          <label class="form-label">MENSAJE DE ADVERTENCIA DE MUFFET</label>
+          <label class="form-label">Mensaje de advertencia</label>
           <input class="form-input" id="warnInput" value="${(s.warn_message||'').replace(/"/g,'&quot;')}" placeholder="Mensaje de advertencia...">
         </div>
-        <button class="btn btn-primary" onclick="saveModeration()">💾 GUARDAR MODERACIÓN</button>
+        <button class="btn btn-primary" onclick="saveModeration()">Guardar moderación</button>
       </div>
     </div>
   </div>
 
-  <!-- ESTADÍSTICAS -->
+  <!-- STATS -->
   <div id="sec-stats" class="section">
-    <div class="page-header">
-      <div class="page-title">📊 ESTADÍSTICAS</div>
-      <div class="page-subtitle">USO DE COMANDOS EN EL CANAL</div>
-    </div>
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">COMANDOS MÁS USADOS</span></div>
-      <div class="panel-body" id="statsContent">
-        ${(() => {
-          const stats = s.command_stats || {};
-          const sorted = Object.entries(stats).sort((a,b) => b[1]-a[1]);
-          if (sorted.length === 0) return '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:20px">Aún no hay estadísticas — usa comandos en el chat para verlas aquí 🕷️</div>';
-          const max = sorted[0][1];
-          return sorted.map(([cmd, count]) => `
-            <div style="margin-bottom:12px;">
-              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-                <span style="color:var(--purple-light);font-size:11px;">${cmd}</span>
-                <span style="color:var(--text-dim);font-size:10px;">${count} usos</span>
-              </div>
-              <div style="background:#1a1a25;height:8px;border-radius:2px;overflow:hidden;">
-                <div style="background:var(--purple);height:100%;width:${Math.round((count/max)*100)}%;transition:width 0.5s;"></div>
-              </div>
-            </div>
-          `).join('');
-        })()}
+    <div class="page-header"><div class="page-title">Estadísticas</div><div class="page-subtitle">Uso de comandos en tu canal</div></div>
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stat-card">
+        <div class="stat-top"><span class="stat-label">Comandos usados</span><span class="stat-icon">⚡</span></div>
+        <div class="stat-value">${Object.keys(s.command_stats||{}).length}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><span class="stat-label">Total de usos</span><span class="stat-icon">🔢</span></div>
+        <div class="stat-value">${Object.values(s.command_stats||{}).reduce((a,b)=>a+b,0)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><span class="stat-label">Más popular</span><span class="stat-icon">🏆</span></div>
+        <div class="stat-value" style="font-size:18px">${Object.entries(s.command_stats||{}).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—'}</div>
       </div>
     </div>
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">RESUMEN</span></div>
+      <div class="panel-header"><span class="panel-title-text">Comandos más usados</span></div>
       <div class="panel-body">
-        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
-          <div class="stat-card">
-            <div class="stat-icon">⚡</div>
-            <div class="stat-value">${Object.keys(s.command_stats||{}).length}</div>
-            <div class="stat-label">COMANDOS USADOS</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🔢</div>
-            <div class="stat-value">${Object.values(s.command_stats||{}).reduce((a,b)=>a+b,0)}</div>
-            <div class="stat-label">TOTAL DE USOS</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon">🏆</div>
-            <div class="stat-value" style="font-size:18px;">${Object.entries(s.command_stats||{}).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'N/A'}</div>
-            <div class="stat-label">MÁS POPULAR</div>
-          </div>
-        </div>
+        ${(()=>{
+          const stats=s.command_stats||{};
+          const sorted=Object.entries(stats).sort((a,b)=>b[1]-a[1]);
+          if(!sorted.length) return '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px">Aún no hay estadísticas — usa comandos en el chat 🕷️</div>';
+          const max=sorted[0][1];
+          return sorted.map(([cmd,count])=>`
+            <div class="stat-bar-item">
+              <div class="stat-bar-header">
+                <span class="stat-bar-cmd">${cmd}</span>
+                <span class="stat-bar-count">${count} usos</span>
+              </div>
+              <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${Math.round((count/max)*100)}%"></div></div>
+            </div>`).join('');
+        })()}
       </div>
     </div>
   </div>
 
   <!-- AJUSTES -->
   <div id="sec-settings" class="section">
-    <div class="page-header">
-      <div class="page-title">⚙️ AJUSTES</div>
-      <div class="page-subtitle">CONFIGURACIÓN GENERAL</div>
-    </div>
+    <div class="page-header"><div class="page-title">Ajustes</div><div class="page-subtitle">Configuración de tu cuenta</div></div>
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">INFO DEL CANAL</span></div>
+      <div class="panel-header"><span class="panel-title-text">Información del canal</span></div>
       <div class="panel-body">
-        <div class="form-group">
-          <label class="form-label">CANAL DE TWITCH</label>
-          <input class="form-input" value="${userData.display_name}" disabled>
-        </div>
-        <div class="form-group">
-          <label class="form-label">ID DE TWITCH</label>
-          <input class="form-input" value="${userData.id}" disabled>
-        </div>
-        <div class="form-group">
-          <label class="form-label">PLAN ACTUAL</label>
-          <input class="form-input" value="${s.plan === 'pro' ? '⭐ Plan Pro' : s.plan === 'admin' ? '👑 Admin' : '🆓 Plan Gratuito'}" disabled>
-        </div>
-        ${s.plan !== 'pro' && s.plan !== 'admin' ? `
-        <div style="background:#0a1a0a;border:1px solid #1a4a1a;padding:12px;margin-top:8px;">
-          <div style="font-family:var(--title);font-size:8px;color:var(--green);letter-spacing:1px;margin-bottom:6px;">💎 DESBLOQUEA EL PLAN PRO</div>
-          <div style="font-size:10px;color:var(--text-dim);margin-bottom:10px;">Obtén bot con nombre propio, IA ilimitada y más por solo $5/mes</div>
-          <button class="btn btn-primary" onclick="window.location='/plans'">VER PLANES →</button>
-        </div>` : ''}
+        <div class="form-group"><label class="form-label">Canal de Twitch</label><input class="form-input" value="${userData.display_name}" disabled></div>
+        <div class="form-group"><label class="form-label">ID de Twitch</label><input class="form-input" value="${userData.id}" disabled></div>
+        <div class="form-group"><label class="form-label">Plan actual</label><input class="form-input" value="${s.plan==='pro'?'⭐ Plan Pro':s.plan==='admin'?'👑 Admin':'🆓 Plan Gratuito'}" disabled></div>
+        ${s.plan!=='pro'&&s.plan!=='admin'?`
+        <div class="upgrade-banner">
+          <div class="upgrade-text"><strong>Desbloquea el Plan Pro</strong><br>Bot con nombre propio, IA ilimitada y más por solo $5/mes</div>
+          <button class="btn btn-primary" onclick="window.location='/plans'">Ver planes →</button>
+        </div>`:''}
       </div>
     </div>
-
-    <!-- BOT PERSONALIZADO — Solo Plan Pro -->
-    ${s.plan === 'pro' || s.plan === 'admin' ? `
+    ${s.plan==='pro'||s.plan==='admin'?`
     <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">🤖 BOT PERSONALIZADO ⭐ PRO</span>
-      </div>
+      <div class="panel-header"><span class="panel-title-text">🤖 Bot personalizado — Pro</span></div>
       <div class="panel-body">
-        <div style="font-size:10px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-          Conecta tu propio bot de Twitch para que aparezca con tu nombre en el chat.<br>
-          Necesitas crear una cuenta de Twitch para el bot y generar un token en 
-          <a href="https://twitchtokengenerator.com" target="_blank" style="color:var(--purple-light);">twitchtokengenerator.com</a>~ 🕷️
-        </div>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
+          Conecta tu propio bot para que aparezca con tu nombre en el chat.
+          Genera un token en <a href="https://twitchtokengenerator.com" target="_blank" style="color:var(--purple-light)">twitchtokengenerator.com</a>
+        </p>
+        <div class="form-group"><label class="form-label">Nombre de usuario del bot</label><input class="form-input" id="customBotUsername" value="${s.custom_bot_username||''}" placeholder="Ej: MuffetBot_TuCanal"></div>
         <div class="form-group">
-          <label class="form-label">NOMBRE DE USUARIO DEL BOT</label>
-          <input class="form-input" id="customBotUsername" value="${s.custom_bot_username || ''}" placeholder="Ej: MuffetBot_TuCanal">
+          <label class="form-label">OAuth Token</label>
+          <input class="form-input" id="customBotToken" type="password" value="${s.custom_bot_token||''}" placeholder="oauth:xxxxxxxxx">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">⚠️ Nunca compartas este token con nadie</div>
         </div>
-        <div class="form-group">
-          <label class="form-label">OAUTH TOKEN DEL BOT</label>
-          <input class="form-input" id="customBotToken" type="password" value="${s.custom_bot_token || ''}" placeholder="oauth:xxxxxxxxxxxxxxxxx">
-          <div style="font-size:9px;color:var(--text-dim);margin-top:4px;">⚠️ Nunca compartas este token con nadie</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="saveCustomBot()">Guardar bot</button>
+          ${s.custom_bot_username?`<button class="btn btn-danger" onclick="removeCustomBot()">Quitar bot</button>`:''}
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-primary" onclick="saveCustomBot()">💾 GUARDAR BOT</button>
-          ${s.custom_bot_username ? `<button class="btn btn-danger" onclick="removeCustomBot()">🗑️ QUITAR BOT</button>` : ''}
-        </div>
-        ${s.custom_bot_username ? `
-        <div style="margin-top:12px;background:#0a1a0a;border:1px solid #1a4a1a;padding:10px;font-size:10px;color:var(--green);">
-          ✅ Bot activo: <strong>${s.custom_bot_username}</strong> — aparece en tu chat con este nombre
-        </div>` : ''}
+        ${s.custom_bot_username?`<div style="margin-top:12px;padding:12px;background:rgba(64,208,144,0.08);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);font-size:13px;color:var(--green);">✅ Bot activo: <strong>${s.custom_bot_username}</strong></div>`:''}
       </div>
-    </div>` : ''}
+    </div>`:''}
   </div>
   `;
 }
 
 // ── Acciones ──
-async function toggleAI(enabled) {
-  await fetch('/api/ai-toggle', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled}) });
-  streamerData.ai_enabled = enabled;
-  showToast(enabled ? '🤖 IA activada! Muffet responde con IA 🕷️' : '🤖 IA desactivada');
+async function toggleAI(e){await fetch('/api/ai-toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:e})});streamerData.ai_enabled=e;showToast(e?'IA activada ✓':'IA desactivada');}
+async function toggleMod(e){await fetch('/api/moderation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mod_enabled:e,banned_words:streamerData.banned_words,warn_message:streamerData.warn_message})});streamerData.mod_enabled=e;showToast(e?'Moderación activada ✓':'Moderación desactivada');}
+async function savePrompt(){const p=document.getElementById('promptInput').value;const r=await fetch('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:p})});r.ok?showToast('Personalidad guardada ✓'):showToast('Error al guardar','error');}
+
+function togglePerm(label,perm){
+  const cb=label.querySelector('input');const item=label.closest('.command-item');
+  if(perm==='everyone'&&!cb.checked){item.querySelectorAll('.perm-label').forEach(l=>{l.classList.remove('active');l.querySelector('input').checked=false;});cb.checked=true;label.classList.add('active');return;}
+  if(perm!=='everyone'){const el=item.querySelector('.perm-label.everyone');if(el){el.classList.remove('active');el.querySelector('input').checked=false;}}
+  cb.checked=!cb.checked;label.classList.toggle('active',cb.checked);
+  const any=Array.from(item.querySelectorAll('.perm-label input')).some(i=>i.checked);
+  if(!any){const el=item.querySelector('.perm-label.everyone');if(el){el.classList.add('active');el.querySelector('input').checked=true;}}
 }
-
-async function toggleMod(enabled) {
-  await fetch('/api/moderation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mod_enabled:enabled, banned_words:streamerData.banned_words, warn_message:streamerData.warn_message}) });
-  streamerData.mod_enabled = enabled;
-  showToast(enabled ? '🛡️ Moderación activada!' : '🛡️ Moderación desactivada');
-}
-
-async function savePrompt() {
-  const prompt = document.getElementById('promptInput').value;
-  const res = await fetch('/api/prompt', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({prompt}) });
-  if(res.ok) { streamerData.bot_prompt = prompt; showToast('🕷️ ¡Personalidad guardada, dearie! ♥'); }
-  else showToast('Error al guardar', 'error');
-}
-
-function togglePerm(label, perm) {
-  const cb = label.querySelector('input');
-  const item = label.closest('.command-item');
-  const perms = getPerms(item);
-
-  // Si es "everyone" y lo activas, desactiva los demás
-  if (perm === 'everyone' && !cb.checked) {
-    item.querySelectorAll('.perm-label').forEach(l => {
-      l.classList.remove('active');
-      l.querySelector('input').checked = false;
-    });
-    cb.checked = true;
-    label.classList.add('active');
-    return;
-  }
-
-  // Si activas otro, desactiva "everyone"
-  if (perm !== 'everyone') {
-    const everyoneLabel = item.querySelector('.perm-label.everyone');
-    if (everyoneLabel) {
-      everyoneLabel.classList.remove('active');
-      everyoneLabel.querySelector('input').checked = false;
-    }
-  }
-
-  cb.checked = !cb.checked;
-  label.classList.toggle('active', cb.checked);
-
-  // Si no queda ninguno activo, activa "everyone" por defecto
-  const anyActive = Array.from(item.querySelectorAll('.perm-label input')).some(i => i.checked);
-  if (!anyActive) {
-    const everyoneLabel = item.querySelector('.perm-label.everyone');
-    if (everyoneLabel) {
-      everyoneLabel.classList.add('active');
-      everyoneLabel.querySelector('input').checked = true;
-    }
-  }
-}
-
-function getPerms(item) {
-  return Array.from(item.querySelectorAll('.perm-label input:checked')).map(i => i.dataset.perm);
-}
-
-function addCommand() {
-  const list = document.getElementById('commandList');
-  const div = document.createElement('div');
-  div.className = 'command-item';
-  div.innerHTML = `
-    <div class="command-top">
-      <input class="command-trigger" value="!nuevo" placeholder="!comando">
-      <input class="command-response" value="Respuesta de Muffet" placeholder="Respuesta...">
-      <button class="btn btn-danger btn-sm" onclick="removeCommand(this)">✕</button>
-    </div>
-    <div class="command-perms">
-      <span class="perm-title">PERMISOS:</span>
-      ${['everyone','sub','vip','mod','broadcaster'].map(p => `
-        <label class="perm-label ${p} ${p==='everyone'?'active':''}" onclick="togglePerm(this,'${p}')">
-          <input type="checkbox" ${p==='everyone'?'checked':''} data-perm="${p}">
-          ${{everyone:'👥 TODOS', sub:'⭐ SUBS', vip:'💎 VIPS', mod:'🛡️ MODS', broadcaster:'👑 YO'}[p]}
-        </label>
-      `).join('')}
-    </div>`;
+function getPerms(item){return Array.from(item.querySelectorAll('.perm-label input:checked')).map(i=>i.dataset.perm);}
+function addCommand(){
+  const list=document.getElementById('commandList');const div=document.createElement('div');div.className='command-item';
+  div.innerHTML=`<div class="command-top"><input class="command-trigger" value="!nuevo" placeholder="!comando"><input class="command-response" value="Respuesta de Muffet" placeholder="Respuesta..."><button class="btn btn-danger btn-sm" onclick="removeCommand(this)">✕</button></div>
+  <div class="command-perms"><span class="perm-title">Permisos:</span>${['everyone','sub','vip','mod','broadcaster'].map(p=>`<label class="perm-label ${p} ${p==='everyone'?'active':''}" onclick="togglePerm(this,'${p}')"><input type="checkbox" ${p==='everyone'?'checked':''} data-perm="${p}">${{everyone:'Todos',sub:'Subs',vip:'VIPs',mod:'Mods',broadcaster:'Yo'}[p]}</label>`).join('')}</div>`;
   list.appendChild(div);
 }
-
-function removeCommand(btn) { btn.closest('.command-item').remove(); }
-
-async function saveCommands() {
-  const items = document.querySelectorAll('.command-item');
-  const commands = {};
-  items.forEach(item => {
-    const trigger  = item.querySelector('.command-trigger').value.trim();
-    const response = item.querySelector('.command-response').value.trim();
-    const perms    = getPerms(item);
-    if (trigger && response) {
-      commands[trigger] = { response, perms: perms.length ? perms : ['everyone'] };
-    }
-  });
-  const res = await fetch('/api/commands', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({commands}) });
-  if(res.ok) { streamerData.commands = commands; showToast('⚡ ¡Comandos guardados! 🐻'); }
-  else showToast('Error al guardar', 'error');
+function removeCommand(btn){btn.closest('.command-item').remove();}
+async function saveCommands(){
+  const items=document.querySelectorAll('.command-item');const commands={};
+  items.forEach(item=>{const t=item.querySelector('.command-trigger').value.trim();const r=item.querySelector('.command-response').value.trim();const p=getPerms(item);if(t&&r)commands[t]={response:r,perms:p.length?p:['everyone']};});
+  const res=await fetch('/api/commands',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({commands})});
+  res.ok?(streamerData.commands=commands,showToast('Comandos guardados ✓')):showToast('Error al guardar','error');
 }
+function addAutoMsg(){const list=document.getElementById('msgList');const div=document.createElement('div');div.className='msg-item';div.innerHTML=`<input class="msg-input" value="Nuevo mensaje automático 🕷️" placeholder="Mensaje..."><button class="btn btn-danger btn-sm" onclick="removeMsg(this)">✕</button>`;list.appendChild(div);}
+function removeMsg(btn){btn.closest('.msg-item').remove();}
+async function saveAutoMessages(){const inputs=document.querySelectorAll('.msg-input');const auto_messages=Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);const res=await fetch('/api/auto-messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({auto_messages})});res.ok?(streamerData.auto_messages=auto_messages,showToast('Mensajes guardados ✓')):showToast('Error','error');}
+function addWord(e){if(e.key!=='Enter')return;const input=document.getElementById('wordInput');const word=input.value.trim().toLowerCase();if(!word)return;const container=document.getElementById('wordsContainer');const span=document.createElement('span');span.className='word-tag';span.innerHTML=`${word}<button onclick="removeWord(this)">×</button>`;container.appendChild(span);input.value='';}
+function removeWord(btn){btn.closest('.word-tag').remove();}
+async function saveModeration(){const banned_words=Array.from(document.querySelectorAll('.word-tag')).map(el=>el.textContent.replace('×','').trim());const warn_message=document.getElementById('warnInput').value;const mod_enabled=streamerData.mod_enabled;const res=await fetch('/api/moderation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mod_enabled,banned_words,warn_message})});res.ok?(streamerData.banned_words=banned_words,streamerData.warn_message=warn_message,showToast('Moderación guardada ✓')):showToast('Error','error');}
+async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
+async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 
-function addAutoMsg() {
-  const list = document.getElementById('msgList');
-  const div = document.createElement('div');
-  div.className = 'msg-item';
-  div.innerHTML = `<input class="msg-input" value="Nuevo mensaje automático 🐻🕷️" placeholder="Mensaje..."><button class="btn btn-danger btn-sm" onclick="removeMsg(this)">✕</button>`;
-  list.appendChild(div);
-}
-
-function removeMsg(btn) { btn.closest('.msg-item').remove(); }
-
-async function saveAutoMessages() {
-  const inputs = document.querySelectorAll('.msg-input');
-  const auto_messages = Array.from(inputs).map(i => i.value.trim()).filter(Boolean);
-  const res = await fetch('/api/auto-messages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({auto_messages}) });
-  if(res.ok) { streamerData.auto_messages = auto_messages; showToast('💬 ¡Mensajes guardados! 🕷️'); }
-  else showToast('Error al guardar', 'error');
-}
-
-function addWord(e) {
-  if(e.key !== 'Enter') return;
-  const input = document.getElementById('wordInput');
-  const word = input.value.trim().toLowerCase();
-  if(!word) return;
-  const container = document.getElementById('wordsContainer');
-  const span = document.createElement('span');
-  span.className = 'word-tag';
-  span.innerHTML = `${word}<button onclick="removeWord(this,'${word}')">×</button>`;
-  container.appendChild(span);
-  input.value = '';
-}
-
-function removeWord(btn) { btn.closest('.word-tag').remove(); }
-
-async function saveModeration() {
-  const mod_enabled = streamerData.mod_enabled;
-  const banned_words = Array.from(document.querySelectorAll('.word-tag')).map(el => el.textContent.replace('×','').trim());
-  const warn_message = document.getElementById('warnInput').value;
-  const res = await fetch('/api/moderation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mod_enabled, banned_words, warn_message}) });
-  if(res.ok) { streamerData.banned_words = banned_words; streamerData.warn_message = warn_message; showToast('🛡️ ¡Moderación guardada! 🐻'); }
-  else showToast('Error al guardar', 'error');
-}
-
-async function saveCustomBot() {
-  const username = document.getElementById('customBotUsername')?.value.trim();
-  const token    = document.getElementById('customBotToken')?.value.trim();
-  if (!username || !token) { showToast('Completa ambos campos, dearie~ 🕷️', 'error'); return; }
-  if (!token.startsWith('oauth:')) { showToast('El token debe empezar con oauth:', 'error'); return; }
-  const res = await fetch('/api/custom-bot', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ custom_bot_username: username, custom_bot_token: token }) });
-  if(res.ok) { showToast('🤖 ¡Bot personalizado guardado! 🕷️'); setTimeout(()=>location.reload(), 1500); }
-  else showToast('Error al guardar', 'error');
-}
-
-async function removeCustomBot() {
-  if (!confirm('¿Quitar el bot personalizado? Muffet_Osoking volverá a tu chat.')) return;
-  const res = await fetch('/api/custom-bot', { method:'DELETE' });
-  if(res.ok) { showToast('🤖 Bot personalizado eliminado'); setTimeout(()=>location.reload(), 1500); }
-  else showToast('Error al eliminar', 'error');
-}
-
-// ── Init ──
 loadData();
 </script>
 </body>
