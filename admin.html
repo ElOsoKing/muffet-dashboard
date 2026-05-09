@@ -188,6 +188,7 @@ function renderStreamers() {
         <tr>
           <th>STREAMER</th>
           <th>ROL</th>
+          <th>PLAN</th>
           <th>IA</th>
           <th>MOD</th>
           <th>REGISTRO</th>
@@ -203,6 +204,13 @@ function renderStreamers() {
               </a>
             </td>
             <td>${getBadge(s.role)}</td>
+            <td>
+              ${s.plan === 'pro' 
+                ? `<span style="color:var(--yellow);font-family:var(--title);font-size:8px;">⭐ PRO</span>` 
+                : s.plan === 'admin'
+                ? `<span style="color:var(--purple-light);font-family:var(--title);font-size:8px;">👑 ADMIN</span>`
+                : `<span style="color:var(--text-dim);font-family:var(--title);font-size:8px;">🆓 FREE</span>`}
+            </td>
             <td style="color:${s.ai_enabled?'var(--green)':'var(--text-dim)'}">${s.ai_enabled?'ON':'OFF'}</td>
             <td style="color:${s.mod_enabled?'var(--green)':'var(--text-dim)'}">${s.mod_enabled?'ON':'OFF'}</td>
             <td style="color:var(--text-dim);font-size:9px;">${new Date(s.created_at).toLocaleDateString('es-DO')}</td>
@@ -212,6 +220,8 @@ function renderStreamers() {
                   ${!s.approved || s.role === 'pending' ? `<button class="btn-action btn-approve" onclick="approve(${s.id})">✅ APROBAR</button>` : ''}
                   ${s.approved && s.role !== 'blocked' ? `<button class="btn-action btn-revoke" onclick="revoke(${s.id})">❌ REVOCAR</button>` : ''}
                   ${s.role === 'blocked' ? `<button class="btn-action btn-approve" onclick="approve(${s.id})">🔓 RESTAURAR</button>` : ''}
+                  ${s.approved && s.plan !== 'pro' && s.plan !== 'admin' ? `<button class="btn-action" style="color:var(--yellow);border-color:#806020;" onclick="setPlan(${s.id},'pro')">⭐ DAR PRO</button>` : ''}
+                  ${s.plan === 'pro' ? `<button class="btn-action" style="color:var(--text-dim);border-color:#444;" onclick="setPlan(${s.id},'free')">↓ BAJAR FREE</button>` : ''}
                 ` : '<span style="color:var(--yellow);font-size:9px;">👑 TÚ</span>'}
               </div>
             </td>
@@ -231,6 +241,12 @@ async function loadStreamers() {
   } catch (err) {
     document.getElementById('streamersContent').innerHTML = '<div class="empty">Error cargando streamers</div>';
   }
+}
+
+async function setPlan(id, plan) {
+  const res = await fetch(`/api/admin/plan/${id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({plan}) });
+  if (res.ok) { showToast(plan === 'pro' ? '⭐ Plan Pro activado!' : '↓ Plan bajado a Free'); loadStreamers(); }
+  else showToast('Error al cambiar plan', 'error');
 }
 
 async function approve(id) {
