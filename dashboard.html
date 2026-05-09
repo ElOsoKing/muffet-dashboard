@@ -259,6 +259,9 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
     <div class="nav-item" onclick="showSection('settings')">
       <span class="nav-icon">⚙️</span> AJUSTES
     </div>
+    <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'">
+      <span class="nav-icon">👑</span> PANEL ADMIN
+    </div>
   </nav>
 
   <div class="sidebar-footer">
@@ -286,6 +289,11 @@ async function loadData() {
 
   document.getElementById('userName').textContent = userData.display_name;
   document.getElementById('userAvatar').src = userData.avatar;
+
+  // Mostrar botón admin solo si es admin
+  if (userData.role === 'admin') {
+    document.getElementById('adminNavItem').style.display = 'flex';
+  }
 
   renderMain();
   showSection('overview');
