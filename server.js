@@ -245,6 +245,7 @@ app.post('/api/admin/role/:id', requireAdmin, async (req, res) => {
 //  RUTAS PROTEGIDAS
 // ══════════════════════════════════════════
 app.get('/plans', (req, res) => res.sendFile(path.join(__dirname, 'plans.html')));
+app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
 
 // API admin — activar plan pro
 app.post('/api/admin/plan/:id', requireAdmin, async (req, res) => {
