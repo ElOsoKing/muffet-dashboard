@@ -67,6 +67,7 @@ async function sbUpdate(table, row, filters = {}) {
 
 function requireAuth(req, res, next) {
   if (!req.session.user) return res.redirect('/');
+  if (!req.session.user.approved) return res.redirect('/pending');
   next();
 }
 
@@ -119,16 +120,21 @@ app.get('/auth/twitch/callback', async (req, res) => {
 
     let streamer = await sbSelect('streamers', { twitch_id: twitchUser.id });
 
+    // Tu cuenta es siempre admin y aprobada
+    const isAdmin = twitchUser.login.toLowerCase() === 'elosoking1';
+
     if (!streamer) {
       streamer = await sbInsert('streamers', {
         twitch_id: twitchUser.id,
         twitch_username: twitchUser.login,
-        bot_prompt: `Eres Muffet, la araña de Undertale y guardiana de la cueva del Rey Oso. Los viewers son "súbditos del reino". Hablas en español, eres coqueta y misteriosa. Usas emojis 🕷️ 🐻 👑 ♥. Respuestas cortas (máximo 2 oraciones).`,
-        commands: { '!miel': '🍯🐻 ¡Miel fresca para todos! ♥', '!té': '☕🕷️ ¡Té de araña con miel, dearie! 🐻♥', '!redes': '🐻👑 ¡Síguenos! 🕷️♥', '!cueva': '🐻🕷️ ¡Bienvenido a la Cueva del Rey! 👑♥', '!muffet': '🕷️ ¡Soy Muffet, guardiana del reino! 🐻👑♥' },
-        auto_messages: ['🐻👑 ¡Sigan el canal, súbditos! 🕷️♥', '🍯🕷️ ¡Escribe !miel o !té! 🐻', '👑🕷️ ¡Usa !ask para preguntarme! 🐻♥'],
+        bot_prompt: `Eres Muffet, la araña de Undertale. Eres la consejera y asistente del canal de ${twitchUser.display_name}. Los viewers son "súbditos" o "dearies". Hablas en español, eres coqueta y misteriosa. Usas emojis 🕷️ 👑 ♥. Respuestas cortas (máximo 2 oraciones).`,
+        commands: { '!miel': '🍯 ¡Miel fresca para todos! ♥', '!muffet': '🕷️ ¡Soy Muffet, consejera del canal! 👑♥', '!redes': '👑 ¡Síguenos en redes! 🕷️♥' },
+        auto_messages: ['👑 ¡Recuerden seguir el canal! 🕷️♥', '🕷️ ¡Usa !ask para preguntarme! ♥'],
         ai_enabled: true, mod_enabled: false, banned_words: [],
         warn_message: '⚠️ Cuidado, dearie~ 🕷️',
-        access_token: tokenData.access_token
+        access_token: tokenData.access_token,
+        role: isAdmin ? 'admin' : 'pending',
+        approved: isAdmin ? true : false,
       });
     } else {
       await sbUpdate('streamers', { access_token: tokenData.access_token }, { twitch_id: twitchUser.id });
@@ -141,9 +147,14 @@ app.get('/auth/twitch/callback', async (req, res) => {
       username: twitchUser.login,
       display_name: twitchUser.display_name,
       avatar: twitchUser.profile_image_url,
-      streamerId: streamer.id
+      streamerId: streamer.id,
+      role: streamer.role || 'pending',
+      approved: streamer.approved || false,
     };
 
+    // Redirigir según rol
+    if (!streamer.approved) return res.redirect('/pending');
+    if (streamer.role === 'admin') return res.redirect('/admin');
     res.redirect('/dashboard');
   } catch (err) {
     console.error('Auth error:', err.message);
@@ -152,6 +163,83 @@ app.get('/auth/twitch/callback', async (req, res) => {
 });
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
+
+// ── Página de espera para pendientes ──
+app.get('/pending', (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  if (req.session.user.approved) return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'pending.html'));
+});
+
+// ── Panel de admin ──
+function requireAdmin(req, res, next) {
+  if (!req.session.user) return res.redirect('/');
+  if (req.session.user.role !== 'admin') return res.redirect('/dashboard');
+  next();
+}
+
+app.get('/admin', requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// API admin — obtener todos los streamers
+app.get('/api/admin/streamers', requireAdmin, async (req, res) => {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/streamers?select=id,twitch_username,twitch_id,role,approved,created_at,ai_enabled,mod_enabled&order=created_at.desc`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API admin — aprobar streamer
+app.post('/api/admin/approve/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...sbHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify({ approved: true, role: 'streamer' })
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API admin — revocar acceso
+app.post('/api/admin/revoke/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...sbHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify({ approved: false, role: 'blocked' })
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API admin — cambiar rol
+app.post('/api/admin/role/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    if (!['admin','streamer','pending','blocked'].includes(role)) return res.status(400).json({ error: 'Rol inválido' });
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...sbHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify({ role, approved: role !== 'pending' && role !== 'blocked' })
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ══════════════════════════════════════════
 //  RUTAS PROTEGIDAS
