@@ -253,6 +253,9 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
     </div>
 
     <div class="nav-section">SISTEMA</div>
+    <div class="nav-item" onclick="showSection('stats')">
+      <span class="nav-icon">📊</span> ESTADÍSTICAS
+    </div>
     <div class="nav-item" onclick="showSection('settings')">
       <span class="nav-icon">⚙️</span> AJUSTES
     </div>
@@ -479,6 +482,58 @@ function renderMain() {
           <input class="form-input" id="warnInput" value="${(s.warn_message||'').replace(/"/g,'&quot;')}" placeholder="Mensaje de advertencia...">
         </div>
         <button class="btn btn-primary" onclick="saveModeration()">💾 GUARDAR MODERACIÓN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ESTADÍSTICAS -->
+  <div id="sec-stats" class="section">
+    <div class="page-header">
+      <div class="page-title">📊 ESTADÍSTICAS</div>
+      <div class="page-subtitle">USO DE COMANDOS EN EL CANAL</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">COMANDOS MÁS USADOS</span></div>
+      <div class="panel-body" id="statsContent">
+        ${(() => {
+          const stats = s.command_stats || {};
+          const sorted = Object.entries(stats).sort((a,b) => b[1]-a[1]);
+          if (sorted.length === 0) return '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:20px">Aún no hay estadísticas — usa comandos en el chat para verlas aquí 🕷️</div>';
+          const max = sorted[0][1];
+          return sorted.map(([cmd, count]) => `
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <span style="color:var(--purple-light);font-size:11px;">${cmd}</span>
+                <span style="color:var(--text-dim);font-size:10px;">${count} usos</span>
+              </div>
+              <div style="background:#1a1a25;height:8px;border-radius:2px;overflow:hidden;">
+                <div style="background:var(--purple);height:100%;width:${Math.round((count/max)*100)}%;transition:width 0.5s;"></div>
+              </div>
+            </div>
+          `).join('');
+        })()}
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">RESUMEN</span></div>
+      <div class="panel-body">
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+          <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-value">${Object.keys(s.command_stats||{}).length}</div>
+            <div class="stat-label">COMANDOS USADOS</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🔢</div>
+            <div class="stat-value">${Object.values(s.command_stats||{}).reduce((a,b)=>a+b,0)}</div>
+            <div class="stat-label">TOTAL DE USOS</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🏆</div>
+            <div class="stat-value" style="font-size:18px;">${Object.entries(s.command_stats||{}).sort((a,b)=>b[1]-a[1])[0]?.[0] || 'N/A'}</div>
+            <div class="stat-label">MÁS POPULAR</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
