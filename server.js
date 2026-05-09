@@ -250,7 +250,7 @@ app.get('/api/streamer', requireAuth, async (req, res) => {
   try {
     const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
     if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
-    res.json({ streamer, user: req.session.user });
+    res.json({ streamer, user: { ...req.session.user, role: streamer.role } });
   } catch (err) {
     console.error('GET /api/streamer:', err.message);
     res.status(500).json({ error: 'Error del servidor' });
