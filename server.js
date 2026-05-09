@@ -47,7 +47,7 @@ function requireAuth(req, res, next) {
 // Página de login
 app.get('/', (req, res) => {
   if (req.session.user) return res.redirect('/dashboard');
-  res.sendFile(path.join(__dirname, 'views', 'login.html'));
+  res.sendFile(path.join(__dirname, 'login.html'));
 });
 
 // Iniciar login con Twitch
@@ -168,7 +168,7 @@ app.get('/logout', (req, res) => {
 
 // Dashboard principal
 app.get('/dashboard', requireAuth, async (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'dashboard.html'));
+  res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
 // API — obtener datos del streamer
