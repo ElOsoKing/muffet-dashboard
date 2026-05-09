@@ -1,7 +1,6 @@
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
-const https = require('https');
 
 const app = express();
 
@@ -12,15 +11,23 @@ const TWITCH_SECRET    = process.env.TWITCH_SECRET;
 const SESSION_SECRET   = process.env.SESSION_SECRET || 'muffet-secreto';
 const BASE_URL         = process.env.BASE_URL || 'http://localhost:8080';
 const PORT             = process.env.PORT || 8080;
+const IS_PROD          = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ── Trust proxy para HTTPS en Render/Railway ──
+app.set('trust proxy', 1);
+
+app.use(express.json({ limit: '50kb' })); // limitar payload
+app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
+  cookie: {
+    secure: IS_PROD,   // HTTPS en producción
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000
+  }
 }));
 
 // ── Supabase helpers ──
@@ -32,39 +39,29 @@ const sbHeaders = {
 
 async function sbSelect(table, filters = {}) {
   const query = Object.entries(filters).map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
-  const url = `${SUPABASE_URL}/rest/v1/${table}?${query}&limit=1`;
-  console.log('sbSelect URL:', url);
-  const res = await fetch(url, { headers: sbHeaders });
-  const text = await res.text();
-  console.log('sbSelect status:', res.status, 'body:', text.substring(0,200));
-  const data = JSON.parse(text);
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}&limit=1`, { headers: sbHeaders });
+  const data = await res.json();
   return Array.isArray(data) ? data[0] || null : null;
 }
 
 async function sbInsert(table, row) {
-  const url = `${SUPABASE_URL}/rest/v1/${table}`;
-  console.log('sbInsert URL:', url);
-  const res = await fetch(url, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST',
     headers: { ...sbHeaders, 'Prefer': 'return=representation' },
     body: JSON.stringify(row)
   });
-  const text = await res.text();
-  console.log('sbInsert status:', res.status, 'body:', text.substring(0,200));
-  const data = JSON.parse(text);
+  const data = await res.json();
   return Array.isArray(data) ? data[0] : data;
 }
 
 async function sbUpdate(table, row, filters = {}) {
   const query = Object.entries(filters).map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
-  const url = `${SUPABASE_URL}/rest/v1/${table}?${query}`;
-  const res = await fetch(url, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
     method: 'PATCH',
     headers: { ...sbHeaders, 'Prefer': 'return=representation' },
     body: JSON.stringify(row)
   });
-  const text = await res.text();
-  const data = JSON.parse(text);
+  const data = await res.json();
   return Array.isArray(data) ? data[0] : data;
 }
 
@@ -73,6 +70,20 @@ function requireAuth(req, res, next) {
   next();
 }
 
+// ── Validadores ──
+function isValidObject(val) {
+  return val && typeof val === 'object' && !Array.isArray(val);
+}
+function isValidArray(val) {
+  return Array.isArray(val);
+}
+function isValidString(val, maxLen = 2000) {
+  return typeof val === 'string' && val.length <= maxLen;
+}
+
+// ══════════════════════════════════════════
+//  RUTAS PÚBLICAS
+// ══════════════════════════════════════════
 app.get('/', (req, res) => {
   if (req.session.user) return res.redirect('/dashboard');
   res.sendFile(path.join(__dirname, 'login.html'));
@@ -91,7 +102,6 @@ app.get('/auth/twitch/callback', async (req, res) => {
   try {
     const redirectUri = BASE_URL + '/auth/twitch/callback';
 
-    // 1. Token
     const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -99,20 +109,14 @@ app.get('/auth/twitch/callback', async (req, res) => {
     });
     const tokenData = await tokenRes.json();
     if (!tokenData.access_token) { console.error('No token:', tokenData); return res.redirect('/?error=auth'); }
-    const accessToken = tokenData.access_token;
 
-    // 2. Usuario
     const userRes = await fetch('https://api.twitch.tv/helix/users', {
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Client-Id': TWITCH_CLIENT_ID }
+      headers: { 'Authorization': `Bearer ${tokenData.access_token}`, 'Client-Id': TWITCH_CLIENT_ID }
     });
     const userData = await userRes.json();
-    const twitchUser = userData && userData.data && userData.data[0];
-    if (!twitchUser) { console.error('No user:', userData); return res.redirect('/?error=auth'); }
-    console.log('Logged in:', twitchUser.login);
-    console.log('SUPABASE_URL:', SUPABASE_URL);
-    console.log('SUPABASE_KEY exists:', !!SUPABASE_KEY);
+    const twitchUser = userData?.data?.[0];
+    if (!twitchUser) { console.error('No user data'); return res.redirect('/?error=auth'); }
 
-    // 3. Supabase
     let streamer = await sbSelect('streamers', { twitch_id: twitchUser.id });
 
     if (!streamer) {
@@ -122,20 +126,15 @@ app.get('/auth/twitch/callback', async (req, res) => {
         bot_prompt: `Eres Muffet, la araña de Undertale y guardiana de la cueva del Rey Oso. Los viewers son "súbditos del reino". Hablas en español, eres coqueta y misteriosa. Usas emojis 🕷️ 🐻 👑 ♥. Respuestas cortas (máximo 2 oraciones).`,
         commands: { '!miel': '🍯🐻 ¡Miel fresca para todos! ♥', '!té': '☕🕷️ ¡Té de araña con miel, dearie! 🐻♥', '!redes': '🐻👑 ¡Síguenos! 🕷️♥', '!cueva': '🐻🕷️ ¡Bienvenido a la Cueva del Rey! 👑♥', '!muffet': '🕷️ ¡Soy Muffet, guardiana del reino! 🐻👑♥' },
         auto_messages: ['🐻👑 ¡Sigan el canal, súbditos! 🕷️♥', '🍯🕷️ ¡Escribe !miel o !té! 🐻', '👑🕷️ ¡Usa !ask para preguntarme! 🐻♥'],
-        ai_enabled: true,
-        mod_enabled: false,
-        banned_words: [],
+        ai_enabled: true, mod_enabled: false, banned_words: [],
         warn_message: '⚠️ Cuidado, dearie~ 🕷️',
-        access_token: accessToken
+        access_token: tokenData.access_token
       });
     } else {
-      await sbUpdate('streamers', { access_token: accessToken }, { twitch_id: twitchUser.id });
+      await sbUpdate('streamers', { access_token: tokenData.access_token }, { twitch_id: twitchUser.id });
     }
 
-    if (!streamer || !streamer.id) {
-      console.error('Streamer null after operation');
-      return res.redirect('/?error=auth');
-    }
+    if (!streamer?.id) { console.error('Streamer null'); return res.redirect('/?error=auth'); }
 
     req.session.user = {
       id: twitchUser.id,
@@ -147,46 +146,91 @@ app.get('/auth/twitch/callback', async (req, res) => {
 
     res.redirect('/dashboard');
   } catch (err) {
-    console.error('Auth exception:', err.message);
-    console.error('Auth stack:', err.stack);
-    console.error('Auth cause:', err.cause);
+    console.error('Auth error:', err.message);
     res.redirect('/?error=auth');
   }
 });
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
+
+// ══════════════════════════════════════════
+//  RUTAS PROTEGIDAS
+// ══════════════════════════════════════════
 app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
 
 app.get('/api/streamer', requireAuth, async (req, res) => {
-  const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
-  if (!streamer) return res.status(500).json({ error: 'Not found' });
-  res.json({ streamer, user: req.session.user });
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+    res.json({ streamer, user: req.session.user });
+  } catch (err) {
+    console.error('GET /api/streamer:', err.message);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
 });
 
 app.post('/api/prompt', requireAuth, async (req, res) => {
-  await sbUpdate('streamers', { bot_prompt: req.body.prompt }, { twitch_id: req.session.user.id });
-  res.json({ success: true });
+  try {
+    const { prompt } = req.body;
+    if (!isValidString(prompt, 3000)) return res.status(400).json({ error: 'Prompt inválido' });
+    await sbUpdate('streamers', { bot_prompt: prompt }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/prompt:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
 });
 
 app.post('/api/commands', requireAuth, async (req, res) => {
-  await sbUpdate('streamers', { commands: req.body.commands }, { twitch_id: req.session.user.id });
-  res.json({ success: true });
+  try {
+    const { commands } = req.body;
+    if (!isValidObject(commands)) return res.status(400).json({ error: 'Comandos inválidos' });
+    if (Object.keys(commands).length > 50) return res.status(400).json({ error: 'Máximo 50 comandos' });
+    await sbUpdate('streamers', { commands }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/commands:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
 });
 
 app.post('/api/auto-messages', requireAuth, async (req, res) => {
-  await sbUpdate('streamers', { auto_messages: req.body.auto_messages }, { twitch_id: req.session.user.id });
-  res.json({ success: true });
+  try {
+    const { auto_messages } = req.body;
+    if (!isValidArray(auto_messages)) return res.status(400).json({ error: 'Mensajes inválidos' });
+    if (auto_messages.length > 20) return res.status(400).json({ error: 'Máximo 20 mensajes' });
+    await sbUpdate('streamers', { auto_messages }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/auto-messages:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
 });
 
 app.post('/api/ai-toggle', requireAuth, async (req, res) => {
-  await sbUpdate('streamers', { ai_enabled: req.body.enabled }, { twitch_id: req.session.user.id });
-  res.json({ success: true });
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'Valor inválido' });
+    await sbUpdate('streamers', { ai_enabled: enabled }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/ai-toggle:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
 });
 
 app.post('/api/moderation', requireAuth, async (req, res) => {
-  const { mod_enabled, banned_words, warn_message } = req.body;
-  await sbUpdate('streamers', { mod_enabled, banned_words, warn_message }, { twitch_id: req.session.user.id });
-  res.json({ success: true });
+  try {
+    const { mod_enabled, banned_words, warn_message } = req.body;
+    if (typeof mod_enabled !== 'boolean') return res.status(400).json({ error: 'mod_enabled inválido' });
+    if (!isValidArray(banned_words)) return res.status(400).json({ error: 'banned_words inválido' });
+    if (!isValidString(warn_message, 500)) return res.status(400).json({ error: 'warn_message inválido' });
+    await sbUpdate('streamers', { mod_enabled, banned_words, warn_message }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/moderation:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
 });
 
-app.listen(PORT, () => console.log(`🐻🕷️ Dashboard en puerto ${PORT}`));
+app.listen(PORT, () => console.log(`🐻🕷️ Dashboard en puerto ${PORT} | Producción: ${IS_PROD}`));
