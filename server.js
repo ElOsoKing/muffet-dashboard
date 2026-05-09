@@ -339,6 +339,8 @@ app.delete('/api/custom-bot', requireAuth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+app.post('/api/ai-toggle', requireAuth, async (req, res) => {
   try {
     const { enabled } = req.body;
     if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'Valor inválido' });
