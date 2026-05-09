@@ -244,7 +244,24 @@ app.post('/api/admin/role/:id', requireAdmin, async (req, res) => {
 // ══════════════════════════════════════════
 //  RUTAS PROTEGIDAS
 // ══════════════════════════════════════════
-app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
+app.get('/plans', (req, res) => res.sendFile(path.join(__dirname, 'plans.html')));
+
+// API admin — activar plan pro
+app.post('/api/admin/plan/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { plan } = req.body;
+    if (!['free','pro'].includes(plan)) return res.status(400).json({ error: 'Plan inválido' });
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...sbHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify({ plan })
+    });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.get('/api/streamer', requireAuth, async (req, res) => {
   try {
