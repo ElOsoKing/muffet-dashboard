@@ -313,7 +313,32 @@ app.post('/api/auto-messages', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/ai-toggle', requireAuth, async (req, res) => {
+// API — guardar bot personalizado (solo Pro)
+app.post('/api/custom-bot', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer || (streamer.plan !== 'pro' && streamer.plan !== 'admin')) {
+      return res.status(403).json({ error: 'Solo disponible en Plan Pro' });
+    }
+    const { custom_bot_username, custom_bot_token } = req.body;
+    if (!custom_bot_username || !custom_bot_token) return res.status(400).json({ error: 'Faltan datos' });
+    if (!custom_bot_token.startsWith('oauth:')) return res.status(400).json({ error: 'Token inválido' });
+    await sbUpdate('streamers', { custom_bot_username, custom_bot_token }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API — eliminar bot personalizado
+app.delete('/api/custom-bot', requireAuth, async (req, res) => {
+  try {
+    await sbUpdate('streamers', { custom_bot_username: null, custom_bot_token: null }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
   try {
     const { enabled } = req.body;
     if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'Valor inválido' });
