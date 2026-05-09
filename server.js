@@ -1,6 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const https = require('https');
 
 const app = express();
 
@@ -22,50 +23,48 @@ app.use(session({
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
 }));
 
-// ── Supabase helpers usando fetch directo ──
+// ── Supabase helpers ──
+const sbHeaders = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+};
+
 async function sbSelect(table, filters = {}) {
-  let query = Object.entries(filters).map(([k, v]) => `${k}=eq.${v}`).join('&');
+  const query = Object.entries(filters).map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
   const url = `${SUPABASE_URL}/rest/v1/${table}?${query}&limit=1`;
-  const res = await fetch(url, {
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json'
-    }
-  });
-  const data = await res.json();
+  console.log('sbSelect URL:', url);
+  const res = await fetch(url, { headers: sbHeaders });
+  const text = await res.text();
+  console.log('sbSelect status:', res.status, 'body:', text.substring(0,200));
+  const data = JSON.parse(text);
   return Array.isArray(data) ? data[0] || null : null;
 }
 
 async function sbInsert(table, row) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+  const url = `${SUPABASE_URL}/rest/v1/${table}`;
+  console.log('sbInsert URL:', url);
+  const res = await fetch(url, {
     method: 'POST',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
-    },
+    headers: { ...sbHeaders, 'Prefer': 'return=representation' },
     body: JSON.stringify(row)
   });
-  const data = await res.json();
-  console.log('Insert response:', res.status, JSON.stringify(data).substring(0, 200));
+  const text = await res.text();
+  console.log('sbInsert status:', res.status, 'body:', text.substring(0,200));
+  const data = JSON.parse(text);
   return Array.isArray(data) ? data[0] : data;
 }
 
 async function sbUpdate(table, row, filters = {}) {
-  let query = Object.entries(filters).map(([k, v]) => `${k}=eq.${v}`).join('&');
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+  const query = Object.entries(filters).map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
+  const url = `${SUPABASE_URL}/rest/v1/${table}?${query}`;
+  const res = await fetch(url, {
     method: 'PATCH',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
-    },
+    headers: { ...sbHeaders, 'Prefer': 'return=representation' },
     body: JSON.stringify(row)
   });
-  const data = await res.json();
+  const text = await res.text();
+  const data = JSON.parse(text);
   return Array.isArray(data) ? data[0] : data;
 }
 
@@ -102,7 +101,7 @@ app.get('/auth/twitch/callback', async (req, res) => {
     if (!tokenData.access_token) { console.error('No token:', tokenData); return res.redirect('/?error=auth'); }
     const accessToken = tokenData.access_token;
 
-    // 2. Usuario de Twitch
+    // 2. Usuario
     const userRes = await fetch('https://api.twitch.tv/helix/users', {
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Client-Id': TWITCH_CLIENT_ID }
     });
@@ -110,8 +109,10 @@ app.get('/auth/twitch/callback', async (req, res) => {
     const twitchUser = userData && userData.data && userData.data[0];
     if (!twitchUser) { console.error('No user:', userData); return res.redirect('/?error=auth'); }
     console.log('Logged in:', twitchUser.login);
+    console.log('SUPABASE_URL:', SUPABASE_URL);
+    console.log('SUPABASE_KEY exists:', !!SUPABASE_KEY);
 
-    // 3. Supabase — buscar o crear
+    // 3. Supabase
     let streamer = await sbSelect('streamers', { twitch_id: twitchUser.id });
 
     if (!streamer) {
@@ -127,13 +128,14 @@ app.get('/auth/twitch/callback', async (req, res) => {
         warn_message: '⚠️ Cuidado, dearie~ 🕷️',
         access_token: accessToken
       });
-      console.log('Created streamer');
     } else {
       await sbUpdate('streamers', { access_token: accessToken }, { twitch_id: twitchUser.id });
-      console.log('Updated streamer');
     }
 
-    if (!streamer || !streamer.id) { console.error('Streamer null after insert/select'); return res.redirect('/?error=auth'); }
+    if (!streamer || !streamer.id) {
+      console.error('Streamer null after operation');
+      return res.redirect('/?error=auth');
+    }
 
     req.session.user = {
       id: twitchUser.id,
@@ -146,6 +148,8 @@ app.get('/auth/twitch/callback', async (req, res) => {
     res.redirect('/dashboard');
   } catch (err) {
     console.error('Auth exception:', err.message);
+    console.error('Auth stack:', err.stack);
+    console.error('Auth cause:', err.cause);
     res.redirect('/?error=auth');
   }
 });
