@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuffetBot — Acceso Pendiente</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{--purple:#9147ff;--purple-dim:#4a2080;--bg:#0a0a0c;--bg2:#111115;--text:#f0d0da;--text-dim:#8a6a72;--yellow:#f0c060;--mono:'Share Tech Mono',monospace;--display:'VT323',monospace;--title:'Silkscreen',monospace;}
+html,body{width:100%;height:100%;background:var(--bg);font-family:var(--mono);color:var(--text);display:flex;align-items:center;justify-content:center;}
+.bg-grid{position:fixed;top:0;left:0;width:100%;height:100%;background-image:linear-gradient(rgba(145,71,255,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(145,71,255,0.05) 1px,transparent 1px);background-size:40px 40px;animation:gridMove 20s linear infinite;pointer-events:none;}
+@keyframes gridMove{0%{background-position:0 0}100%{background-position:40px 40px}}
+.card{position:relative;z-index:10;background:var(--bg2);border:2px solid var(--purple-dim);padding:40px;width:100%;max-width:460px;text-align:center;box-shadow:0 0 40px rgba(145,71,255,0.15);}
+.muffet{width:70px;height:70px;image-rendering:pixelated;margin:0 auto 16px;animation:float 3s ease-in-out infinite;filter:drop-shadow(0 0 8px rgba(240,192,96,0.6));}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.title{font-family:var(--display);font-size:42px;color:var(--yellow);letter-spacing:2px;line-height:1;}
+.subtitle{font-family:var(--title);font-size:8px;color:var(--text-dim);letter-spacing:3px;margin:8px 0 24px;}
+.msg{font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:24px;}
+.msg strong{color:var(--text);}
+.divider{width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--purple-dim),transparent);margin:20px 0;}
+.status{display:flex;align-items:center;justify-content:center;gap:8px;font-family:var(--title);font-size:9px;color:var(--yellow);letter-spacing:2px;margin-bottom:20px;}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--yellow);animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+.btn-logout{background:transparent;border:1px solid var(--purple-dim);color:var(--text-dim);font-family:var(--title);font-size:8px;letter-spacing:1px;padding:8px 20px;cursor:pointer;transition:all 0.2s;}
+.btn-logout:hover{border-color:#e05a7a;color:#e05a7a;}
+.footer{font-size:9px;color:var(--text-dim);margin-top:16px;opacity:0.5;}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="card">
+  <img class="muffet" src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
+  <div class="title">ACCESO PENDIENTE</div>
+  <div class="subtitle">🕷️ ESPERANDO APROBACIÓN DEL REY 🐻</div>
+  <div class="status"><div class="dot"></div>EN ESPERA DE APROBACIÓN</div>
+  <p class="msg">
+    ¡Bienvenido/a a la telaraña, dearie! 🕷️<br><br>
+    Tu cuenta está <strong>pendiente de aprobación</strong> por el administrador.<br>
+    Cuando seas aprobado/a recibirás acceso completo al panel de MuffetBot.<br><br>
+    Contacta a <strong>ElOsoKing1</strong> en Twitch para acelerar el proceso~ ♥
+  </p>
+  <div class="divider"></div>
+  <button class="btn-logout" onclick="window.location='/logout'">🚪 CERRAR SESIÓN</button>
+  <div class="footer">🕷️ MuffetBot — Panel del Reino 🐻👑</div>
+</div>
+</body>
+</html>
