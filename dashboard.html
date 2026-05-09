@@ -138,11 +138,12 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
 .btn-sm{padding:5px 10px;font-size:8px;}
 
 /* ── COMANDOS ── */
-.command-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
+.command-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
 .command-item{
-  display:flex;align-items:center;gap:8px;
+  display:flex;flex-direction:column;gap:6px;
   background:var(--bg4);border:1px solid #2a1a3a;padding:10px;
 }
+.command-top{display:flex;align-items:center;gap:8px;}
 .command-trigger{
   background:var(--bg3);border:1px solid var(--purple-dim);
   color:var(--purple-light);font-family:var(--mono);font-size:11px;
@@ -154,6 +155,27 @@ input:checked + .toggle-slider:before{transform:translateX(20px);background:var(
   padding:6px 10px;outline:none;
 }
 .command-trigger:focus,.command-response:focus{border-color:var(--purple);}
+
+/* Permisos */
+.command-perms{display:flex;gap:6px;flex-wrap:wrap;padding:4px 0;}
+.perm-label{
+  display:flex;align-items:center;gap:4px;
+  font-size:8px;font-family:var(--title);letter-spacing:1px;
+  padding:3px 8px;border:1px solid #2a1a3a;cursor:pointer;
+  user-select:none;transition:all 0.15s;
+}
+.perm-label input{display:none;}
+.perm-label.everyone  { color:#aaa; border-color:#444; }
+.perm-label.sub       { color:#f0c060; border-color:#806020; }
+.perm-label.vip       { color:#e05a7a; border-color:#802040; }
+.perm-label.mod       { color:#40d090; border-color:#206040; }
+.perm-label.broadcaster{ color:#9147ff; border-color:#4a2080; }
+.perm-label.active.everyone  { background:rgba(170,170,170,0.15); border-color:#aaa; }
+.perm-label.active.sub       { background:rgba(240,192,96,0.15);  border-color:#f0c060; }
+.perm-label.active.vip       { background:rgba(224,90,122,0.15);  border-color:#e05a7a; }
+.perm-label.active.mod       { background:rgba(64,208,144,0.15);  border-color:#40d090; }
+.perm-label.active.broadcaster{ background:rgba(145,71,255,0.15); border-color:#9147ff; }
+.perm-title{font-size:8px;color:var(--text-dim);letter-spacing:1px;margin-right:4px;}
 
 /* ── AUTO MESSAGES ── */
 .msg-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;}
@@ -382,13 +404,27 @@ function renderMain() {
       </div>
       <div class="panel-body">
         <div class="command-list" id="commandList">
-          ${Object.entries(commands).map(([trigger, response]) => `
+          ${Object.entries(commands).map(([trigger, val]) => {
+            const response = typeof val === 'object' ? val.response : val;
+            const perms = typeof val === 'object' && val.perms ? val.perms : ['everyone'];
+            return `
             <div class="command-item">
-              <input class="command-trigger" value="${trigger}" placeholder="!comando">
-              <input class="command-response" value="${response.replace(/"/g,'&quot;')}" placeholder="Respuesta de Muffet...">
-              <button class="btn btn-danger btn-sm" onclick="removeCommand(this)">✕</button>
-            </div>
-          `).join('')}
+              <div class="command-top">
+                <input class="command-trigger" value="${trigger}" placeholder="!comando">
+                <input class="command-response" value="${response.replace(/"/g,'&quot;')}" placeholder="Respuesta de Muffet...">
+                <button class="btn btn-danger btn-sm" onclick="removeCommand(this)">✕</button>
+              </div>
+              <div class="command-perms">
+                <span class="perm-title">PERMISOS:</span>
+                ${['everyone','sub','vip','mod','broadcaster'].map(p => `
+                  <label class="perm-label ${p} ${perms.includes(p) ? 'active' : ''}" onclick="togglePerm(this,'${p}')">
+                    <input type="checkbox" ${perms.includes(p) ? 'checked' : ''} data-perm="${p}">
+                    ${{everyone:'👥 TODOS', sub:'⭐ SUBS', vip:'💎 VIPS', mod:'🛡️ MODS', broadcaster:'👑 YO'}[p]}
+                  </label>
+                `).join('')}
+              </div>
+            </div>`;
+          }).join('')}
         </div>
         <button class="btn btn-primary" onclick="saveCommands()">💾 GUARDAR COMANDOS</button>
       </div>
@@ -490,11 +526,68 @@ async function savePrompt() {
   else showToast('Error al guardar', 'error');
 }
 
+function togglePerm(label, perm) {
+  const cb = label.querySelector('input');
+  const item = label.closest('.command-item');
+  const perms = getPerms(item);
+
+  // Si es "everyone" y lo activas, desactiva los demás
+  if (perm === 'everyone' && !cb.checked) {
+    item.querySelectorAll('.perm-label').forEach(l => {
+      l.classList.remove('active');
+      l.querySelector('input').checked = false;
+    });
+    cb.checked = true;
+    label.classList.add('active');
+    return;
+  }
+
+  // Si activas otro, desactiva "everyone"
+  if (perm !== 'everyone') {
+    const everyoneLabel = item.querySelector('.perm-label.everyone');
+    if (everyoneLabel) {
+      everyoneLabel.classList.remove('active');
+      everyoneLabel.querySelector('input').checked = false;
+    }
+  }
+
+  cb.checked = !cb.checked;
+  label.classList.toggle('active', cb.checked);
+
+  // Si no queda ninguno activo, activa "everyone" por defecto
+  const anyActive = Array.from(item.querySelectorAll('.perm-label input')).some(i => i.checked);
+  if (!anyActive) {
+    const everyoneLabel = item.querySelector('.perm-label.everyone');
+    if (everyoneLabel) {
+      everyoneLabel.classList.add('active');
+      everyoneLabel.querySelector('input').checked = true;
+    }
+  }
+}
+
+function getPerms(item) {
+  return Array.from(item.querySelectorAll('.perm-label input:checked')).map(i => i.dataset.perm);
+}
+
 function addCommand() {
   const list = document.getElementById('commandList');
   const div = document.createElement('div');
   div.className = 'command-item';
-  div.innerHTML = `<input class="command-trigger" value="!nuevo" placeholder="!comando"><input class="command-response" value="Respuesta de Muffet" placeholder="Respuesta..."><button class="btn btn-danger btn-sm" onclick="removeCommand(this)">✕</button>`;
+  div.innerHTML = `
+    <div class="command-top">
+      <input class="command-trigger" value="!nuevo" placeholder="!comando">
+      <input class="command-response" value="Respuesta de Muffet" placeholder="Respuesta...">
+      <button class="btn btn-danger btn-sm" onclick="removeCommand(this)">✕</button>
+    </div>
+    <div class="command-perms">
+      <span class="perm-title">PERMISOS:</span>
+      ${['everyone','sub','vip','mod','broadcaster'].map(p => `
+        <label class="perm-label ${p} ${p==='everyone'?'active':''}" onclick="togglePerm(this,'${p}')">
+          <input type="checkbox" ${p==='everyone'?'checked':''} data-perm="${p}">
+          ${{everyone:'👥 TODOS', sub:'⭐ SUBS', vip:'💎 VIPS', mod:'🛡️ MODS', broadcaster:'👑 YO'}[p]}
+        </label>
+      `).join('')}
+    </div>`;
   list.appendChild(div);
 }
 
@@ -504,9 +597,12 @@ async function saveCommands() {
   const items = document.querySelectorAll('.command-item');
   const commands = {};
   items.forEach(item => {
-    const trigger = item.querySelector('.command-trigger').value.trim();
+    const trigger  = item.querySelector('.command-trigger').value.trim();
     const response = item.querySelector('.command-response').value.trim();
-    if(trigger && response) commands[trigger] = response;
+    const perms    = getPerms(item);
+    if (trigger && response) {
+      commands[trigger] = { response, perms: perms.length ? perms : ['everyone'] };
+    }
   });
   const res = await fetch('/api/commands', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({commands}) });
   if(res.ok) { streamerData.commands = commands; showToast('⚡ ¡Comandos guardados! 🐻'); }
