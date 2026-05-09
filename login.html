@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuffetBot — Iniciar Sesión</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --pink:#e05a7a;--purple:#9147ff;--purple-dim:#4a2080;
+  --bg:#0a0a0c;--bg2:#111115;--bg3:#1a0022;
+  --text:#f0d0da;--text-dim:#8a6a72;
+  --mono:'Share Tech Mono',monospace;
+  --display:'VT323',monospace;
+  --title:'Silkscreen',monospace;
+}
+html,body{width:100%;height:100%;background:var(--bg);font-family:var(--mono);color:var(--text);overflow:hidden;}
+
+/* Fondo animado */
+.bg-grid{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background-image:
+    linear-gradient(rgba(145,71,255,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(145,71,255,0.05) 1px, transparent 1px);
+  background-size:40px 40px;
+  animation:gridMove 20s linear infinite;
+  pointer-events:none;
+}
+@keyframes gridMove{0%{background-position:0 0}100%{background-position:40px 40px}}
+
+/* Telarañas de fondo */
+.web{position:fixed;opacity:0.06;pointer-events:none;}
+.web-tl{top:-50px;left:-50px;width:300px;height:300px;}
+.web-br{bottom:-50px;right:-50px;width:300px;height:300px;transform:rotate(180deg);}
+
+/* Contenedor principal */
+.login-container{
+  position:relative;z-index:10;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:100vh;padding:20px;gap:30px;
+}
+
+/* Card */
+.card{
+  background:var(--bg2);
+  border:2px solid var(--purple-dim);
+  padding:40px;
+  width:100%;max-width:420px;
+  text-align:center;
+  position:relative;
+  box-shadow:0 0 40px rgba(145,71,255,0.15);
+}
+.card::before,.card::after{
+  content:'🕷️';position:absolute;font-size:20px;opacity:0.4;
+}
+.card::before{top:10px;left:10px;}
+.card::after{bottom:10px;right:10px;}
+
+/* Avatar Muffet */
+.muffet-avatar{
+  width:80px;height:80px;margin:0 auto 16px;
+  image-rendering:pixelated;
+  animation:float 3s ease-in-out infinite;
+  filter:drop-shadow(0 0 10px rgba(145,71,255,0.6));
+}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* Título */
+.title{
+  font-family:var(--display);font-size:48px;
+  color:var(--purple);letter-spacing:3px;
+  text-shadow:0 0 20px rgba(145,71,255,0.4);
+  line-height:1;
+}
+.subtitle{
+  font-family:var(--title);font-size:9px;
+  color:var(--text-dim);letter-spacing:3px;
+  margin:8px 0 24px;
+}
+
+/* Divider */
+.divider{
+  width:100%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--purple-dim),transparent);
+  margin:20px 0;
+}
+
+/* Descripción */
+.desc{font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:24px;}
+.desc span{color:var(--pink);}
+
+/* Botón de Twitch */
+.btn-twitch{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  width:100%;padding:14px 20px;
+  background:var(--purple);border:none;
+  color:white;font-family:var(--title);font-size:11px;
+  letter-spacing:2px;cursor:pointer;
+  text-decoration:none;
+  transition:all 0.2s;
+  box-shadow:0 0 20px rgba(145,71,255,0.3);
+}
+.btn-twitch:hover{
+  background:#7d2ff7;
+  box-shadow:0 0 30px rgba(145,71,255,0.5);
+  transform:translateY(-2px);
+}
+.btn-twitch svg{width:20px;height:20px;fill:white;}
+
+/* Features */
+.features{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  width:100%;max-width:420px;
+}
+.feature{
+  background:var(--bg2);border:1px solid #2a1a3a;
+  padding:12px;text-align:center;
+}
+.feature-icon{font-size:20px;margin-bottom:4px;}
+.feature-title{font-family:var(--title);font-size:8px;color:var(--purple);letter-spacing:1px;}
+.feature-desc{font-size:9px;color:var(--text-dim);margin-top:3px;line-height:1.4;}
+
+/* Footer */
+.footer{font-size:9px;color:var(--text-dim);text-align:center;opacity:0.5;}
+
+/* Error */
+.error-msg{
+  background:#1a0a0a;border:1px solid #5a2020;
+  color:#f09090;font-size:10px;padding:8px 12px;
+  margin-bottom:16px;display:none;
+}
+.error-msg.show{display:block;}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+
+<!-- Telarañas SVG de fondo -->
+<svg class="web web-tl" viewBox="0 0 300 300">
+  <line x1="150" y1="0" x2="150" y2="300" stroke="white" stroke-width="1"/>
+  <line x1="0" y1="150" x2="300" y2="150" stroke="white" stroke-width="1"/>
+  <line x1="0" y1="0" x2="300" y2="300" stroke="white" stroke-width="1"/>
+  <line x1="300" y1="0" x2="0" y2="300" stroke="white" stroke-width="1"/>
+  <circle cx="150" cy="150" r="50" stroke="white" stroke-width="1" fill="none"/>
+  <circle cx="150" cy="150" r="100" stroke="white" stroke-width="1" fill="none"/>
+  <circle cx="150" cy="150" r="150" stroke="white" stroke-width="1" fill="none"/>
+</svg>
+<svg class="web web-br" viewBox="0 0 300 300">
+  <line x1="150" y1="0" x2="150" y2="300" stroke="white" stroke-width="1"/>
+  <line x1="0" y1="150" x2="300" y2="150" stroke="white" stroke-width="1"/>
+  <line x1="0" y1="0" x2="300" y2="300" stroke="white" stroke-width="1"/>
+  <line x1="300" y1="0" x2="0" y2="300" stroke="white" stroke-width="1"/>
+  <circle cx="150" cy="150" r="50" stroke="white" stroke-width="1" fill="none"/>
+  <circle cx="150" cy="150" r="100" stroke="white" stroke-width="1" fill="none"/>
+</svg>
+
+<div class="login-container">
+
+  <div class="card">
+    <!-- Avatar Muffet pixel art -->
+    <img class="muffet-avatar"
+      src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA"
+      alt="Muffet">
+
+    <div class="title">MUFFETBOT</div>
+    <div class="subtitle">🐻 PANEL DE CONTROL DEL REINO 🕷️</div>
+
+    <div id="errorMsg" class="error-msg">
+      ¡Algo salió mal en la cueva, dearie! Intenta de nuevo~ 🕷️
+    </div>
+
+    <p class="desc">
+      Bienvenido al panel de control de <span>Muffet</span>, la guardiana de la cueva.<br>
+      Inicia sesión con tu cuenta de Twitch para gestionar tu bot~ 🐻
+    </p>
+
+    <a href="/auth/twitch" class="btn-twitch">
+      <svg viewBox="0 0 24 24"><path d="M4 2L2 6v14h5v3h3l3-3h4l5-5V2H4zm17 13l-3 3h-5l-3 3v-3H5V4h16v11zM11 7h2v6h-2zm5 0h2v6h-2z"/></svg>
+      INICIAR SESIÓN CON TWITCH
+    </a>
+
+    <div class="divider"></div>
+    <div class="footer">🕷️ MuffetBot — Guardiana de la Cueva del Rey Oso 🐻👑</div>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">🤖</div>
+      <div class="feature-title">IA PERSONALIZADA</div>
+      <div class="feature-desc">Personalidad única para tu canal</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">COMANDOS</div>
+      <div class="feature-desc">Crea y edita comandos fácilmente</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🛡️</div>
+      <div class="feature-title">MODERACIÓN</div>
+      <div class="feature-desc">Protege tu chat con estilo</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">☁️</div>
+      <div class="feature-title">24/7 EN LA NUBE</div>
+      <div class="feature-desc">Siempre activo, sin tu PC</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('error')) document.getElementById('errorMsg').classList.add('show');
+</script>
+</body>
+</html>
