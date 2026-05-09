@@ -566,8 +566,50 @@ function renderMain() {
           <label class="form-label">ID DE TWITCH</label>
           <input class="form-input" value="${userData.id}" disabled>
         </div>
+        <div class="form-group">
+          <label class="form-label">PLAN ACTUAL</label>
+          <input class="form-input" value="${s.plan === 'pro' ? '⭐ Plan Pro' : s.plan === 'admin' ? '👑 Admin' : '🆓 Plan Gratuito'}" disabled>
+        </div>
+        ${s.plan !== 'pro' && s.plan !== 'admin' ? `
+        <div style="background:#0a1a0a;border:1px solid #1a4a1a;padding:12px;margin-top:8px;">
+          <div style="font-family:var(--title);font-size:8px;color:var(--green);letter-spacing:1px;margin-bottom:6px;">💎 DESBLOQUEA EL PLAN PRO</div>
+          <div style="font-size:10px;color:var(--text-dim);margin-bottom:10px;">Obtén bot con nombre propio, IA ilimitada y más por solo $5/mes</div>
+          <button class="btn btn-primary" onclick="window.location='/plans'">VER PLANES →</button>
+        </div>` : ''}
       </div>
     </div>
+
+    <!-- BOT PERSONALIZADO — Solo Plan Pro -->
+    ${s.plan === 'pro' || s.plan === 'admin' ? `
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">🤖 BOT PERSONALIZADO ⭐ PRO</span>
+      </div>
+      <div class="panel-body">
+        <div style="font-size:10px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Conecta tu propio bot de Twitch para que aparezca con tu nombre en el chat.<br>
+          Necesitas crear una cuenta de Twitch para el bot y generar un token en 
+          <a href="https://twitchtokengenerator.com" target="_blank" style="color:var(--purple-light);">twitchtokengenerator.com</a>~ 🕷️
+        </div>
+        <div class="form-group">
+          <label class="form-label">NOMBRE DE USUARIO DEL BOT</label>
+          <input class="form-input" id="customBotUsername" value="${s.custom_bot_username || ''}" placeholder="Ej: MuffetBot_TuCanal">
+        </div>
+        <div class="form-group">
+          <label class="form-label">OAUTH TOKEN DEL BOT</label>
+          <input class="form-input" id="customBotToken" type="password" value="${s.custom_bot_token || ''}" placeholder="oauth:xxxxxxxxxxxxxxxxx">
+          <div style="font-size:9px;color:var(--text-dim);margin-top:4px;">⚠️ Nunca compartas este token con nadie</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="saveCustomBot()">💾 GUARDAR BOT</button>
+          ${s.custom_bot_username ? `<button class="btn btn-danger" onclick="removeCustomBot()">🗑️ QUITAR BOT</button>` : ''}
+        </div>
+        ${s.custom_bot_username ? `
+        <div style="margin-top:12px;background:#0a1a0a;border:1px solid #1a4a1a;padding:10px;font-size:10px;color:var(--green);">
+          ✅ Bot activo: <strong>${s.custom_bot_username}</strong> — aparece en tu chat con este nombre
+        </div>` : ''}
+      </div>
+    </div>` : ''}
   </div>
   `;
 }
@@ -715,6 +757,23 @@ async function saveModeration() {
   const res = await fetch('/api/moderation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({mod_enabled, banned_words, warn_message}) });
   if(res.ok) { streamerData.banned_words = banned_words; streamerData.warn_message = warn_message; showToast('🛡️ ¡Moderación guardada! 🐻'); }
   else showToast('Error al guardar', 'error');
+}
+
+async function saveCustomBot() {
+  const username = document.getElementById('customBotUsername')?.value.trim();
+  const token    = document.getElementById('customBotToken')?.value.trim();
+  if (!username || !token) { showToast('Completa ambos campos, dearie~ 🕷️', 'error'); return; }
+  if (!token.startsWith('oauth:')) { showToast('El token debe empezar con oauth:', 'error'); return; }
+  const res = await fetch('/api/custom-bot', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ custom_bot_username: username, custom_bot_token: token }) });
+  if(res.ok) { showToast('🤖 ¡Bot personalizado guardado! 🕷️'); setTimeout(()=>location.reload(), 1500); }
+  else showToast('Error al guardar', 'error');
+}
+
+async function removeCustomBot() {
+  if (!confirm('¿Quitar el bot personalizado? Muffet_Osoking volverá a tu chat.')) return;
+  const res = await fetch('/api/custom-bot', { method:'DELETE' });
+  if(res.ok) { showToast('🤖 Bot personalizado eliminado'); setTimeout(()=>location.reload(), 1500); }
+  else showToast('Error al eliminar', 'error');
 }
 
 // ── Init ──
