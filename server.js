@@ -345,7 +345,18 @@ app.delete('/api/custom-bot', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/ai-toggle', requireAuth, async (req, res) => {
+// API — redes sociales
+app.post('/api/socials', requireAuth, async (req, res) => {
+  try {
+    const { social_links } = req.body;
+    if (!isValidObject(social_links)) return res.status(400).json({ error: 'Links inválidos' });
+    await sbUpdate('streamers', { social_links }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/socials:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
+});
   try {
     const { enabled } = req.body;
     if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'Valor inválido' });
