@@ -381,7 +381,24 @@ app.delete('/api/custom-bot', requireAuth, async (req, res) => {
   }
 });
 
-// ── APIs de Sorteo ──
+// ── Overlay de sorteo para OBS ──
+app.get('/overlay/sorteo/:username', (req, res) => {
+  res.sendFile(path.join(__dirname, 'overlay-sorteo.html'));
+});
+
+app.get('/api/raffle/overlay/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=raffle_active,raffle_settings&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    const streamer = data?.[0];
+    if (!streamer) return res.status(404).json({ error: 'Canal no encontrado' });
+    const raffle = streamer.raffle_active || {};
+    const join_cmd = streamer.raffle_settings?.join_cmd || '!entrar';
+    res.json({ active: !!raffle.active, prize: raffle.prize || '', participants: raffle.participants || [], winner: raffle.winner || null, join_cmd });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
 app.post('/api/raffle/settings', requireAuth, async (req, res) => {
   try {
     const { raffle_settings } = req.body;
