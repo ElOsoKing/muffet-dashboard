@@ -302,11 +302,15 @@ app.post('/api/commands', requireAuth, async (req, res) => {
 
 app.post('/api/auto-messages', requireAuth, async (req, res) => {
   try {
-    const { auto_messages, auto_message_interval } = req.body;
+    const { auto_messages } = req.body;
     if (!isValidArray(auto_messages)) return res.status(400).json({ error: 'Mensajes inválidos' });
     if (auto_messages.length > 20) return res.status(400).json({ error: 'Máximo 20 mensajes' });
-    const interval = Math.min(Math.max(parseInt(auto_message_interval) || 20, 5), 120);
-    await sbUpdate('streamers', { auto_messages, auto_message_interval: interval }, { twitch_id: req.session.user.id });
+    // Migrar formato antiguo (string) a nuevo (objeto)
+    const normalized = auto_messages.map(msg => {
+      if (typeof msg === 'string') return { text: msg, type: 'fixed', interval: 20 };
+      return { text: msg.text || '', type: msg.type || 'fixed', interval: Math.max(parseInt(msg.interval) || 20, 5) };
+    }).filter(m => m.text);
+    await sbUpdate('streamers', { auto_messages: normalized }, { twitch_id: req.session.user.id });
     res.json({ success: true });
   } catch (err) {
     console.error('POST /api/auto-messages:', err.message);
