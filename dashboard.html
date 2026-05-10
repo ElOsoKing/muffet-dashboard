@@ -321,6 +321,7 @@ function showSection(name) {
   if(sec) sec.classList.add('active');
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
+  if(name === 'stream') loadStreamInfo();
   if(window.innerWidth <= 768) toggleSidebar();
 }
 
@@ -640,6 +641,53 @@ function renderMain() {
     </div>
   </div>
 
+  <!-- STREAM MANAGER -->
+  <div id="sec-stream" class="section">
+    <div class="page-header">
+      <div class="page-title">📡 Stream</div>
+      <div class="page-subtitle">Cambia el título y categoría sin abrir Twitch</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">Información del stream</span>
+        <button class="btn btn-success btn-sm" onclick="loadStreamInfo()">↻ Actualizar</button>
+      </div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label class="form-label">Título del stream</label>
+          <input class="form-input" id="streamTitle" placeholder="Cargando...">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" id="titleCount">0/140 caracteres</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Categoría / Juego</label>
+          <input class="form-input" id="gameSearch" placeholder="Buscar juego..." oninput="searchGame(this.value)" autocomplete="off">
+          <input type="hidden" id="gameId">
+          <div id="gameResults" style="display:none;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);margin-top:4px;overflow:hidden;max-height:200px;overflow-y:auto;"></div>
+          <div id="selectedGame" style="display:none;margin-top:8px;display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius-sm);">
+            <img id="selectedGameImg" src="" style="width:36px;height:48px;object-fit:cover;border-radius:4px;">
+            <div>
+              <div id="selectedGameName" style="font-size:13px;font-weight:500;color:var(--text);"></div>
+              <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Categoría seleccionada</div>
+            </div>
+            <button onclick="clearGame()" style="margin-left:auto;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;line-height:1;">×</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="updateStream()">Actualizar stream</button>
+        <div id="streamStatus" style="margin-top:10px;font-size:12px;display:none;"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">💡 Títulos rápidos</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Click en uno para usarlo como título</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;" id="quickTitles">
+          ${['¡En vivo! 🐻👑', '¡Jugando con la comunidad! 🕷️', '¡Ranked grind! 💪🐻', '¡Chill stream! ☕🕷️', '¡Nuevas aventuras! 🎮👑'].map(t => `
+            <button onclick="document.getElementById('streamTitle').value='${t}';updateTitleCount()" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:7px 12px;font-size:12px;color:var(--text-dim);cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--purple-border)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='var(--text-dim)'">${t}</button>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- SORTEOS -->
   <div id="sec-raffle" class="section">
     <div class="page-header">
@@ -917,6 +965,99 @@ async function saveSocials(){
 
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
+
+// ── STREAM MANAGER ──
+let gameSearchTimer = null;
+
+async function loadStreamInfo() {
+  try {
+    const res = await fetch('/api/stream/info');
+    if (!res.ok) {
+      document.getElementById('streamStatus').style.display = 'block';
+      document.getElementById('streamStatus').innerHTML = '<span style="color:var(--pink)">⚠️ Necesitas cerrar sesión y volver a entrar para activar esta función</span>';
+      return;
+    }
+    const data = await res.json();
+    if (data.title !== undefined) {
+      document.getElementById('streamTitle').value = data.title || '';
+      updateTitleCount();
+    }
+    if (data.game_name) {
+      document.getElementById('gameSearch').value = data.game_name;
+      document.getElementById('gameId').value = data.game_id || '';
+      if (data.game_id) {
+        document.getElementById('selectedGameName').textContent = data.game_name;
+        document.getElementById('selectedGame').style.display = 'flex';
+        document.getElementById('gameSearch').style.display = 'none';
+      }
+    }
+  } catch(e) {}
+}
+
+function updateTitleCount() {
+  const val = document.getElementById('streamTitle')?.value || '';
+  const el = document.getElementById('titleCount');
+  if (el) { el.textContent = `${val.length}/140 caracteres`; el.style.color = val.length > 130 ? 'var(--pink)' : 'var(--text-muted)'; }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('streamTitle')?.addEventListener('input', updateTitleCount);
+});
+
+function searchGame(q) {
+  clearTimeout(gameSearchTimer);
+  if (!q.trim()) { document.getElementById('gameResults').style.display = 'none'; return; }
+  gameSearchTimer = setTimeout(async () => {
+    const res = await fetch(`/api/stream/search-game?q=${encodeURIComponent(q)}`);
+    const games = await res.json();
+    const container = document.getElementById('gameResults');
+    if (!games.length) { container.style.display = 'none'; return; }
+    container.style.display = 'block';
+    container.innerHTML = games.map(g => `
+      <div onclick="selectGame('${g.id}','${g.name.replace(/'/g,"\\'")}','${g.box_art_url?.replace('{width}x{height}','60x80')||''}')"
+        style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.04);"
+        onmouseover="this.style.background='rgba(145,71,255,0.1)'" onmouseout="this.style.background='transparent'">
+        <img src="${g.box_art_url?.replace('{width}x{height}','40x54')||''}" style="width:30px;height:40px;object-fit:cover;border-radius:3px;background:var(--bg4);">
+        <span style="font-size:13px;color:var(--text);">${g.name}</span>
+      </div>`).join('');
+  }, 400);
+}
+
+function selectGame(id, name, img) {
+  document.getElementById('gameId').value = id;
+  document.getElementById('gameSearch').value = name;
+  document.getElementById('gameSearch').style.display = 'none';
+  document.getElementById('gameResults').style.display = 'none';
+  document.getElementById('selectedGameName').textContent = name;
+  document.getElementById('selectedGameImg').src = img;
+  document.getElementById('selectedGame').style.display = 'flex';
+}
+
+function clearGame() {
+  document.getElementById('gameId').value = '';
+  document.getElementById('gameSearch').value = '';
+  document.getElementById('gameSearch').style.display = 'block';
+  document.getElementById('selectedGame').style.display = 'none';
+}
+
+async function updateStream() {
+  const title = document.getElementById('streamTitle')?.value.trim();
+  const game_id = document.getElementById('gameId')?.value;
+  const statusEl = document.getElementById('streamStatus');
+  if (!title) { showToast('El título no puede estar vacío','error'); return; }
+  const body = { title };
+  if (game_id) body.game_id = game_id;
+  const res = await fetch('/api/stream/update', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  statusEl.style.display = 'block';
+  if (res.ok) {
+    showToast('¡Stream actualizado! ✓');
+    statusEl.innerHTML = '<span style="color:var(--green)">✅ Stream actualizado correctamente</span>';
+  } else {
+    const err = await res.json();
+    statusEl.innerHTML = `<span style="color:var(--pink)">⚠️ ${err.error || 'Error al actualizar'} — Cierra sesión y vuelve a entrar</span>`;
+  }
+  setTimeout(() => statusEl.style.display = 'none', 4000);
+}
 
 // ── SORTEOS ──
 let raffleInterval = null;
