@@ -205,6 +205,20 @@ app.get('/logout', (req, res) => {
   req.session.destroy(() => res.redirect('/'));
 });
 
+// API para verificar si fue aprobado
+app.get('/api/check-approval', async (req, res) => {
+  if (!req.session.user) return res.json({ approved: false });
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (streamer?.approved) {
+      req.session.user.approved = true;
+      req.session.user.role = streamer.role;
+      return res.json({ approved: true, role: streamer.role });
+    }
+    res.json({ approved: false });
+  } catch(err) { res.json({ approved: false }); }
+});
+
 // ── Página de espera para pendientes ──
 app.get('/pending', (req, res) => {
   if (!req.session.user) return res.redirect('/');
