@@ -384,7 +384,29 @@ function renderMain() {
 
   <!-- AUTO MENSAJES -->
   <div id="sec-automessages" class="section">
-    <div class="page-header"><div class="page-title">Auto mensajes</div><div class="page-subtitle">Mensajes automáticos cada 20 minutos</div></div>
+    <div class="page-header"><div class="page-title">Auto mensajes</div><div class="page-subtitle">Mensajes automáticos en tu chat</div></div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">Intervalo de tiempo</span>
+      </div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label class="form-label">Cada cuánto tiempo enviar un mensaje</label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <input type="range" id="intervalSlider" min="5" max="120" step="5" value="${s.auto_message_interval||20}"
+              style="flex:1;accent-color:var(--purple);"
+              oninput="document.getElementById('intervalValue').textContent=this.value">
+            <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:8px 16px;min-width:80px;text-align:center;">
+              <span id="intervalValue" style="font-size:18px;font-weight:600;color:var(--purple)">${s.auto_message_interval||20}</span>
+              <span style="font-size:11px;color:var(--text-dim);display:block">minutos</span>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:6px;">
+            <span>5 min</span><span>30 min</span><span>60 min</span><span>120 min</span>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="panel">
       <div class="panel-header">
         <span class="panel-title-text">Lista de mensajes</span>
@@ -533,7 +555,14 @@ async function saveCommands(){
 }
 function addAutoMsg(){const list=document.getElementById('msgList');const div=document.createElement('div');div.className='msg-item';div.innerHTML=`<input class="msg-input" value="Nuevo mensaje automático 🕷️" placeholder="Mensaje..."><button class="btn btn-danger btn-sm" onclick="removeMsg(this)">✕</button>`;list.appendChild(div);}
 function removeMsg(btn){btn.closest('.msg-item').remove();}
-async function saveAutoMessages(){const inputs=document.querySelectorAll('.msg-input');const auto_messages=Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);const res=await fetch('/api/auto-messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({auto_messages})});res.ok?(streamerData.auto_messages=auto_messages,showToast('Mensajes guardados ✓')):showToast('Error','error');}
+async function saveAutoMessages(){
+  const inputs=document.querySelectorAll('.msg-input');
+  const auto_messages=Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
+  const interval=parseInt(document.getElementById('intervalSlider')?.value||20);
+  const res=await fetch('/api/auto-messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({auto_messages,auto_message_interval:interval})});
+  if(res.ok){streamerData.auto_messages=auto_messages;streamerData.auto_message_interval=interval;showToast('Mensajes guardados ✓');}
+  else showToast('Error','error');
+}
 function addWord(e){if(e.key!=='Enter')return;const input=document.getElementById('wordInput');const word=input.value.trim().toLowerCase();if(!word)return;const container=document.getElementById('wordsContainer');const span=document.createElement('span');span.className='word-tag';span.innerHTML=`${word}<button onclick="removeWord(this)">×</button>`;container.appendChild(span);input.value='';}
 function removeWord(btn){btn.closest('.word-tag').remove();}
 async function saveModeration(){const banned_words=Array.from(document.querySelectorAll('.word-tag')).map(el=>el.textContent.replace('×','').trim());const warn_message=document.getElementById('warnInput').value;const mod_enabled=streamerData.mod_enabled;const res=await fetch('/api/moderation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mod_enabled,banned_words,warn_message})});res.ok?(streamerData.banned_words=banned_words,streamerData.warn_message=warn_message,showToast('Moderación guardada ✓')):showToast('Error','error');}
