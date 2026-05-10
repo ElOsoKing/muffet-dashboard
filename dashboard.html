@@ -143,7 +143,19 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
 .msg-input{flex:1;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:10px 14px;outline:none;}
 .msg-input:focus{border-color:var(--purple);}
 
-/* ── BANNED WORDS ── */
+/* ── AUTO MSG CARD ── */
+.automsg-card{background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:14px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;}
+.automsg-type-btn{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.1);background:var(--bg4);cursor:pointer;font-size:11px;font-weight:500;color:var(--text-dim);white-space:nowrap;transition:all 0.15s;}
+.automsg-type-btn.ai{color:var(--purple-light);border-color:var(--purple-border);background:var(--purple-dim);}
+.automsg-time{display:flex;align-items:center;gap:6px;white-space:nowrap;}
+.automsg-time-input{background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;font-weight:500;padding:6px 8px;outline:none;width:48px;text-align:center;}
+.automsg-time-input:focus{border-color:var(--purple);}
+.automsg-time-label{font-size:11px;color:var(--text-muted);}
+.automsg-middle{display:flex;flex-direction:column;gap:6px;}
+.automsg-msg-input{background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 12px;outline:none;width:100%;}
+.automsg-msg-input:focus{border-color:var(--purple);}
+.automsg-hint{font-size:11px;color:var(--text-muted);}
+.automsg-hint.ai{color:var(--purple-light);opacity:0.7;}
 .words-container{display:flex;flex-wrap:wrap;gap:6px;min-height:44px;padding:10px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);margin-bottom:10px;}
 .word-tag{display:flex;align-items:center;gap:5px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.25);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--pink);}
 .word-tag button{background:none;border:none;color:var(--pink);cursor:pointer;font-size:14px;line-height:1;padding:0;opacity:0.7;}
@@ -391,13 +403,16 @@ function renderMain() {
         <button class="btn btn-success btn-sm" onclick="addAutoMsg()">+ Agregar</button>
       </div>
       <div class="panel-body">
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-          Cada mensaje tiene su propio intervalo. El tipo <strong style="color:var(--purple-light)">IA</strong> hace que Muffet invente el mensaje usando el tema que le des.
+        <div style="display:grid;grid-template-columns:80px 1fr 90px 32px;gap:8px;padding:0 0 8px;border-bottom:1px solid rgba(255,255,255,0.04);margin-bottom:10px;">
+          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Tipo</span>
+          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Mensaje o tema</span>
+          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Intervalo</span>
+          <span></span>
         </div>
-        <div class="msg-list" id="msgList">
+        <div class="msg-list" id="msgList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
           ${(()=>{
             const msgs = Array.isArray(autoMessages) ? autoMessages : [];
-            if(!msgs.length) return '';
+            if(!msgs.length) return `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">No hay mensajes. Agrega uno con el botón de arriba.</div>`;
             return msgs.map(msg => {
               const isObj = typeof msg === 'object';
               const text = isObj ? msg.text : msg;
@@ -405,23 +420,18 @@ function renderMain() {
               const type = isObj ? (msg.type || 'fixed') : 'fixed';
               const h = Math.floor(interval / 60);
               const m = interval % 60;
-              return `<div class="msg-item" style="flex-direction:column;gap:8px;background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:12px;">
-                <div style="display:flex;gap:8px;align-items:center;">
-                  <select class="msg-type" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:7px 10px;outline:none;" onchange="updateMsgType(this)">
-                    <option value="fixed" ${type==='fixed'?'selected':''}>📝 Texto fijo</option>
-                    <option value="ai" ${type==='ai'?'selected':''}>🤖 Mensaje IA</option>
-                  </select>
-                  <button class="btn btn-danger btn-sm" onclick="removeMsg(this)" style="margin-left:auto;">✕</button>
+              return `<div style="display:grid;grid-template-columns:80px 1fr 90px 32px;gap:8px;align-items:center;">
+                <button class="automsg-type-btn ${type==='ai'?'ai':''}" onclick="toggleMsgType(this)" data-type="${type}">
+                  ${type==='ai'?'🤖 IA':'📝 Fijo'}
+                </button>
+                <input class="automsg-msg-input" value="${text.replace(/"/g,'&quot;')}" placeholder="${type==='ai'?'Tema para Muffet...':'Mensaje del chat...'}">
+                <div class="automsg-time">
+                  <input type="number" class="automsg-time-input msg-hours" min="0" max="23" value="${h}" title="Horas">
+                  <span class="automsg-time-label">h</span>
+                  <input type="number" class="automsg-time-input msg-minutes" min="0" max="59" value="${m}" title="Minutos">
+                  <span class="automsg-time-label">m</span>
                 </div>
-                <input class="msg-input" value="${text.replace(/"/g,'&quot;')}" placeholder="${type==='ai'?'Tema para Muffet (ej: habla sobre el stream de hoy)':'Mensaje que aparecerá en el chat...'}">
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <span style="font-size:12px;color:var(--text-dim);white-space:nowrap;">Cada:</span>
-                  <input type="number" class="msg-hours" min="0" max="23" value="${h}" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 10px;outline:none;width:60px;text-align:center;">
-                  <span style="font-size:12px;color:var(--text-dim);">h</span>
-                  <input type="number" class="msg-minutes" min="0" max="59" value="${m}" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 10px;outline:none;width:60px;text-align:center;">
-                  <span style="font-size:12px;color:var(--text-dim);">min</span>
-                  <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">(mínimo 5 min)</span>
-                </div>
+                <button class="btn btn-danger btn-sm" onclick="removeMsg(this)" style="padding:6px 8px;">✕</button>
               </div>`;
             }).join('');
           })()}
@@ -559,47 +569,44 @@ async function saveCommands(){
   const res=await fetch('/api/commands',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({commands})});
   res.ok?(streamerData.commands=commands,showToast('Comandos guardados ✓')):showToast('Error al guardar','error');
 }
-function updateMsgType(select) {
-  const item = select.closest('.msg-item');
-  const input = item.querySelector('.msg-input');
-  input.placeholder = select.value === 'ai'
-    ? 'Tema para Muffet (ej: habla sobre el stream de hoy)'
-    : 'Mensaje que aparecerá en el chat...';
+function toggleMsgType(btn) {
+  const current = btn.dataset.type;
+  const next = current === 'fixed' ? 'ai' : 'fixed';
+  btn.dataset.type = next;
+  btn.className = `automsg-type-btn ${next === 'ai' ? 'ai' : ''}`;
+  btn.textContent = next === 'ai' ? '🤖 IA' : '📝 Fijo';
+  const input = btn.closest('[style*="grid"]').querySelector('.automsg-msg-input');
+  if (input) input.placeholder = next === 'ai' ? 'Tema para Muffet...' : 'Mensaje del chat...';
 }
 
 function addAutoMsg() {
   const list = document.getElementById('msgList');
+  // Quitar mensaje de vacío si existe
+  const empty = list.querySelector('[style*="text-align:center"]');
+  if (empty) empty.remove();
   const div = document.createElement('div');
-  div.className = 'msg-item';
-  div.style.cssText = 'flex-direction:column;gap:8px;background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:12px;';
+  div.style.cssText = 'display:grid;grid-template-columns:80px 1fr 90px 32px;gap:8px;align-items:center;';
   div.innerHTML = `
-    <div style="display:flex;gap:8px;align-items:center;">
-      <select class="msg-type" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:7px 10px;outline:none;" onchange="updateMsgType(this)">
-        <option value="fixed">📝 Texto fijo</option>
-        <option value="ai">🤖 Mensaje IA</option>
-      </select>
-      <button class="btn btn-danger btn-sm" onclick="removeMsg(this)" style="margin-left:auto;">✕</button>
+    <button class="automsg-type-btn" onclick="toggleMsgType(this)" data-type="fixed">📝 Fijo</button>
+    <input class="automsg-msg-input" value="" placeholder="Mensaje del chat...">
+    <div class="automsg-time">
+      <input type="number" class="automsg-time-input msg-hours" min="0" max="23" value="0" title="Horas">
+      <span class="automsg-time-label">h</span>
+      <input type="number" class="automsg-time-input msg-minutes" min="0" max="59" value="20" title="Minutos">
+      <span class="automsg-time-label">m</span>
     </div>
-    <input class="msg-input" value="" placeholder="Mensaje que aparecerá en el chat...">
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span style="font-size:12px;color:var(--text-dim);white-space:nowrap;">Cada:</span>
-      <input type="number" class="msg-hours" min="0" max="23" value="0" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 10px;outline:none;width:60px;text-align:center;">
-      <span style="font-size:12px;color:var(--text-dim);">h</span>
-      <input type="number" class="msg-minutes" min="0" max="59" value="20" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 10px;outline:none;width:60px;text-align:center;">
-      <span style="font-size:12px;color:var(--text-dim);">min</span>
-      <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">(mínimo 5 min)</span>
-    </div>`;
+    <button class="btn btn-danger btn-sm" onclick="removeMsg(this)" style="padding:6px 8px;">✕</button>`;
   list.appendChild(div);
 }
 
-function removeMsg(btn) { btn.closest('.msg-item').remove(); }
+function removeMsg(btn) { btn.closest('[style*="grid"]').remove(); }
 
 async function saveAutoMessages() {
-  const items = document.querySelectorAll('#msgList .msg-item');
+  const items = document.querySelectorAll('#msgList [style*="grid-template-columns"]');
   const auto_messages = [];
   items.forEach(item => {
-    const text    = item.querySelector('.msg-input')?.value.trim();
-    const type    = item.querySelector('.msg-type')?.value || 'fixed';
+    const text    = item.querySelector('.automsg-msg-input')?.value.trim();
+    const type    = item.querySelector('.automsg-type-btn')?.dataset.type || 'fixed';
     const hours   = parseInt(item.querySelector('.msg-hours')?.value || 0);
     const minutes = parseInt(item.querySelector('.msg-minutes')?.value || 20);
     const interval = Math.max((hours * 60) + minutes, 5);
