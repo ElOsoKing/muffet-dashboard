@@ -160,6 +160,34 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
 .word-tag{display:flex;align-items:center;gap:5px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.25);border-radius:20px;padding:4px 10px;font-size:12px;color:var(--pink);}
 .word-tag button{background:none;border:none;color:var(--pink);cursor:pointer;font-size:14px;line-height:1;padding:0;opacity:0.7;}
 .word-tag button:hover{opacity:1;}
+/* ── SORTEO ── */
+.raffle-active{background:linear-gradient(135deg,rgba(145,71,255,0.1),var(--bg2));border:1px solid var(--purple-border);border-radius:var(--radius);padding:20px;margin-bottom:16px;}
+.raffle-inactive{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:24px;margin-bottom:16px;text-align:center;}
+.raffle-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px;}
+.raffle-title{font-size:16px;font-weight:600;color:var(--text);}
+.raffle-prize{font-size:13px;color:var(--purple-light);margin-top:2px;}
+.raffle-counter{text-align:right;}
+.raffle-count{font-size:32px;font-weight:700;color:var(--purple);letter-spacing:-0.5px;line-height:1;}
+.raffle-count-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;}
+.participants-grid{display:flex;flex-wrap:wrap;gap:6px;max-height:180px;overflow-y:auto;padding:4px 0;margin:8px 0;}
+.participant-tag{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:4px 10px 4px 12px;font-size:12px;color:var(--text-dim);}
+.participant-tag .remove-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:14px;line-height:1;padding:0;display:flex;align-items:center;}
+.participant-tag .remove-btn:hover{color:var(--pink);}
+.raffle-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+.raffle-cmd-hint{font-size:12px;color:var(--text-muted);margin-top:8px;}
+.raffle-cmd-hint code{color:var(--purple-light);background:var(--purple-dim);padding:2px 6px;border-radius:4px;}
+/* Animación ganador */
+.winner-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.4s;}
+.winner-overlay.show{opacity:1;pointer-events:all;}
+.winner-card{background:var(--bg2);border:2px solid var(--purple);border-radius:16px;padding:48px 40px;text-align:center;transform:scale(0.7);transition:transform 0.5s cubic-bezier(0.34,1.56,0.64,1);max-width:420px;width:90%;position:relative;overflow:hidden;}
+.winner-overlay.show .winner-card{transform:scale(1);}
+.winner-emoji{font-size:72px;margin-bottom:16px;display:block;animation:bounce 0.5s ease infinite alternate;}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+.winner-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;}
+.winner-name{font-size:40px;font-weight:700;color:var(--purple-light);letter-spacing:-1px;margin-bottom:8px;line-height:1.1;}
+.winner-prize{font-size:14px;color:var(--text-dim);margin-bottom:28px;}
+.confetti-piece{position:absolute;width:8px;height:8px;border-radius:2px;animation:confettiFall 2.5s ease-in forwards;}
+@keyframes confettiFall{0%{opacity:1;transform:translateY(-10px) rotate(0deg);}100%{opacity:0;transform:translateY(350px) rotate(720deg);}}
 
 /* ── STATS BARS ── */
 .stat-bar-item{margin-bottom:14px;}
@@ -235,6 +263,8 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-item" onclick="showSection('variables')"><span class="nav-icon">📋</span> Variables</div>
     <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
     <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
+    <div class="nav-section">Herramientas</div>
+    <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
     <div class="nav-section">Análisis</div>
     <div class="nav-item" onclick="showSection('stats')"><span class="nav-icon">📊</span> Estadísticas</div>
     <div class="nav-section">Cuenta</div>
@@ -289,6 +319,8 @@ function showSection(name) {
   if(clicked) clicked.classList.add('active');
   const sec = document.getElementById('sec-' + name);
   if(sec) sec.classList.add('active');
+  if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
+  else stopRafflePolling();
   if(window.innerWidth <= 768) toggleSidebar();
 }
 
@@ -608,6 +640,42 @@ function renderMain() {
     </div>
   </div>
 
+  <!-- SORTEOS -->
+  <div id="sec-raffle" class="section">
+    <div class="page-header">
+      <div class="page-title">🎉 Sorteos</div>
+      <div class="page-subtitle">Gestiona sorteos en vivo desde aquí</div>
+    </div>
+
+    <!-- Estado del sorteo -->
+    <div id="rafflePanel"></div>
+
+    <!-- Configuración -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label class="form-label">Comando para entrar</label>
+          <input class="form-input" id="raffleJoinCmd" value="${s.raffle_settings?.join_cmd||'!entrar'}" placeholder="!entrar">
+        </div>
+        <div class="form-group">
+          <label class="form-label">¿Quién puede participar?</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">
+            ${['everyone','sub','vip','mod'].map(p => {
+              const labels = {everyone:'👥 Todos',sub:'⭐ Subs',vip:'💎 VIPs',mod:'🛡️ Mods'};
+              const active = (s.raffle_settings?.allowed||['everyone']).includes(p);
+              return `<label style="display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid ${active?'var(--purple)':'rgba(255,255,255,0.08)'};border-radius:20px;cursor:pointer;font-size:12px;color:${active?'var(--purple-light)':'var(--text-dim)'};background:${active?'var(--purple-dim)':'transparent'};transition:all 0.15s;" onclick="toggleRafflePerm(this,'${p}')">
+                <input type="checkbox" ${active?'checked':''} data-perm="${p}" style="display:none;">
+                ${labels[p]}
+              </label>`;
+            }).join('')}
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveRaffleSettings()">Guardar configuración</button>
+      </div>
+    </div>
+  </div>
+
   <!-- REDES SOCIALES -->
   <div id="sec-socials" class="section">
     <div class="page-header">
@@ -796,7 +864,142 @@ async function saveSocials(){
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 
+// ── SORTEOS ──
+let raffleInterval = null;
+
+function toggleRafflePerm(label, perm) {
+  const cb = label.querySelector('input');
+  if (perm === 'everyone' && !cb.checked) {
+    document.querySelectorAll('#sec-raffle [data-perm]').forEach(i => { i.checked=false; i.closest('label').style.borderColor='rgba(255,255,255,0.08)'; i.closest('label').style.color='var(--text-dim)'; i.closest('label').style.background='transparent'; });
+    cb.checked = true; label.style.borderColor='var(--purple)'; label.style.color='var(--purple-light)'; label.style.background='var(--purple-dim)';
+    return;
+  }
+  if (perm !== 'everyone') {
+    const evEl = document.querySelector('#sec-raffle [data-perm="everyone"]');
+    if (evEl) { evEl.checked=false; evEl.closest('label').style.borderColor='rgba(255,255,255,0.08)'; evEl.closest('label').style.color='var(--text-dim)'; evEl.closest('label').style.background='transparent'; }
+  }
+  cb.checked = !cb.checked;
+  label.style.borderColor = cb.checked ? 'var(--purple)' : 'rgba(255,255,255,0.08)';
+  label.style.color = cb.checked ? 'var(--purple-light)' : 'var(--text-dim)';
+  label.style.background = cb.checked ? 'var(--purple-dim)' : 'transparent';
+}
+
+async function saveRaffleSettings() {
+  const allowed = Array.from(document.querySelectorAll('#sec-raffle [data-perm]:checked')).map(i=>i.dataset.perm);
+  const join_cmd = document.getElementById('raffleJoinCmd')?.value.trim() || '!entrar';
+  const res = await fetch('/api/raffle/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ raffle_settings: { allowed: allowed.length ? allowed : ['everyone'], join_cmd } }) });
+  if(res.ok) { streamerData.raffle_settings = { allowed, join_cmd }; showToast('Configuración guardada ✓'); }
+  else showToast('Error al guardar','error');
+}
+
+async function startRaffle() {
+  const prize = prompt('¿Cuál es el premio del sorteo?');
+  if (!prize) return;
+  const res = await fetch('/api/raffle/start', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prize }) });
+  if (res.ok) { showToast('¡Sorteo iniciado! 🎉'); loadRaffleStatus(); startRafflePolling(); }
+  else showToast('Error al iniciar','error');
+}
+
+async function endRaffle() {
+  const res = await fetch('/api/raffle/end', { method:'POST' });
+  const data = await res.json();
+  if (res.ok && data.winner) { stopRafflePolling(); showWinner(data.winner, data.prize); loadRaffleStatus(); }
+  else if (res.ok) { showToast('No hay participantes aún~ 🕷️','error'); }
+  else showToast('Error','error');
+}
+
+async function cancelRaffle() {
+  if (!confirm('¿Cancelar el sorteo?')) return;
+  const res = await fetch('/api/raffle/cancel', { method:'POST' });
+  if (res.ok) { stopRafflePolling(); showToast('Sorteo cancelado'); loadRaffleStatus(); }
+}
+
+async function removeParticipant(username) {
+  const res = await fetch('/api/raffle/remove', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ username }) });
+  if (res.ok) loadRaffleStatus();
+}
+
+async function loadRaffleStatus() {
+  const res = await fetch('/api/raffle/status');
+  if (!res.ok) return;
+  const data = await res.json();
+  const panel = document.getElementById('rafflePanel');
+  if (!panel) return;
+
+  if (!data.active) {
+    panel.innerHTML = `
+      <div class="raffle-inactive">
+        <div style="font-size:32px;margin-bottom:12px;">🎉</div>
+        <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px;">No hay sorteo activo</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;">Inicia uno y la gente puede entrar con el comando configurado</div>
+        <button class="btn btn-primary" onclick="startRaffle()">🎉 Iniciar sorteo</button>
+      </div>`;
+    return;
+  }
+
+  const participants = data.participants || [];
+  const joinCmd = streamerData.raffle_settings?.join_cmd || '!entrar';
+  panel.innerHTML = `
+    <div class="raffle-active">
+      <div class="raffle-header">
+        <div>
+          <div class="raffle-title">🎉 Sorteo en curso</div>
+          <div class="raffle-prize">🏆 Premio: ${data.prize}</div>
+          <div class="raffle-cmd-hint">La gente entra escribiendo <code>${joinCmd}</code> en el chat</div>
+        </div>
+        <div class="raffle-counter">
+          <div class="raffle-count">${participants.length}</div>
+          <div class="raffle-count-label">participantes</div>
+        </div>
+      </div>
+      <div class="participants-grid" id="participantsList">
+        ${participants.length ? participants.map(p => `
+          <div class="participant-tag">
+            ${p}
+            <button class="remove-btn" onclick="removeParticipant('${p}')" title="Eliminar">×</button>
+          </div>`).join('') : '<div style="color:var(--text-muted);font-size:12px;padding:8px;">Esperando participantes...</div>'}
+      </div>
+      <div class="raffle-actions">
+        <button class="btn btn-primary" onclick="endRaffle()" ${participants.length===0?'disabled':''}>🏆 Elegir ganador</button>
+        <button class="btn btn-danger" onclick="cancelRaffle()">Cancelar sorteo</button>
+      </div>
+    </div>`;
+}
+
+function startRafflePolling() {
+  stopRafflePolling();
+  raffleInterval = setInterval(loadRaffleStatus, 3000);
+}
+function stopRafflePolling() {
+  if (raffleInterval) { clearInterval(raffleInterval); raffleInterval = null; }
+}
+
+function showWinner(winner, prize) {
+  const colors = ['#9147ff','#f0c060','#40d090','#e05a7a','#60a0f0'];
+  let confettiHtml = '';
+  for(let i=0;i<30;i++){
+    const x=Math.random()*100;const delay=Math.random()*1.5;const color=colors[Math.floor(Math.random()*colors.length)];
+    confettiHtml+=`<div class="confetti-piece" style="left:${x}%;background:${color};animation-delay:${delay}s;animation-duration:${2+Math.random()}s;"></div>`;
+  }
+  const overlay = document.createElement('div');
+  overlay.className = 'winner-overlay';
+  overlay.innerHTML = `
+    <div class="winner-card">
+      <div class="confetti">${confettiHtml}</div>
+      <span class="winner-emoji">🏆</span>
+      <div class="winner-label">¡Ganador del sorteo!</div>
+      <div class="winner-name">${winner}</div>
+      <div class="winner-prize">🎁 ${prize}</div>
+      <button class="btn btn-primary" onclick="this.closest('.winner-overlay').remove()">Cerrar</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  setTimeout(() => overlay.classList.add('show'), 10);
+}
+
+// Cargar estado del sorteo al entrar a la sección
+
 loadData();
+
 </script>
 </body>
 </html>
