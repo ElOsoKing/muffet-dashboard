@@ -278,13 +278,6 @@ async function loadData() {
     streamerData.plan === 'pro' ? '⭐ Plan Pro' : '🆓 Plan Gratuito';
 
   if (userData.role === 'admin') document.getElementById('adminNavItem').style.display = 'flex';
-
-  // Link de página pública
-  const publicUrl = `${window.location.origin}/canal/${userData.username}`;
-  const urlEl = document.getElementById('publicUrl');
-  const urlBtn = document.getElementById('publicUrlBtn');
-  if (urlEl) urlEl.textContent = publicUrl;
-  if (urlBtn) urlBtn.href = publicUrl;
   renderMain();
   showSection('overview');
 }
@@ -627,11 +620,11 @@ function renderMain() {
       <div>
         <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;">🌐 Tu página pública</div>
         <div style="font-size:12px;color:var(--text-dim);">Comparte este link con tu comunidad — muestra tus comandos, redes y videos</div>
-        <code id="publicUrl" style="font-size:12px;color:var(--purple-light);margin-top:6px;display:block;"></code>
+        <code style="font-size:12px;color:var(--purple-light);margin-top:6px;display:block;">${window.location.origin}/canal/${userData.username}</code>
       </div>
       <div style="display:flex;gap:8px;flex-shrink:0;">
-        <button class="btn btn-primary btn-sm" onclick="copyPublicUrl()">Copiar link</button>
-        <a id="publicUrlBtn" href="#" target="_blank" class="btn btn-success btn-sm" style="text-decoration:none;">Ver página</a>
+        <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('${window.location.origin}/canal/${userData.username}').then(()=>showToast('Link copiado ✓')).catch(()=>showToast('Error al copiar','error'))">Copiar link</button>
+        <a href="/canal/${userData.username}" target="_blank" class="btn btn-success btn-sm" style="text-decoration:none;">Ver página</a>
       </div>
     </div>
 
@@ -800,10 +793,6 @@ async function saveSocials(){
   else showToast('Error al guardar','error');
 }
 
-function copyPublicUrl(){
-  const url=document.getElementById('publicUrl')?.textContent;
-  if(url){navigator.clipboard.writeText(url).catch(()=>{});showToast('Link copiado ✓');}
-}
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 
