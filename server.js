@@ -92,7 +92,8 @@ app.get('/', (req, res) => {
 
 app.get('/auth/twitch', (req, res) => {
   const redirectUri = BASE_URL + '/auth/twitch/callback';
-  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=user:read:email`;
+  const scopes = 'user:read:email channel:manage:broadcast';
+    const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
   res.redirect(url);
 });
 
@@ -198,6 +199,10 @@ app.get('/api/canal/:username', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/'));
 });
 
 // ── Página de espera para pendientes ──
@@ -381,7 +386,55 @@ app.delete('/api/custom-bot', requireAuth, async (req, res) => {
   }
 });
 
-// ── Overlay de sorteo para OBS ──
+// ── API Stream Manager ──
+app.get('/api/stream/info', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const token = streamer?.access_token;
+    if (!token) return res.status(401).json({ error: 'Sin token' });
+
+    const r = await fetch(`https://api.twitch.tv/helix/channels?broadcaster_id=${req.session.user.id}`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID }
+    });
+    const data = await r.json();
+    res.json(data.data?.[0] || {});
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/stream/update', requireAuth, async (req, res) => {
+  try {
+    const { title, game_id } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const token = streamer?.access_token;
+    if (!token) return res.status(401).json({ error: 'Sin token' });
+
+    const body = {};
+    if (title !== undefined) body.title = title;
+    if (game_id !== undefined) body.game_id = game_id;
+
+    const r = await fetch(`https://api.twitch.tv/helix/channels?broadcaster_id=${req.session.user.id}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (r.status === 204) res.json({ success: true });
+    else { const d = await r.json(); res.status(400).json({ error: d.message || 'Error' }); }
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/stream/search-game', requireAuth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q) return res.json([]);
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const token = streamer?.access_token;
+    const r = await fetch(`https://api.twitch.tv/helix/search/categories?query=${encodeURIComponent(q)}&first=8`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID }
+    });
+    const data = await r.json();
+    res.json(data.data || []);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
 app.get('/overlay/sorteo/:username', (req, res) => {
   res.sendFile(path.join(__dirname, 'raffle-overlay.html'));
 });
