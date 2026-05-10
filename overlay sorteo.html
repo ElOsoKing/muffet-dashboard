@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sorteo Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --purple:#9147ff;--purple-light:#b388ff;--purple-dim:rgba(145,71,255,0.15);
+  --green:#40d090;--yellow:#f0c060;--pink:#e05a7a;
+  --bg:rgba(0,0,0,0.75);--bg2:rgba(20,20,25,0.85);
+  --text:#e8e8f0;--text-dim:#8a8aaa;
+  --sans:'Inter',sans-serif;--display:'VT323',monospace;
+  --radius:12px;
+}
+
+/* Fondo transparente para OBS */
+html,body{
+  background:transparent !important;
+  width:100%;height:100%;
+  font-family:var(--sans);
+  color:var(--text);
+  overflow:hidden;
+}
+
+.overlay{
+  position:fixed;bottom:20px;left:20px;
+  width:320px;
+  font-family:var(--sans);
+}
+
+/* Estado inactivo */
+.raffle-idle{display:none;}
+
+/* Card principal */
+.raffle-card{
+  background:var(--bg);
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(145,71,255,0.4);
+  border-radius:var(--radius);
+  overflow:hidden;
+  animation:slideIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes slideIn{from{transform:translateX(-30px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+/* Header */
+.card-header{
+  background:linear-gradient(135deg,rgba(145,71,255,0.3),rgba(145,71,255,0.1));
+  padding:12px 16px;
+  border-bottom:1px solid rgba(145,71,255,0.2);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.header-left{display:flex;align-items:center;gap:8px;}
+.header-icon{font-size:20px;animation:pulse 1.5s ease infinite;}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+.header-title{font-size:14px;font-weight:700;color:white;letter-spacing:-0.3px;}
+.header-prize{font-size:11px;color:var(--purple-light);margin-top:1px;}
+.participant-count{
+  background:var(--purple);border-radius:20px;
+  padding:4px 10px;font-size:13px;font-weight:700;color:white;
+  min-width:32px;text-align:center;
+}
+
+/* Lista de participantes */
+.participants-wrap{padding:10px 12px;max-height:180px;overflow:hidden;}
+.participants-title{font-size:10px;font-weight:500;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.participants-list{display:flex;flex-wrap:wrap;gap:5px;}
+.p-tag{
+  background:rgba(145,71,255,0.15);border:1px solid rgba(145,71,255,0.25);
+  border-radius:20px;padding:3px 10px;font-size:11px;color:var(--purple-light);
+  animation:tagIn 0.3s ease;
+}
+@keyframes tagIn{from{transform:scale(0.8);opacity:0;}to{transform:scale(1);opacity:1;}}
+.waiting{font-size:12px;color:var(--text-dim);padding:8px 0;font-style:italic;}
+
+/* Footer hint */
+.card-footer{
+  padding:8px 16px;border-top:1px solid rgba(255,255,255,0.06);
+  font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:6px;
+}
+.dot-live{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1s ease infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+
+/* ── GANADOR ── */
+.winner-screen{
+  display:none;
+  background:var(--bg);backdrop-filter:blur(16px);
+  border:2px solid var(--yellow);border-radius:var(--radius);
+  padding:24px 20px;text-align:center;
+  animation:winnerIn 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  position:relative;overflow:hidden;
+}
+.winner-screen.show{display:block;}
+@keyframes winnerIn{from{transform:scale(0.5);opacity:0;}to{transform:scale(1);opacity:1;}}
+.winner-trophy{font-size:48px;display:block;margin-bottom:8px;animation:trophyBounce 0.5s ease infinite alternate;}
+@keyframes trophyBounce{from{transform:translateY(0) rotate(-5deg);}to{transform:translateY(-8px) rotate(5deg);}}
+.winner-label{font-size:10px;font-weight:600;color:var(--yellow);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
+.winner-name{font-family:var(--display);font-size:42px;color:white;line-height:1;margin-bottom:4px;text-shadow:0 0 20px rgba(145,71,255,0.8);}
+.winner-prize{font-size:12px;color:var(--text-dim);}
+.confetti-piece{position:absolute;width:7px;height:7px;border-radius:2px;animation:confettiFall 2.5s ease-in forwards;}
+@keyframes confettiFall{0%{opacity:1;transform:translateY(-10px) rotate(0);}100%{opacity:0;transform:translateY(250px) rotate(720deg);}}
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="raffle-idle" id="idleState"></div>
+
+  <div class="raffle-card" id="activeState" style="display:none;">
+    <div class="card-header">
+      <div class="header-left">
+        <span class="header-icon">🎉</span>
+        <div>
+          <div class="header-title">Sorteo en curso</div>
+          <div class="header-prize" id="overlayPrize"></div>
+        </div>
+      </div>
+      <div class="participant-count" id="overlayCount">0</div>
+    </div>
+    <div class="participants-wrap">
+      <div class="participants-title">Participantes</div>
+      <div class="participants-list" id="overlayParticipants">
+        <span class="waiting">Esperando participantes...</span>
+      </div>
+    </div>
+    <div class="card-footer">
+      <div class="dot-live"></div>
+      En vivo — escribe <strong id="overlayJoinCmd" style="color:var(--purple-light)">!entrar</strong> para participar
+    </div>
+  </div>
+
+  <div class="winner-screen" id="winnerState">
+    <span class="winner-trophy">🏆</span>
+    <div class="winner-label">¡Ganador!</div>
+    <div class="winner-name" id="winnerName"></div>
+    <div class="winner-prize" id="winnerPrize"></div>
+  </div>
+</div>
+
+<script>
+const username = window.location.pathname.split('/overlay/sorteo/')[1];
+let lastParticipants = [];
+let winnerShown = false;
+
+function spawnConfetti() {
+  const colors = ['#9147ff','#f0c060','#40d090','#e05a7a','#60a0f0','#ffffff'];
+  const screen = document.getElementById('winnerState');
+  for(let i=0;i<25;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};animation-delay:${Math.random()*1.5}s;animation-duration:${2+Math.random()}s;`;
+    screen.appendChild(el);
+    setTimeout(()=>el.remove(), 4000);
+  }
+}
+
+async function pollRaffle() {
+  if (!username) return;
+  try {
+    const res = await fetch(`/api/raffle/overlay/${username}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const activeEl  = document.getElementById('activeState');
+    const winnerEl  = document.getElementById('winnerState');
+
+    if (data.winner && !winnerShown) {
+      winnerShown = true;
+      activeEl.style.display = 'none';
+      document.getElementById('winnerName').textContent  = data.winner;
+      document.getElementById('winnerPrize').textContent = '🎁 ' + (data.prize || '');
+      winnerEl.classList.add('show');
+      spawnConfetti();
+      setTimeout(() => {
+        winnerEl.classList.remove('show');
+        winnerShown = false;
+      }, 12000);
+      return;
+    }
+
+    if (!data.active) { activeEl.style.display = 'none'; return; }
+
+    winnerEl.classList.remove('show');
+    activeEl.style.display = 'block';
+    document.getElementById('overlayPrize').textContent   = '🏆 ' + (data.prize || '');
+    document.getElementById('overlayCount').textContent   = (data.participants || []).length;
+    document.getElementById('overlayJoinCmd').textContent = data.join_cmd || '!entrar';
+
+    const list = document.getElementById('overlayParticipants');
+    const participants = data.participants || [];
+
+    // Solo re-renderizar si cambió
+    if (JSON.stringify(participants) !== JSON.stringify(lastParticipants)) {
+      lastParticipants = participants;
+      if (!participants.length) {
+        list.innerHTML = '<span class="waiting">Esperando participantes...</span>';
+      } else {
+        list.innerHTML = participants.map(p => `<span class="p-tag">${p}</span>`).join('');
+      }
+    }
+  } catch(e) {}
+}
+
+pollRaffle();
+setInterval(pollRaffle, 2000);
+</script>
+</body>
+</html>
