@@ -278,6 +278,13 @@ async function loadData() {
     streamerData.plan === 'pro' ? '⭐ Plan Pro' : '🆓 Plan Gratuito';
 
   if (userData.role === 'admin') document.getElementById('adminNavItem').style.display = 'flex';
+
+  // Link de página pública
+  const publicUrl = `${window.location.origin}/canal/${userData.username}`;
+  const urlEl = document.getElementById('publicUrl');
+  const urlBtn = document.getElementById('publicUrlBtn');
+  if (urlEl) urlEl.textContent = publicUrl;
+  if (urlBtn) urlBtn.href = publicUrl;
   renderMain();
   showSection('overview');
 }
@@ -614,6 +621,20 @@ function renderMain() {
       <div class="page-title">Redes sociales</div>
       <div class="page-subtitle">Tus links se usan en !redes y en la variable {redes}</div>
     </div>
+
+    <!-- Botón página pública -->
+    <div style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;">
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;">🌐 Tu página pública</div>
+        <div style="font-size:12px;color:var(--text-dim);">Comparte este link con tu comunidad — muestra tus comandos, redes y videos</div>
+        <code id="publicUrl" style="font-size:12px;color:var(--purple-light);margin-top:6px;display:block;"></code>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="btn btn-primary btn-sm" onclick="copyPublicUrl()">Copiar link</button>
+        <a id="publicUrlBtn" href="#" target="_blank" class="btn btn-success btn-sm" style="text-decoration:none;">Ver página</a>
+      </div>
+    </div>
+
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">Tus links</span></div>
       <div class="panel-body">
@@ -624,28 +645,29 @@ function renderMain() {
           ['twitter',   '🐦', 'Twitter/X', 'https://twitter.com/tucanal'],
           ['instagram', '📸', 'Instagram', 'https://instagram.com/tucanal'],
           ['discord',   '💬', 'Discord',   'https://discord.gg/tuservidor'],
-          ['youtube_channel', '▶️', 'Canal YouTube', 'https://youtube.com/c/tucanal'],
         ].map(([key, icon, label, placeholder]) => `
           <div class="form-group">
             <label class="form-label">${icon} ${label}</label>
             <input class="form-input" id="social_${key}" value="${((s.social_links||{})[key]||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}">
           </div>`).join('')}
-        <button class="btn btn-primary" onclick="saveSocials()">Guardar redes</button>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">💡 Cómo usar</span></div>
-      <div class="panel-body">
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
-            <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:4px;">Comando !redes automático:</div>
-            <div style="font-size:12px;color:var(--text-dim);">Cuando alguien escriba <code style="color:var(--purple-light)">!redes</code> en tu chat, Muffet responde con todos tus links automáticamente.</div>
-          </div>
-          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
-            <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:4px;">Variable {redes} en comandos:</div>
-            <div style="font-size:12px;color:var(--text-dim);">Usa <code style="color:var(--purple-light)">{redes}</code> en cualquier comando o auto mensaje para incluir tus links.</div>
+
+        <!-- YouTube Channel ID -->
+        <div class="form-group" style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+          <label class="form-label">▶️ YouTube Channel ID <span style="color:var(--text-muted);font-weight:400;">(para mostrar tus videos en tu página pública)</span></label>
+          <input class="form-input" id="youtube_channel_id" value="${(s.youtube_channel_id||'').replace(/"/g,'&quot;')}" placeholder="UCxxxxxxxxxxxxxxxxxxxxxxxxx">
+          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;margin-top:8px;">
+            <div style="font-size:11px;font-weight:500;color:var(--text);margin-bottom:8px;">💡 ¿Cómo encontrar tu Channel ID?</div>
+            <div style="font-size:11px;color:var(--text-dim);line-height:1.8;">
+              1. Ve a <strong style="color:var(--text)">youtube.com</strong> e inicia sesión<br>
+              2. Click en tu foto → <strong style="color:var(--text)">YouTube Studio</strong><br>
+              3. Click en <strong style="color:var(--text)">Configuración</strong> → <strong style="color:var(--text)">Información del canal</strong><br>
+              4. Copia el <strong style="color:var(--purple-light)">ID del canal</strong> (empieza con UC...)<br>
+              <span style="color:var(--text-muted);margin-top:4px;display:block;">También puedes ir a tu canal → click derecho → Ver código fuente → buscar "channelId"</span>
+            </div>
           </div>
         </div>
+
+        <button class="btn btn-primary" onclick="saveSocials()" style="margin-top:16px;">Guardar redes</button>
       </div>
     </div>
   </div>
@@ -768,7 +790,20 @@ async function saveAutoMessages() {
 function addWord(e){if(e.key!=='Enter')return;const input=document.getElementById('wordInput');const word=input.value.trim().toLowerCase();if(!word)return;const container=document.getElementById('wordsContainer');const span=document.createElement('span');span.className='word-tag';span.innerHTML=`${word}<button onclick="removeWord(this)">×</button>`;container.appendChild(span);input.value='';}
 function removeWord(btn){btn.closest('.word-tag').remove();}
 async function saveModeration(){const banned_words=Array.from(document.querySelectorAll('.word-tag')).map(el=>el.textContent.replace('×','').trim());const warn_message=document.getElementById('warnInput').value;const mod_enabled=streamerData.mod_enabled;const res=await fetch('/api/moderation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mod_enabled,banned_words,warn_message})});res.ok?(streamerData.banned_words=banned_words,streamerData.warn_message=warn_message,showToast('Moderación guardada ✓')):showToast('Error','error');}
-async function saveSocials(){const keys=['twitch','youtube','tiktok','twitter','instagram','discord','youtube_channel'];const social_links={};keys.forEach(k=>{const val=document.getElementById(`social_${k}`)?.value.trim();if(val)social_links[k]=val;});const res=await fetch('/api/socials',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({social_links})});res.ok?(streamerData.social_links=social_links,showToast('Redes guardadas ✓')):showToast('Error al guardar','error');}
+async function saveSocials(){
+  const keys=['twitch','youtube','tiktok','twitter','instagram','discord'];
+  const social_links={};
+  keys.forEach(k=>{const val=document.getElementById(`social_${k}`)?.value.trim();if(val)social_links[k]=val;});
+  const youtube_channel_id=document.getElementById('youtube_channel_id')?.value.trim()||null;
+  const res=await fetch('/api/socials',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({social_links,youtube_channel_id})});
+  if(res.ok){streamerData.social_links=social_links;streamerData.youtube_channel_id=youtube_channel_id;showToast('Redes guardadas ✓');}
+  else showToast('Error al guardar','error');
+}
+
+function copyPublicUrl(){
+  const url=document.getElementById('publicUrl')?.textContent;
+  if(url){navigator.clipboard.writeText(url).catch(()=>{});showToast('Link copiado ✓');}
+}
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 
