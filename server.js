@@ -381,7 +381,61 @@ app.delete('/api/custom-bot', requireAuth, async (req, res) => {
   }
 });
 
-// API — redes sociales
+// ── APIs de Sorteo ──
+app.post('/api/raffle/settings', requireAuth, async (req, res) => {
+  try {
+    const { raffle_settings } = req.body;
+    await sbUpdate('streamers', { raffle_settings }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/raffle/status', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const raffle = streamer?.raffle_active || {};
+    res.json({ active: !!raffle.active, prize: raffle.prize || '', participants: raffle.participants || [] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/raffle/start', requireAuth, async (req, res) => {
+  try {
+    const { prize } = req.body;
+    const raffle_active = { active: true, prize: prize || 'Sorpresa', participants: [], started_at: new Date().toISOString() };
+    await sbUpdate('streamers', { raffle_active }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/raffle/end', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const raffle = streamer?.raffle_active || {};
+    const participants = raffle.participants || [];
+    if (!participants.length) return res.json({ success: true, winner: null });
+    const winner = participants[Math.floor(Math.random() * participants.length)];
+    await sbUpdate('streamers', { raffle_active: { active: false, prize: raffle.prize, winner, participants: [], ended_at: new Date().toISOString() } }, { twitch_id: req.session.user.id });
+    res.json({ success: true, winner, prize: raffle.prize });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/raffle/cancel', requireAuth, async (req, res) => {
+  try {
+    await sbUpdate('streamers', { raffle_active: { active: false } }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/raffle/remove', requireAuth, async (req, res) => {
+  try {
+    const { username } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const raffle = streamer?.raffle_active || {};
+    const participants = (raffle.participants || []).filter(p => p !== username);
+    await sbUpdate('streamers', { raffle_active: { ...raffle, participants } }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
 app.post('/api/socials', requireAuth, async (req, res) => {
   try {
     const { social_links, youtube_channel_id } = req.body;
