@@ -232,6 +232,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-item" onclick="showSection('personality')"><span class="nav-icon">🕷️</span> Personalidad</div>
     <div class="nav-section">Bot</div>
     <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
+    <div class="nav-item" onclick="showSection('variables')"><span class="nav-icon">📋</span> Variables</div>
     <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
     <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
     <div class="nav-section">Análisis</div>
@@ -437,6 +438,110 @@ function renderMain() {
           })()}
         </div>
         <button class="btn btn-primary" onclick="saveAutoMessages()">Guardar mensajes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VARIABLES -->
+  <div id="sec-variables" class="section">
+    <div class="page-header">
+      <div class="page-title">Variables</div>
+      <div class="page-subtitle">Úsalas en tus comandos y auto mensajes para hacerlos dinámicos</div>
+    </div>
+
+    <!-- Variables de usuarios -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">👤 Variables de usuario</span></div>
+      <div class="panel-body">
+        ${[
+          ['{user}', 'Nombre del usuario que escribió el comando', '!saludo', 'Hola {user}, bienvenido al reino! 🐻'],
+          ['{touser}', 'Usuario mencionado en el comando (ej: !so @alguien)', '!so @lordlonelywolf', '¡Amor para lordlonelywolf! 🕷️'],
+        ].map(([variable, desc, ejemplo, resultado]) => `
+          <div style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div>
+              <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">${variable}</code>
+            </div>
+            <div>
+              <div style="font-size:13px;color:var(--text);margin-bottom:4px;">${desc}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
+              <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">${ejemplo} → "${resultado}"</code>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Variables del canal -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📺 Variables del canal</span></div>
+      <div class="panel-body">
+        ${[
+          ['{channel}', 'Nombre de tu canal de Twitch', '!canal', 'El canal es {channel}! 👑', `El canal es ${userData?.display_name||'elosoking1'}! 👑`],
+          ['{game}', 'Juego que se está transmitiendo en Twitch', '!juego', 'Estamos jugando {game}! 🎮', 'Estamos jugando Minecraft! 🎮'],
+          ['{title}', 'Título actual del stream', '!titulo', 'Stream: {title}', 'Stream: ¡Jugando con la comunidad!'],
+          ['{uptime}', 'Tiempo que lleva el stream en vivo', '!uptime', 'Llevamos {uptime} en vivo! ⏰', 'Llevamos 2h 30m en vivo! ⏰'],
+        ].map(([variable, desc, ejemplo, comando, resultado]) => `
+          <div style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div>
+              <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">${variable}</code>
+            </div>
+            <div>
+              <div style="font-size:13px;color:var(--text);margin-bottom:4px;">${desc}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
+              <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">${ejemplo} → "${resultado}"</code>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Variables de contadores -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🔢 Variables de contadores <span style="font-size:10px;color:var(--purple-light);font-weight:400;margin-left:8px;">próximamente</span></span></div>
+      <div class="panel-body">
+        ${[
+          ['{count}', 'Número actual del contador del comando', '!deaths +1', 'Muertes: {count} 💀'],
+          ['{count+1}', 'Incrementa el contador en 1', '!deaths +1', 'Muertes totales: {count+1} 💀'],
+          ['{count=0}', 'Reinicia el contador a 0', '!resetdeaths', 'Contador reiniciado! Era {count} 💀'],
+        ].map(([variable, desc, ejemplo, resultado]) => `
+          <div style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);opacity:0.5;">
+            <div>
+              <code style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--text-dim);font-family:monospace;">${variable}</code>
+            </div>
+            <div>
+              <div style="font-size:13px;color:var(--text-dim);margin-bottom:4px;">${desc}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
+              <code style="font-size:11px;color:var(--text-muted);font-family:monospace;">${ejemplo} → "${resultado}"</code>
+            </div>
+          </div>`).join('')}
+        <div style="margin-top:12px;padding:12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius-sm);font-size:12px;color:var(--purple-light);">
+          🕷️ Los contadores están en desarrollo — estarán disponibles pronto~
+        </div>
+      </div>
+    </div>
+
+    <!-- Cómo usar -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">💡 Cómo usar las variables</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
+            <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:6px;">En comandos:</div>
+            <code style="font-size:12px;color:var(--text-dim);font-family:monospace;">!so → ¡Amor para {touser}! 🐻 Canal: twitch.tv/{touser}</code>
+          </div>
+          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
+            <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:6px;">En auto mensajes:</div>
+            <code style="font-size:12px;color:var(--text-dim);font-family:monospace;">¡Estamos jugando {game} en el canal de {channel}! 🎮</code>
+          </div>
+          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
+            <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:6px;">Combinar variables:</div>
+            <code style="font-size:12px;color:var(--text-dim);font-family:monospace;">¡{user} usó el comando! Llevamos {uptime} jugando {game} 🕷️</code>
+          </div>
+        </div>
       </div>
     </div>
   </div>
