@@ -117,5 +117,25 @@ html,body{width:100%;height:100%;background:var(--bg);font-family:var(--sans);co
 
   <div class="footer">MuffetBot — Panel de Control 🕷️</div>
 </div>
+
+<script>
+async function checkApproval() {
+  try {
+    const res = await fetch('/api/check-approval');
+    const data = await res.json();
+    if (data.approved) {
+      const pill = document.querySelector('.status-pill');
+      pill.innerHTML = `<div class="status-dot" style="background:#40d090;animation:none;"></div>¡Aprobado! Entrando al panel...`;
+      pill.style.background = 'rgba(64,208,144,0.1)';
+      pill.style.borderColor = 'rgba(64,208,144,0.25)';
+      pill.style.color = '#40d090';
+      setTimeout(() => {
+        window.location = data.role === 'admin' ? '/admin' : '/dashboard';
+      }, 1500);
+    }
+  } catch(e) {}
+}
+setInterval(checkApproval, 5000);
+</script>
 </body>
 </html>
