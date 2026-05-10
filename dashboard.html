@@ -675,6 +675,39 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- OBS Overlay -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🎬 Overlay para OBS</span></div>
+      <div class="panel-body">
+        <div style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:6px;">Tu link de overlay:</div>
+          <code style="font-size:12px;color:var(--purple-light);word-break:break-all;">${window.location.origin}/overlay/sorteo/${userData.username}</code>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('${window.location.origin}/overlay/sorteo/${userData.username}').then(()=>showToast('Link copiado ✓'))">Copiar link</button>
+            <a href="/overlay/sorteo/${userData.username}" target="_blank" class="btn btn-success btn-sm" style="text-decoration:none;">Vista previa</a>
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:10px;">📖 Cómo agregar en OBS:</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${[
+            ['1', 'En OBS, click derecho en la escena → <strong>Agregar fuente</strong> → <strong>Navegador</strong>'],
+            ['2', 'Ponle un nombre como <strong>"Overlay Sorteo"</strong> y click en OK'],
+            ['3', 'En <strong>URL</strong> pega el link de arriba'],
+            ['4', 'Ancho: <strong>320</strong> — Alto: <strong>300</strong>'],
+            ['5', 'Activa <strong>"Controlar audio a través de OBS"</strong> si quieres sonido'],
+            ['6', 'Click OK — posiciona el overlay donde quieras en tu escena'],
+          ].map(([num, text]) => `
+            <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <span style="width:22px;height:22px;border-radius:50%;background:var(--purple-dim);border:1px solid var(--purple-border);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--purple-light);flex-shrink:0;">${num}</span>
+              <span style="font-size:13px;color:var(--text-dim);line-height:1.5;">${text}</span>
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:12px;padding:10px 12px;background:rgba(64,208,144,0.08);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);font-size:12px;color:var(--green);">
+          💡 El overlay aparece automáticamente cuando inicias un sorteo y se oculta cuando termina o cancelas.
+        </div>
+      </div>
+    </div>
+
     <!-- Comandos disponibles -->
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">📋 Comandos disponibles</span></div>
