@@ -384,41 +384,47 @@ function renderMain() {
 
   <!-- AUTO MENSAJES -->
   <div id="sec-automessages" class="section">
-    <div class="page-header"><div class="page-title">Auto mensajes</div><div class="page-subtitle">Mensajes automáticos en tu chat</div></div>
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">Intervalo de tiempo</span>
-      </div>
-      <div class="panel-body">
-        <div class="form-group">
-          <label class="form-label">Cada cuánto tiempo enviar un mensaje</label>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <input type="range" id="intervalSlider" min="5" max="120" step="5" value="${s.auto_message_interval||20}"
-              style="flex:1;accent-color:var(--purple);"
-              oninput="document.getElementById('intervalValue').textContent=this.value">
-            <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:8px 16px;min-width:80px;text-align:center;">
-              <span id="intervalValue" style="font-size:18px;font-weight:600;color:var(--purple)">${s.auto_message_interval||20}</span>
-              <span style="font-size:11px;color:var(--text-dim);display:block">minutos</span>
-            </div>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:6px;">
-            <span>5 min</span><span>30 min</span><span>60 min</span><span>120 min</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div class="page-header"><div class="page-title">Auto mensajes</div><div class="page-subtitle">Cada mensaje con su propio tiempo y tipo</div></div>
     <div class="panel">
       <div class="panel-header">
         <span class="panel-title-text">Lista de mensajes</span>
         <button class="btn btn-success btn-sm" onclick="addAutoMsg()">+ Agregar</button>
       </div>
       <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Cada mensaje tiene su propio intervalo. El tipo <strong style="color:var(--purple-light)">IA</strong> hace que Muffet invente el mensaje usando el tema que le des.
+        </div>
         <div class="msg-list" id="msgList">
-          ${autoMessages.map(msg=>`
-            <div class="msg-item">
-              <input class="msg-input" value="${msg.replace(/"/g,'&quot;')}" placeholder="Mensaje automático...">
-              <button class="btn btn-danger btn-sm" onclick="removeMsg(this)">✕</button>
-            </div>`).join('')}
+          ${(()=>{
+            const msgs = Array.isArray(autoMessages) ? autoMessages : [];
+            if(!msgs.length) return '';
+            return msgs.map(msg => {
+              const isObj = typeof msg === 'object';
+              const text = isObj ? msg.text : msg;
+              const interval = isObj ? (msg.interval || 20) : 20;
+              const type = isObj ? (msg.type || 'fixed') : 'fixed';
+              const h = Math.floor(interval / 60);
+              const m = interval % 60;
+              return `<div class="msg-item" style="flex-direction:column;gap:8px;background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:12px;">
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <select class="msg-type" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:7px 10px;outline:none;" onchange="updateMsgType(this)">
+                    <option value="fixed" ${type==='fixed'?'selected':''}>📝 Texto fijo</option>
+                    <option value="ai" ${type==='ai'?'selected':''}>🤖 Mensaje IA</option>
+                  </select>
+                  <button class="btn btn-danger btn-sm" onclick="removeMsg(this)" style="margin-left:auto;">✕</button>
+                </div>
+                <input class="msg-input" value="${text.replace(/"/g,'&quot;')}" placeholder="${type==='ai'?'Tema para Muffet (ej: habla sobre el stream de hoy)':'Mensaje que aparecerá en el chat...'}">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:12px;color:var(--text-dim);white-space:nowrap;">Cada:</span>
+                  <input type="number" class="msg-hours" min="0" max="23" value="${h}" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 10px;outline:none;width:60px;text-align:center;">
+                  <span style="font-size:12px;color:var(--text-dim);">h</span>
+                  <input type="number" class="msg-minutes" min="0" max="59" value="${m}" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 10px;outline:none;width:60px;text-align:center;">
+                  <span style="font-size:12px;color:var(--text-dim);">min</span>
+                  <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">(mínimo 5 min)</span>
+                </div>
+              </div>`;
+            }).join('');
+          })()}
         </div>
         <button class="btn btn-primary" onclick="saveAutoMessages()">Guardar mensajes</button>
       </div>
@@ -553,15 +559,55 @@ async function saveCommands(){
   const res=await fetch('/api/commands',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({commands})});
   res.ok?(streamerData.commands=commands,showToast('Comandos guardados ✓')):showToast('Error al guardar','error');
 }
-function addAutoMsg(){const list=document.getElementById('msgList');const div=document.createElement('div');div.className='msg-item';div.innerHTML=`<input class="msg-input" value="Nuevo mensaje automático 🕷️" placeholder="Mensaje..."><button class="btn btn-danger btn-sm" onclick="removeMsg(this)">✕</button>`;list.appendChild(div);}
-function removeMsg(btn){btn.closest('.msg-item').remove();}
-async function saveAutoMessages(){
-  const inputs=document.querySelectorAll('.msg-input');
-  const auto_messages=Array.from(inputs).map(i=>i.value.trim()).filter(Boolean);
-  const interval=parseInt(document.getElementById('intervalSlider')?.value||20);
-  const res=await fetch('/api/auto-messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({auto_messages,auto_message_interval:interval})});
-  if(res.ok){streamerData.auto_messages=auto_messages;streamerData.auto_message_interval=interval;showToast('Mensajes guardados ✓');}
-  else showToast('Error','error');
+function updateMsgType(select) {
+  const item = select.closest('.msg-item');
+  const input = item.querySelector('.msg-input');
+  input.placeholder = select.value === 'ai'
+    ? 'Tema para Muffet (ej: habla sobre el stream de hoy)'
+    : 'Mensaje que aparecerá en el chat...';
+}
+
+function addAutoMsg() {
+  const list = document.getElementById('msgList');
+  const div = document.createElement('div');
+  div.className = 'msg-item';
+  div.style.cssText = 'flex-direction:column;gap:8px;background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:12px;';
+  div.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;">
+      <select class="msg-type" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:7px 10px;outline:none;" onchange="updateMsgType(this)">
+        <option value="fixed">📝 Texto fijo</option>
+        <option value="ai">🤖 Mensaje IA</option>
+      </select>
+      <button class="btn btn-danger btn-sm" onclick="removeMsg(this)" style="margin-left:auto;">✕</button>
+    </div>
+    <input class="msg-input" value="" placeholder="Mensaje que aparecerá en el chat...">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:12px;color:var(--text-dim);white-space:nowrap;">Cada:</span>
+      <input type="number" class="msg-hours" min="0" max="23" value="0" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 10px;outline:none;width:60px;text-align:center;">
+      <span style="font-size:12px;color:var(--text-dim);">h</span>
+      <input type="number" class="msg-minutes" min="0" max="59" value="20" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 10px;outline:none;width:60px;text-align:center;">
+      <span style="font-size:12px;color:var(--text-dim);">min</span>
+      <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">(mínimo 5 min)</span>
+    </div>`;
+  list.appendChild(div);
+}
+
+function removeMsg(btn) { btn.closest('.msg-item').remove(); }
+
+async function saveAutoMessages() {
+  const items = document.querySelectorAll('#msgList .msg-item');
+  const auto_messages = [];
+  items.forEach(item => {
+    const text    = item.querySelector('.msg-input')?.value.trim();
+    const type    = item.querySelector('.msg-type')?.value || 'fixed';
+    const hours   = parseInt(item.querySelector('.msg-hours')?.value || 0);
+    const minutes = parseInt(item.querySelector('.msg-minutes')?.value || 20);
+    const interval = Math.max((hours * 60) + minutes, 5);
+    if (text) auto_messages.push({ text, type, interval });
+  });
+  const res = await fetch('/api/auto-messages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ auto_messages }) });
+  if (res.ok) { streamerData.auto_messages = auto_messages; showToast('Mensajes guardados ✓'); }
+  else showToast('Error al guardar', 'error');
 }
 function addWord(e){if(e.key!=='Enter')return;const input=document.getElementById('wordInput');const word=input.value.trim().toLowerCase();if(!word)return;const container=document.getElementById('wordsContainer');const span=document.createElement('span');span.className='word-tag';span.innerHTML=`${word}<button onclick="removeWord(this)">×</button>`;container.appendChild(span);input.value='';}
 function removeWord(btn){btn.closest('.word-tag').remove();}
