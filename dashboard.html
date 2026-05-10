@@ -239,6 +239,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-item" onclick="showSection('stats')"><span class="nav-icon">📊</span> Estadísticas</div>
     <div class="nav-section">Cuenta</div>
     <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
+    <div class="nav-item" onclick="showSection('socials')"><span class="nav-icon">🌐</span> Redes sociales</div>
     <div class="nav-item" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Ajustes</div>
     <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'"><span class="nav-icon">👑</span> Admin</div>
   </nav>
@@ -481,6 +482,7 @@ function renderMain() {
           ['{game}', 'Juego que se está transmitiendo en Twitch', '!juego', 'Estamos jugando {game}! 🎮', 'Estamos jugando Minecraft! 🎮'],
           ['{title}', 'Título actual del stream', '!titulo', 'Stream: {title}', 'Stream: ¡Jugando con la comunidad!'],
           ['{uptime}', 'Tiempo que lleva el stream en vivo', '!uptime', 'Llevamos {uptime} en vivo! ⏰', 'Llevamos 2h 30m en vivo! ⏰'],
+          ['{redes}', 'Todos tus links de redes sociales', '!sigueme', '¡Sígueme! {redes}', '¡Sígueme! 🎮 Twitch: twitch.tv/... | 📺 YouTube: ...'],
         ].map(([variable, desc, ejemplo, comando, resultado]) => `
           <div style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div>
@@ -606,6 +608,48 @@ function renderMain() {
     </div>
   </div>
 
+  <!-- REDES SOCIALES -->
+  <div id="sec-socials" class="section">
+    <div class="page-header">
+      <div class="page-title">Redes sociales</div>
+      <div class="page-subtitle">Tus links se usan en !redes y en la variable {redes}</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">Tus links</span></div>
+      <div class="panel-body">
+        ${[
+          ['twitch',    '🎮', 'Twitch',    'https://twitch.tv/tucanal'],
+          ['youtube',   '📺', 'YouTube',   'https://youtube.com/@tucanal'],
+          ['tiktok',    '🎵', 'TikTok',    'https://tiktok.com/@tucanal'],
+          ['twitter',   '🐦', 'Twitter/X', 'https://twitter.com/tucanal'],
+          ['instagram', '📸', 'Instagram', 'https://instagram.com/tucanal'],
+          ['discord',   '💬', 'Discord',   'https://discord.gg/tuservidor'],
+          ['youtube_channel', '▶️', 'Canal YouTube', 'https://youtube.com/c/tucanal'],
+        ].map(([key, icon, label, placeholder]) => `
+          <div class="form-group">
+            <label class="form-label">${icon} ${label}</label>
+            <input class="form-input" id="social_${key}" value="${((s.social_links||{})[key]||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}">
+          </div>`).join('')}
+        <button class="btn btn-primary" onclick="saveSocials()">Guardar redes</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">💡 Cómo usar</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+            <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:4px;">Comando !redes automático:</div>
+            <div style="font-size:12px;color:var(--text-dim);">Cuando alguien escriba <code style="color:var(--purple-light)">!redes</code> en tu chat, Muffet responde con todos tus links automáticamente.</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+            <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:4px;">Variable {redes} en comandos:</div>
+            <div style="font-size:12px;color:var(--text-dim);">Usa <code style="color:var(--purple-light)">{redes}</code> en cualquier comando o auto mensaje para incluir tus links.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- AJUSTES -->
   <div id="sec-settings" class="section">
     <div class="page-header"><div class="page-title">Ajustes</div><div class="page-subtitle">Configuración de tu cuenta</div></div>
@@ -724,6 +768,7 @@ async function saveAutoMessages() {
 function addWord(e){if(e.key!=='Enter')return;const input=document.getElementById('wordInput');const word=input.value.trim().toLowerCase();if(!word)return;const container=document.getElementById('wordsContainer');const span=document.createElement('span');span.className='word-tag';span.innerHTML=`${word}<button onclick="removeWord(this)">×</button>`;container.appendChild(span);input.value='';}
 function removeWord(btn){btn.closest('.word-tag').remove();}
 async function saveModeration(){const banned_words=Array.from(document.querySelectorAll('.word-tag')).map(el=>el.textContent.replace('×','').trim());const warn_message=document.getElementById('warnInput').value;const mod_enabled=streamerData.mod_enabled;const res=await fetch('/api/moderation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mod_enabled,banned_words,warn_message})});res.ok?(streamerData.banned_words=banned_words,streamerData.warn_message=warn_message,showToast('Moderación guardada ✓')):showToast('Error','error');}
+async function saveSocials(){const keys=['twitch','youtube','tiktok','twitter','instagram','discord','youtube_channel'];const social_links={};keys.forEach(k=>{const val=document.getElementById(`social_${k}`)?.value.trim();if(val)social_links[k]=val;});const res=await fetch('/api/socials',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({social_links})});res.ok?(streamerData.social_links=social_links,showToast('Redes guardadas ✓')):showToast('Error al guardar','error');}
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 
