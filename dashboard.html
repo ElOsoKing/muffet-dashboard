@@ -377,6 +377,66 @@ function renderMain() {
         </div>
       </div>
     </div>
+
+    <!-- Novedades -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">🆕 Novedades</span>
+        <span style="font-size:11px;color:var(--text-muted);">Últimas actualizaciones</span>
+      </div>
+      <div class="panel-body" style="padding:0;">
+        ${[
+          {
+            version: 'v1.4',
+            date: '10 Mayo 2026',
+            badge: 'nuevo',
+            items: [
+              '🎉 Sistema de sorteos con overlay para OBS',
+              '📡 Comandos !titulo y !juego desde el chat',
+              '🌐 Página pública por canal con comandos y videos',
+              '📋 Variables dinámicas: {game}, {title}, {uptime}, {redes}',
+              '💬 Crear comandos desde el chat con !addcmd',
+              '⏰ Auto mensajes con timer individual y tipo IA',
+              '🔄 Aprobación automática — entra solo al aprobar',
+            ]
+          },
+          {
+            version: 'v1.3',
+            date: '9 Mayo 2026',
+            badge: null,
+            items: [
+              '🌐 Redes sociales con links automáticos en !redes',
+              '📊 Estadísticas de comandos por canal',
+              '⚡ Permisos por nivel en comandos (mod/vip/sub/todos)',
+              '🛡️ Moderación con IA — detecta spam y toxicidad',
+              '👑 Panel de administración multi-streamer',
+              '💎 Sistema de planes Free y Pro con Ko-fi',
+            ]
+          },
+          {
+            version: 'v1.2',
+            date: '9 Mayo 2026',
+            badge: null,
+            items: [
+              '🤖 Bot multi-canal — un bot para todos',
+              '🕷️ Bot personalizado para Plan Pro',
+              '🎨 Dashboard rediseñado con estilo moderno',
+              '💬 Auto mensajes configurables',
+            ]
+          },
+        ].map((update, i) => `
+          <div style="padding:16px 20px;${i>0?'border-top:1px solid rgba(255,255,255,0.06);':''}">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+              <span style="font-size:13px;font-weight:600;color:var(--text);">${update.version}</span>
+              ${update.badge ? `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:rgba(145,71,255,0.15);border:1px solid var(--purple-border);color:var(--purple-light);text-transform:uppercase;letter-spacing:0.5px;">${update.badge}</span>` : ''}
+              <span style="font-size:11px;color:var(--text-muted);margin-left:auto;">${update.date}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              ${update.items.map(item => `<div style="font-size:12px;color:var(--text-dim);display:flex;align-items:flex-start;gap:8px;"><span style="color:var(--text-muted);flex-shrink:0;">•</span>${item}</div>`).join('')}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
   </div>
 
   <!-- PERSONALIDAD -->
