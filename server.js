@@ -162,7 +162,43 @@ app.get('/auth/twitch/callback', async (req, res) => {
   }
 });
 
-app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
+// ── Página pública del canal ──
+app.get('/canal/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    const streamer = data?.[0];
+    if (!streamer) return res.status(404).send('Canal no encontrado');
+    res.sendFile(path.join(__dirname, 'canal.html'));
+  } catch (err) {
+    res.status(500).send('Error');
+  }
+});
+
+// API pública del canal
+app.get('/api/canal/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,commands,social_links,bot_prompt&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    const streamer = data?.[0];
+    if (!streamer) return res.status(404).json({ error: 'Canal no encontrado' });
+    // Solo devolver comandos públicos (everyone)
+    const publicCmds = {};
+    Object.entries(streamer.commands || {}).forEach(([trigger, val]) => {
+      const perms = typeof val === 'object' ? val.perms : ['everyone'];
+      if (perms.includes('everyone')) {
+        publicCmds[trigger] = typeof val === 'object' ? val.response : val;
+      }
+    });
+    res.json({ username: streamer.twitch_username, commands: publicCmds, social_links: streamer.social_links || {} });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ── Página de espera para pendientes ──
 app.get('/pending', (req, res) => {
