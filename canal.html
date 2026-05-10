@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuffetBot — Canal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=VT323&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --purple:#9147ff;--purple-dim:rgba(145,71,255,0.12);--purple-border:rgba(145,71,255,0.25);
+  --purple-light:#b388ff;--green:#40d090;--yellow:#f0c060;
+  --bg:#0d0d0f;--bg2:#141416;--bg3:#1a1a1e;
+  --text:#e8e8f0;--text-dim:#6b6b80;--text-muted:#3a3a4a;
+  --sans:'Inter',sans-serif;--display:'VT323',monospace;
+  --radius:10px;--radius-sm:6px;
+}
+html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans);color:var(--text);}
+.bg-glow{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;background:radial-gradient(ellipse at 50% 0%,rgba(145,71,255,0.07) 0%,transparent 60%);}
+
+.container{position:relative;z-index:10;max-width:720px;margin:0 auto;padding:40px 20px 60px;}
+
+/* Nav */
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:48px;}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-logo img{width:24px;height:24px;image-rendering:pixelated;filter:drop-shadow(0 0 6px rgba(145,71,255,0.5));}
+.nav-logo-text{font-size:14px;font-weight:600;color:var(--text);}
+.nav-btn{font-size:13px;font-weight:500;padding:7px 14px;border-radius:var(--radius-sm);cursor:pointer;text-decoration:none;transition:all 0.15s;background:var(--purple);color:white;border:none;}
+.nav-btn:hover{background:#7d2ff7;}
+
+/* Header */
+.channel-header{display:flex;align-items:center;gap:20px;margin-bottom:32px;}
+.channel-avatar{width:72px;height:72px;border-radius:50%;border:2px solid var(--purple-border);background:var(--bg2);}
+.channel-info{}
+.channel-name{font-size:24px;font-weight:600;color:var(--text);letter-spacing:-0.3px;}
+.channel-badge{display:inline-flex;align-items:center;gap:5px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:500;color:var(--purple-light);margin-top:6px;}
+.channel-twitch{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:13px;color:var(--text-dim);text-decoration:none;}
+.channel-twitch:hover{color:var(--purple-light);}
+
+/* Social links */
+.socials{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:32px;}
+.social-link{display:flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius-sm);padding:8px 14px;font-size:13px;color:var(--text-dim);text-decoration:none;transition:all 0.15s;}
+.social-link:hover{border-color:var(--purple-border);color:var(--text);}
+
+/* Panel */
+.panel{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;}
+.panel-header{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;}
+.panel-title{font-size:13px;font-weight:600;color:var(--text);}
+.panel-count{font-size:12px;color:var(--text-muted);}
+.panel-body{padding:16px 20px;}
+
+/* Comandos */
+.commands-list{display:flex;flex-direction:column;gap:6px;}
+.cmd-item{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);cursor:pointer;transition:background 0.15s;}
+.cmd-item:hover{background:#1f1f28;}
+.cmd-trigger{font-size:13px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:100px;}
+.cmd-response{font-size:13px;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cmd-copy{font-size:10px;color:var(--text-muted);flex-shrink:0;padding:3px 8px;border:1px solid rgba(255,255,255,0.08);border-radius:4px;}
+.cmd-item:hover .cmd-copy{border-color:var(--purple-border);color:var(--purple-light);}
+
+/* Powered by */
+.powered{text-align:center;margin-top:40px;font-size:12px;color:var(--text-muted);}
+.powered a{color:var(--text-dim);text-decoration:none;}
+.powered a:hover{color:var(--purple-light);}
+
+/* Loading / error */
+.loading{text-align:center;padding:60px;color:var(--text-dim);font-size:14px;}
+.error-card{background:var(--bg2);border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius);padding:32px;text-align:center;}
+.error-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px;}
+.error-desc{font-size:13px;color:var(--text-dim);}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid rgba(64,208,144,0.3);border-radius:var(--radius-sm);color:var(--green);font-size:13px;font-weight:500;padding:10px 16px;transform:translateY(20px);opacity:0;transition:all 0.25s;z-index:100;}
+.toast.show{transform:translateY(0);opacity:1;}
+
+@media(max-width:480px){
+  .container{padding:24px 14px 40px;}
+  .channel-header{gap:14px;}
+  .channel-avatar{width:56px;height:56px;}
+  .channel-name{font-size:20px;}
+}
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="container">
+  <nav class="nav">
+    <a href="/" class="nav-logo">
+      <img src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
+      <span class="nav-logo-text">MuffetBot</span>
+    </a>
+    <a href="/" class="nav-btn">Iniciar sesión</a>
+  </nav>
+
+  <div id="content" class="loading">Cargando canal...</div>
+</div>
+
+<div class="toast" id="toast">✓ Copiado</div>
+
+<script>
+const socialIcons = { twitch:'🎮', youtube:'📺', tiktok:'🎵', twitter:'🐦', instagram:'📸', discord:'💬', youtube_channel:'▶️' };
+const socialLabels = { twitch:'Twitch', youtube:'YouTube', tiktok:'TikTok', twitter:'Twitter/X', instagram:'Instagram', discord:'Discord', youtube_channel:'YouTube' };
+
+function copyCmd(trigger) {
+  navigator.clipboard.writeText(trigger).catch(() => {});
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+async function loadCanal() {
+  const username = window.location.pathname.split('/canal/')[1];
+  if (!username) { showError('Canal no especificado'); return; }
+
+  try {
+    // Intentar obtener avatar de Twitch
+    const res = await fetch(`/api/canal/${username}`);
+    if (!res.ok) { showError(`El canal "${username}" no existe o no está activo`); return; }
+    const data = await res.json();
+
+    const socials = Object.entries(data.social_links || {})
+      .filter(([,v]) => v)
+      .map(([k,v]) => `<a href="${v}" target="_blank" class="social-link">${socialIcons[k]||'🔗'} ${socialLabels[k]||k}</a>`)
+      .join('');
+
+    const commands = Object.entries(data.commands || {});
+
+    document.getElementById('content').innerHTML = `
+      <div class="channel-header">
+        <img class="channel-avatar" src="https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png" 
+          onerror="this.style.display='none'"
+          id="channelAvatar">
+        <div class="channel-info">
+          <div class="channel-name">${data.username}</div>
+          <div class="channel-badge">🕷️ MuffetBot activo</div>
+          <a href="https://twitch.tv/${data.username}" target="_blank" class="channel-twitch">
+            🎮 twitch.tv/${data.username}
+          </a>
+        </div>
+      </div>
+
+      ${socials ? `<div class="socials">${socials}</div>` : ''}
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">⚡ Comandos disponibles</span>
+          <span class="panel-count">${commands.length} comandos</span>
+        </div>
+        <div class="panel-body">
+          ${commands.length ? `
+            <div class="commands-list">
+              ${commands.map(([trigger, response]) => `
+                <div class="cmd-item" onclick="copyCmd('${trigger}')">
+                  <span class="cmd-trigger">${trigger}</span>
+                  <span class="cmd-response">${response}</span>
+                  <span class="cmd-copy">copiar</span>
+                </div>`).join('')}
+            </div>` : `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No hay comandos públicos configurados aún</div>`}
+        </div>
+      </div>
+
+      <div class="powered">
+        Impulsado por <a href="/">MuffetBot</a> — El bot de Twitch con personalidad 🕷️
+      </div>`;
+
+    // Intentar cargar avatar de Twitch
+    try {
+      const avatarRes = await fetch(`https://decapi.me/twitch/avatar/${data.username}`);
+      const avatarUrl = await avatarRes.text();
+      if (avatarUrl.startsWith('http')) document.getElementById('channelAvatar').src = avatarUrl;
+    } catch(e) {}
+
+  } catch(err) {
+    showError('Error al cargar el canal');
+  }
+}
+
+function showError(msg) {
+  document.getElementById('content').innerHTML = `
+    <div class="error-card">
+      <div class="error-title">Canal no encontrado</div>
+      <div class="error-desc">${msg}</div>
+    </div>`;
+}
+
+loadCanal();
+</script>
+</body>
+</html>
