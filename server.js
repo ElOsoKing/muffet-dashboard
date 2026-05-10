@@ -383,7 +383,7 @@ app.delete('/api/custom-bot', requireAuth, async (req, res) => {
 
 // ── Overlay de sorteo para OBS ──
 app.get('/overlay/sorteo/:username', (req, res) => {
-  res.sendFile(path.join(__dirname, 'overlay-sorteo.html'));
+  res.sendFile(path.join(__dirname, 'raffle-overlay.html'));
 });
 
 app.get('/api/raffle/overlay/:username', async (req, res) => {
