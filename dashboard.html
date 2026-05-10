@@ -915,21 +915,39 @@ function renderMain() {
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🤖 Bot personalizado — Pro</span></div>
       <div class="panel-body">
-        <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
-          Conecta tu propio bot para que aparezca con tu nombre en el chat.
-          Genera un token en <a href="https://twitchtokengenerator.com" target="_blank" style="color:var(--purple-light)">twitchtokengenerator.com</a>
-        </p>
-        <div class="form-group"><label class="form-label">Nombre de usuario del bot</label><input class="form-input" id="customBotUsername" value="${s.custom_bot_username||''}" placeholder="Ej: MuffetBot_TuCanal"></div>
+
+        <!-- Instrucciones paso a paso -->
+        <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;">
+          <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:10px;">📖 Cómo configurar tu bot propio:</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${[
+              ['1', 'Crea una cuenta nueva en <strong>twitch.tv</strong> — ese será tu bot. Ponle el nombre que quieras, ej: <strong>MiCanalBot</strong>'],
+              ['2', 'Inicia sesión en Twitch con esa cuenta nueva del bot'],
+              ['3', 'Ve a <a href="https://twitchtokengenerator.com" target="_blank" style="color:var(--purple-light)">twitchtokengenerator.com</a> — click en <strong>Custom Scope Token</strong>'],
+              ['4', 'Activa los scopes: <strong>chat:read</strong> y <strong>chat:edit</strong> — luego click <strong>Generate Token</strong>'],
+              ['5', 'Autoriza con la cuenta del bot en Twitch'],
+              ['6', 'Copia el token que empieza con <strong>oauth:</strong> y pégalo abajo'],
+              ['7', 'Escribe el nombre de usuario de tu bot (sin @) y guarda'],
+              ['8', 'Ve a tu chat de Twitch y escribe <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 5px;border-radius:3px;">/mod NombreDeTuBot</code> para darle permisos'],
+            ].map(([num, text]) => `
+              <div style="display:flex;align-items:flex-start;gap:10px;">
+                <span style="width:20px;height:20px;border-radius:50%;background:var(--purple-dim);border:1px solid var(--purple-border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--purple-light);flex-shrink:0;margin-top:1px;">${num}</span>
+                <span style="font-size:12px;color:var(--text-dim);line-height:1.6;">${text}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        <div class="form-group"><label class="form-label">Nombre de usuario del bot</label><input class="form-input" id="customBotUsername" value="${s.custom_bot_username||''}" placeholder="Ej: MiCanalBot (sin @)"></div>
         <div class="form-group">
-          <label class="form-label">OAuth Token</label>
-          <input class="form-input" id="customBotToken" type="password" value="${s.custom_bot_token||''}" placeholder="oauth:xxxxxxxxx">
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">⚠️ Nunca compartas este token con nadie</div>
+          <label class="form-label">OAuth Token del bot</label>
+          <input class="form-input" id="customBotToken" type="password" value="${s.custom_bot_token||''}" placeholder="oauth:xxxxxxxxxxxxxxxxx">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">⚠️ Nunca compartas este token con nadie — da acceso a la cuenta del bot</div>
         </div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-primary" onclick="saveCustomBot()">Guardar bot</button>
           ${s.custom_bot_username?`<button class="btn btn-danger" onclick="removeCustomBot()">Quitar bot</button>`:''}
         </div>
-        ${s.custom_bot_username?`<div style="margin-top:12px;padding:12px;background:rgba(64,208,144,0.08);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);font-size:13px;color:var(--green);">✅ Bot activo: <strong>${s.custom_bot_username}</strong></div>`:''}
+        ${s.custom_bot_username?`<div style="margin-top:12px;padding:12px;background:rgba(64,208,144,0.08);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);font-size:13px;color:var(--green);">✅ Bot activo: <strong>${s.custom_bot_username}</strong> — aparece con este nombre en tu chat</div>`:''}
       </div>
     </div>`:''}
   </div>
