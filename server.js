@@ -181,7 +181,7 @@ app.get('/canal/:username', async (req, res) => {
 app.get('/api/canal/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
-    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,commands,social_links,bot_prompt&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,commands,social_links,youtube_channel_id&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
     const streamer = data?.[0];
@@ -194,7 +194,7 @@ app.get('/api/canal/:username', async (req, res) => {
         publicCmds[trigger] = typeof val === 'object' ? val.response : val;
       }
     });
-    res.json({ username: streamer.twitch_username, commands: publicCmds, social_links: streamer.social_links || {} });
+    res.json({ username: streamer.twitch_username, commands: publicCmds, social_links: streamer.social_links || {}, youtube_channel_id: streamer.youtube_channel_id || null });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -384,9 +384,11 @@ app.delete('/api/custom-bot', requireAuth, async (req, res) => {
 // API — redes sociales
 app.post('/api/socials', requireAuth, async (req, res) => {
   try {
-    const { social_links } = req.body;
+    const { social_links, youtube_channel_id } = req.body;
     if (!isValidObject(social_links)) return res.status(400).json({ error: 'Links inválidos' });
-    await sbUpdate('streamers', { social_links }, { twitch_id: req.session.user.id });
+    const update = { social_links };
+    if (youtube_channel_id !== undefined) update.youtube_channel_id = youtube_channel_id || null;
+    await sbUpdate('streamers', update, { twitch_id: req.session.user.id });
     res.json({ success: true });
   } catch (err) {
     console.error('POST /api/socials:', err.message);
