@@ -330,7 +330,22 @@ app.get('/api/streamer', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/prompt', requireAuth, async (req, res) => {
+app.post('/api/on-off-ai', requireAuth, async (req, res) => {
+  try {
+    const { on_off_ai } = req.body;
+    if (typeof on_off_ai !== 'boolean') return res.status(400).json({ error: 'Valor inválido' });
+    await sbUpdate('streamers', { on_off_ai }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/on-off-messages', requireAuth, async (req, res) => {
+  try {
+    const { on_message, off_message } = req.body;
+    await sbUpdate('streamers', { on_message: on_message || null, off_message: off_message || null }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
   try {
     const { prompt } = req.body;
     if (!isValidString(prompt, 3000)) return res.status(400).json({ error: 'Prompt inválido' });
