@@ -264,6 +264,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
     <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
     <div class="nav-section">Herramientas</div>
+    <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos y niveles</div>
     <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
     <div class="nav-section">Análisis</div>
     <div class="nav-item" onclick="showSection('stats')"><span class="nav-icon">📊</span> Estadísticas</div>
@@ -816,6 +817,90 @@ function renderMain() {
     </div>
   </div>
 
+  <!-- PUNTOS Y NIVELES -->
+  <div id="sec-points" class="section">
+    <div class="page-header">
+      <div class="page-title">🏆 Puntos y niveles</div>
+      <div class="page-subtitle">Sistema de recompensas para tu comunidad</div>
+    </div>
+
+    <!-- Configuración general -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
+      <div class="panel-body">
+        <div class="toggle-row">
+          <div><div class="toggle-label">Sistema activo</div><div class="toggle-desc">Los viewers ganan puntos y suben de nivel en el chat</div></div>
+          <label class="toggle"><input type="checkbox" id="pointsEnabled" ${(s.points_config?.enabled !== false)?'checked':''} onchange="savePointsConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Nombre de la moneda</label>
+            <input class="form-input" id="pointsName" value="${s.points_config?.name||'puntos'}" placeholder="puntos, monedas, miel...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Emoji de la moneda</label>
+            <input class="form-input" id="pointsEmoji" value="${s.points_config?.emoji||'🏆'}" placeholder="🏆 🍯 💎 ⭐">
+          </div>
+          <div class="form-group">
+            <label class="form-label">XP por mensaje</label>
+            <input class="form-input" type="number" id="xpPerMessage" value="${s.points_config?.xp_per_message||1}" min="0" max="100">
+          </div>
+          <div class="form-group">
+            <label class="form-label">XP extra para subs/VIPs</label>
+            <input class="form-input" type="number" id="xpBonus" value="${s.points_config?.xp_bonus||2}" min="0" max="100">
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="savePointsConfig()">Guardar configuración</button>
+      </div>
+    </div>
+
+    <!-- Niveles personalizables -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">📊 Niveles</span>
+        <button class="btn btn-success btn-sm" onclick="addLevel()">+ Agregar nivel</button>
+      </div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:60px 1fr 120px 36px;gap:8px;padding:0 0 8px;border-bottom:1px solid rgba(255,255,255,0.04);margin-bottom:10px;">
+          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Nivel</span>
+          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Nombre</span>
+          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">XP requerido</span>
+          <span></span>
+        </div>
+        <div id="levelsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+          ${(()=>{
+            const levels = s.points_config?.levels || [
+              {level:1, name:'Súbdito', xp:0},
+              {level:2, name:'Caballero', xp:100},
+              {level:3, name:'Noble', xp:300},
+              {level:4, name:'Lord', xp:600},
+              {level:5, name:'Rey', xp:1000},
+            ];
+            return levels.map((l,i) => `
+              <div style="display:grid;grid-template-columns:60px 1fr 120px 36px;gap:8px;align-items:center;">
+                <div style="font-size:14px;font-weight:600;color:var(--purple-light);text-align:center;">Lv.${l.level}</div>
+                <input class="form-input level-name" value="${l.name}" placeholder="Nombre del nivel" style="padding:7px 12px;">
+                <input class="form-input level-xp" type="number" value="${l.xp}" min="0" placeholder="XP" style="padding:7px 12px;" ${i===0?'disabled':''}>
+                <button class="btn btn-danger btn-sm" onclick="removeLevel(this)" style="padding:6px 8px;width:36px;" ${i===0?'disabled':''}}>✕</button>
+              </div>`).join('');
+          })()}
+        </div>
+        <button class="btn btn-primary" onclick="saveLevels()">Guardar niveles</button>
+      </div>
+    </div>
+
+    <!-- Ranking -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">👑 Ranking del canal</span>
+        <button class="btn btn-success btn-sm" onclick="loadRanking()">↻ Actualizar</button>
+      </div>
+      <div class="panel-body" id="rankingContent">
+        <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Click en actualizar para ver el ranking</div>
+      </div>
+    </div>
+  </div>
+
   <!-- SORTEOS -->
   <div id="sec-raffle" class="section">
     <div class="page-header">
@@ -1216,6 +1301,94 @@ async function updateStream() {
     statusEl.innerHTML = `<span style="color:var(--pink)">⚠️ ${err.error || 'Error al actualizar'} — Cierra sesión y vuelve a entrar</span>`;
   }
   setTimeout(() => statusEl.style.display = 'none', 4000);
+}
+
+// ── PUNTOS Y NIVELES ──
+async function savePointsConfig() {
+  const enabled = document.getElementById('pointsEnabled')?.checked !== false;
+  const name = document.getElementById('pointsName')?.value.trim() || 'puntos';
+  const emoji = document.getElementById('pointsEmoji')?.value.trim() || '🏆';
+  const xp_per_message = parseInt(document.getElementById('xpPerMessage')?.value) || 1;
+  const xp_bonus = parseInt(document.getElementById('xpBonus')?.value) || 2;
+  const levels = getLevels();
+  const points_config = { enabled, name, emoji, xp_per_message, xp_bonus, levels };
+  const res = await fetch('/api/points-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ points_config }) });
+  if(res.ok) { streamerData.points_config = points_config; showToast('Configuración guardada ✓'); }
+  else showToast('Error al guardar','error');
+}
+
+function getLevels() {
+  const rows = document.querySelectorAll('#levelsList [style*="grid"]');
+  const levels = [];
+  rows.forEach((row, i) => {
+    const name = row.querySelector('.level-name')?.value.trim();
+    const xp = parseInt(row.querySelector('.level-xp')?.value) || 0;
+    if (name) levels.push({ level: i+1, name, xp: i===0?0:xp });
+  });
+  return levels;
+}
+
+function addLevel() {
+  const list = document.getElementById('levelsList');
+  const count = list.querySelectorAll('[style*="grid"]').length + 1;
+  const div = document.createElement('div');
+  div.style.cssText = 'display:grid;grid-template-columns:60px 1fr 120px 36px;gap:8px;align-items:center;';
+  div.innerHTML = `
+    <div style="font-size:14px;font-weight:600;color:var(--purple-light);text-align:center;">Lv.${count}</div>
+    <input class="form-input level-name" value="Nivel ${count}" placeholder="Nombre del nivel" style="padding:7px 12px;">
+    <input class="form-input level-xp" type="number" value="${count*200}" min="0" placeholder="XP" style="padding:7px 12px;">
+    <button class="btn btn-danger btn-sm" onclick="removeLevel(this)" style="padding:6px 8px;width:36px;">✕</button>`;
+  list.appendChild(div);
+}
+
+function removeLevel(btn) {
+  btn.closest('[style*="grid"]').remove();
+  // Renumerar
+  document.querySelectorAll('#levelsList [style*="grid"]').forEach((row, i) => {
+    row.querySelector('div').textContent = `Lv.${i+1}`;
+  });
+}
+
+async function saveLevels() {
+  const levels = getLevels();
+  const config = { ...(streamerData.points_config || {}), levels };
+  const res = await fetch('/api/points-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ points_config: config }) });
+  if(res.ok) { streamerData.points_config = config; showToast('Niveles guardados ✓'); }
+  else showToast('Error al guardar','error');
+}
+
+async function loadRanking() {
+  const res = await fetch('/api/points-ranking');
+  if (!res.ok) { document.getElementById('rankingContent').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Error al cargar</div>'; return; }
+  const data = await res.json();
+  const config = streamerData.points_config || {};
+  const emoji = config.emoji || '🏆';
+  const name = config.name || 'puntos';
+  const levels = config.levels || [];
+
+  function getLevel(xp) {
+    let current = levels[0] || {name:'Nivel 1'};
+    for(const l of levels) { if(xp >= l.xp) current = l; }
+    return current;
+  }
+
+  if (!data.length) {
+    document.getElementById('rankingContent').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Aún no hay viewers con puntos</div>';
+    return;
+  }
+
+  document.getElementById('rankingContent').innerHTML = data.slice(0,20).map((v, i) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+      <span style="font-size:16px;width:28px;text-align:center;">${i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`}</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);">${v.username}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${getLevel(v.xp).name}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:13px;font-weight:600;color:var(--purple-light);">${v.xp} ${emoji}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${name}</div>
+      </div>
+    </div>`).join('');
 }
 
 // ── SORTEOS ──
