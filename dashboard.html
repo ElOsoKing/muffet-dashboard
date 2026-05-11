@@ -604,6 +604,9 @@ function renderMain() {
           ['{title}', 'Título actual del stream', '!titulo', 'Stream: {title}', 'Stream: ¡Jugando con la comunidad!'],
           ['{uptime}', 'Tiempo que lleva el stream en vivo', '!uptime', 'Llevamos {uptime} en vivo! ⏰', 'Llevamos 2h 30m en vivo! ⏰'],
           ['{redes}', 'Todos tus links de redes sociales', '!sigueme', '¡Sígueme! {redes}', '¡Sígueme! 🎮 Twitch: twitch.tv/... | 📺 YouTube: ...'],
+          ['{random}', 'Número aleatorio entre 1 y 100', '!amor', '💕 Te amo un {random}%', '💕 Te amo un 73%'],
+          ['{random:50}', 'Número aleatorio entre 1 y 50', '!dado', 'Sacaste {random:50}', 'Sacaste 23'],
+          ['{random:1-6}', 'Número aleatorio entre 1 y 6', '!dado6', '🎲 Dado: {random:1-6}', '🎲 Dado: 4'],
         ].map(([variable, desc, ejemplo, comando, resultado]) => `
           <div style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div>
@@ -659,6 +662,27 @@ function renderMain() {
                 <span style="font-size:12px;color:var(--text-dim);">${desc}</span>
               </div>`).join('')}
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Comandos especiales -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🎲 Comandos especiales</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${[
+            ['!random', 'Número aleatorio entre 1 y 100'],
+            ['!random 50', 'Número aleatorio entre 1 y 50'],
+            ['!random 1 6', 'Número entre 1 y 6 (dado)'],
+            ['!random amor @usuario', 'Porcentaje de amor con alguien 💕'],
+            ['!random pick op1 op2 op3', 'Elige una opción al azar'],
+            ['!clip', 'Crea un clip del momento actual del stream ✂️'],
+          ].map(([cmd, desc]) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <code style="font-size:13px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:220px;">${cmd}</code>
+              <span style="font-size:12px;color:var(--text-dim);">${desc}</span>
+            </div>`).join('')}
         </div>
       </div>
     </div>
