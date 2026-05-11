@@ -466,6 +466,28 @@ app.get('/api/stream/search-game', requireAuth, async (req, res) => {
     res.json(data.data || []);
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
+
+// ── APIs de Puntos y Niveles ──
+app.post('/api/points-config', requireAuth, async (req, res) => {
+  try {
+    const { points_config } = req.body;
+    if (!isValidObject(points_config)) return res.status(400).json({ error: 'Config inválida' });
+    await sbUpdate('streamers', { points_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/points-ranking', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const points = streamer?.viewer_points || {};
+    const ranking = Object.entries(points)
+      .map(([username, xp]) => ({ username, xp }))
+      .sort((a, b) => b.xp - a.xp);
+    res.json(ranking);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/overlay/sorteo/:username', (req, res) => {
   res.sendFile(path.join(__dirname, 'raffle-overlay.html'));
 });
