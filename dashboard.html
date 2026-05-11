@@ -647,6 +647,47 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- Variables de contadores -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🔢 Variables de contadores</span></div>
+      <div class="panel-body">
+        ${[
+          ['{count:nombre}', 'Muestra el valor actual de un contador', '!muertes', '💀 Muertes: {count:deaths}', '💀 Muertes: 7'],
+        ].map(([variable, desc, ejemplo, comando, resultado]) => `
+          <div style="display:grid;grid-template-columns:160px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div>
+              <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">${variable}</code>
+            </div>
+            <div>
+              <div style="font-size:13px;color:var(--text);margin-bottom:4px;">${desc}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
+              <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">${comando} → "${resultado}"</code>
+            </div>
+          </div>`).join('')}
+
+        <div style="margin-top:14px;background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
+          <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:10px;">⚙️ Comandos para gestionar contadores (solo mods):</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${[
+              ['!addcounter deaths', 'Crea un contador llamado "deaths" con valor 0'],
+              ['!deaths', 'Muestra el valor actual del contador'],
+              ['!deaths +1', 'Suma 1 al contador'],
+              ['!deaths -1', 'Resta 1 al contador'],
+              ['!deaths reset', 'Reinicia el contador a 0'],
+              ['!deaths 5', 'Establece el valor a 5'],
+              ['!delcounter deaths', 'Elimina el contador'],
+            ].map(([cmd, desc]) => `
+              <div style="display:flex;align-items:center;gap:12px;">
+                <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:200px;">${cmd}</code>
+                <span style="font-size:12px;color:var(--text-dim);">${desc}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Cómo usar -->
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">💡 Cómo usar las variables</span></div>
