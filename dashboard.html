@@ -452,6 +452,34 @@ function renderMain() {
         <button class="btn btn-primary" onclick="savePrompt()">Guardar personalidad</button>
       </div>
     </div>
+
+    <!-- Mensajes de activación -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚡ Mensajes de activación</span></div>
+      <div class="panel-body">
+        <div class="toggle-row">
+          <div>
+            <div class="toggle-label">Usar IA para generar respuesta</div>
+            <div class="toggle-desc">Si está activo, Muffet genera una respuesta única cada vez usando su personalidad</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="onOffAiToggle" ${s.on_off_ai !== false ? 'checked' : ''} onchange="toggleOnOffAi(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div id="onOffMessages" style="${s.on_off_ai !== false ? 'display:none' : ''}">
+          <div class="form-group" style="margin-top:16px;">
+            <label class="form-label">Mensaje al encender (!muffeton)</label>
+            <textarea class="form-textarea" id="onMessage" style="min-height:80px" placeholder="Ej: ¡La guardiana ha despertado! 🕷️ ¡Estoy de vuelta, dearies! 👑♥">${s.on_message||''}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mensaje al apagar (!muffetoff)</label>
+            <textarea class="form-textarea" id="offMessage" style="min-height:80px" placeholder="Ej: ¡La guardiana se va a descansar~ 🕷️ ¡Hasta pronto, dearies! ♥">${s.off_message||''}</textarea>
+          </div>
+          <button class="btn btn-primary" onclick="saveOnOffMessages()">Guardar mensajes</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- COMANDOS -->
@@ -958,6 +986,19 @@ function renderMain() {
 async function toggleAI(e){await fetch('/api/ai-toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:e})});streamerData.ai_enabled=e;showToast(e?'IA activada ✓':'IA desactivada');}
 async function toggleMod(e){await fetch('/api/moderation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mod_enabled:e,banned_words:streamerData.banned_words,warn_message:streamerData.warn_message})});streamerData.mod_enabled=e;showToast(e?'Moderación activada ✓':'Moderación desactivada');}
 async function savePrompt(){const p=document.getElementById('promptInput').value;const r=await fetch('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:p})});r.ok?showToast('Personalidad guardada ✓'):showToast('Error al guardar','error');}
+
+function toggleOnOffAi(enabled) {
+  document.getElementById('onOffMessages').style.display = enabled ? 'none' : 'block';
+  fetch('/api/on-off-ai', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ on_off_ai: enabled }) });
+  showToast(enabled ? 'IA activada para ON/OFF ✓' : 'Modo texto activado ✓');
+}
+
+async function saveOnOffMessages() {
+  const on_message = document.getElementById('onMessage')?.value.trim();
+  const off_message = document.getElementById('offMessage')?.value.trim();
+  const res = await fetch('/api/on-off-messages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ on_message, off_message }) });
+  res.ok ? showToast('Mensajes guardados ✓') : showToast('Error al guardar','error');
+}
 
 function togglePerm(label,perm){
   const cb=label.querySelector('input');const item=label.closest('.command-item');
