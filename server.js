@@ -92,7 +92,7 @@ app.get('/', (req, res) => {
 
 app.get('/auth/twitch', (req, res) => {
   const redirectUri = BASE_URL + '/auth/twitch/callback';
-  const scopes = 'user:read:email channel:manage:broadcast';
+  const scopes = 'user:read:email channel:manage:broadcast clips:edit';
     const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
   res.redirect(url);
 });
