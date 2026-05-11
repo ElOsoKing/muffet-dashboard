@@ -346,6 +346,8 @@ app.post('/api/on-off-messages', requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
+
+app.post('/api/prompt', requireAuth, async (req, res) => {
   try {
     const { prompt } = req.body;
     if (!isValidString(prompt, 3000)) return res.status(400).json({ error: 'Prompt inválido' });
