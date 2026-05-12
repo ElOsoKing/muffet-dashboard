@@ -947,6 +947,29 @@ function renderMain() {
             }).join('')}
           </div>
         </div>
+
+        <!-- Multiplicadores -->
+        <div class="form-group">
+          <label class="form-label">Multiplicador de entradas</label>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Cada entrada extra aumenta las probabilidades de ganar</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${[
+              ['everyone', '👥 Viewers normales', 'entries_everyone', 1],
+              ['sub', '⭐ Suscriptores', 'entries_sub', 2],
+              ['vip', '💎 VIPs', 'entries_vip', 2],
+              ['mod', '🛡️ Moderadores', 'entries_mod', 1],
+            ].map(([key, label, id, def]) => `
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:12px;color:var(--text-dim);min-width:160px;">${label}</span>
+                <input type="number" class="form-input" id="${id}" min="1" max="10" value="${s.raffle_settings?.[id]||def}" style="width:80px;padding:6px 10px;text-align:center;">
+                <span style="font-size:12px;color:var(--text-muted);">entradas</span>
+              </div>`).join('')}
+          </div>
+          <div style="margin-top:8px;font-size:11px;color:var(--text-muted);">
+            Ejemplo: Viewer normal x1 y Sub x3 → el sub tiene 3 veces más probabilidad de ganar
+          </div>
+        </div>
+
         <button class="btn btn-primary" onclick="saveRaffleSettings()">Guardar configuración</button>
       </div>
     </div>
@@ -1429,8 +1452,13 @@ function toggleRafflePerm(label, perm) {
 async function saveRaffleSettings() {
   const allowed = Array.from(document.querySelectorAll('#sec-raffle [data-perm]:checked')).map(i=>i.dataset.perm);
   const join_cmd = document.getElementById('raffleJoinCmd')?.value.trim() || '!entrar';
-  const res = await fetch('/api/raffle/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ raffle_settings: { allowed: allowed.length ? allowed : ['everyone'], join_cmd } }) });
-  if(res.ok) { streamerData.raffle_settings = { allowed, join_cmd }; showToast('Configuración guardada ✓'); }
+  const entries_everyone = parseInt(document.getElementById('entries_everyone')?.value) || 1;
+  const entries_sub = parseInt(document.getElementById('entries_sub')?.value) || 2;
+  const entries_vip = parseInt(document.getElementById('entries_vip')?.value) || 2;
+  const entries_mod = parseInt(document.getElementById('entries_mod')?.value) || 1;
+  const raffle_settings = { allowed: allowed.length ? allowed : ['everyone'], join_cmd, entries_everyone, entries_sub, entries_vip, entries_mod };
+  const res = await fetch('/api/raffle/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ raffle_settings }) });
+  if(res.ok) { streamerData.raffle_settings = raffle_settings; showToast('Configuración guardada ✓'); }
   else showToast('Error al guardar','error');
 }
 
