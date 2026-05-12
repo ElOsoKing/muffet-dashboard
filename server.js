@@ -11,6 +11,9 @@ const TWITCH_SECRET    = process.env.TWITCH_SECRET;
 const SESSION_SECRET   = process.env.SESSION_SECRET || 'muffet-secreto';
 const BASE_URL         = process.env.BASE_URL || 'http://localhost:8080';
 const PORT             = process.env.PORT || 8080;
+const SPOTIFY_CLIENT_ID     = process.env.SPOTIFY_CLIENT_ID;
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
+const SPOTIFY_SCOPES        = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
 const IS_PROD          = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
 
 // ── Trust proxy para HTTPS en Render/Railway ──
@@ -488,7 +491,112 @@ app.get('/api/points-ranking', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── API YouTube videos (evita CORS) ──
+// ── Spotify OAuth ──
+app.get('/auth/spotify', requireAuth, (req, res) => {
+  const url = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(BASE_URL+'/auth/spotify/callback')}&scope=${encodeURIComponent(SPOTIFY_SCOPES)}`;
+  res.redirect(url);
+});
+
+app.get('/auth/spotify/callback', requireAuth, async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect('/dashboard?section=settings&spotify=error');
+  try {
+    const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+      },
+      body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: BASE_URL+'/auth/spotify/callback' }).toString()
+    });
+    const data = await tokenRes.json();
+    if (!data.access_token) return res.redirect('/dashboard?spotify=error');
+    await sbUpdate('streamers', { spotify_token: data.access_token, spotify_refresh: data.refresh_token }, { twitch_id: req.session.user.id });
+    res.redirect('/dashboard?spotify=success');
+  } catch(err) { res.redirect('/dashboard?spotify=error'); }
+});
+
+// Refresh Spotify token
+async function refreshSpotifyToken(refreshToken) {
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+    },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }).toString()
+  });
+  const data = await res.json();
+  return data.access_token || null;
+}
+
+// API — canción actual
+app.get('/api/spotify/current', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    let token = streamer?.spotify_token;
+    if (!token) return res.json({ connected: false });
+    let r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (r.status === 401 && streamer.spotify_refresh) {
+      token = await refreshSpotifyToken(streamer.spotify_refresh);
+      if (token) {
+        await sbUpdate('streamers', { spotify_token: token }, { twitch_id: req.session.user.id });
+        r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': `Bearer ${token}` } });
+      }
+    }
+    if (r.status === 204) return res.json({ connected: true, playing: false });
+    const data = await r.json();
+    res.json({ connected: true, playing: true, track: data.item?.name, artist: data.item?.artists?.[0]?.name, album_art: data.item?.album?.images?.[0]?.url });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// API — agregar canción a la cola
+app.post('/api/spotify/queue', requireAuth, async (req, res) => {
+  try {
+    const { query } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    let token = streamer?.spotify_token;
+    if (!token) return res.status(401).json({ error: 'Spotify no conectado' });
+
+    // Buscar la canción
+    const searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const searchData = await searchRes.json();
+    const track = searchData.tracks?.items?.[0];
+    if (!track) return res.json({ success: false, error: 'Canción no encontrada' });
+
+    // Agregar a la cola
+    const queueRes = await fetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(track.uri)}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (queueRes.status === 204) {
+      res.json({ success: true, track: track.name, artist: track.artists[0].name });
+    } else {
+      res.json({ success: false, error: 'Error al agregar — ¿Spotify está reproduciendo?' });
+    }
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// API — config de Spotify
+app.post('/api/spotify/config', requireAuth, async (req, res) => {
+  try {
+    const { spotify_config } = req.body;
+    await sbUpdate('streamers', { spotify_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// API — desconectar Spotify
+app.post('/api/spotify/disconnect', requireAuth, async (req, res) => {
+  try {
+    await sbUpdate('streamers', { spotify_token: null, spotify_refresh: null }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
 app.get('/api/youtube-videos/:channelId', async (req, res) => {
   try {
     const { channelId } = req.params;
