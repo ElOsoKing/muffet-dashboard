@@ -488,6 +488,33 @@ app.get('/api/points-ranking', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── API YouTube videos (evita CORS) ──
+app.get('/api/youtube-videos/:channelId', async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+    const response = await fetch(rssUrl);
+    if (!response.ok) return res.json([]);
+    const xml = await response.text();
+    const videos = [];
+    const entries = xml.split('<entry>').slice(1);
+    for (const entry of entries.slice(0, 4)) {
+      const videoId = entry.match(/<yt:videoId>(.*?)<\/yt:videoId>/)?.[1];
+      const title = entry.match(/<title>(.*?)<\/title>/)?.[1]?.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+      const published = entry.match(/<published>(.*?)<\/published>/)?.[1];
+      if (videoId && title) {
+        videos.push({
+          videoId, title,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          thumb: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+          date: published ? new Date(published).toLocaleDateString('es-DO',{day:'numeric',month:'short',year:'numeric'}) : ''
+        });
+      }
+    }
+    res.json(videos);
+  } catch(err) { res.json([]); }
+});
+
 app.get('/overlay/sorteo/:username', (req, res) => {
   res.sendFile(path.join(__dirname, 'raffle-overlay.html'));
 });
