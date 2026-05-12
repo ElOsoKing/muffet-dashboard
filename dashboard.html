@@ -271,6 +271,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-section">Cuenta</div>
     <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
     <div class="nav-item" onclick="showSection('socials')"><span class="nav-icon">🌐</span> Redes sociales</div>
+    <div class="nav-item" onclick="showSection('theme')"><span class="nav-icon">🎨</span> Tema</div>
     <div class="nav-item" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Ajustes</div>
     <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'"><span class="nav-icon">👑</span> Admin</div>
   </nav>
@@ -1090,6 +1091,60 @@ function renderMain() {
     </div>
   </div>
 
+  <!-- TEMA -->
+  <div id="sec-theme" class="section">
+    <div class="page-header">
+      <div class="page-title">🎨 Tema</div>
+      <div class="page-subtitle">Personaliza los colores de tu dashboard</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">Temas predefinidos</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
+          ${[
+            ['purple', '#9147ff', '🟣 Morado'],
+            ['blue',   '#3b82f6', '🔵 Azul'],
+            ['green',  '#10b981', '🟢 Verde'],
+            ['red',    '#ef4444', '🔴 Rojo'],
+            ['gold',   '#f59e0b', '🟡 Dorado'],
+            ['pink',   '#ec4899', '🩷 Rosa'],
+            ['cyan',   '#06b6d4', '🩵 Cyan'],
+            ['orange', '#f97316', '🟠 Naranja'],
+          ].map(([id, color, label]) => `
+            <button onclick="applyTheme('${color}')" style="
+              display:flex;align-items:center;gap:8px;
+              padding:10px 16px;border-radius:var(--radius-sm);
+              background:var(--bg3);border:2px solid rgba(255,255,255,0.08);
+              color:var(--text-dim);font-family:var(--sans);font-size:13px;
+              cursor:pointer;transition:all 0.15s;
+            " onmouseover="this.style.borderColor='${color}';this.style.color='var(--text)'"
+               onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='var(--text-dim)'"
+               id="theme-${id}">
+              <span style="width:14px;height:14px;border-radius:50%;background:${color};flex-shrink:0;"></span>
+              ${label}
+            </button>`).join('')}
+        </div>
+
+        <div class="panel-header" style="margin:-20px -20px 16px;padding:12px 20px;"><span class="panel-title-text">Color personalizado</span></div>
+        <div style="display:flex;align-items:center;gap:14px;">
+          <input type="color" id="customColor" value="#9147ff"
+            style="width:48px;height:48px;border:none;border-radius:var(--radius-sm);cursor:pointer;background:none;padding:0;"
+            oninput="previewTheme(this.value)">
+          <div>
+            <div style="font-size:13px;color:var(--text);margin-bottom:4px;">Elige cualquier color</div>
+            <div style="font-size:12px;color:var(--text-dim);">Se aplica en tiempo real mientras eliges</div>
+          </div>
+          <button class="btn btn-primary" onclick="applyTheme(document.getElementById('customColor').value)" style="margin-left:auto;">Aplicar</button>
+        </div>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;">
+          <div style="font-size:12px;color:var(--text-dim);">El tema se guarda automáticamente en tu navegador</div>
+          <button class="btn btn-danger btn-sm" onclick="resetTheme()">Restablecer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- AJUSTES -->
   <div id="sec-settings" class="section">
     <div class="page-header"><div class="page-title">Ajustes</div><div class="page-subtitle">Configuración de tu cuenta</div></div>
@@ -1251,6 +1306,50 @@ async function saveSocials(){
 
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
+
+// ── SISTEMA DE TEMAS ──
+function applyTheme(color) {
+  document.documentElement.style.setProperty('--purple', color);
+  // Generar variantes del color
+  document.documentElement.style.setProperty('--purple-dim', hexToRgba(color, 0.12));
+  document.documentElement.style.setProperty('--purple-border', hexToRgba(color, 0.3));
+  document.documentElement.style.setProperty('--purple-light', lightenColor(color, 30));
+  localStorage.setItem('muffetbot-theme', color);
+  // Marcar botón activo
+  document.querySelectorAll('[id^="theme-"]').forEach(b => b.style.borderColor = 'rgba(255,255,255,0.08)');
+  showToast('Tema aplicado ✓');
+}
+
+function previewTheme(color) {
+  document.documentElement.style.setProperty('--purple', color);
+  document.documentElement.style.setProperty('--purple-dim', hexToRgba(color, 0.12));
+  document.documentElement.style.setProperty('--purple-border', hexToRgba(color, 0.3));
+  document.documentElement.style.setProperty('--purple-light', lightenColor(color, 30));
+}
+
+function resetTheme() {
+  applyTheme('#9147ff');
+  document.getElementById('customColor').value = '#9147ff';
+  showToast('Tema restablecido ✓');
+}
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function lightenColor(hex, amount) {
+  const r = Math.min(255, parseInt(hex.slice(1,3),16) + amount);
+  const g = Math.min(255, parseInt(hex.slice(3,5),16) + amount);
+  const b = Math.min(255, parseInt(hex.slice(5,7),16) + amount);
+  return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`;
+}
+
+// Cargar tema guardado
+const savedTheme = localStorage.getItem('muffetbot-theme');
+if (savedTheme) applyTheme(savedTheme);
 
 // ── STREAM MANAGER ──
 let gameSearchTimer = null;
