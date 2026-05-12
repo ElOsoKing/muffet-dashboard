@@ -393,13 +393,16 @@ function renderMain() {
             badge: 'nuevo',
             items: [
               '🏆 Sistema de puntos y niveles personalizables',
-              '🎲 Comando !random con múltiples modos',
+              '🎲 Comando !random con múltiples modos y variable {random}',
               '✂️ Comando !clip para crear clips desde el chat',
               '🔢 Sistema de contadores (!addcounter, !deaths +1)',
-              '📋 Variable {random} y {count:nombre} en comandos',
+              '📋 Variables {random} y {count:nombre} en comandos',
               '🎵 Mensajes ON/OFF personalizables con IA o texto fijo',
+              '🎰 Multiplicadores de entradas en sorteos (x2, x3 para subs/VIPs)',
+              '🎙️ Saludos y anuncios de ganador con personalidad del canal',
               '🔧 Fix spam de auto mensajes',
               '🔧 Fix menciones indebidas del bot',
+              '📺 Instrucciones corregidas para YouTube Channel ID',
             ]
           },
           {
@@ -1072,11 +1075,12 @@ function renderMain() {
           <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;margin-top:8px;">
             <div style="font-size:11px;font-weight:500;color:var(--text);margin-bottom:8px;">💡 ¿Cómo encontrar tu Channel ID?</div>
             <div style="font-size:11px;color:var(--text-dim);line-height:1.8;">
-              1. Ve a <strong style="color:var(--text)">youtube.com</strong> e inicia sesión<br>
-              2. Click en tu foto → <strong style="color:var(--text)">YouTube Studio</strong><br>
-              3. Click en <strong style="color:var(--text)">Configuración</strong> → <strong style="color:var(--text)">Información del canal</strong><br>
-              4. Copia el <strong style="color:var(--purple-light)">ID del canal</strong> (empieza con UC...)<br>
-              <span style="color:var(--text-muted);margin-top:4px;display:block;">También puedes ir a tu canal → click derecho → Ver código fuente → buscar "channelId"</span>
+              1. Ve a <strong style="color:var(--text)">YouTube</strong> e inicia sesión<br>
+              2. Click en tu <strong style="color:var(--text)">foto de perfil</strong> arriba a la derecha<br>
+              3. Ve a <strong style="color:var(--text)">Configuración</strong><br>
+              4. Click en <strong style="color:var(--text)">Configuración avanzada</strong><br>
+              5. Verás tu <strong style="color:var(--purple-light)">ID de cuenta</strong> — cópiala y pégala aquí<br>
+              <span style="color:var(--text-muted);margin-top:4px;display:block;">Empieza con UC seguido de letras y números</span>
             </div>
           </div>
         </div>
