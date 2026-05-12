@@ -491,21 +491,39 @@ app.get('/api/points-ranking', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// API — guardar credenciales de Spotify
+app.post('/api/spotify/credentials', requireAuth, async (req, res) => {
+  try {
+    const { spotify_client_id, spotify_client_secret } = req.body;
+    if (!spotify_client_id || !spotify_client_secret) return res.status(400).json({ error: 'Faltan credenciales' });
+    await sbUpdate('streamers', { spotify_client_id, spotify_client_secret }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Spotify OAuth ──
-app.get('/auth/spotify', requireAuth, (req, res) => {
-  const url = `https://accounts.spotify.com/authorize?client_id=${SPOTIFY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(BASE_URL+'/auth/spotify/callback')}&scope=${encodeURIComponent(SPOTIFY_SCOPES)}`;
-  res.redirect(url);
+app.get('/auth/spotify', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const clientId = streamer?.spotify_client_id || SPOTIFY_CLIENT_ID;
+    if (!clientId) return res.redirect('/dashboard?spotify=nocreds');
+    const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(BASE_URL+'/auth/spotify/callback')}&scope=${encodeURIComponent(SPOTIFY_SCOPES)}`;
+    res.redirect(url);
+  } catch(err) { res.redirect('/dashboard?spotify=error'); }
 });
 
 app.get('/auth/spotify/callback', requireAuth, async (req, res) => {
   const { code, error } = req.query;
   if (error || !code) return res.redirect('/dashboard?section=settings&spotify=error');
   try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const clientId = streamer?.spotify_client_id || SPOTIFY_CLIENT_ID;
+    const clientSecret = streamer?.spotify_client_secret || SPOTIFY_CLIENT_SECRET;
     const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'Authorization': 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+        'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
       },
       body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: BASE_URL+'/auth/spotify/callback' }).toString()
     });
@@ -517,12 +535,14 @@ app.get('/auth/spotify/callback', requireAuth, async (req, res) => {
 });
 
 // Refresh Spotify token
-async function refreshSpotifyToken(refreshToken) {
+async function refreshSpotifyToken(refreshToken, clientId, clientSecret) {
+  const id = clientId || SPOTIFY_CLIENT_ID;
+  const secret = clientSecret || SPOTIFY_CLIENT_SECRET;
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64')
+      'Authorization': 'Basic ' + Buffer.from(`${id}:${secret}`).toString('base64')
     },
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }).toString()
   });
@@ -540,7 +560,7 @@ app.get('/api/spotify/current', requireAuth, async (req, res) => {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (r.status === 401 && streamer.spotify_refresh) {
-      token = await refreshSpotifyToken(streamer.spotify_refresh);
+      token = await refreshSpotifyToken(streamer.spotify_refresh, streamer.spotify_client_id, streamer.spotify_client_secret);
       if (token) {
         await sbUpdate('streamers', { spotify_token: token }, { twitch_id: req.session.user.id });
         r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': `Bearer ${token}` } });
