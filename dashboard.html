@@ -264,6 +264,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
     <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
     <div class="nav-section">Herramientas</div>
+    <div class="nav-item" onclick="showSection('spotify')"><span class="nav-icon">🎵</span> Spotify</div>
     <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos y niveles</div>
     <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
     <div class="nav-section">Análisis</div>
@@ -324,6 +325,7 @@ function showSection(name) {
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
   if(name === 'stream') loadStreamInfo();
+  if(name === 'spotify') loadSpotifyStatus();
   if(window.innerWidth <= 768) toggleSidebar();
 }
 
@@ -836,6 +838,94 @@ function renderMain() {
     </div>
   </div>
 
+  <!-- SPOTIFY -->
+  <div id="sec-spotify" class="section">
+    <div class="page-header">
+      <div class="page-title">🎵 Spotify</div>
+      <div class="page-subtitle">Permite que el chat pida canciones</div>
+    </div>
+
+    ${s.spotify_token ? `
+    <!-- Conectado -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">✅ Spotify conectado</span></div>
+      <div class="panel-body">
+        <div id="spotifyNowPlaying" style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:16px;">
+          <div id="spotifyAlbumArt" style="width:52px;height:52px;border-radius:6px;background:var(--bg4);flex-shrink:0;overflow:hidden;">
+            <img id="spotifyImg" src="" style="width:100%;height:100%;object-fit:cover;display:none;">
+          </div>
+          <div>
+            <div id="spotifyTrack" style="font-size:13px;font-weight:500;color:var(--text);">Cargando...</div>
+            <div id="spotifyArtist" style="font-size:12px;color:var(--text-dim);margin-top:2px;"></div>
+          </div>
+          <button class="btn btn-success btn-sm" onclick="loadSpotifyStatus()" style="margin-left:auto;">↻</button>
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="disconnectSpotify()">Desconectar Spotify</button>
+      </div>
+    </div>` : `
+    <!-- No conectado -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">Conectar Spotify</span></div>
+      <div class="panel-body">
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
+          Conecta tu cuenta de Spotify para que el chat pueda pedir canciones.<br>
+          Requiere <strong style="color:var(--text)">Spotify Premium</strong>.
+        </p>
+        <a href="/auth/spotify" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;">
+          🎵 Conectar con Spotify
+        </a>
+      </div>
+    </div>`}
+
+    <!-- Configuración -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
+      <div class="panel-body">
+        <div class="toggle-row">
+          <div><div class="toggle-label">Sistema activo</div><div class="toggle-desc">El chat puede pedir canciones con !cancion</div></div>
+          <label class="toggle"><input type="checkbox" id="spotifyEnabled" ${s.spotify_config?.enabled?'checked':''} onchange="saveSpotifyConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div style="margin-top:16px;">
+          <label class="form-label">¿Quién puede pedir canciones?</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+            ${['everyone','sub','vip','mod'].map(p => {
+              const labels = {everyone:'👥 Todos',sub:'⭐ Subs',vip:'💎 VIPs',mod:'🛡️ Mods'};
+              const active = (s.spotify_config?.allowed||['everyone']).includes(p);
+              return `<label style="display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid ${active?'var(--purple)':'rgba(255,255,255,0.08)'};border-radius:20px;cursor:pointer;font-size:12px;color:${active?'var(--purple-light)':'var(--text-dim)'};background:${active?'var(--purple-dim)':'transparent'};transition:all 0.15s;" onclick="toggleSpotifyPerm(this,'${p}')">
+                <input type="checkbox" ${active?'checked':''} data-perm="${p}" style="display:none;">
+                ${labels[p]}
+              </label>`;
+            }).join('')}
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:16px;">
+          <label class="form-label">Máximo de canciones por usuario</label>
+          <input class="form-input" type="number" id="spotifyMaxQueue" value="${s.spotify_config?.max_per_user||3}" min="1" max="10" style="width:100px;">
+        </div>
+        <button class="btn btn-primary" style="margin-top:8px;" onclick="saveSpotifyConfig()">Guardar configuración</button>
+      </div>
+    </div>
+
+    <!-- Comandos -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📋 Comandos disponibles</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${[
+            ['!cancion nombre', 'Agrega una canción a la cola', 'Configurado'],
+            ['!cancion actual', 'Muestra qué está sonando ahora', 'Todos'],
+            ['!skip', 'Salta la canción actual', 'Solo mods'],
+          ].map(([cmd, desc, who]) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <code style="font-size:13px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:180px;">${cmd}</code>
+              <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
+              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;color:var(--text-muted);border-color:rgba(255,255,255,0.1);">${who}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- PUNTOS Y NIVELES -->
   <div id="sec-points" class="section">
     <div class="page-header">
@@ -1306,6 +1396,66 @@ async function saveSocials(){
 
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
+
+// ── SPOTIFY ──
+async function loadSpotifyStatus() {
+  try {
+    const res = await fetch('/api/spotify/current');
+    const data = await res.json();
+    if (!data.connected) return;
+    const track = document.getElementById('spotifyTrack');
+    const artist = document.getElementById('spotifyArtist');
+    const img = document.getElementById('spotifyImg');
+    if (track) track.textContent = data.playing ? data.track : 'Sin reproducción activa';
+    if (artist) artist.textContent = data.playing ? data.artist : '';
+    if (img && data.album_art) { img.src = data.album_art; img.style.display = 'block'; }
+  } catch(e) {}
+}
+
+function toggleSpotifyPerm(label, perm) {
+  const cb = label.querySelector('input');
+  if (perm === 'everyone' && !cb.checked) {
+    document.querySelectorAll('#sec-spotify [data-perm]').forEach(i => {
+      i.checked = false;
+      const l = i.closest('label');
+      l.style.borderColor = 'rgba(255,255,255,0.08)';
+      l.style.color = 'var(--text-dim)';
+      l.style.background = 'transparent';
+    });
+    cb.checked = true;
+    label.style.borderColor = 'var(--purple)';
+    label.style.color = 'var(--purple-light)';
+    label.style.background = 'var(--purple-dim)';
+    return;
+  }
+  if (perm !== 'everyone') {
+    const evEl = document.querySelector('#sec-spotify [data-perm="everyone"]');
+    if (evEl) { evEl.checked = false; const l = evEl.closest('label'); l.style.borderColor='rgba(255,255,255,0.08)'; l.style.color='var(--text-dim)'; l.style.background='transparent'; }
+  }
+  cb.checked = !cb.checked;
+  label.style.borderColor = cb.checked ? 'var(--purple)' : 'rgba(255,255,255,0.08)';
+  label.style.color = cb.checked ? 'var(--purple-light)' : 'var(--text-dim)';
+  label.style.background = cb.checked ? 'var(--purple-dim)' : 'transparent';
+}
+
+async function saveSpotifyConfig() {
+  const enabled = document.getElementById('spotifyEnabled')?.checked;
+  const allowed = Array.from(document.querySelectorAll('#sec-spotify [data-perm]:checked')).map(i=>i.dataset.perm);
+  const max_per_user = parseInt(document.getElementById('spotifyMaxQueue')?.value) || 3;
+  const spotify_config = { enabled, allowed: allowed.length ? allowed : ['everyone'], max_per_user };
+  const res = await fetch('/api/spotify/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ spotify_config }) });
+  if(res.ok) { streamerData.spotify_config = spotify_config; showToast('Configuración guardada ✓'); }
+  else showToast('Error al guardar','error');
+}
+
+async function disconnectSpotify() {
+  if (!confirm('¿Desconectar Spotify?')) return;
+  const res = await fetch('/api/spotify/disconnect', { method:'POST' });
+  if(res.ok) { showToast('Spotify desconectado'); setTimeout(()=>location.reload(), 1000); }
+}
+
+// Cargar estado de Spotify al entrar
+const _origShowSection = showSection;
 
 // ── SISTEMA DE TEMAS ──
 function applyTheme(color) {
