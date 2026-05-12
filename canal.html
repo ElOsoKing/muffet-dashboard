@@ -181,24 +181,18 @@ async function loadCanal() {
     // Cargar videos de YouTube si hay channel ID
     if (data.youtube_channel_id) {
       try {
-        const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${data.youtube_channel_id}`;
-        const corsUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=4`;
-        const rssRes = await fetch(corsUrl);
-        const rssData = await rssRes.json();
+        const rssRes = await fetch(`/api/youtube-videos/${data.youtube_channel_id}`);
+        const videos = await rssRes.json();
 
-        if (rssData.items && rssData.items.length > 0) {
-          const videosHtml = rssData.items.map(item => {
-            const videoId = item.link.split('v=')[1]?.split('&')[0];
-            const thumb = videoId ? `https://img.youtube.com/vi/${videoId}/mqdefault.jpg` : '';
-            const date = new Date(item.pubDate).toLocaleDateString('es-DO', { day:'numeric', month:'short', year:'numeric' });
-            return `<a href="${item.link}" target="_blank" class="video-card">
-              <img class="video-thumb" src="${thumb}" alt="${item.title}" loading="lazy">
+        if (videos && videos.length > 0) {
+          const videosHtml = videos.map(v => `
+            <a href="${v.url}" target="_blank" class="video-card">
+              <img class="video-thumb" src="${v.thumb}" alt="${v.title}" loading="lazy">
               <div class="video-info">
-                <div class="video-title">${item.title}</div>
-                <div class="video-date">${date}</div>
+                <div class="video-title">${v.title}</div>
+                <div class="video-date">${v.date}</div>
               </div>
-            </a>`;
-          }).join('');
+            </a>`).join('');
 
           const videosPanel = document.createElement('div');
           videosPanel.innerHTML = `
@@ -212,7 +206,7 @@ async function loadCanal() {
             </div>`;
           document.querySelector('.powered').before(videosPanel);
         }
-      } catch(e) { console.log('YouTube RSS error:', e); }
+      } catch(e) { console.log('YouTube error:', e); }
     }
 
   } catch(err) {
