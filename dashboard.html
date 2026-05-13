@@ -502,6 +502,7 @@ function renderMain() {
             date: '13 Mayo 2026',
             badge: 'nuevo',
             items: [
+              '🔔 Alertas automáticas — follows, subs y bits con personalidad del canal',
               '🎨 Dashboard rediseñado — inicio con barra de estado y accesos rápidos',
               '🎨 Sidebar colapsable por grupos',
               '🎨 Tarjetas de IA y Moderación clickeables desde el inicio',
@@ -1600,6 +1601,25 @@ function renderMain() {
         ${s.custom_bot_username?`<div style="margin-top:12px;padding:12px;background:rgba(64,208,144,0.08);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);font-size:13px;color:var(--green);">✅ Bot activo: <strong>${s.custom_bot_username}</strong> — aparece con este nombre en tu chat</div>`:''}
       </div>
     </div>`:''}
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🔔 Alertas del canal</span></div>
+      <div class="panel-body">
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
+          El bot agradecerá automáticamente los follows, suscripciones y bits con la personalidad de tu canal.
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+          ${[['🎉','Follows','Saluda a cada nuevo seguidor'],['⭐','Suscripciones','Agradece subs Tier 1, 2 y 3'],['🎁','Sub gifts','Celebra cuando regalan subs'],['💎','Bits','Agradece las donaciones de bits']].map(([icon,label,desc])=>`
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <span style="font-size:20px;">${icon}</span>
+              <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--text);">${label}</div><div style="font-size:11px;color:var(--text-dim);">${desc}</div></div>
+              <span style="font-size:11px;color:var(--green);">✓</span>
+            </div>`).join('')}
+        </div>
+        <button class="btn btn-primary" onclick="registerAlerts()">🔔 Activar alertas</button>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Solo necesitas hacer esto una vez por canal.</div>
+      </div>
+    </div>
   </div>
   `;
 }
@@ -1737,6 +1757,21 @@ async function saveSocials(){
 
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
+
+async function registerAlerts() {
+  const btn = event.target;
+  btn.textContent = 'Activando...';
+  btn.disabled = true;
+  const res = await fetch('/api/eventsub/register', { method:'POST' });
+  if(res.ok) {
+    showToast('¡Alertas activadas! 🔔');
+    btn.textContent = '✅ Alertas activas';
+  } else {
+    showToast('Error al activar alertas','error');
+    btn.textContent = '🔔 Activar alertas';
+    btn.disabled = false;
+  }
+}
 
 // ── PALABRAS CLAVE ──
 let editingKeyword = null;
