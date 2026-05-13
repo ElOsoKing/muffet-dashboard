@@ -71,7 +71,7 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 .section.active{display:block;}
 
 /* ── PAGE HEADER ── */
-.page-header{margin-bottom:28px;}
+.page-header{margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.06);}
 .page-title{font-size:22px;font-weight:600;color:var(--text);letter-spacing:-0.3px;}
 .page-subtitle{font-size:13px;color:var(--text-dim);margin-top:4px;}
 
@@ -636,32 +636,42 @@ function renderMain() {
     <div class="page-header"><div class="page-title">Comandos</div><div class="page-subtitle">Gestiona los comandos del chat</div></div>
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title-text">Lista de comandos</span>
+        <span class="panel-title-text">Lista de comandos <span id="cmdCount" style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">${Object.keys(commands).length} comandos</span></span>
         <button class="btn btn-success btn-sm" onclick="addCommand()">+ Agregar</button>
       </div>
       <div class="panel-body">
-        <div class="command-list" id="commandList">
+        <div class="command-list" id="commandList" style="display:flex;flex-direction:column;gap:8px;">
           ${Object.entries(commands).map(([trigger,val])=>{
             const response=typeof val==='object'?val.response:val;
             const perms=typeof val==='object'&&val.perms?val.perms:['everyone'];
+            const permLabels={everyone:'👥 Todos',sub:'⭐ Subs',vip:'💎 VIPs',mod:'🛡️ Mods',broadcaster:'👑 Yo'};
             return `<div class="command-item">
               <div class="command-top">
                 <input class="command-trigger" value="${trigger}" placeholder="!comando">
-                <input class="command-response" value="${response.replace(/"/g,'&quot;')}" placeholder="Respuesta de Muffet...">
-                <button class="btn btn-danger btn-sm" onclick="removeCommand(this)">✕</button>
+                <input class="command-response" value="${response.replace(/"/g,'&quot;')}" placeholder="Respuesta...">
+                <button class="btn btn-danger btn-sm" onclick="removeCommand(this)" style="flex-shrink:0;">✕</button>
               </div>
-              <div class="command-perms">
-                <span class="perm-title">Permisos:</span>
+              <div class="command-perms" style="margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <span class="perm-title" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:2px;">Permisos:</span>
                 ${['everyone','sub','vip','mod','broadcaster'].map(p=>`
-                  <label class="perm-label ${p} ${perms.includes(p)?'active':''}" onclick="togglePerm(this,'${p}')">
-                    <input type="checkbox" ${perms.includes(p)?'checked':''} data-perm="${p}">
-                    ${{everyone:'Todos',sub:'Subs',vip:'VIPs',mod:'Mods',broadcaster:'Yo'}[p]}
+                  <label class="perm-label ${p} ${perms.includes(p)?'active':''}" onclick="togglePerm(this,'${p}')" style="cursor:pointer;">
+                    <input type="checkbox" ${perms.includes(p)?'checked':''} data-perm="${p}" style="display:none;">
+                    ${permLabels[p]}
                   </label>`).join('')}
               </div>
             </div>`;
           }).join('')}
         </div>
-        <button class="btn btn-primary" onclick="saveCommands()">Guardar comandos</button>
+        ${Object.keys(commands).length === 0 ? `
+        <div style="text-align:center;padding:32px;color:var(--text-muted);">
+          <div style="font-size:32px;margin-bottom:8px;">⚡</div>
+          <div style="font-size:14px;font-weight:500;color:var(--text-dim);margin-bottom:4px;">No hay comandos</div>
+          <div style="font-size:12px;">Agrega uno con el botón de arriba o usa <code style="color:var(--purple-light)">!addcmd</code> en el chat</div>
+        </div>` : ''}
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.04);">
+          <span style="font-size:12px;color:var(--text-muted);">También puedes usar <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 5px;border-radius:3px;">!addcmd !comando respuesta</code> desde el chat</span>
+          <button class="btn btn-primary" onclick="saveCommands()">Guardar cambios</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2098,39 +2108,52 @@ async function loadRaffleStatus() {
   if (!data.active) {
     panel.innerHTML = `
       <div class="raffle-inactive">
-        <div style="font-size:32px;margin-bottom:12px;">🎉</div>
-        <div style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px;">No hay sorteo activo</div>
-        <div style="font-size:13px;color:var(--text-dim);margin-bottom:20px;">Inicia uno y la gente puede entrar con el comando configurado</div>
-        <button class="btn btn-primary" onclick="startRaffle()">🎉 Iniciar sorteo</button>
+        <div style="width:64px;height:64px;border-radius:50%;background:var(--purple-dim);border:1px solid var(--purple-border);display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px;">🎉</div>
+        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px;">No hay sorteo activo</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:24px;max-width:300px;margin-left:auto;margin-right:auto;">Inicia un sorteo y tu comunidad podrá participar desde el chat</div>
+        <button class="btn btn-primary" onclick="startRaffle()" style="padding:10px 24px;font-size:14px;">🎉 Iniciar sorteo</button>
       </div>`;
     return;
   }
 
   const participants = data.participants || [];
+  const unique = [...new Set(participants)];
   const joinCmd = streamerData.raffle_settings?.join_cmd || '!entrar';
   panel.innerHTML = `
     <div class="raffle-active">
       <div class="raffle-header">
-        <div>
-          <div class="raffle-title">🎉 Sorteo en curso</div>
-          <div class="raffle-prize">🏆 Premio: ${data.prize}</div>
-          <div class="raffle-cmd-hint">La gente entra escribiendo <code>${joinCmd}</code> en el chat</div>
+        <div style="flex:1;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 1.5s infinite;"></div>
+            <div class="raffle-title">Sorteo en curso</div>
+          </div>
+          <div class="raffle-prize">🏆 ${data.prize}</div>
+          <div class="raffle-cmd-hint" style="margin-top:4px;">Escribe <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 5px;border-radius:3px;">${joinCmd}</code> para participar</div>
         </div>
-        <div class="raffle-counter">
-          <div class="raffle-count">${participants.length}</div>
+        <div class="raffle-counter" style="text-align:center;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius-sm);padding:10px 16px;">
+          <div class="raffle-count">${unique.length}</div>
           <div class="raffle-count-label">participantes</div>
         </div>
       </div>
-      <div class="participants-grid" id="participantsList">
-        ${participants.length ? participants.map(p => `
-          <div class="participant-tag">
-            ${p}
-            <button class="remove-btn" onclick="removeParticipant('${p}')" title="Eliminar">×</button>
-          </div>`).join('') : '<div style="color:var(--text-muted);font-size:12px;padding:8px;">Esperando participantes...</div>'}
-      </div>
-      <div class="raffle-actions">
-        <button class="btn btn-primary" onclick="endRaffle()" ${participants.length===0?'disabled':''}>🏆 Elegir ganador</button>
-        <button class="btn btn-danger" onclick="cancelRaffle()">Cancelar sorteo</button>
+
+      ${unique.length > 0 ? `
+      <div style="margin:12px 0;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);">
+        <div style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Participantes</div>
+        <div class="participants-grid" id="participantsList">
+          ${unique.map(p => `
+            <div class="participant-tag">
+              <span style="font-size:12px;">👤</span> ${p}
+              <button class="remove-btn" onclick="removeParticipant('${p}')" title="Eliminar">×</button>
+            </div>`).join('')}
+        </div>
+      </div>` : `
+      <div style="margin:12px 0;padding:20px;background:var(--bg3);border-radius:var(--radius-sm);text-align:center;color:var(--text-muted);font-size:13px;">
+        Esperando participantes...
+      </div>`}
+
+      <div class="raffle-actions" style="gap:10px;">
+        <button class="btn btn-primary" onclick="endRaffle()" ${unique.length===0?'disabled':''} style="flex:1;padding:10px;">🏆 Elegir ganador</button>
+        <button class="btn btn-danger" onclick="cancelRaffle()" style="padding:10px 16px;">✕ Cancelar</button>
       </div>
     </div>`;
 }
