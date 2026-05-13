@@ -272,6 +272,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-section">Cuenta</div>
     <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
     <div class="nav-item" onclick="showSection('socials')"><span class="nav-icon">🌐</span> Redes sociales</div>
+    <div class="nav-item" onclick="showSection('schedule')"><span class="nav-icon">📅</span> Horario</div>
     <div class="nav-item" onclick="showSection('theme')"><span class="nav-icon">🎨</span> Tema</div>
     <div class="nav-item" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Ajustes</div>
     <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'"><span class="nav-icon">👑</span> Admin</div>
@@ -1180,6 +1181,49 @@ function renderMain() {
     </div>
   </div>
 
+  <!-- HORARIO -->
+  <div id="sec-schedule" class="section">
+    <div class="page-header">
+      <div class="page-title">📅 Horario</div>
+      <div class="page-subtitle">Aparece en tu página pública para que tu comunidad sepa cuándo streameas</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">Días y horas</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+          ${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((day, i) => {
+            const key = day.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+            const schedule = s.stream_schedule || {};
+            const dayData = schedule[key] || {};
+            return `<div style="display:grid;grid-template-columns:110px 80px 20px 80px 1fr;gap:8px;align-items:center;">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="day_${key}" ${dayData.active?'checked':''} onchange="updateDayActive('${key}')"
+                  style="width:16px;height:16px;accent-color:var(--purple);cursor:pointer;">
+                <span style="font-size:13px;color:var(--text);">${day}</span>
+              </label>
+              <input type="time" id="start_${key}" value="${dayData.start||'20:00'}" 
+                style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:6px 8px;outline:none;${!dayData.active?'opacity:0.4;':''}">
+              <span style="font-size:12px;color:var(--text-dim);text-align:center;">—</span>
+              <input type="time" id="end_${key}" value="${dayData.end||'23:00'}"
+                style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:6px 8px;outline:none;${!dayData.active?'opacity:0.4;':''}">
+              <input class="form-input" id="note_${key}" value="${dayData.note||''}" placeholder="Nota opcional (ej: ¡Ranked!)"
+                style="font-size:12px;padding:6px 10px;${!dayData.active?'opacity:0.4;':''}">
+            </div>`;
+          }).join('')}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Zona horaria</label>
+          <select class="form-input" id="scheduleTimezone" style="padding:8px 12px;">
+            ${['America/Santo_Domingo','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Mexico_City','America/Bogota','America/Lima','America/Santiago','America/Argentina/Buenos_Aires','Europe/Madrid','Europe/London'].map(tz => 
+              `<option value="${tz}" ${(s.stream_schedule?.timezone||'America/Santo_Domingo')===tz?'selected':''}>${tz.replace('_',' ')}</option>`
+            ).join('')}
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="saveSchedule()">Guardar horario</button>
+      </div>
+    </div>
+  </div>
+
   <!-- REDES SOCIALES -->
   <div id="sec-socials" class="section">
     <div class="page-header">
@@ -1453,6 +1497,32 @@ async function saveSocials(){
 
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
+
+// ── HORARIO ──
+function updateDayActive(key) {
+  const active = document.getElementById(`day_${key}`)?.checked;
+  const opacity = active ? '1' : '0.4';
+  ['start','end','note'].forEach(f => {
+    const el = document.getElementById(`${f}_${key}`);
+    if(el) el.style.opacity = opacity;
+  });
+}
+
+async function saveSchedule() {
+  const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+  const schedule = { timezone: document.getElementById('scheduleTimezone')?.value || 'America/Santo_Domingo' };
+  days.forEach(key => {
+    schedule[key] = {
+      active: document.getElementById(`day_${key}`)?.checked || false,
+      start:  document.getElementById(`start_${key}`)?.value || '20:00',
+      end:    document.getElementById(`end_${key}`)?.value || '23:00',
+      note:   document.getElementById(`note_${key}`)?.value.trim() || '',
+    };
+  });
+  const res = await fetch('/api/schedule', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ stream_schedule: schedule }) });
+  if(res.ok) { streamerData.stream_schedule = schedule; showToast('Horario guardado ✓'); }
+  else showToast('Error al guardar','error');
+}
 
 // ── SPOTIFY ──
 async function saveSpotifyCredentials() {
