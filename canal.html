@@ -70,6 +70,13 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 .powered{text-align:center;margin-top:40px;font-size:12px;color:var(--text-muted);}
 .powered a{color:var(--text-dim);text-decoration:none;}
 .powered a:hover{color:var(--purple-light);}
+/* Top viewers */
+.top-list{display:flex;flex-direction:column;gap:8px;}
+.top-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);}
+.top-medal{font-size:18px;width:28px;text-align:center;flex-shrink:0;}
+.top-name{font-size:13px;font-weight:500;color:var(--text);flex:1;}
+.top-level{font-size:11px;color:var(--text-dim);}
+.top-points{font-size:13px;font-weight:600;color:var(--purple-light);}
 
 /* Loading / error */
 .loading{text-align:center;padding:60px;color:var(--text-dim);font-size:14px;}
@@ -148,6 +155,31 @@ async function loadCanal() {
       </div>
 
       ${socials ? `<div class="socials">${socials}</div>` : ''}
+
+      ${data.top_viewers?.length ? `
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-header">
+          <span class="panel-title">${data.points_config?.emoji || '🏆'} Top viewers</span>
+          <span class="panel-count">${data.points_config?.name || 'puntos'}</span>
+        </div>
+        <div class="panel-body">
+          <div class="top-list">
+            ${data.top_viewers.map((v, i) => {
+              const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+              const levels = data.points_config?.levels || [];
+              const level = levels.filter(l => v.xp >= l.xp).pop();
+              return `<div class="top-item">
+                <span class="top-medal">${medals[i]||`#${i+1}`}</span>
+                <div style="flex:1;">
+                  <div class="top-name">${v.username}</div>
+                  ${level ? `<div class="top-level">${level.name}</div>` : ''}
+                </div>
+                <span class="top-points">${v.xp} ${data.points_config?.emoji || '🏆'}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>` : ''}
 
       <div class="panel">
         <div class="panel-header">
