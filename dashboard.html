@@ -260,6 +260,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-item" onclick="showSection('personality')"><span class="nav-icon">🕷️</span> Personalidad</div>
     <div class="nav-section">Bot</div>
     <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
+    <div class="nav-item" onclick="showSection('keywords')"><span class="nav-icon">🎭</span> Palabras clave</div>
     <div class="nav-item" onclick="showSection('variables')"><span class="nav-icon">📋</span> Variables</div>
     <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
     <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
@@ -606,6 +607,51 @@ function renderMain() {
           })()}
         </div>
         <button class="btn btn-primary" onclick="saveAutoMessages()">Guardar mensajes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PALABRAS CLAVE -->
+  <div id="sec-keywords" class="section">
+    <div class="page-header">
+      <div class="page-title">🎭 Palabras clave</div>
+      <div class="page-subtitle">El bot responde automáticamente cuando detecta estas palabras</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">Lista de palabras clave</span>
+        <button class="btn btn-success btn-sm" onclick="addKeyword()">+ Agregar</button>
+      </div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Cuando alguien escriba la palabra o frase configurada, el bot responde automáticamente. Tiene un cooldown de 30 segundos para no hacer spam.
+        </div>
+        <div id="keywordsList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+          ${(()=>{
+            const keywords = s.keyword_responses || {};
+            const entries = Object.entries(keywords);
+            if (!entries.length) return `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No hay palabras clave. Agrega una con el botón de arriba.</div>`;
+            return entries.map(([kw, cfg]) => `
+              <div class="keyword-item" data-kw="${kw.replace(/"/g,'&quot;')}">
+                <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+                  <div style="display:flex;flex-direction:column;gap:6px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <code style="font-size:13px;font-weight:600;color:var(--purple-light);background:var(--purple-dim);padding:2px 8px;border-radius:4px;">${kw}</code>
+                      <span style="font-size:11px;color:var(--text-muted);">${cfg.exact?'Exacta':'Contiene'}</span>
+                      ${cfg.type==='ai'?'<span style="font-size:10px;font-weight:500;color:var(--purple-light);background:var(--purple-dim);padding:2px 6px;border-radius:4px;">🤖 IA</span>':''}
+                    </div>
+                    <div style="font-size:12px;color:var(--text-dim);">${cfg.type==='ai'?(cfg.prompt||'Responde con IA'):cfg.response||''}</div>
+                  </div>
+                  <label class="toggle" style="flex-shrink:0;">
+                    <input type="checkbox" ${cfg.active?'checked':''} onchange="toggleKeyword('${kw.replace(/'/g,"\\'")}', this.checked)">
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <button class="btn btn-danger btn-sm" onclick="deleteKeyword('${kw.replace(/'/g,"\\'")}')">✕</button>
+                </div>
+              </div>`).join('');
+          })()}
+        </div>
+        <button class="btn btn-primary" onclick="saveKeywords()">Guardar cambios</button>
       </div>
     </div>
   </div>
@@ -1517,6 +1563,52 @@ async function saveSocials(){
 
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
+
+// ── PALABRAS CLAVE ──
+let pendingKeywords = {};
+
+function addKeyword() {
+  const kw = prompt('Escribe la palabra o frase clave:');
+  if (!kw?.trim()) return;
+  const type = confirm('¿Quieres que responda con IA?\n\nOK = IA (genera respuesta automática)\nCancelar = Texto fijo') ? 'ai' : 'fixed';
+  const content = type === 'ai'
+    ? (prompt('¿Qué instrucción le das a la IA? (ej: Celebra con el usuario)') || 'Responde de forma natural.')
+    : (prompt('¿Qué texto quieres que responda?') || '');
+  if (!content && type === 'fixed') return;
+  const exact = confirm('¿Solo responder si el mensaje es exactamente esa palabra?\n\nOK = Exacta\nCancelar = Si la contiene');
+
+  pendingKeywords[kw.trim()] = {
+    active: true, type, exact,
+    [type === 'ai' ? 'prompt' : 'response']: content,
+    cooldown: 30
+  };
+  saveKeywords();
+}
+
+async function saveKeywords() {
+  const res = await fetch('/api/keywords', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ keyword_responses: { ...(streamerData.keyword_responses||{}), ...pendingKeywords } }) });
+  if(res.ok) {
+    Object.assign(streamerData.keyword_responses || (streamerData.keyword_responses = {}), pendingKeywords);
+    pendingKeywords = {};
+    showToast('Palabras clave guardadas ✓');
+    showSection('keywords');
+  } else showToast('Error al guardar','error');
+}
+
+async function toggleKeyword(kw, active) {
+  const keywords = { ...(streamerData.keyword_responses || {}) };
+  if (keywords[kw]) { keywords[kw].active = active; }
+  const res = await fetch('/api/keywords', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ keyword_responses: keywords }) });
+  if(res.ok) { streamerData.keyword_responses = keywords; showToast(active ? 'Activada ✓' : 'Desactivada ✓'); }
+}
+
+async function deleteKeyword(kw) {
+  if (!confirm(`¿Eliminar la palabra clave "${kw}"?`)) return;
+  const keywords = { ...(streamerData.keyword_responses || {}) };
+  delete keywords[kw];
+  const res = await fetch('/api/keywords', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ keyword_responses: keywords }) });
+  if(res.ok) { streamerData.keyword_responses = keywords; showToast('Eliminada ✓'); showSection('keywords'); }
+}
 
 // ── HORARIO ──
 function updateDayActive(key) {
