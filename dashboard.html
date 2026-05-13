@@ -86,8 +86,9 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 .stat-value.off{color:var(--text-dim);}
 
 /* ── PANELS ── */
-.panel{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;}
-.panel-header{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;}
+.panel{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);margin-bottom:16px;overflow:hidden;transition:border-color 0.15s;}
+.panel:hover{border-color:rgba(255,255,255,0.09);}
+.panel-header{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.01);}
 .panel-title-text{font-size:13px;font-weight:600;color:var(--text);}
 .panel-body{padding:20px;}
 
@@ -127,7 +128,8 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
 
 /* ── COMMANDS ── */
 .command-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
-.command-item{background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:12px;}
+.command-item{background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:14px;transition:border-color 0.15s;}
+.command-item:hover{border-color:rgba(255,255,255,0.1);}
 .command-top{display:flex;align-items:center;gap:8px;}
 .command-trigger{background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--purple-light);font-family:var(--sans);font-size:13px;padding:8px 12px;width:140px;outline:none;}
 .command-trigger:focus{border-color:var(--purple);}
@@ -405,34 +407,84 @@ function renderMain() {
       <div class="page-title"><span class="status-dot"></span>Bienvenido, ${userData.display_name}</div>
       <div class="page-subtitle">Tu bot está activo y corriendo en la nube 24/7</div>
     </div>
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-label">Comandos</span><span class="stat-icon">⚡</span></div>
-        <div class="stat-value">${Object.keys(commands).length}</div>
+
+    <!-- Barra de estado -->
+    <div style="background:linear-gradient(135deg,rgba(64,208,144,0.08),var(--bg2));border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius);padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 8px rgba(64,208,144,0.6);animation:pulse 2s infinite;"></div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);">Bot online — ${userData.username}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">Corriendo en Railway • Plan ${s.plan==='pro'?'Pro ⭐':'Gratuito'}</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-label">Auto mensajes</span><span class="stat-icon">💬</span></div>
-        <div class="stat-value">${autoMessages.length}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-label">IA Muffet</span><span class="stat-icon">🤖</span></div>
-        <div class="stat-value ${s.ai_enabled ? 'on' : 'off'}">${s.ai_enabled ? 'ON' : 'OFF'}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-label">Moderación</span><span class="stat-icon">🛡️</span></div>
-        <div class="stat-value ${s.mod_enabled ? 'on' : 'off'}">${s.mod_enabled ? 'ON' : 'OFF'}</div>
+      <div style="display:flex;gap:16px;text-align:center;">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--purple-light);">${Object.keys(commands).length}</div>
+          <div style="font-size:10px;color:var(--text-muted);">comandos</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--green);">${s.ai_enabled?'ON':'OFF'}</div>
+          <div style="font-size:10px;color:var(--text-muted);">IA</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--yellow);">${s.mod_enabled?'ON':'OFF'}</div>
+          <div style="font-size:10px;color:var(--text-muted);">mod</div>
+        </div>
       </div>
     </div>
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">Estado del bot</span></div>
-      <div class="panel-body">
-        <div class="toggle-row">
-          <div><div class="toggle-label">Respuestas con IA</div><div class="toggle-desc">Muffet responde preguntas con personalidad usando IA</div></div>
-          <label class="toggle"><input type="checkbox" ${s.ai_enabled?'checked':''} onchange="toggleAI(this.checked)"><span class="toggle-slider"></span></label>
+    <div class="stats-grid">
+      <div class="stat-card" onclick="showSection('commands')" style="cursor:pointer;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Comandos</span>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(145,71,255,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">⚡</div>
         </div>
-        <div class="toggle-row">
-          <div><div class="toggle-label">Moderación automática</div><div class="toggle-desc">Muffet detecta y advierte por mensajes inapropiados</div></div>
-          <label class="toggle"><input type="checkbox" ${s.mod_enabled?'checked':''} onchange="toggleMod(this.checked)"><span class="toggle-slider"></span></label>
+        <div style="font-size:32px;font-weight:700;color:var(--text);letter-spacing:-1px;line-height:1;">${Object.keys(commands).length}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">configurados</div>
+      </div>
+      <div class="stat-card" onclick="showSection('automessages')" style="cursor:pointer;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Auto mensajes</span>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(64,208,144,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">💬</div>
+        </div>
+        <div style="font-size:32px;font-weight:700;color:var(--text);letter-spacing:-1px;line-height:1;">${autoMessages.length}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">activos</div>
+      </div>
+      <div class="stat-card" style="cursor:pointer;" onclick="toggleAI(!${s.ai_enabled})">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">IA Muffet</span>
+          <div style="width:36px;height:36px;border-radius:10px;background:${s.ai_enabled?'rgba(145,71,255,0.15)':'rgba(255,255,255,0.05)'};display:flex;align-items:center;justify-content:center;font-size:18px;">🤖</div>
+        </div>
+        <div style="font-size:24px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:${s.ai_enabled?'var(--purple-light)':'var(--text-muted)'};">${s.ai_enabled?'Activa':'Inactiva'}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">click para ${s.ai_enabled?'desactivar':'activar'}</div>
+      </div>
+      <div class="stat-card" style="cursor:pointer;" onclick="toggleMod(!${s.mod_enabled})">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Moderación</span>
+          <div style="width:36px;height:36px;border-radius:10px;background:${s.mod_enabled?'rgba(240,192,96,0.15)':'rgba(255,255,255,0.05)'};display:flex;align-items:center;justify-content:center;font-size:18px;">🛡️</div>
+        </div>
+        <div style="font-size:24px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:${s.mod_enabled?'var(--yellow)':'var(--text-muted)'};">${s.mod_enabled?'Activa':'Inactiva'}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">click para ${s.mod_enabled?'desactivar':'activar'}</div>
+      </div>
+    </div>
+
+    <!-- Estado del bot con accesos rápidos -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🚀 Accesos rápidos</span></div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+          ${[
+            ['showSection(\'commands\')', '⚡', 'Comandos', 'Gestiona tus comandos'],
+            ['showSection(\'raffle\')', '🎉', 'Sorteos', 'Crear un sorteo ahora'],
+            ['showSection(\'spotify\')', '🎵', 'Spotify', 'Música en el chat'],
+            ['showSection(\'points\')', '🏆', 'Puntos', 'Ver el ranking'],
+            [`window.open('/canal/${userData.username}','_blank')`, '🌐', 'Página pública', 'Ver tu página'],
+            ['showSection(\'socials\')', '🔗', 'Redes', 'Gestionar links'],
+          ].map(([action, icon, label, desc]) => `
+            <div onclick="${action}" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:14px 12px;cursor:pointer;transition:all 0.15s;text-align:center;"
+              onmouseover="this.style.borderColor='var(--purple-border)';this.style.background='var(--purple-dim)'"
+              onmouseout="this.style.borderColor='rgba(255,255,255,0.06)';this.style.background='var(--bg3)'">
+              <div style="font-size:24px;margin-bottom:6px;">${icon}</div>
+              <div style="font-size:12px;font-weight:500;color:var(--text);">${label}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${desc}</div>
+            </div>`).join('')}
         </div>
       </div>
     </div>
