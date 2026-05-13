@@ -11,9 +11,7 @@ const TWITCH_SECRET    = process.env.TWITCH_SECRET;
 const SESSION_SECRET   = process.env.SESSION_SECRET || 'muffet-secreto';
 const BASE_URL         = process.env.BASE_URL || 'http://localhost:8080';
 const PORT             = process.env.PORT || 8080;
-const SPOTIFY_CLIENT_ID     = process.env.SPOTIFY_CLIENT_ID;
-const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-const SPOTIFY_SCOPES        = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+const SPOTIFY_SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
 const IS_PROD          = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
 
 // ── Trust proxy para HTTPS en Render/Railway ──
@@ -439,65 +437,6 @@ app.delete('/api/custom-bot', requireAuth, async (req, res) => {
 });
 
 // ── API Stream Manager ──
-app.get('/api/stream/info', requireAuth, async (req, res) => {
-  try {
-    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
-    const token = streamer?.access_token;
-    if (!token) return res.status(401).json({ error: 'Sin token' });
-
-    const r = await fetch(`https://api.twitch.tv/helix/channels?broadcaster_id=${req.session.user.id}`, {
-      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID }
-    });
-    const data = await r.json();
-    res.json(data.data?.[0] || {});
-  } catch(err) { res.status(500).json({ error: err.message }); }
-});
-
-app.post('/api/stream/update', requireAuth, async (req, res) => {
-  try {
-    const { title, game_id } = req.body;
-    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
-    const token = streamer?.access_token;
-    if (!token) return res.status(401).json({ error: 'Sin token' });
-
-    const body = {};
-    if (title !== undefined) body.title = title;
-    if (game_id !== undefined) body.game_id = game_id;
-
-    const r = await fetch(`https://api.twitch.tv/helix/channels?broadcaster_id=${req.session.user.id}`, {
-      method: 'PATCH',
-      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (r.status === 204) res.json({ success: true });
-    else { const d = await r.json(); res.status(400).json({ error: d.message || 'Error' }); }
-  } catch(err) { res.status(500).json({ error: err.message }); }
-});
-
-app.get('/api/stream/search-game', requireAuth, async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q) return res.json([]);
-    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
-    const token = streamer?.access_token;
-    const r = await fetch(`https://api.twitch.tv/helix/search/categories?query=${encodeURIComponent(q)}&first=8`, {
-      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID }
-    });
-    const data = await r.json();
-    res.json(data.data || []);
-  } catch(err) { res.status(500).json({ error: err.message }); }
-});
-
-// ── API Palabras clave ──
-app.post('/api/keywords', requireAuth, async (req, res) => {
-  try {
-    const { keyword_responses } = req.body;
-    if (!isValidObject(keyword_responses)) return res.status(400).json({ error: 'Inválido' });
-    await sbUpdate('streamers', { keyword_responses }, { twitch_id: req.session.user.id });
-    res.json({ success: true });
-  } catch(err) { res.status(500).json({ error: err.message }); }
-});
-
 // ── API Horario ──
 app.post('/api/schedule', requireAuth, async (req, res) => {
   try {
@@ -564,7 +503,7 @@ app.post('/api/spotify/credentials', requireAuth, async (req, res) => {
 app.get('/auth/spotify', requireAuth, async (req, res) => {
   try {
     const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
-    const clientId = streamer?.spotify_client_id || SPOTIFY_CLIENT_ID;
+    const clientId = streamer?.spotify_client_id;
     if (!clientId) return res.redirect('/dashboard?spotify=nocreds');
     const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(BASE_URL+'/auth/spotify/callback')}&scope=${encodeURIComponent(SPOTIFY_SCOPES)}`;
     res.redirect(url);
@@ -576,8 +515,9 @@ app.get('/auth/spotify/callback', requireAuth, async (req, res) => {
   if (error || !code) return res.redirect('/dashboard?section=settings&spotify=error');
   try {
     const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
-    const clientId = streamer?.spotify_client_id || SPOTIFY_CLIENT_ID;
-    const clientSecret = streamer?.spotify_client_secret || SPOTIFY_CLIENT_SECRET;
+    const clientId = streamer?.spotify_client_id;
+    const clientSecret = streamer?.spotify_client_secret;
+    if (!clientId || !clientSecret) return res.redirect('/dashboard?spotify=nocreds');
     const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: {
@@ -595,13 +535,12 @@ app.get('/auth/spotify/callback', requireAuth, async (req, res) => {
 
 // Refresh Spotify token
 async function refreshSpotifyToken(refreshToken, clientId, clientSecret) {
-  const id = clientId || SPOTIFY_CLIENT_ID;
-  const secret = clientSecret || SPOTIFY_CLIENT_SECRET;
+  if (!clientId || !clientSecret) return null;
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': 'Basic ' + Buffer.from(`${id}:${secret}`).toString('base64')
+      'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
     },
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }).toString()
   });
@@ -628,35 +567,6 @@ app.get('/api/spotify/current', requireAuth, async (req, res) => {
     if (r.status === 204) return res.json({ connected: true, playing: false });
     const data = await r.json();
     res.json({ connected: true, playing: true, track: data.item?.name, artist: data.item?.artists?.[0]?.name, album_art: data.item?.album?.images?.[0]?.url });
-  } catch(err) { res.status(500).json({ error: err.message }); }
-});
-
-// API — agregar canción a la cola
-app.post('/api/spotify/queue', requireAuth, async (req, res) => {
-  try {
-    const { query } = req.body;
-    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
-    let token = streamer?.spotify_token;
-    if (!token) return res.status(401).json({ error: 'Spotify no conectado' });
-
-    // Buscar la canción
-    const searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=1`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    const searchData = await searchRes.json();
-    const track = searchData.tracks?.items?.[0];
-    if (!track) return res.json({ success: false, error: 'Canción no encontrada' });
-
-    // Agregar a la cola
-    const queueRes = await fetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(track.uri)}`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (queueRes.status === 204) {
-      res.json({ success: true, track: track.name, artist: track.artists[0].name });
-    } else {
-      res.json({ success: false, error: 'Error al agregar — ¿Spotify está reproduciendo?' });
-    }
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
