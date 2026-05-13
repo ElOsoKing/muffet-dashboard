@@ -712,6 +712,33 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- Comandos sociales y juegos -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🎮 Comandos de juego y sociales</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${[
+            ['!poll ¿Pregunta? Op1 Op2 Op3', 'Abre una encuesta — el chat vota con 1, 2, 3... (cierra en 2 min)', 'Mods'],
+            ['!endpoll', 'Cierra la encuesta y muestra resultados', 'Mods'],
+            ['!d6', 'Tira un dado de 6 caras', 'Todos'],
+            ['!d20', 'Tira un dado de 20 caras', 'Todos'],
+            ['!2d6', 'Tira 2 dados de 6 caras', 'Todos'],
+            ['!hug @usuario', 'Abraza a alguien 🤗', 'Todos'],
+            ['!pat @usuario', 'Palmaditas en la cabeza 👋', 'Todos'],
+            ['!kiss @usuario', 'Manda un beso 💋', 'Todos'],
+            ['!slap @usuario', 'Bofetada 👋💥', 'Todos'],
+            ['!bite @usuario', 'Muerde 😈', 'Todos'],
+            ['!highfive @usuario', 'Choca los cinco 🙌', 'Todos'],
+          ].map(([cmd, desc, who]) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:220px;">${cmd}</code>
+              <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
+              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;${who==='Mods'?'color:var(--green);border-color:rgba(64,208,144,0.3);':'color:var(--text-muted);border-color:rgba(255,255,255,0.1);'}">${who}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
     <!-- Cómo usar -->
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">💡 Cómo usar las variables</span></div>
