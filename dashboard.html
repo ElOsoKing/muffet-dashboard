@@ -222,12 +222,44 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%);transition:transform 0.25s;}
   .sidebar.open{transform:translateX(0);}
-  .main{margin-left:0;padding:20px 16px;padding-top:64px;}
+  .main{margin-left:0;padding:16px 12px;padding-top:64px;}
   .stats-grid{grid-template-columns:repeat(2,1fr);}
   .hamburger{display:flex;align-items:center;}
   .overlay-bg.show{display:block;}
   .command-top{flex-wrap:wrap;}
   .command-trigger{width:100%;}
+  /* Panels más compactos */
+  .panel-body{padding:12px;}
+  .panel-header{padding:12px 14px;}
+  .page-title{font-size:20px;}
+  /* Auto mensajes en móvil */
+  .automsg-card{grid-template-columns:70px 1fr!important;}
+  /* Grids de configuración */
+  .form-group + .form-group{margin-top:10px;}
+}
+
+@media(max-width:480px){
+  .main{padding:12px 10px;padding-top:60px;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+  .stat-card{padding:12px;}
+  .stat-value{font-size:22px;}
+  /* Variables — quitar columna de ejemplo en móvil */
+  .var-grid{grid-template-columns:130px 1fr!important;}
+  .var-example{display:none!important;}
+  /* Sorteos — botones en columna */
+  .raffle-actions{flex-direction:column!important;}
+  .raffle-actions .btn{width:100%!important;}
+  .raffle-header{flex-direction:column!important;gap:8px!important;}
+  .raffle-counter{text-align:left!important;}
+  /* Tabs de permisos en sorteos */
+  #sec-raffle [style*="flex-wrap:wrap"]{gap:6px!important;}
+  #sec-raffle label[style*="border-radius:20px"]{font-size:11px!important;padding:5px 10px!important;}
+  /* Multiplicadores en columna */
+  #sec-raffle [style*="grid-template-columns:1fr"]{grid-template-columns:1fr!important;}
+  /* Horario más compacto */
+  #sec-schedule [style*="grid-template-columns:110px"]{grid-template-columns:90px 1fr 16px 1fr!important;}
+  /* Ko-fi botón */
+  .sidebar [href*="ko-fi"]{margin:6px 12px 4px!important;}
 }
 </style>
 </head>
@@ -714,7 +746,7 @@ function renderMain() {
           ['{user}', 'Nombre del usuario que escribió el comando', '!saludo', 'Hola {user}, bienvenido al reino! 🐻'],
           ['{touser}', 'Usuario mencionado en el comando (ej: !so @alguien)', '!so @lordlonelywolf', '¡Amor para lordlonelywolf! 🕷️'],
         ].map(([variable, desc, ejemplo, resultado]) => `
-          <div style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div>
               <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">${variable}</code>
             </div>
@@ -743,7 +775,7 @@ function renderMain() {
           ['{random:50}', 'Número aleatorio entre 1 y 50', '!dado', 'Sacaste {random:50}', 'Sacaste 23'],
           ['{random:1-6}', 'Número aleatorio entre 1 y 6', '!dado6', '🎲 Dado: {random:1-6}', '🎲 Dado: 4'],
         ].map(([variable, desc, ejemplo, comando, resultado]) => `
-          <div style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div>
               <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">${variable}</code>
             </div>
