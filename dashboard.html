@@ -40,7 +40,13 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 .user-plan{font-size:11px;color:var(--text-dim);margin-top:1px;}
 
 .nav{flex:1;padding:8px 12px;}
-.nav-section{font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text-muted);padding:12px 8px 4px;text-transform:uppercase;}
+.nav-section{font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text-muted);padding:12px 8px 4px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;}
+.nav-section.collapsible{cursor:pointer;user-select:none;}
+.nav-section.collapsible:hover{color:var(--text-dim);}
+.nav-arrow{font-size:12px;transition:transform 0.2s;margin-right:4px;}
+.nav-section.collapsed .nav-arrow{transform:rotate(-90deg);}
+.nav-group{overflow:hidden;max-height:400px;transition:max-height 0.25s ease;}
+.nav-group.collapsed{max-height:0;}
 .nav-item{
   display:flex;align-items:center;gap:10px;
   padding:9px 10px;cursor:pointer;border-radius:var(--radius-sm);
@@ -287,27 +293,33 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
   </div>
 
   <nav class="nav">
-    <div class="nav-section">General</div>
-    <div class="nav-item active" onclick="showSection('overview')"><span class="nav-icon">🏠</span> Inicio</div>
-    <div class="nav-item" onclick="showSection('personality')"><span class="nav-icon">🕷️</span> Personalidad</div>
-    <div class="nav-section">Bot</div>
-    <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
-    <div class="nav-item" onclick="showSection('variables')"><span class="nav-icon">📋</span> Variables</div>
-    <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
-    <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
-    <div class="nav-section">Herramientas</div>
-    <div class="nav-item" onclick="showSection('spotify')"><span class="nav-icon">🎵</span> Spotify</div>
-    <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos y niveles</div>
-    <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
-    <div class="nav-section">Análisis</div>
-    <div class="nav-item" onclick="showSection('stats')"><span class="nav-icon">📊</span> Estadísticas</div>
-    <div class="nav-section">Cuenta</div>
-    <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
-    <div class="nav-item" onclick="showSection('socials')"><span class="nav-icon">🌐</span> Redes sociales</div>
-    <div class="nav-item" onclick="showSection('schedule')"><span class="nav-icon">📅</span> Horario</div>
-    <div class="nav-item" onclick="showSection('theme')"><span class="nav-icon">🎨</span> Tema</div>
-    <div class="nav-item" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Ajustes</div>
-    <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'"><span class="nav-icon">👑</span> Admin</div>
+    <div class="nav-section collapsible active" onclick="toggleNav(this)">General <span class="nav-arrow">▾</span></div>
+    <div class="nav-group">
+      <div class="nav-item active" onclick="showSection('overview')"><span class="nav-icon">🏠</span> Inicio</div>
+      <div class="nav-item" onclick="showSection('personality')"><span class="nav-icon">🕷️</span> Personalidad</div>
+    </div>
+    <div class="nav-section collapsible active" onclick="toggleNav(this)">Bot <span class="nav-arrow">▾</span></div>
+    <div class="nav-group">
+      <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
+      <div class="nav-item" onclick="showSection('variables')"><span class="nav-icon">📋</span> Variables</div>
+      <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
+      <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
+    </div>
+    <div class="nav-section collapsible active" onclick="toggleNav(this)">Herramientas <span class="nav-arrow">▾</span></div>
+    <div class="nav-group">
+      <div class="nav-item" onclick="showSection('spotify')"><span class="nav-icon">🎵</span> Spotify</div>
+      <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
+      <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
+    </div>
+    <div class="nav-section collapsible active" onclick="toggleNav(this)">Cuenta <span class="nav-arrow">▾</span></div>
+    <div class="nav-group">
+      <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
+      <div class="nav-item" onclick="showSection('socials')"><span class="nav-icon">🌐</span> Redes sociales</div>
+      <div class="nav-item" onclick="showSection('schedule')"><span class="nav-icon">📅</span> Horario</div>
+      <div class="nav-item" onclick="showSection('theme')"><span class="nav-icon">🎨</span> Tema</div>
+      <div class="nav-item" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Configuración</div>
+      <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'"><span class="nav-icon">👑</span> Admin</div>
+    </div>
   </nav>
 
   <div class="sidebar-footer">
@@ -332,6 +344,14 @@ let userData = null;
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('overlayBg').classList.toggle('show');
+}
+
+function toggleNav(section) {
+  section.classList.toggle('collapsed');
+  const group = section.nextElementSibling;
+  if (group?.classList.contains('nav-group')) {
+    group.classList.toggle('collapsed');
+  }
 }
 
 async function loadData() {
@@ -1375,6 +1395,18 @@ function renderMain() {
         </div>
 
         <button class="btn btn-primary" onclick="saveSocials()" style="margin-top:16px;">Guardar redes</button>
+
+        <!-- Color de página pública -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+          <label class="form-label">🎨 Color de tu página pública</label>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+            <input type="color" id="pageAccentColor" value="${(s.social_links||{}).accent_color||'#9147ff'}"
+              style="width:44px;height:44px;border:none;border-radius:var(--radius-sm);cursor:pointer;background:none;padding:0;"
+              oninput="document.getElementById('pageColorPreview').style.background=this.value">
+            <div id="pageColorPreview" style="flex:1;height:44px;border-radius:var(--radius-sm);background:${(s.social_links||{}).accent_color||'#9147ff'};opacity:0.3;transition:background 0.15s;"></div>
+            <span style="font-size:12px;color:var(--text-dim);">Se aplica en tu página pública</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1435,7 +1467,7 @@ function renderMain() {
 
   <!-- AJUSTES -->
   <div id="sec-settings" class="section">
-    <div class="page-header"><div class="page-title">Ajustes</div><div class="page-subtitle">Configuración de tu cuenta</div></div>
+    <div class="page-header"><div class="page-title">⚙️ Configuración</div><div class="page-subtitle">Ajustes de cuenta y bot personalizado</div></div>
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">Información del canal</span></div>
       <div class="panel-body">
@@ -1587,6 +1619,8 @@ async function saveSocials(){
   const social_links={};
   keys.forEach(k=>{const val=document.getElementById(`social_${k}`)?.value.trim();if(val)social_links[k]=val;});
   const youtube_channel_id=document.getElementById('youtube_channel_id')?.value.trim()||null;
+  const accent_color=document.getElementById('pageAccentColor')?.value||'#9147ff';
+  social_links.accent_color=accent_color;
   const res=await fetch('/api/socials',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({social_links,youtube_channel_id})});
   if(res.ok){streamerData.social_links=social_links;streamerData.youtube_channel_id=youtube_channel_id;showToast('Redes guardadas ✓');}
   else showToast('Error al guardar','error');
