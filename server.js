@@ -185,7 +185,7 @@ app.get('/canal/:username', async (req, res) => {
 app.get('/api/canal/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
-    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,commands,social_links,youtube_channel_id&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,commands,social_links,youtube_channel_id,points_config,viewer_points&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
     const streamer = data?.[0];
@@ -198,7 +198,24 @@ app.get('/api/canal/:username', async (req, res) => {
         publicCmds[trigger] = typeof val === 'object' ? val.response : val;
       }
     });
-    res.json({ username: streamer.twitch_username, commands: publicCmds, social_links: streamer.social_links || {}, youtube_channel_id: streamer.youtube_channel_id || null });
+    // Top viewers
+    const pointsConfig = streamer.points_config || {};
+    let topViewers = [];
+    if (pointsConfig.enabled !== false && streamer.viewer_points) {
+      topViewers = Object.entries(streamer.viewer_points)
+        .map(([username, xp]) => ({ username, xp }))
+        .sort((a, b) => b.xp - a.xp)
+        .slice(0, 5);
+    }
+
+    res.json({
+      username: streamer.twitch_username,
+      commands: publicCmds,
+      social_links: streamer.social_links || {},
+      youtube_channel_id: streamer.youtube_channel_id || null,
+      points_config: { name: pointsConfig.name || 'puntos', emoji: pointsConfig.emoji || '🏆', enabled: pointsConfig.enabled !== false, levels: pointsConfig.levels || [] },
+      top_viewers: topViewers
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
