@@ -185,7 +185,7 @@ app.get('/canal/:username', async (req, res) => {
 app.get('/api/canal/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
-    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,commands,social_links,youtube_channel_id,points_config,viewer_points&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
     const streamer = data?.[0];
@@ -214,7 +214,8 @@ app.get('/api/canal/:username', async (req, res) => {
       social_links: streamer.social_links || {},
       youtube_channel_id: streamer.youtube_channel_id || null,
       points_config: { name: pointsConfig.name || 'puntos', emoji: pointsConfig.emoji || '🏆', enabled: pointsConfig.enabled !== false, levels: pointsConfig.levels || [] },
-      top_viewers: topViewers
+      top_viewers: topViewers,
+      stream_schedule: streamer.stream_schedule || null
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -487,7 +488,38 @@ app.get('/api/stream/search-game', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── APIs de Puntos y Niveles ──
+// ── API Horario ──
+app.post('/api/schedule', requireAuth, async (req, res) => {
+  try {
+    const { stream_schedule } = req.body;
+    await sbUpdate('streamers', { stream_schedule }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── API Último clip ──
+app.get('/api/clips/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_id,access_token&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    const streamer = data?.[0];
+    if (!streamer?.access_token) return res.json([]);
+
+    const r = await fetch(`https://api.twitch.tv/helix/clips?broadcaster_id=${streamer.twitch_id}&first=4`, {
+      headers: { 'Authorization': `Bearer ${streamer.access_token}`, 'Client-Id': TWITCH_CLIENT_ID }
+    });
+    const clipData = await r.json();
+    const clips = (clipData.data || []).map(c => ({
+      id: c.id, title: c.title,
+      url: c.url, thumbnail: c.thumbnail_url,
+      views: c.view_count, created: c.created_at,
+      duration: Math.round(c.duration)
+    }));
+    res.json(clips);
+  } catch(err) { res.json([]); }
+});
 app.post('/api/points-config', requireAuth, async (req, res) => {
   try {
     const { points_config } = req.body;
