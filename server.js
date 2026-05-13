@@ -8,6 +8,7 @@ const SUPABASE_URL     = process.env.SUPABASE_URL;
 const SUPABASE_KEY     = process.env.SUPABASE_KEY;
 const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
 const TWITCH_SECRET    = process.env.TWITCH_SECRET;
+const EVENTSUB_SECRET  = process.env.EVENTSUB_SECRET || 'muffetbot-secret-2026';
 const SESSION_SECRET   = process.env.SESSION_SECRET || 'muffet-secreto';
 const BASE_URL         = process.env.BASE_URL || 'http://localhost:8080';
 const PORT             = process.env.PORT || 8080;
@@ -16,6 +17,9 @@ const IS_PROD          = process.env.NODE_ENV === 'production' || !!process.env.
 
 // ── Trust proxy para HTTPS en Render/Railway ──
 app.set('trust proxy', 1);
+
+// Raw body para verificar firma de Twitch EventSub
+app.use('/webhook/twitch', express.raw({ type: 'application/json' }));
 
 app.use(express.json({ limit: '50kb' })); // limitar payload
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
@@ -437,6 +441,70 @@ app.delete('/api/custom-bot', requireAuth, async (req, res) => {
 });
 
 // ── API Stream Manager ──
+// ── EventSub de Twitch ──
+const crypto = require('crypto');
+
+function verifyTwitchSignature(req) {
+  const msgId = req.headers['twitch-eventsub-message-id'];
+  const timestamp = req.headers['twitch-eventsub-message-timestamp'];
+  const signature = req.headers['twitch-eventsub-message-signature'];
+  if (!msgId || !timestamp || !signature) return false;
+  const hmac = 'sha256=' + crypto.createHmac('sha256', EVENTSUB_SECRET)
+    .update(msgId + timestamp + req.body)
+    .digest('hex');
+  return hmac === signature;
+}
+
+app.post('/webhook/twitch', (req, res) => {
+  if (!verifyTwitchSignature(req)) return res.status(403).send('Forbidden');
+  const body = JSON.parse(req.body.toString());
+  const type = req.headers['twitch-eventsub-message-type'];
+  if (type === 'webhook_callback_verification') return res.status(200).send(body.challenge);
+  if (type === 'notification') {
+    // Enviar evento al bot
+    const botUrl = `http://localhost:${process.env.BOT_PORT || 3001}/event`;
+    fetch(botUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: body.subscription?.type, event: body.event })
+    }).catch(() => {});
+  }
+  res.status(204).send();
+});
+
+async function getTwitchAppToken() {
+  const res = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${TWITCH_CLIENT_ID}&client_secret=${TWITCH_SECRET}&grant_type=client_credentials`, { method: 'POST' });
+  const data = await res.json();
+  return data.access_token;
+}
+
+async function registerEventSub(broadcasterId, appToken) {
+  const webhookUrl = `${BASE_URL}/webhook/twitch`;
+  const subs = [
+    { type: 'channel.follow', version: '2', condition: { broadcaster_user_id: broadcasterId, moderator_user_id: broadcasterId } },
+    { type: 'channel.subscribe', version: '1', condition: { broadcaster_user_id: broadcasterId } },
+    { type: 'channel.subscription.gift', version: '1', condition: { broadcaster_user_id: broadcasterId } },
+    { type: 'channel.cheer', version: '1', condition: { broadcaster_user_id: broadcasterId } },
+  ];
+  for (const sub of subs) {
+    try {
+      await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...sub, transport: { method: 'webhook', callback: webhookUrl, secret: EVENTSUB_SECRET } })
+      });
+    } catch(e) {}
+  }
+}
+
+app.post('/api/eventsub/register', requireAuth, async (req, res) => {
+  try {
+    const appToken = await getTwitchAppToken();
+    await registerEventSub(req.session.user.id, appToken);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── API Horario ──
 app.post('/api/schedule', requireAuth, async (req, res) => {
   try {
