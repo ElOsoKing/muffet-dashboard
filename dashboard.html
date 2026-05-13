@@ -421,11 +421,11 @@ function renderMain() {
           <div style="font-size:10px;color:var(--text-muted);">comandos</div>
         </div>
         <div>
-          <div style="font-size:18px;font-weight:700;color:var(--green);">${s.ai_enabled?'ON':'OFF'}</div>
+          <div id="statusIA" style="font-size:18px;font-weight:700;color:var(--green);">${s.ai_enabled?'ON':'OFF'}</div>
           <div style="font-size:10px;color:var(--text-muted);">IA</div>
         </div>
         <div>
-          <div style="font-size:18px;font-weight:700;color:var(--yellow);">${s.mod_enabled?'ON':'OFF'}</div>
+          <div id="statusMod" style="font-size:18px;font-weight:700;color:var(--yellow);">${s.mod_enabled?'ON':'OFF'}</div>
           <div style="font-size:10px;color:var(--text-muted);">mod</div>
         </div>
       </div>
@@ -450,18 +450,18 @@ function renderMain() {
       <div class="stat-card" style="cursor:pointer;" onclick="toggleAI(!${s.ai_enabled})">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">IA Muffet</span>
-          <div style="width:36px;height:36px;border-radius:10px;background:${s.ai_enabled?'rgba(145,71,255,0.15)':'rgba(255,255,255,0.05)'};display:flex;align-items:center;justify-content:center;font-size:18px;">🤖</div>
+          <div id="aiCardIcon" style="width:36px;height:36px;border-radius:10px;background:${s.ai_enabled?'rgba(145,71,255,0.15)':'rgba(255,255,255,0.05)'};display:flex;align-items:center;justify-content:center;font-size:18px;">🤖</div>
         </div>
-        <div style="font-size:24px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:${s.ai_enabled?'var(--purple-light)':'var(--text-muted)'};">${s.ai_enabled?'Activa':'Inactiva'}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">click para ${s.ai_enabled?'desactivar':'activar'}</div>
+        <div id="aiCardValue" style="font-size:24px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:${s.ai_enabled?'var(--purple-light)':'var(--text-muted)'};">${s.ai_enabled?'Activa':'Inactiva'}</div>
+        <div id="aiCardHint" style="font-size:11px;color:var(--text-muted);margin-top:6px;">click para ${s.ai_enabled?'desactivar':'activar'}</div>
       </div>
       <div class="stat-card" style="cursor:pointer;" onclick="toggleMod(!${s.mod_enabled})">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Moderación</span>
-          <div style="width:36px;height:36px;border-radius:10px;background:${s.mod_enabled?'rgba(240,192,96,0.15)':'rgba(255,255,255,0.05)'};display:flex;align-items:center;justify-content:center;font-size:18px;">🛡️</div>
+          <div id="modCardIcon" style="width:36px;height:36px;border-radius:10px;background:${s.mod_enabled?'rgba(240,192,96,0.15)':'rgba(255,255,255,0.05)'};display:flex;align-items:center;justify-content:center;font-size:18px;">🛡️</div>
         </div>
-        <div style="font-size:24px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:${s.mod_enabled?'var(--yellow)':'var(--text-muted)'};">${s.mod_enabled?'Activa':'Inactiva'}</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">click para ${s.mod_enabled?'desactivar':'activar'}</div>
+        <div id="modCardValue" style="font-size:24px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:${s.mod_enabled?'var(--yellow)':'var(--text-muted)'};">${s.mod_enabled?'Activa':'Inactiva'}</div>
+        <div id="modCardHint" style="font-size:11px;color:var(--text-muted);margin-top:6px;">click para ${s.mod_enabled?'desactivar':'activar'}</div>
       </div>
     </div>
 
@@ -1581,36 +1581,32 @@ async function toggleAI(e){
   await fetch('/api/ai-toggle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:e})});
   streamerData.ai_enabled=e;
   showToast(e?'IA activada ✓':'IA desactivada');
-  // Actualizar tarjeta sin recargar
-  const card = document.querySelector('#sec-overview .stats-grid .stat-card:nth-child(3)');
-  if(card){
-    card.querySelector('[style*="font-size:24px"]').textContent = e ? 'Activa' : 'Inactiva';
-    card.querySelector('[style*="font-size:24px"]').style.color = e ? 'var(--purple-light)' : 'var(--text-muted)';
-    card.querySelector('[style*="font-size:11px"]').textContent = `click para ${e?'desactivar':'activar'}`;
-    card.querySelector('[style*="border-radius:10px"]').style.background = e ? 'rgba(145,71,255,0.15)' : 'rgba(255,255,255,0.05)';
-    card.onclick = () => toggleAI(!e);
-  }
-  // Actualizar barra de estado
-  const statusIA = document.querySelector('#sec-overview [style*="font-weight:700;color:var(--green)"]');
-  if(statusIA) statusIA.textContent = e ? 'ON' : 'OFF';
+  const val=document.getElementById('aiCardValue');
+  const icon=document.getElementById('aiCardIcon');
+  const hint=document.getElementById('aiCardHint');
+  const status=document.getElementById('statusIA');
+  if(val){val.textContent=e?'Activa':'Inactiva';val.style.color=e?'var(--purple-light)':'var(--text-muted)';}
+  if(icon)icon.style.background=e?'rgba(145,71,255,0.15)':'rgba(255,255,255,0.05)';
+  if(hint)hint.textContent=`click para ${e?'desactivar':'activar'}`;
+  if(status)status.textContent=e?'ON':'OFF';
+  const card=val?.closest('.stat-card');
+  if(card)card.onclick=()=>toggleAI(!e);
 }
 
 async function toggleMod(e){
   await fetch('/api/moderation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mod_enabled:e,banned_words:streamerData.banned_words,warn_message:streamerData.warn_message})});
   streamerData.mod_enabled=e;
   showToast(e?'Moderación activada ✓':'Moderación desactivada');
-  // Actualizar tarjeta sin recargar
-  const card = document.querySelector('#sec-overview .stats-grid .stat-card:nth-child(4)');
-  if(card){
-    card.querySelector('[style*="font-size:24px"]').textContent = e ? 'Activa' : 'Inactiva';
-    card.querySelector('[style*="font-size:24px"]').style.color = e ? 'var(--yellow)' : 'var(--text-muted)';
-    card.querySelector('[style*="font-size:11px"]').textContent = `click para ${e?'desactivar':'activar'}`;
-    card.querySelector('[style*="border-radius:10px"]').style.background = e ? 'rgba(240,192,96,0.15)' : 'rgba(255,255,255,0.05)';
-    card.onclick = () => toggleMod(!e);
-  }
-  // Actualizar barra de estado
-  const statusMod = document.querySelector('#sec-overview [style*="font-weight:700;color:var(--yellow)"]');
-  if(statusMod) statusMod.textContent = e ? 'ON' : 'OFF';
+  const val=document.getElementById('modCardValue');
+  const icon=document.getElementById('modCardIcon');
+  const hint=document.getElementById('modCardHint');
+  const status=document.getElementById('statusMod');
+  if(val){val.textContent=e?'Activa':'Inactiva';val.style.color=e?'var(--yellow)':'var(--text-muted)';}
+  if(icon)icon.style.background=e?'rgba(240,192,96,0.15)':'rgba(255,255,255,0.05)';
+  if(hint)hint.textContent=`click para ${e?'desactivar':'activar'}`;
+  if(status)status.textContent=e?'ON':'OFF';
+  const card=val?.closest('.stat-card');
+  if(card)card.onclick=()=>toggleMod(!e);
 }
 async function savePrompt(){const p=document.getElementById('promptInput').value;const r=await fetch('/api/prompt',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:p})});r.ok?showToast('Personalidad guardada ✓'):showToast('Error al guardar','error');}
 
