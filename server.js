@@ -488,6 +488,16 @@ app.get('/api/stream/search-game', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── API Palabras clave ──
+app.post('/api/keywords', requireAuth, async (req, res) => {
+  try {
+    const { keyword_responses } = req.body;
+    if (!isValidObject(keyword_responses)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { keyword_responses }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── API Horario ──
 app.post('/api/schedule', requireAuth, async (req, res) => {
   try {
