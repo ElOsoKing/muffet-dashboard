@@ -502,9 +502,25 @@ function renderMain() {
       <div class="panel-body" style="padding:0;">
         ${[
           {
+            version: 'v1.8',
+            date: '15 Mayo 2026',
+            badge: 'nuevo',
+            items: [
+              '🎰 Comando !apostar — apuesta tus puntos con 50/50 de ganar o perder',
+              '🎁 Sistema de canje — !canjear para ver y solicitar premios',
+              '📋 Premios configurables desde el dashboard con costo en puntos',
+              '📬 Solicitudes de canje — aprueba o rechaza desde el dashboard',
+              '🤖 Sistema anti-spam — cooldown por usuario y límite de 8 mensajes/min',
+              '🔇 Detección de bots — ignora StreamElements, Nightbot y bots de MuffetBot',
+              '🔧 Fix auto mensajes — se detienen al borrarlos sin necesitar redeploy',
+              '🌐 Landing page — nueva página de presentación en la raíz del sitio',
+              '🎵 Alertas de follows, subs y bits con personalidad del canal',
+            ]
+          },
+          {
             version: 'v1.7',
             date: '13 Mayo 2026',
-            badge: 'nuevo',
+            badge: null,
             items: [
               '🔔 Alertas automáticas — follows, subs y bits con personalidad del canal',
               '🎨 Dashboard rediseñado — inicio con barra de estado y accesos rápidos',
@@ -1255,6 +1271,29 @@ function renderMain() {
           })()}
         </div>
         <button class="btn btn-primary" onclick="saveLevels()">Guardar niveles</button>
+      </div>
+    </div>
+
+    <!-- Tutorial comandos -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📋 Comandos disponibles</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${[
+            ['!puntos','Ver tus puntos y nivel actual','Todos'],
+            ['!puntos @usuario','Ver los puntos de otro usuario','Todos'],
+            ['!top','Ver el top 5 del canal','Todos'],
+            ['!dar N @usuario','Dar puntos a un usuario','Mods'],
+            ['!apostar N','Apostar puntos — 50% ganar, 50% perder','Todos'],
+            ['!canjear','Ver la lista de premios disponibles','Todos'],
+            ['!canjear Premio','Solicitar canjear un premio','Todos'],
+          ].map(([cmd,desc,who])=>`
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:180px;">${cmd}</code>
+              <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
+              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;${who==='Mods'?'color:var(--green);border-color:rgba(64,208,144,0.3);':'color:var(--text-muted);border-color:rgba(255,255,255,0.1);'}">${who}</span>
+            </div>`).join('')}
+        </div>
       </div>
     </div>
 
