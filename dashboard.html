@@ -385,7 +385,8 @@ function showSection(name) {
   if(sec) sec.classList.add('active');
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
-  if(name === 'spotify') loadSpotifyStatus();
+  if(name === 'spotify') { loadSpotifyStatus(); startSpotifyPolling(); }
+  else stopSpotifyPolling();
   if(window.innerWidth <= 768) toggleSidebar();
 }
 
@@ -1391,32 +1392,37 @@ function renderMain() {
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">Días y horas</span></div>
       <div class="panel-body">
-        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-          ${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((day, i) => {
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px;">
+          ${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((day) => {
             const key = day.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
             const schedule = s.stream_schedule || {};
             const dayData = schedule[key] || {};
-            return `<div style="display:grid;grid-template-columns:110px 80px 20px 80px 1fr;gap:8px;align-items:center;">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-                <input type="checkbox" id="day_${key}" ${dayData.active?'checked':''} onchange="updateDayActive('${key}')"
-                  style="width:16px;height:16px;accent-color:var(--purple);cursor:pointer;">
-                <span style="font-size:13px;color:var(--text);">${day}</span>
-              </label>
-              <input type="time" id="start_${key}" value="${dayData.start||'20:00'}" 
-                style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:6px 8px;outline:none;${!dayData.active?'opacity:0.4;':''}">
-              <span style="font-size:12px;color:var(--text-dim);text-align:center;">—</span>
-              <input type="time" id="end_${key}" value="${dayData.end||'23:00'}"
-                style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:6px 8px;outline:none;${!dayData.active?'opacity:0.4;':''}">
-              <input class="form-input" id="note_${key}" value="${dayData.note||''}" placeholder="Nota opcional (ej: ¡Ranked!)"
-                style="font-size:12px;padding:6px 10px;${!dayData.active?'opacity:0.4;':''}">
+            const active = dayData.active || false;
+            return `<div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:10px 14px;transition:border-color 0.15s;" id="daycard_${key}">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:110px;">
+                  <input type="checkbox" id="day_${key}" ${active?'checked':''} onchange="updateDayActive('${key}')"
+                    style="width:16px;height:16px;accent-color:var(--purple);cursor:pointer;">
+                  <span style="font-size:13px;font-weight:500;color:${active?'var(--text)':'var(--text-dim)'};" id="daylabel_${key}">${day}</span>
+                </label>
+                <div style="display:flex;align-items:center;gap:6px;flex:1;opacity:${active?1:0.4};" id="daycontrols_${key}">
+                  <input type="time" id="start_${key}" value="${dayData.start||'20:00'}"
+                    style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 8px;outline:none;width:90px;">
+                  <span style="font-size:12px;color:var(--text-muted);">—</span>
+                  <input type="time" id="end_${key}" value="${dayData.end||'23:00'}"
+                    style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 8px;outline:none;width:90px;">
+                  <input class="form-input" id="note_${key}" value="${dayData.note||''}" placeholder="Nota (ej: ¡Ranked!)"
+                    style="font-size:12px;padding:5px 10px;flex:1;">
+                </div>
+              </div>
             </div>`;
           }).join('')}
         </div>
         <div class="form-group">
           <label class="form-label">Zona horaria</label>
           <select class="form-input" id="scheduleTimezone" style="padding:8px 12px;">
-            ${['America/Santo_Domingo','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Mexico_City','America/Bogota','America/Lima','America/Santiago','America/Argentina/Buenos_Aires','Europe/Madrid','Europe/London'].map(tz => 
-              `<option value="${tz}" ${(s.stream_schedule?.timezone||'America/Santo_Domingo')===tz?'selected':''}>${tz.replace('_',' ')}</option>`
+            ${['America/Santo_Domingo','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Mexico_City','America/Bogota','America/Lima','America/Santiago','America/Argentina/Buenos_Aires','Europe/Madrid','Europe/London'].map(tz =>
+              `<option value="${tz}" ${(s.stream_schedule?.timezone||'America/Santo_Domingo')===tz?'selected':''}>${tz.replace(/_/g,' ')}</option>`
             ).join('')}
           </select>
         </div>
@@ -1870,11 +1876,12 @@ async function deleteKeyword(kw) {
 // ── HORARIO ──
 function updateDayActive(key) {
   const active = document.getElementById(`day_${key}`)?.checked;
-  const opacity = active ? '1' : '0.4';
-  ['start','end','note'].forEach(f => {
-    const el = document.getElementById(`${f}_${key}`);
-    if(el) el.style.opacity = opacity;
-  });
+  const controls = document.getElementById(`daycontrols_${key}`);
+  const label = document.getElementById(`daylabel_${key}`);
+  const card = document.getElementById(`daycard_${key}`);
+  if(controls) controls.style.opacity = active ? '1' : '0.4';
+  if(label) label.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+  if(card) card.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.06)';
 }
 
 async function saveSchedule() {
@@ -1894,6 +1901,10 @@ async function saveSchedule() {
 }
 
 // ── SPOTIFY ──
+let spotifyInterval = null;
+function startSpotifyPolling(){ stopSpotifyPolling(); spotifyInterval = setInterval(loadSpotifyStatus, 10000); }
+function stopSpotifyPolling(){ if(spotifyInterval){ clearInterval(spotifyInterval); spotifyInterval = null; } }
+
 async function saveSpotifyCredentials() {
   const spotify_client_id = document.getElementById('spotifyClientId')?.value.trim();
   const spotify_client_secret = document.getElementById('spotifyClientSecret')?.value.trim();
