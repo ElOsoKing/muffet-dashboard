@@ -1398,21 +1398,30 @@ function renderMain() {
             const schedule = s.stream_schedule || {};
             const dayData = schedule[key] || {};
             const active = dayData.active || false;
-            return `<div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:10px 14px;transition:border-color 0.15s;" id="daycard_${key}">
-              <div style="display:flex;align-items:center;gap:10px;">
+            const startH = dayData.start ? dayData.start.split(':')[0] : '20';
+            const startM = dayData.start ? dayData.start.split(':')[1] : '00';
+            const endH = dayData.end ? dayData.end.split(':')[0] : '23';
+            const endM = dayData.end ? dayData.end.split(':')[1] : '00';
+            const hours = Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+            const mins = ['00','15','30','45'];
+            const sel = (id,opts,val) => `<select id="${id}" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 4px;outline:none;cursor:pointer;">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
+            return `<div style="background:var(--bg3);border:1px solid ${active?'var(--purple-border)':'rgba(255,255,255,0.06)'};border-radius:var(--radius-sm);padding:10px 14px;transition:border-color 0.15s;" id="daycard_${key}">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:110px;">
                   <input type="checkbox" id="day_${key}" ${active?'checked':''} onchange="updateDayActive('${key}')"
                     style="width:16px;height:16px;accent-color:var(--purple);cursor:pointer;">
                   <span style="font-size:13px;font-weight:500;color:${active?'var(--text)':'var(--text-dim)'};" id="daylabel_${key}">${day}</span>
                 </label>
-                <div style="display:flex;align-items:center;gap:6px;flex:1;opacity:${active?1:0.4};" id="daycontrols_${key}">
-                  <input type="time" id="start_${key}" value="${dayData.start||'20:00'}"
-                    style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 8px;outline:none;width:90px;">
-                  <span style="font-size:12px;color:var(--text-muted);">—</span>
-                  <input type="time" id="end_${key}" value="${dayData.end||'23:00'}"
-                    style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 8px;outline:none;width:90px;">
+                <div style="display:flex;align-items:center;gap:4px;opacity:${active?1:0.4};" id="daycontrols_${key}">
+                  ${sel(`startH_${key}`,hours,startH)}
+                  <span style="color:var(--purple-light);font-weight:600;">:</span>
+                  ${sel(`startM_${key}`,mins,startM)}
+                  <span style="font-size:12px;color:var(--text-muted);margin:0 4px;">—</span>
+                  ${sel(`endH_${key}`,hours,endH)}
+                  <span style="color:var(--purple-light);font-weight:600;">:</span>
+                  ${sel(`endM_${key}`,mins,endM)}
                   <input class="form-input" id="note_${key}" value="${dayData.note||''}" placeholder="Nota (ej: ¡Ranked!)"
-                    style="font-size:12px;padding:5px 10px;flex:1;">
+                    style="font-size:12px;padding:5px 10px;width:140px;margin-left:4px;">
                 </div>
               </div>
             </div>`;
@@ -1888,10 +1897,14 @@ async function saveSchedule() {
   const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
   const schedule = { timezone: document.getElementById('scheduleTimezone')?.value || 'America/Santo_Domingo' };
   days.forEach(key => {
+    const startH = document.getElementById(`startH_${key}`)?.value || '20';
+    const startM = document.getElementById(`startM_${key}`)?.value || '00';
+    const endH   = document.getElementById(`endH_${key}`)?.value || '23';
+    const endM   = document.getElementById(`endM_${key}`)?.value || '00';
     schedule[key] = {
       active: document.getElementById(`day_${key}`)?.checked || false,
-      start:  document.getElementById(`start_${key}`)?.value || '20:00',
-      end:    document.getElementById(`end_${key}`)?.value || '23:00',
+      start:  `${startH}:${startM}`,
+      end:    `${endH}:${endM}`,
       note:   document.getElementById(`note_${key}`)?.value.trim() || '',
     };
   });
