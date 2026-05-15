@@ -1258,6 +1258,53 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- Premios canjeables -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">🎁 Premios canjeables</span>
+        <button class="btn btn-success btn-sm" onclick="addReward()">+ Agregar</button>
+      </div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Los viewers pueden canjear sus puntos por estos premios con <code style="color:var(--purple-light);">!canjear</code></div>
+        <div id="rewardsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+          ${(()=>{
+            const rewards = s.points_config?.rewards || [];
+            if (!rewards.length) return `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No hay premios. Agrega uno con el botón de arriba.</div>`;
+            return rewards.map((r,i) => `
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);">
+                <div style="flex:1;">
+                  <div style="font-size:13px;font-weight:500;color:var(--text);">${r.name}</div>
+                  <div style="font-size:11px;color:var(--text-dim);">${r.description||''}</div>
+                </div>
+                <div style="font-size:13px;font-weight:600;color:var(--purple-light);">${r.cost} ${s.points_config?.emoji||'🏆'}</div>
+                <button class="btn btn-danger btn-sm" onclick="removeReward(${i})">✕</button>
+              </div>`).join('');
+          })()}
+        </div>
+
+        <!-- Límite de apuesta -->
+        <div class="form-group" style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+          <label class="form-label">Límite de apuesta (!apostar)</label>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <input class="form-input" type="number" id="maxBet" value="${s.points_config?.max_bet||500}" min="1" style="width:120px;">
+            <span style="font-size:12px;color:var(--text-dim);">${s.points_config?.emoji||'🏆'} máximo por apuesta</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="saveRewards()">Guardar premios</button>
+      </div>
+    </div>
+
+    <!-- Solicitudes de canje -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">📋 Solicitudes de canje</span>
+        <button class="btn btn-success btn-sm" onclick="loadRedeemRequests()">↻ Actualizar</button>
+      </div>
+      <div class="panel-body" id="redeemRequestsPanel">
+        <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Click en actualizar para ver las solicitudes</div>
+      </div>
+    </div>
+
     <!-- Ranking -->
     <div class="panel">
       <div class="panel-header">
@@ -2029,6 +2076,73 @@ function lightenColor(hex, amount) {
 // Cargar tema guardado
 const savedTheme = localStorage.getItem('muffetbot-theme');
 if (savedTheme) applyTheme(savedTheme);
+
+// ── PREMIOS Y CANJES ──
+function addReward() {
+  const name = prompt('Nombre del premio:');
+  if (!name?.trim()) return;
+  const cost = parseInt(prompt('Costo en puntos:'));
+  if (!cost || cost < 1) return;
+  const description = prompt('Descripción (opcional):') || '';
+  const config = streamerData.points_config || {};
+  const rewards = [...(config.rewards || [])];
+  rewards.push({ name: name.trim(), cost, description });
+  streamerData.points_config = { ...config, rewards };
+  saveRewards();
+}
+
+function removeReward(index) {
+  const config = streamerData.points_config || {};
+  const rewards = [...(config.rewards || [])];
+  rewards.splice(index, 1);
+  streamerData.points_config = { ...config, rewards };
+  saveRewards();
+}
+
+async function saveRewards() {
+  const config = streamerData.points_config || {};
+  const max_bet = parseInt(document.getElementById('maxBet')?.value) || 500;
+  const points_config = { ...config, max_bet };
+  const res = await fetch('/api/points-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ points_config }) });
+  if(res.ok) { streamerData.points_config = points_config; showToast('Guardado ✓'); showSection('points'); }
+  else showToast('Error','error');
+}
+
+async function loadRedeemRequests() {
+  const res = await fetch('/api/redeem-requests');
+  if (!res.ok) return;
+  const requests = await res.json();
+  const panel = document.getElementById('redeemRequestsPanel');
+  if (!panel) return;
+  if (!requests.length) {
+    panel.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No hay solicitudes pendientes</div>';
+    return;
+  }
+  const emoji = streamerData.points_config?.emoji || '🏆';
+  panel.innerHTML = requests.map(r => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:8px;">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);">@${r.username} — ${r.reward}</div>
+        <div style="font-size:11px;color:var(--text-dim);">${r.cost} ${emoji} • ${new Date(r.date).toLocaleString('es-DO')}</div>
+      </div>
+      <span style="font-size:11px;padding:3px 8px;border-radius:20px;background:${r.status==='pending'?'rgba(240,192,96,0.15)':'rgba(64,208,144,0.15)'};color:${r.status==='pending'?'var(--yellow)':'var(--green)'};">${r.status==='pending'?'⏳ Pendiente':'✅ Completado'}</span>
+      ${r.status==='pending'?`<button class="btn btn-success btn-sm" onclick="completeRedeem(${r.id})">✓</button>`:''}
+      <button class="btn btn-danger btn-sm" onclick="deleteRedeem(${r.id})">✕</button>
+    </div>`).join('');
+}
+
+async function completeRedeem(id) {
+  await fetch('/api/redeem-requests/complete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id }) });
+  showToast('Marcado como completado ✓');
+  loadRedeemRequests();
+}
+
+async function deleteRedeem(id) {
+  if (!confirm('¿Eliminar esta solicitud?')) return;
+  await fetch('/api/redeem-requests/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id }) });
+  showToast('Eliminada ✓');
+  loadRedeemRequests();
+}
 
 // ── PUNTOS Y NIVELES ──
 async function savePointsConfig() {
