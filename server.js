@@ -542,6 +542,34 @@ app.get('/api/clips/:username', async (req, res) => {
     res.json(clips);
   } catch(err) { res.json([]); }
 });
+// ── APIs de Premios y Canjes ──
+app.get('/api/redeem-requests', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    res.json(streamer?.redeem_requests || []);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/redeem-requests/complete', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const requests = (streamer?.redeem_requests || []).map(r => r.id === id ? { ...r, status: 'completed' } : r);
+    await sbUpdate('streamers', { redeem_requests: requests }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/redeem-requests/delete', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const requests = (streamer?.redeem_requests || []).filter(r => r.id !== id);
+    await sbUpdate('streamers', { redeem_requests: requests }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/points-config', requireAuth, async (req, res) => {
   try {
     const { points_config } = req.body;
