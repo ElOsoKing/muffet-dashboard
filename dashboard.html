@@ -992,7 +992,7 @@ function renderMain() {
               </div>
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
-                <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;color:var(--text-muted);border-color:rgba(255,255,255,0.1);">${who}</span>
+                ${permBadge(who)}
                 <span style="font-size:10px;color:var(--text-muted);">${note}</span>
               </div>
             </div>`).join('')}
@@ -1019,7 +1019,7 @@ function renderMain() {
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
               <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:200px;">${cmd}</code>
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
-              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;${who==='Mods'?'color:var(--green);border-color:rgba(64,208,144,0.3);':'color:var(--text-muted);border-color:rgba(255,255,255,0.1);'}">${who}</span>
+              ${permBadge(who)}
             </div>`).join('')}
         </div>
       </div>
@@ -1040,7 +1040,7 @@ function renderMain() {
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
               <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:200px;">${cmd}</code>
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
-              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;${who==='Mods'?'color:var(--green);border-color:rgba(64,208,144,0.3);':'color:var(--text-muted);border-color:rgba(255,255,255,0.1);'}">${who}</span>
+              ${permBadge(who)}
             </div>`).join('')}
         </div>
       </div>
@@ -1060,7 +1060,7 @@ function renderMain() {
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
               <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:200px;">${cmd}</code>
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
-              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;color:var(--text-muted);border-color:rgba(255,255,255,0.1);">${who}</span>
+              ${permBadge(who)}
             </div>`).join('')}
         </div>
       </div>
@@ -1087,7 +1087,7 @@ function renderMain() {
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
               <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:220px;">${cmd}</code>
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
-              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;${who==='Mods'?'color:var(--green);border-color:rgba(64,208,144,0.3);':'color:var(--text-muted);border-color:rgba(255,255,255,0.1);'}">${who}</span>
+              ${permBadge(who)}
             </div>`).join('')}
         </div>
       </div>
@@ -1286,7 +1286,7 @@ function renderMain() {
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
               <code style="font-size:13px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:180px;">${cmd}</code>
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
-              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;color:var(--text-muted);border-color:rgba(255,255,255,0.1);">${who}</span>
+              ${permBadge(who)}
             </div>`).join('')}
         </div>
       </div>
@@ -1382,7 +1382,7 @@ function renderMain() {
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
               <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:180px;">${cmd}</code>
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
-              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;${who==='Mods'?'color:var(--green);border-color:rgba(64,208,144,0.3);':'color:var(--text-muted);border-color:rgba(255,255,255,0.1);'}">${who}</span>
+              ${permBadge(who)}
             </div>`).join('')}
         </div>
       </div>
@@ -1553,7 +1553,7 @@ function renderMain() {
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
               <code style="font-size:13px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:200px;">${cmd}</code>
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
-              <span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;${who==='mod'?'color:var(--green);border-color:rgba(64,208,144,0.3);background:rgba(64,208,144,0.08);':'color:var(--text-muted);border-color:rgba(255,255,255,0.1);'}">${who==='mod'?'🛡️ Mods':'👥 Todos'}</span>
+              ${permBadge(who==='mod'?'Mods':'Todos')}
             </div>`).join('')}
         </div>
       </div>
@@ -2272,6 +2272,19 @@ async function deleteRedeem(id) {
   await fetch('/api/redeem-requests/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id }) });
   showToast('Eliminada ✓');
   loadRedeemRequests();
+}
+
+function permBadge(who) {
+  const styles = {
+    'Todos':        'color:#60a0f0;border-color:rgba(96,160,240,0.35);background:rgba(96,160,240,0.08);',
+    'Mods':         'color:var(--green);border-color:rgba(64,208,144,0.35);background:rgba(64,208,144,0.08);',
+    'Subs':         'color:var(--purple-light);border-color:var(--purple-border);background:var(--purple-dim);',
+    'VIPs':         'color:var(--yellow);border-color:rgba(240,192,96,0.35);background:rgba(240,192,96,0.08);',
+    'Según config': 'color:#f0a060;border-color:rgba(240,160,96,0.35);background:rgba(240,160,96,0.08);',
+    'Broadcaster':  'color:#e05a7a;border-color:rgba(224,90,122,0.35);background:rgba(224,90,122,0.08);',
+  };
+  const s = styles[who] || styles['Todos'];
+  return `<span style="font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px;border:1px solid;white-space:nowrap;${s}">${who}</span>`;
 }
 
 // ── PUNTOS Y NIVELES ──
