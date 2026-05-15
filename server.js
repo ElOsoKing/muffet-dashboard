@@ -92,6 +92,11 @@ function isValidString(val, maxLen = 2000) {
 // ══════════════════════════════════════════
 app.get('/', (req, res) => {
   if (req.session.user) return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/login', (req, res) => {
+  if (req.session.user) return res.redirect('/dashboard');
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
