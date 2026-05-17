@@ -763,6 +763,19 @@ app.post('/api/raffle/end', requireAuth, async (req, res) => {
     if (!participants.length) return res.json({ success: true, winner: null });
     const winner = participants[Math.floor(Math.random() * participants.length)];
     await sbUpdate('streamers', { raffle_active: { active: false, prize: raffle.prize, winner, participants: [], ended_at: new Date().toISOString() } }, { twitch_id: req.session.user.id });
+
+    // Notificar al bot para que anuncie el ganador en el chat
+    const botUrl = `http://localhost:${process.env.BOT_PORT || 3001}/event`;
+    fetch(botUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: process.env.BOT_SECRET || 'muffetbot-internal-2026',
+        type: 'raffle.winner',
+        event: { broadcaster_user_login: streamer.twitch_username, winner, prize: raffle.prize }
+      })
+    }).catch(() => {});
+
     res.json({ success: true, winner, prize: raffle.prize });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
