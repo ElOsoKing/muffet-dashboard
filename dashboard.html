@@ -303,6 +303,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Bot <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
       <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
+      <div class="nav-item" onclick="showSection('counters')"><span class="nav-icon">🔢</span> Contadores</div>
       <div class="nav-item" onclick="showSection('syscommands')"><span class="nav-icon">🔧</span> Comandos del sistema</div>
       <div class="nav-item" onclick="showSection('variables')"><span class="nav-icon">📋</span> Variables</div>
       <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
@@ -851,6 +852,47 @@ function renderMain() {
               <button class="btn btn-danger btn-sm" onclick="deleteKeyword('${kw.replace(/'/g,"\\'")}')">✕</button>
             </div>`).join('') + `</div>`;
         })()}
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTADORES -->
+  <div id="sec-counters" class="section">
+    <div class="page-header">
+      <div class="page-title">🔢 Contadores</div>
+      <div class="page-subtitle">Lleva la cuenta de cualquier cosa en tu stream</div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">Lista de contadores <span style="font-size:11px;color:var(--text-muted);font-weight:400;" id="counterCount"></span></span>
+        <button class="btn btn-success btn-sm" onclick="addCounter()">+ Agregar</button>
+      </div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Desde el chat: <code style="color:var(--purple-light);">!nombre +1</code> suma, <code style="color:var(--purple-light);">!nombre -1</code> resta, <code style="color:var(--purple-light);">!nombre reset</code> reinicia, <code style="color:var(--purple-light);">!nombre</code> muestra el valor.
+        </div>
+        <div id="countersList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+          ${(()=>{
+            const counters = s.counters || {};
+            const entries = Object.entries(counters);
+            if (!entries.length) return `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">No hay contadores. Agrega uno con el botón de arriba.</div>`;
+            return entries.map(([name, val]) => `
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);">
+                <code style="font-size:14px;font-weight:600;color:var(--purple-light);">!${name}</code>
+                <div style="flex:1;font-size:12px;color:var(--text-dim);">Valor actual:</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button onclick="adjustCounter('${name}', -1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">−</button>
+                  <span style="font-size:18px;font-weight:700;color:var(--text);min-width:36px;text-align:center;" id="counterVal_${name}">${val}</span>
+                  <button onclick="adjustCounter('${name}', 1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
+                </div>
+                <button onclick="resetCounter('${name}')" style="font-size:11px;padding:4px 8px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;">Reset</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteCounter('${name}')">✕</button>
+              </div>`).join('');
+          })()}
+        </div>
+        <div style="padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-dim);">
+          💡 También puedes gestionar contadores desde el chat con <code style="color:var(--purple-light);">!addcounter nombre</code> y <code style="color:var(--purple-light);">!delcounter nombre</code>
+        </div>
       </div>
     </div>
   </div>
@@ -2331,6 +2373,42 @@ function lightenColor(hex, amount) {
 // Cargar tema guardado
 const savedTheme = localStorage.getItem('muffetbot-theme');
 if (savedTheme) applyTheme(savedTheme);
+
+// ── CONTADORES ──
+async function addCounter() {
+  const name = prompt('Nombre del contador (sin !):\nej: muertes, victorias, cafes')?.trim().toLowerCase();
+  if (!name || !/^[a-z0-9_]+$/.test(name)) { if(name) showToast('Solo letras, números y guion bajo','error'); return; }
+  const counters = { ...(streamerData.counters || {}), [name]: 0 };
+  const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
+  if(res.ok) { streamerData.counters = counters; showToast(`Contador !${name} creado ✓`); showSection('counters'); }
+  else showToast('Error al crear','error');
+}
+
+async function adjustCounter(name, delta) {
+  const counters = { ...(streamerData.counters || {}) };
+  counters[name] = (counters[name] || 0) + delta;
+  const el = document.getElementById(`counterVal_${name}`);
+  if (el) el.textContent = counters[name];
+  const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
+  if(res.ok) { streamerData.counters = counters; }
+  else showToast('Error','error');
+}
+
+async function resetCounter(name) {
+  const counters = { ...(streamerData.counters || {}), [name]: 0 };
+  const el = document.getElementById(`counterVal_${name}`);
+  if (el) el.textContent = 0;
+  const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
+  if(res.ok) { streamerData.counters = counters; showToast(`!${name} reiniciado ✓`); }
+}
+
+async function deleteCounter(name) {
+  if (!confirm(`¿Eliminar el contador !${name}?`)) return;
+  const counters = { ...(streamerData.counters || {}) };
+  delete counters[name];
+  const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
+  if(res.ok) { streamerData.counters = counters; showToast(`!${name} eliminado ✓`); showSection('counters'); }
+}
 
 // ── ESTADÍSTICAS ──
 async function loadStats() {
