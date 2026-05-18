@@ -315,6 +315,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
       <div class="nav-item" onclick="showSection('spotify')"><span class="nav-icon">🎵</span> Spotify</div>
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
+      <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin</div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Cuenta <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
@@ -1415,6 +1416,73 @@ function renderMain() {
   </div>
 
   <!-- PRIMERIN -->
+  <!-- PRIMERIN -->
+  <div id="sec-primerin" class="section">
+    <div class="page-header">
+      <div class="page-title">🥇 Primerin</div>
+      <div class="page-subtitle">El primero en llegar al stream gana un punto en el ranking</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
+      <div class="panel-body">
+        <div class="form-group">
+          <label class="form-label">Nombre del comando</label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:14px;font-weight:600;color:var(--purple-light);">!</span>
+            <input class="form-input" id="priminCmd" value="${(s.primerin_config||{}).command||'primerin'}" placeholder="primerin" style="width:160px;">
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Ej: !primero, !first, !aqui — solo letras y números</div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button class="btn btn-primary" onclick="savePrimerinConfig()">Guardar</button>
+          <button class="btn" onclick="resetPrimerinRanking()" style="background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.3);color:var(--pink);">🗑️ Reiniciar ranking</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ganador de hoy -->
+    ${(()=>{
+      const pc = s.primerin_config || {};
+      const today = new Date().toISOString().split('T')[0];
+      const usedToday = pc.used_today || {};
+      if (usedToday.date === today) return `
+        <div style="background:linear-gradient(135deg,rgba(240,192,96,0.1),var(--bg2));border:1px solid rgba(240,192,96,0.25);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+          <span style="font-size:32px;">🥇</span>
+          <div>
+            <div style="font-size:11px;color:var(--yellow);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Primero hoy</div>
+            <div style="font-size:18px;font-weight:700;color:var(--text);">@${usedToday.winner}</div>
+          </div>
+        </div>`;
+      return `<div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;text-align:center;color:var(--text-muted);font-size:13px;">
+        Nadie ha usado !${pc.command||'primerin'} hoy aún
+      </div>`;
+    })()}
+
+    <!-- Ranking -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🏆 Ranking histórico</span></div>
+      <div class="panel-body">
+        ${(()=>{
+          const pc = s.primerin_config || {};
+          const ranking = Object.entries(pc.ranking || {}).sort(([,a],[,b]) => b-a);
+          if (!ranking.length) return `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Nadie ha ganado aún. Activa el comando y que el chat compita 🥇</div>`;
+          const medals = ['🥇','🥈','🥉'];
+          const max = ranking[0][1];
+          return ranking.map(([user, wins], i) => `
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${i===0?'rgba(240,192,96,0.06)':'var(--bg3)'};border:1px solid ${i===0?'rgba(240,192,96,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius-sm);margin-bottom:6px;">
+              <div style="font-size:${i<3?'18px':'12px'};width:24px;text-align:center;${i>=3?'color:var(--text-muted);font-weight:700;':''}">${i<3?medals[i]:i+1}</div>
+              <div style="font-size:13px;font-weight:500;color:var(--text);flex:1;">@${user}</div>
+              <div style="font-size:12px;font-weight:600;color:var(--yellow);">${wins} vez${wins>1?'es':''}</div>
+              <div style="width:80px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
+                <div style="height:100%;width:${Math.round((wins/max)*100)}%;background:var(--yellow);border-radius:2px;"></div>
+              </div>
+            </div>`).join('');
+        })()}
+      </div>
+    </div>
+  </div>
+
   <!-- SPOTIFY -->
   <div id="sec-spotify" class="section">
     <div class="page-header">
