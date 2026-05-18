@@ -1358,8 +1358,62 @@ function renderMain() {
         </div>
       </div>
     </div>
+
+    <!-- Primerin -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0;">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title-text">🥇 Primerin</span>
+          <button class="btn btn-danger btn-sm" onclick="resetPrimerinRanking()" style="background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.3);color:var(--pink);">Reiniciar</button>
+        </div>
+        <div class="panel-body">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label">Comando</label>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:14px;font-weight:600;color:var(--purple-light);">!</span>
+              <input class="form-input" id="priminCmd" value="${(s.primerin_config||{}).command||'primerin'}" placeholder="primerin" style="width:130px;">
+              <button class="btn btn-primary btn-sm" onclick="savePrimerinConfig()">Guardar</button>
+            </div>
+          </div>
+          ${(()=>{
+            const pc = s.primerin_config || {};
+            const today = new Date().toISOString().split('T')[0];
+            const usedToday = pc.used_today || {};
+            if (usedToday.date === today) return `
+              <div style="padding:10px 12px;background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.2);border-radius:var(--radius-sm);display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+                <span style="font-size:20px;">🥇</span>
+                <div><div style="font-size:10px;color:var(--yellow);font-weight:600;text-transform:uppercase;">Primero hoy</div><div style="font-size:13px;font-weight:600;">@${usedToday.winner}</div></div>
+              </div>`;
+            return `<div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);margin-bottom:12px;">Nadie ha ganado hoy aún</div>`;
+          })()}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title-text">🏆 Ranking Primerin</span></div>
+        <div class="panel-body">
+          ${(()=>{
+            const pc = s.primerin_config || {};
+            const ranking = Object.entries(pc.ranking || {}).sort(([,a],[,b]) => b-a);
+            if (!ranking.length) return `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Nadie ha ganado aún</div>`;
+            const medals = ['🥇','🥈','🥉'];
+            const max = ranking[0][1];
+            return ranking.map(([user, wins], i) => `
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<ranking.length-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
+                <div style="font-size:${i<3?'16px':'11px'};width:20px;text-align:center;${i>=3?'color:var(--text-muted);font-weight:700;':''}">${i<3?medals[i]:i+1}</div>
+                <div style="font-size:13px;font-weight:500;flex:1;">@${user}</div>
+                <div style="font-size:12px;font-weight:600;color:var(--yellow);">${wins}x</div>
+                <div style="width:60px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
+                  <div style="height:100%;width:${Math.round((wins/max)*100)}%;background:var(--yellow);border-radius:2px;"></div>
+                </div>
+              </div>`).join('');
+          })()}
+        </div>
+      </div>
+    </div>
   </div>
 
+  <!-- PRIMERIN -->
   <!-- SPOTIFY -->
   <div id="sec-spotify" class="section">
     <div class="page-header">
@@ -2391,6 +2445,24 @@ function lightenColor(hex, amount) {
 // Cargar tema guardado
 const savedTheme = localStorage.getItem('muffetbot-theme');
 if (savedTheme) applyTheme(savedTheme);
+
+// ── PRIMERIN ──
+async function savePrimerinConfig() {
+  const command = document.getElementById('priminCmd')?.value.trim().replace('!','').toLowerCase();
+  if (!command) { showToast('Escribe un nombre de comando','error'); return; }
+  const config = { ...(streamerData.primerin_config || {}), command };
+  const res = await fetch('/api/primerin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ primerin_config: config }) });
+  if(res.ok) { streamerData.primerin_config = config; showToast('Guardado ✓'); }
+  else showToast('Error','error');
+}
+
+async function resetPrimerinRanking() {
+  if (!confirm('¿Reiniciar el ranking? Se borrarán todas las victorias.')) return;
+  const config = { ...(streamerData.primerin_config || {}), ranking: {}, used_today: {} };
+  const res = await fetch('/api/primerin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ primerin_config: config }) });
+  if(res.ok) { streamerData.primerin_config = config; showToast('Ranking reiniciado ✓'); showSection('primerin'); }
+  else showToast('Error','error');
+}
 
 // ── CONTADORES ──
 async function addCounter() {
