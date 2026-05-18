@@ -310,6 +310,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Herramientas <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
+      <div class="nav-item" onclick="showSection('stats')"><span class="nav-icon">📊</span> Estadísticas</div>
       <div class="nav-item" onclick="showSection('spotify')"><span class="nav-icon">🎵</span> Spotify</div>
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
@@ -384,6 +385,7 @@ function showSection(name) {
   if(clicked) clicked.classList.add('active');
   const sec = document.getElementById('sec-' + name);
   if(sec) sec.classList.add('active');
+  if(name === 'stats') loadStats();
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
   if(name === 'spotify') { loadSpotifyStatus(); startSpotifyPolling(); }
@@ -1227,6 +1229,73 @@ function renderMain() {
               <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${Math.round((count/max)*100)}%"></div></div>
             </div>`).join('');
         })()}
+      </div>
+    </div>
+  </div>
+
+  <!-- ESTADÍSTICAS -->
+  <div id="sec-stats" class="section">
+    <div class="page-header">
+      <div class="page-title">📊 Estadísticas</div>
+      <div class="page-subtitle">Resumen de actividad de tu canal</div>
+    </div>
+
+    <!-- Tarjetas rápidas -->
+    <div class="stats-grid" style="margin-bottom:16px;">
+      <div class="stat-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Comandos usados</span>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(145,71,255,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">⚡</div>
+        </div>
+        <div style="font-size:32px;font-weight:700;letter-spacing:-1px;line-height:1;" id="statTotalCmds">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">total histórico</div>
+      </div>
+      <div class="stat-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Viewers con puntos</span>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(240,192,96,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">👥</div>
+        </div>
+        <div style="font-size:32px;font-weight:700;letter-spacing:-1px;line-height:1;" id="statTotalViewers">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">en el ranking</div>
+      </div>
+      <div class="stat-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Comando más usado</span>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(64,208,144,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">🏆</div>
+        </div>
+        <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:var(--green);" id="statTopCmd">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;" id="statTopCmdCount">—</div>
+      </div>
+      <div class="stat-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Viewer más activo</span>
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(224,90,122,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">⭐</div>
+        </div>
+        <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:var(--pink);" id="statTopViewer">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;" id="statTopViewerPts">—</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <!-- Comandos más usados -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title-text">⚡ Comandos más usados</span>
+          <button class="btn btn-success btn-sm" onclick="loadStats()">↻</button>
+        </div>
+        <div class="panel-body" id="statsCmdsPanel">
+          <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- Top viewers -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title-text">👥 Top viewers</span>
+        </div>
+        <div class="panel-body" id="statsViewersPanel">
+          <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Cargando...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -2262,6 +2331,63 @@ function lightenColor(hex, amount) {
 // Cargar tema guardado
 const savedTheme = localStorage.getItem('muffetbot-theme');
 if (savedTheme) applyTheme(savedTheme);
+
+// ── ESTADÍSTICAS ──
+async function loadStats() {
+  const emoji = streamerData.points_config?.emoji || '🏆';
+  const pointsName = streamerData.points_config?.name || 'puntos';
+
+  // Comandos más usados
+  const cmdStats = streamerData.command_stats || {};
+  const sortedCmds = Object.entries(cmdStats).sort(([,a],[,b]) => b-a).slice(0,10);
+  const totalCmds = sortedCmds.reduce((s,[,v]) => s+v, 0);
+
+  document.getElementById('statTotalCmds').textContent = totalCmds || 0;
+
+  const cmdsPanel = document.getElementById('statsCmdsPanel');
+  if (!sortedCmds.length) {
+    cmdsPanel.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No hay datos aún</div>';
+  } else {
+    const max = sortedCmds[0][1];
+    document.getElementById('statTopCmd').textContent = sortedCmds[0][0];
+    document.getElementById('statTopCmdCount').textContent = `${sortedCmds[0][1]} usos`;
+    cmdsPanel.innerHTML = sortedCmds.map(([cmd, count], i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<sortedCmds.length-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);width:18px;text-align:center;">${i+1}</div>
+        <code style="font-size:13px;font-weight:600;color:var(--purple-light);flex:1;">${cmd}</code>
+        <div style="font-size:12px;color:var(--text-dim);width:50px;text-align:right;">${count}</div>
+        <div style="width:80px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;width:${Math.round((count/max)*100)}%;background:var(--purple);border-radius:2px;transition:width 0.5s;"></div>
+        </div>
+      </div>`).join('');
+  }
+
+  // Top viewers
+  const viewerPts = streamerData.viewer_points || {};
+  const sortedViewers = Object.entries(viewerPts).sort(([,a],[,b]) => b-a).slice(0,10);
+  const totalViewers = Object.keys(viewerPts).length;
+
+  document.getElementById('statTotalViewers').textContent = totalViewers || 0;
+
+  const viewersPanel = document.getElementById('statsViewersPanel');
+  if (!sortedViewers.length) {
+    viewersPanel.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No hay datos aún</div>';
+  } else {
+    const maxPts = sortedViewers[0][1];
+    document.getElementById('statTopViewer').textContent = sortedViewers[0][0];
+    document.getElementById('statTopViewerPts').textContent = `${sortedViewers[0][1]} ${pointsName}`;
+    const medals = ['🥇','🥈','🥉'];
+    viewersPanel.innerHTML = sortedViewers.map(([user, pts], i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<sortedViewers.length-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
+        <div style="font-size:${i<3?'16px':'11px'};width:18px;text-align:center;${i>=3?'color:var(--text-muted);font-weight:700;':''}">${i<3?medals[i]:i+1}</div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);flex:1;">${user}</div>
+        <div style="font-size:12px;color:var(--purple-light);font-weight:600;">${pts} ${emoji}</div>
+        <div style="width:80px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
+          <div style="height:100%;width:${Math.round((pts/maxPts)*100)}%;background:var(--purple);border-radius:2px;"></div>
+        </div>
+      </div>`).join('');
+  }
+}
 
 // ── COMANDOS DEL SISTEMA ──
 async function toggleSysCmd(id, active) {
