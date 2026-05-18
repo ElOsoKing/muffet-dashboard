@@ -542,6 +542,15 @@ app.get('/api/clips/:username', async (req, res) => {
     res.json(clips);
   } catch(err) { res.json([]); }
 });
+app.post('/api/counters', requireAuth, async (req, res) => {
+  try {
+    const { counters } = req.body;
+    if (!isValidObject(counters)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { counters }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/system-commands', requireAuth, async (req, res) => {
   try {
     const { system_commands } = req.body;
