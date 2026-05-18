@@ -542,6 +542,15 @@ app.get('/api/clips/:username', async (req, res) => {
     res.json(clips);
   } catch(err) { res.json([]); }
 });
+app.post('/api/primerin', requireAuth, async (req, res) => {
+  try {
+    const { primerin_config } = req.body;
+    if (!isValidObject(primerin_config)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { primerin_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/counters', requireAuth, async (req, res) => {
   try {
     const { counters } = req.body;
