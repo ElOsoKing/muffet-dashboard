@@ -542,6 +542,15 @@ app.get('/api/clips/:username', async (req, res) => {
     res.json(clips);
   } catch(err) { res.json([]); }
 });
+app.post('/api/system-commands', requireAuth, async (req, res) => {
+  try {
+    const { system_commands } = req.body;
+    if (!isValidObject(system_commands)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { system_commands }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── APIs de Premios y Canjes ──
 app.get('/api/redeem-requests', requireAuth, async (req, res) => {
   try {
