@@ -943,6 +943,7 @@ function renderMain() {
           { id:'social',   icon:'🤗', name:'Sociales',  desc:'!hug, !pat, !kiss, !slap, !bite, !highfive',who:'Todos' },
           { id:'dados',    icon:'🎲', name:'Dados',     desc:'!d6, !d20, !2d6',                           who:'Todos' },
           { id:'dar',      icon:'💰', name:'!dar',      desc:'Dar puntos a un usuario',                   who:'Mods'  },
+          { id:'primerin', icon:'🥇', name:'!primerin', desc:'El primero en usarlo gana — comando editable', who:'Todos' },
         ];
         return cmds.map(cmd => {
           const active = sys[cmd.id] !== false; // activo por defecto
