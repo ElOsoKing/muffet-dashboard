@@ -303,6 +303,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Bot <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
       <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
+      <div class="nav-item" onclick="showSection('syscommands')"><span class="nav-icon">🔧</span> Comandos del sistema</div>
       <div class="nav-item" onclick="showSection('variables')"><span class="nav-icon">📋</span> Variables</div>
       <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
       <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
@@ -849,6 +850,61 @@ function renderMain() {
             </div>`).join('') + `</div>`;
         })()}
       </div>
+    </div>
+  </div>
+
+  <!-- COMANDOS DEL SISTEMA -->
+  <div id="sec-syscommands" class="section">
+    <div class="page-header">
+      <div class="page-title">🔧 Comandos del sistema</div>
+      <div class="page-subtitle">Activa o desactiva los comandos integrados del bot</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;" id="syscmdsGrid">
+      ${(()=>{
+        const sys = s.system_commands || {};
+        const cmds = [
+          { id:'game',     icon:'🎮', name:'!game',     desc:'Muestra el juego actual del stream',        who:'Todos' },
+          { id:'titulo',   icon:'📺', name:'!titulo',   desc:'Muestra el título del stream',              who:'Todos' },
+          { id:'uptime',   icon:'⏱️', name:'!uptime',   desc:'Tiempo que llevas en vivo',                 who:'Todos' },
+          { id:'clip',     icon:'✂️', name:'!clip',     desc:'Crea un clip del stream',                   who:'Todos' },
+          { id:'redes',    icon:'🌐', name:'!redes',    desc:'Muestra tus redes sociales',                who:'Todos' },
+          { id:'puntos',   icon:'🏆', name:'!puntos',   desc:'Ver puntos y nivel del usuario',            who:'Todos' },
+          { id:'top',      icon:'📊', name:'!top',      desc:'Top 5 viewers con más puntos',              who:'Todos' },
+          { id:'apostar',  icon:'🎰', name:'!apostar',  desc:'Apostar puntos — 50/50',                    who:'Todos' },
+          { id:'canjear',  icon:'🎁', name:'!canjear',  desc:'Canjear puntos por premios',                who:'Todos' },
+          { id:'sorteo',   icon:'🎉', name:'!sorteo',   desc:'Gestionar sorteos',                         who:'Mods'  },
+          { id:'random',   icon:'🎲', name:'!random',   desc:'Número aleatorio y opciones',               who:'Todos' },
+          { id:'ask',      icon:'🤖', name:'!ask',      desc:'Hacer una pregunta a la IA',                who:'Todos' },
+          { id:'chiste',   icon:'😂', name:'!chiste',   desc:'Muffet cuenta un chiste',                   who:'Todos' },
+          { id:'poll',     icon:'📋', name:'!poll',     desc:'Crear una encuesta en el chat',             who:'Mods'  },
+          { id:'cancion',  icon:'🎵', name:'!cancion',  desc:'Pedir canción en Spotify',                  who:'Según config' },
+          { id:'social',   icon:'🤗', name:'Sociales',  desc:'!hug, !pat, !kiss, !slap, !bite, !highfive',who:'Todos' },
+          { id:'dados',    icon:'🎲', name:'Dados',     desc:'!d6, !d20, !2d6',                           who:'Todos' },
+          { id:'dar',      icon:'💰', name:'!dar',      desc:'Dar puntos a un usuario',                   who:'Mods'  },
+        ];
+        return cmds.map(cmd => {
+          const active = sys[cmd.id] !== false; // activo por defecto
+          return `<div style="background:var(--bg2);border:1px solid ${active?'rgba(145,71,255,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:16px;transition:all 0.2s;" id="syscard_${cmd.id}">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div style="width:42px;height:42px;border-radius:10px;background:${active?'rgba(145,71,255,0.15)':'rgba(255,255,255,0.04)'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;transition:background 0.2s;" id="sysicon_${cmd.id}">${cmd.icon}</div>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
+                  <code style="font-size:13px;font-weight:600;color:${active?'var(--purple-light)':'var(--text-muted)'};transition:color 0.2s;" id="sysname_${cmd.id}">${cmd.name}</code>
+                  ${permBadge(cmd.who)}
+                </div>
+                <div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cmd.desc}</div>
+              </div>
+              <label class="toggle" style="flex-shrink:0;">
+                <input type="checkbox" ${active?'checked':''} onchange="toggleSysCmd('${cmd.id}', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>`;
+        }).join('');
+      })()}
+    </div>
+    <div style="margin-top:16px;padding:12px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);font-size:12px;color:var(--text-dim);">
+      💡 Los cambios se aplican inmediatamente. Los comandos desactivados no responderán en el chat.
     </div>
   </div>
 
@@ -2206,6 +2262,24 @@ function lightenColor(hex, amount) {
 // Cargar tema guardado
 const savedTheme = localStorage.getItem('muffetbot-theme');
 if (savedTheme) applyTheme(savedTheme);
+
+// ── COMANDOS DEL SISTEMA ──
+async function toggleSysCmd(id, active) {
+  const sys = { ...(streamerData.system_commands || {}) };
+  sys[id] = active;
+  const res = await fetch('/api/system-commands', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ system_commands: sys }) });
+  if (res.ok) {
+    streamerData.system_commands = sys;
+    // Actualizar visual de la card
+    const card = document.getElementById(`syscard_${id}`);
+    const icon = document.getElementById(`sysicon_${id}`);
+    const name = document.getElementById(`sysname_${id}`);
+    if (card) card.style.borderColor = active ? 'rgba(145,71,255,0.2)' : 'rgba(255,255,255,0.06)';
+    if (icon) icon.style.background = active ? 'rgba(145,71,255,0.15)' : 'rgba(255,255,255,0.04)';
+    if (name) name.style.color = active ? 'var(--purple-light)' : 'var(--text-muted)';
+    showToast(active ? `${id} activado ✓` : `${id} desactivado`);
+  } else showToast('Error','error');
+}
 
 // ── PREMIOS Y CANJES ──
 function addReward() {
