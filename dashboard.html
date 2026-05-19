@@ -305,17 +305,19 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
       <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
       <div class="nav-item" onclick="showSection('counters')"><span class="nav-icon">🔢</span> Contadores</div>
       <div class="nav-item" onclick="showSection('syscommands')"><span class="nav-icon">🔧</span> Comandos del sistema</div>
-      <div class="nav-item" onclick="showSection('variables')"><span class="nav-icon">📋</span> Variables</div>
       <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
       <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Herramientas <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
-      <div class="nav-item" onclick="showSection('stats')"><span class="nav-icon">📊</span> Estadísticas</div>
       <div class="nav-item" onclick="showSection('spotify')"><span class="nav-icon">🎵</span> Spotify</div>
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
       <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin</div>
+    </div>
+    <div class="nav-section collapsible active" onclick="toggleNav(this)">Análisis <span class="nav-arrow">▾</span></div>
+    <div class="nav-group">
+      <div class="nav-item" onclick="showSection('stats')"><span class="nav-icon">📊</span> Estadísticas</div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Cuenta <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
@@ -694,7 +696,13 @@ function renderMain() {
 
   <!-- COMANDOS -->
   <div id="sec-commands" class="section">
-    <div class="page-header"><div class="page-title">Comandos</div><div class="page-subtitle">Gestiona los comandos del chat</div></div>
+    <div class="page-header">
+      <div class="page-title">Comandos</div>
+      <div class="page-subtitle">Gestiona los comandos del chat</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="btn" onclick="showSection('variables')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">📋 Ver variables disponibles →</button>
+    </div>
     <div class="panel">
       <div class="panel-header">
         <span class="panel-title-text">Lista de comandos <span id="cmdCount" style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">${Object.keys(commands).length} comandos</span></span>
@@ -975,11 +983,12 @@ function renderMain() {
   <!-- VARIABLES -->
   <div id="sec-variables" class="section">
     <div class="page-header">
-      <div class="page-title">Variables</div>
+      <div class="page-title">📋 Variables</div>
       <div class="page-subtitle">Úsalas en tus comandos y auto mensajes para hacerlos dinámicos</div>
     </div>
-
-    <!-- Variables de usuarios -->
+    <div style="margin-bottom:16px;">
+      <button class="btn" onclick="showSection('commands')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">← Volver a Comandos</button>
+    </div>
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">👤 Variables de usuario</span></div>
       <div class="panel-body">
