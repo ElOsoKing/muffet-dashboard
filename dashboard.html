@@ -387,7 +387,7 @@ function showSection(name) {
   const sec = document.getElementById('sec-' + name);
   if(sec) sec.classList.add('active');
   if(name === 'stats') loadStats();
-  if(name === 'profile') setTimeout(() => switchProfileTab('socials'), 50);
+  if(name === 'profile') setTimeout(() => switchProfileTab('socials'), 100);
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
   if(name === 'spotify') { loadSpotifyStatus(); startSpotifyPolling(); }
@@ -1910,7 +1910,41 @@ function renderMain() {
       <button id="profileTab-schedule" onclick="switchProfileTab('schedule')" style="padding:7px 16px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:transparent;color:var(--text-dim);transition:all 0.15s;">📅 Horario</button>
     </div>
     <div id="profileContent-socials">
-      <!-- Las redes sociales se cargan aquí desde sec-socials -->
+      <!-- Botón página pública -->
+      <div style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;">🌐 Tu página pública</div>
+          <div style="font-size:12px;color:var(--text-dim);">Comparte este link con tu comunidad</div>
+          <code style="font-size:12px;color:var(--purple-light);margin-top:6px;display:block;">${window.location.origin}/canal/${userData.username}</code>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('${window.location.origin}/canal/${userData.username}').then(()=>showToast('Link copiado ✓'))">Copiar link</button>
+          <a href="/canal/${userData.username}" target="_blank" class="btn btn-success btn-sm" style="text-decoration:none;">Ver página</a>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><span class="panel-title-text">Tus links</span></div>
+        <div class="panel-body">
+          ${[['twitch','🎮','Twitch','https://twitch.tv/tucanal'],['youtube','📺','YouTube','https://youtube.com/@tucanal'],['tiktok','🎵','TikTok','https://tiktok.com/@tucanal'],['twitter','🐦','Twitter/X','https://twitter.com/tucanal'],['instagram','📸','Instagram','https://instagram.com/tucanal'],['discord','💬','Discord','https://discord.gg/tuservidor']].map(([key,icon,label,placeholder])=>`
+          <div class="form-group">
+            <label class="form-label">${icon} ${label}</label>
+            <input class="form-input" id="social_${key}" value="${((s.social_links||{})[key]||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}">
+          </div>`).join('')}
+          <div class="form-group" style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+            <label class="form-label">▶️ YouTube Channel ID</label>
+            <input class="form-input" id="youtube_channel_id" value="${(s.youtube_channel_id||'').replace(/"/g,'&quot;')}" placeholder="UCxxxxxxxxxxxxxxxxxxxxxxxxx">
+          </div>
+          <button class="btn btn-primary" onclick="saveSocials()" style="margin-top:16px;">Guardar redes</button>
+          <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
+            <label class="form-label">🎨 Color de tu página pública</label>
+            <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+              <input type="color" id="pageAccentColor" value="${(s.social_links||{}).accent_color||'#9147ff'}" style="width:44px;height:44px;border:none;border-radius:var(--radius-sm);cursor:pointer;background:none;padding:0;" oninput="document.getElementById('pageColorPreview').style.background=this.value">
+              <div id="pageColorPreview" style="flex:1;height:44px;border-radius:var(--radius-sm);background:${(s.social_links||{}).accent_color||'#9147ff'};opacity:0.3;"></div>
+              <span style="font-size:12px;color:var(--text-dim);">Se aplica en tu página pública</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
     <div id="profileContent-schedule" style="display:none;">
     <div class="panel">
@@ -2435,20 +2469,12 @@ function switchProfileTab(tab) {
   const divSocials = document.getElementById('profileContent-socials');
   const divSchedule = document.getElementById('profileContent-schedule');
   if (!divSocials || !divSchedule) return;
-
   if (tab === 'socials') {
-    // Cargar contenido de redes desde sec-socials
-    const srcSocials = document.getElementById('sec-socials');
-    if (srcSocials && !divSocials.hasChildNodes()) {
-      divSocials.innerHTML = srcSocials.innerHTML;
-    }
-    divSocials.style.display = 'block';
-    divSchedule.style.display = 'none';
+    divSocials.style.display = 'block'; divSchedule.style.display = 'none';
     tabSocials.style.background = 'var(--purple)'; tabSocials.style.color = 'white';
     tabSchedule.style.background = 'transparent'; tabSchedule.style.color = 'var(--text-dim)';
   } else {
-    divSocials.style.display = 'none';
-    divSchedule.style.display = 'block';
+    divSocials.style.display = 'none'; divSchedule.style.display = 'block';
     tabSchedule.style.background = 'var(--purple)'; tabSchedule.style.color = 'white';
     tabSocials.style.background = 'transparent'; tabSocials.style.color = 'var(--text-dim)';
   }
