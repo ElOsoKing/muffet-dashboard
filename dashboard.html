@@ -303,7 +303,6 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Bot <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
       <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
-      <div class="nav-item" onclick="showSection('counters')"><span class="nav-icon">🔢</span> Contadores</div>
       <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
       <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
     </div>
@@ -321,8 +320,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Cuenta <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
       <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
-      <div class="nav-item" onclick="showSection('socials')"><span class="nav-icon">🌐</span> Redes sociales</div>
-      <div class="nav-item" onclick="showSection('schedule')"><span class="nav-icon">📅</span> Horario</div>
+      <div class="nav-item" onclick="showSection('profile')"><span class="nav-icon">🌐</span> Perfil público</div>
       <div class="nav-item" onclick="showSection('theme')"><span class="nav-icon">🎨</span> Tema</div>
       <div class="nav-item" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Configuración</div>
       <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'"><span class="nav-icon">👑</span> Admin</div>
@@ -389,6 +387,7 @@ function showSection(name) {
   const sec = document.getElementById('sec-' + name);
   if(sec) sec.classList.add('active');
   if(name === 'stats') loadStats();
+  if(name === 'profile') setTimeout(() => switchProfileTab('socials'), 50);
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
   if(name === 'spotify') { loadSpotifyStatus(); startSpotifyPolling(); }
@@ -699,8 +698,9 @@ function renderMain() {
       <div class="page-title">Comandos</div>
       <div class="page-subtitle">Gestiona los comandos del chat</div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px;">
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
       <button class="btn" onclick="showSection('syscommands')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">🔧 Comandos del sistema →</button>
+      <button class="btn" onclick="showSection('counters')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">🔢 Contadores →</button>
       <button class="btn" onclick="showSection('variables')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">📋 Ver variables →</button>
     </div>
     <div class="panel">
@@ -887,6 +887,9 @@ function renderMain() {
     <div class="page-header">
       <div class="page-title">🔢 Contadores</div>
       <div class="page-subtitle">Lleva la cuenta de cualquier cosa en tu stream</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <button class="btn" onclick="showSection('commands')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">← Volver a Comandos</button>
     </div>
     <div class="panel">
       <div class="panel-header">
@@ -1881,11 +1884,20 @@ function renderMain() {
   </div>
 
   <!-- HORARIO -->
-  <div id="sec-schedule" class="section">
+  <!-- PERFIL PÚBLICO (tabs que muestran socials o schedule) -->
+  <div id="sec-profile" class="section">
     <div class="page-header">
-      <div class="page-title">📅 Horario</div>
-      <div class="page-subtitle">Aparece en tu página pública para que tu comunidad sepa cuándo streameas</div>
+      <div class="page-title">🌐 Perfil público</div>
+      <div class="page-subtitle">Configura tu página pública y horario de streams</div>
     </div>
+    <div style="display:flex;gap:4px;margin-bottom:20px;background:var(--bg3);padding:4px;border-radius:var(--radius-sm);width:fit-content;">
+      <button id="profileTab-socials" onclick="switchProfileTab('socials')" style="padding:7px 16px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--purple);color:white;transition:all 0.15s;">🌐 Redes sociales</button>
+      <button id="profileTab-schedule" onclick="switchProfileTab('schedule')" style="padding:7px 16px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:transparent;color:var(--text-dim);transition:all 0.15s;">📅 Horario</button>
+    </div>
+    <div id="profileContent"></div>
+  </div>
+
+  <!-- REDES SOCIALES (oculta, usada por sec-profile) -->
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">Días y horas</span></div>
       <div class="panel-body">
@@ -2399,6 +2411,22 @@ async function deleteKeyword(kw) {
   delete keywords[kw];
   const res = await fetch('/api/keywords', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ keyword_responses: keywords }) });
   if (res.ok) { streamerData.keyword_responses = keywords; showToast('Eliminada ✓'); showSection('keywords'); }
+}
+
+function switchProfileTab(tab) {
+  const content = document.getElementById('profileContent');
+  const tabSocials = document.getElementById('profileTab-socials');
+  const tabSchedule = document.getElementById('profileTab-schedule');
+
+  if (tab === 'socials') {
+    content.innerHTML = document.getElementById('sec-socials').innerHTML;
+    tabSocials.style.background = 'var(--purple)'; tabSocials.style.color = 'white';
+    tabSchedule.style.background = 'transparent'; tabSchedule.style.color = 'var(--text-dim)';
+  } else {
+    content.innerHTML = document.getElementById('sec-schedule').innerHTML;
+    tabSchedule.style.background = 'var(--purple)'; tabSchedule.style.color = 'white';
+    tabSocials.style.background = 'transparent'; tabSocials.style.color = 'var(--text-dim)';
+  }
 }
 
 // ── HORARIO ──
