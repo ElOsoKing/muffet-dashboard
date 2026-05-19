@@ -2106,6 +2106,28 @@ function renderMain() {
     </div>`:''}
 
     <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📢 Anuncio cuando vas en vivo</span></div>
+      <div class="panel-body">
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          El bot anuncia en tu chat cuando detecta que empezaste el stream. Se activa una sola vez por stream.
+        </div>
+        <div class="toggle-row" style="margin-bottom:16px;">
+          <div><div class="toggle-label">Activar anuncio en vivo</div><div class="toggle-desc">Desactivado por defecto</div></div>
+          <label class="toggle"><input type="checkbox" id="liveAnnouncementEnabled" ${(s.live_announcement||{}).enabled?'checked':''}  onchange="toggleLiveAnnouncement(this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mensaje personalizado <span style="color:var(--text-muted);font-size:11px;">(opcional)</span></label>
+          <input class="form-input" id="liveAnnouncementMsg" value="${(s.live_announcement||{}).message||''}" placeholder="¡Estamos en vivo! Jugando {game} — {title}">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Variables: <code style="color:var(--purple-light);">{game}</code> <code style="color:var(--purple-light);">{title}</code> <code style="color:var(--purple-light);">{channel}</code> — Si lo dejas vacío usa el mensaje por defecto</div>
+        </div>
+        <div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);margin:12px 0;font-size:12px;color:var(--text-dim);">
+          <span style="color:var(--text-muted);">Ejemplo:</span> 🔴 ¡@${userData.username} está en vivo! 🎮 Hunt: Showdown — ¡SOMOS LOS CAZADOS! 🕷️👑
+        </div>
+        <button class="btn btn-primary" onclick="saveLiveAnnouncement()">Guardar</button>
+      </div>
+    </div>
+
+    <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🔔 Alertas del canal</span></div>
       <div class="panel-body">
         <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
@@ -2514,6 +2536,23 @@ function lightenColor(hex, amount) {
 // Cargar tema guardado
 const savedTheme = localStorage.getItem('muffetbot-theme');
 if (savedTheme) applyTheme(savedTheme);
+
+// ── ANUNCIO EN VIVO ──
+async function toggleLiveAnnouncement(enabled) {
+  const config = { ...(streamerData.live_announcement || {}), enabled };
+  const res = await fetch('/api/live-announcement', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ live_announcement: config }) });
+  if(res.ok) { streamerData.live_announcement = config; showToast(enabled ? 'Anuncio activado ✓' : 'Anuncio desactivado'); }
+  else showToast('Error','error');
+}
+
+async function saveLiveAnnouncement() {
+  const enabled = document.getElementById('liveAnnouncementEnabled')?.checked || false;
+  const message = document.getElementById('liveAnnouncementMsg')?.value.trim() || '';
+  const config = { enabled, message };
+  const res = await fetch('/api/live-announcement', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ live_announcement: config }) });
+  if(res.ok) { streamerData.live_announcement = config; showToast('Guardado ✓'); }
+  else showToast('Error','error');
+}
 
 // ── PRIMERIN ──
 async function savePrimerinConfig() {
