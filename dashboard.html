@@ -1384,8 +1384,8 @@ function renderMain() {
             <label class="form-label">Comando</label>
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-size:14px;font-weight:600;color:var(--purple-light);">!</span>
-              <input class="form-input" id="priminCmd" value="${(s.primerin_config||{}).command||'primerin'}" placeholder="primerin" style="width:130px;">
-              <button class="btn btn-primary btn-sm" onclick="savePrimerinConfig()">Guardar</button>
+              <input class="form-input" id="priminCmdStats" value="${(s.primerin_config||{}).command||'primerin'}" placeholder="primerin" style="width:130px;">
+              <button class="btn btn-primary btn-sm" onclick="savePrimerinConfigFrom('priminCmdStats')">Guardar</button>
             </div>
           </div>
           ${(()=>{
@@ -2627,14 +2627,17 @@ async function saveLiveAnnouncement() {
 }
 
 // ── PRIMERIN ──
-async function savePrimerinConfig() {
-  const command = document.getElementById('priminCmd')?.value.trim().replace('!','').toLowerCase();
+async function savePrimerinConfig(inputId) {
+  const id = inputId || 'priminCmd';
+  const command = document.getElementById(id)?.value.trim().replace('!','').toLowerCase();
   if (!command) { showToast('Escribe un nombre de comando','error'); return; }
   const config = { ...(streamerData.primerin_config || {}), command };
   const res = await fetch('/api/primerin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ primerin_config: config }) });
   if(res.ok) { streamerData.primerin_config = config; showToast('Guardado ✓'); }
   else showToast('Error','error');
 }
+
+function savePrimerinConfigFrom(inputId) { return savePrimerinConfig(inputId); }
 
 async function resetPrimerinRanking() {
   if (!confirm('¿Reiniciar el ranking? Se borrarán todas las victorias.')) return;
