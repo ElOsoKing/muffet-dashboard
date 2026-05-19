@@ -1447,7 +1447,7 @@ function renderMain() {
         </div>
         <div class="form-group" style="margin-top:12px;">
           <label class="form-label">Mensaje personalizado <span style="color:var(--text-muted);font-size:11px;">(opcional)</span></label>
-          <textarea class="form-input" id="priminMsg" style="min-height:70px;" placeholder="Ej: ¡@{user} llegó primero! 🥇 Lleva {wins} vez{wins>1?'es':''} siendo el primero.">${(s.primerin_config||{}).message||''}</textarea>
+          <textarea class="form-input" id="priminMsg" style="min-height:70px;" placeholder="Ej: ¡@{user} llegó primero! 🥇 Lleva {wins} veces siendo el primero.">${(s.primerin_config||{}).message||''}</textarea>
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Variables: <code style="color:var(--purple-light);">{user}</code> nombre del ganador, <code style="color:var(--purple-light);">{wins}</code> número de victorias. Si lo dejas vacío Muffet improvisa con IA.</div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px;">
@@ -1915,7 +1915,8 @@ function renderMain() {
             <label class="form-label">✏️ Nombre público</label>
             <input class="form-input" id="publicName" value="${s.public_name||userData.display_name||userData.username}" placeholder="Ej: ElOsoKing1">
             <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Así aparecerá tu nombre en tu página pública</div>
-          </div>['youtube','📺','YouTube','https://youtube.com/@tucanal'],['tiktok','🎵','TikTok','https://tiktok.com/@tucanal'],['twitter','🐦','Twitter/X','https://twitter.com/tucanal'],['instagram','📸','Instagram','https://instagram.com/tucanal'],['discord','💬','Discord','https://discord.gg/tuservidor']].map(([key,icon,label,placeholder])=>`
+          </div>
+          ${[['twitch','🎮','Twitch','https://twitch.tv/tucanal'],['youtube','📺','YouTube','https://youtube.com/@tucanal'],['tiktok','🎵','TikTok','https://tiktok.com/@tucanal'],['twitter','🐦','Twitter/X','https://twitter.com/tucanal'],['instagram','📸','Instagram','https://instagram.com/tucanal'],['discord','💬','Discord','https://discord.gg/tuservidor']].map(([key,icon,label,placeholder])=>`
           <div class="form-group">
             <label class="form-label">${icon} ${label}</label>
             <input class="form-input" id="social_${key}" value="${((s.social_links||{})[key]||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}">
