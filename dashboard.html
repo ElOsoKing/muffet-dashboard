@@ -304,7 +304,6 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     <div class="nav-group">
       <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
       <div class="nav-item" onclick="showSection('counters')"><span class="nav-icon">🔢</span> Contadores</div>
-      <div class="nav-item" onclick="showSection('syscommands')"><span class="nav-icon">🔧</span> Comandos del sistema</div>
       <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
       <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
     </div>
@@ -701,7 +700,8 @@ function renderMain() {
       <div class="page-subtitle">Gestiona los comandos del chat</div>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:16px;">
-      <button class="btn" onclick="showSection('variables')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">📋 Ver variables disponibles →</button>
+      <button class="btn" onclick="showSection('syscommands')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">🔧 Comandos del sistema →</button>
+      <button class="btn" onclick="showSection('variables')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">📋 Ver variables →</button>
     </div>
     <div class="panel">
       <div class="panel-header">
@@ -928,6 +928,9 @@ function renderMain() {
     <div class="page-header">
       <div class="page-title">🔧 Comandos del sistema</div>
       <div class="page-subtitle">Activa o desactiva los comandos integrados del bot</div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <button class="btn" onclick="showSection('commands')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">← Volver a Comandos</button>
     </div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;" id="syscmdsGrid">
       ${(()=>{
