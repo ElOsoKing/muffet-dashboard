@@ -172,7 +172,7 @@ async function loadCanal() {
           onerror="this.style.display='none'"
           id="channelAvatar">
         <div class="channel-info">
-          <div class="channel-name">${data.username}</div>
+          <div class="channel-name">${data.public_name || data.username}</div>
           <div class="channel-badge">🕷️ MuffetBot activo</div>
           <a href="https://twitch.tv/${data.username}" target="_blank" class="channel-twitch">
             🎮 twitch.tv/${data.username}
