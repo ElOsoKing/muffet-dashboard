@@ -1445,6 +1445,11 @@ function renderMain() {
           </div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Ej: !primero, !first, !aqui — solo letras y números</div>
         </div>
+        <div class="form-group" style="margin-top:12px;">
+          <label class="form-label">Mensaje personalizado <span style="color:var(--text-muted);font-size:11px;">(opcional)</span></label>
+          <textarea class="form-input" id="priminMsg" style="min-height:70px;" placeholder="Ej: ¡@{user} llegó primero! 🥇 Lleva {wins} vez{wins>1?'es':''} siendo el primero.">${(s.primerin_config||{}).message||''}</textarea>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Variables: <code style="color:var(--purple-light);">{user}</code> nombre del ganador, <code style="color:var(--purple-light);">{wins}</code> número de victorias. Si lo dejas vacío Muffet improvisa con IA.</div>
+        </div>
         <div style="display:flex;gap:8px;margin-top:12px;">
           <button class="btn btn-primary" onclick="savePrimerinConfig()">Guardar</button>
           <button class="btn" onclick="resetPrimerinRanking()" style="background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.3);color:var(--pink);">🗑️ Reiniciar ranking</button>
@@ -1906,7 +1911,11 @@ function renderMain() {
       <div class="panel">
         <div class="panel-header"><span class="panel-title-text">Tus links</span></div>
         <div class="panel-body">
-          ${[['twitch','🎮','Twitch','https://twitch.tv/tucanal'],['youtube','📺','YouTube','https://youtube.com/@tucanal'],['tiktok','🎵','TikTok','https://tiktok.com/@tucanal'],['twitter','🐦','Twitter/X','https://twitter.com/tucanal'],['instagram','📸','Instagram','https://instagram.com/tucanal'],['discord','💬','Discord','https://discord.gg/tuservidor']].map(([key,icon,label,placeholder])=>`
+          <div class="form-group">
+            <label class="form-label">✏️ Nombre público</label>
+            <input class="form-input" id="publicName" value="${s.public_name||userData.display_name||userData.username}" placeholder="Ej: ElOsoKing1">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Así aparecerá tu nombre en tu página pública</div>
+          </div>['youtube','📺','YouTube','https://youtube.com/@tucanal'],['tiktok','🎵','TikTok','https://tiktok.com/@tucanal'],['twitter','🐦','Twitter/X','https://twitter.com/tucanal'],['instagram','📸','Instagram','https://instagram.com/tucanal'],['discord','💬','Discord','https://discord.gg/tuservidor']].map(([key,icon,label,placeholder])=>`
           <div class="form-group">
             <label class="form-label">${icon} ${label}</label>
             <input class="form-input" id="social_${key}" value="${((s.social_links||{})[key]||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}">
@@ -2330,8 +2339,9 @@ async function saveSocials(){
   const youtube_channel_id=document.getElementById('youtube_channel_id')?.value.trim()||null;
   const accent_color=document.getElementById('pageAccentColor')?.value||'#9147ff';
   social_links.accent_color=accent_color;
-  const res=await fetch('/api/socials',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({social_links,youtube_channel_id})});
-  if(res.ok){streamerData.social_links=social_links;streamerData.youtube_channel_id=youtube_channel_id;showToast('Redes guardadas ✓');}
+  const public_name=document.getElementById('publicName')?.value.trim()||null;
+  const res=await fetch('/api/socials',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({social_links,youtube_channel_id,public_name})});
+  if(res.ok){streamerData.social_links=social_links;streamerData.youtube_channel_id=youtube_channel_id;streamerData.public_name=public_name;showToast('Guardado ✓');}
   else showToast('Error al guardar','error');
 }
 
@@ -2631,7 +2641,8 @@ async function savePrimerinConfig(inputId) {
   const id = inputId || 'priminCmd';
   const command = document.getElementById(id)?.value.trim().replace('!','').toLowerCase();
   if (!command) { showToast('Escribe un nombre de comando','error'); return; }
-  const config = { ...(streamerData.primerin_config || {}), command };
+  const message = document.getElementById('priminMsg')?.value.trim() || '';
+  const config = { ...(streamerData.primerin_config || {}), command, message };
   const res = await fetch('/api/primerin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ primerin_config: config }) });
   if(res.ok) { streamerData.primerin_config = config; showToast('Guardado ✓'); }
   else showToast('Error','error');
