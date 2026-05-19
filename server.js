@@ -192,7 +192,7 @@ app.get('/canal/:username', async (req, res) => {
 app.get('/api/canal/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
-    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,public_name,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
     const streamer = data?.[0];
@@ -217,6 +217,7 @@ app.get('/api/canal/:username', async (req, res) => {
 
     res.json({
       username: streamer.twitch_username,
+      public_name: streamer.public_name || null,
       commands: publicCmds,
       social_links: streamer.social_links || {},
       youtube_channel_id: streamer.youtube_channel_id || null,
@@ -835,14 +836,14 @@ app.post('/api/raffle/remove', requireAuth, async (req, res) => {
 });
 app.post('/api/socials', requireAuth, async (req, res) => {
   try {
-    const { social_links, youtube_channel_id } = req.body;
+    const { social_links, youtube_channel_id, public_name } = req.body;
     if (!isValidObject(social_links)) return res.status(400).json({ error: 'Links inválidos' });
     const update = { social_links };
     if (youtube_channel_id !== undefined) update.youtube_channel_id = youtube_channel_id || null;
+    if (public_name !== undefined) update.public_name = public_name || null;
     await sbUpdate('streamers', update, { twitch_id: req.session.user.id });
     res.json({ success: true });
   } catch (err) {
-    console.error('POST /api/socials:', err.message);
     res.status(500).json({ error: 'Error al guardar' });
   }
 });
