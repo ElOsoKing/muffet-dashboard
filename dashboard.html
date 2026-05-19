@@ -1243,6 +1243,104 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- Comandos de IA -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🤖 Comandos de IA</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${[
+            ['!ask ¿quién eres?',   'Muffet responde con su personalidad',                    'Todos',  '30s cooldown'],
+            ['!chiste',             'Muffet cuenta un chiste',                                 'Todos',  '30s cooldown'],
+            ['!chiste programadores','Chiste sobre un tema específico',                        'Todos',  '30s cooldown'],
+            ['!8ball ¿ganaré hoy?', 'La bola mágica responde tu pregunta',                    'Todos',  ''],
+          ].map(([cmd, desc, who, note]) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <div style="min-width:220px;"><code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;">${cmd}</code></div>
+              <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+                ${permBadge(who)}
+                ${note?`<span style="font-size:10px;color:var(--text-muted);">${note}</span>`:''}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Comandos de puntos y apuestas -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🏆 Puntos, apuestas y canjes</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${[
+            ['!puntos',          'Ver tus puntos y nivel actual',                             'Todos', ''],
+            ['!puntos @usuario', 'Ver los puntos de otro viewer',                             'Todos', ''],
+            ['!top',             'Top 5 viewers con más puntos',                              'Todos', ''],
+            ['!dar 100 @usuario','Dar 100 puntos a un viewer',                                'Mods',  ''],
+            ['!apostar 50',      'Apostar 50 puntos — 50% ganar, 50% perder',                 'Todos', 'Límite configurable'],
+            ['!canjear',         'Ver la lista de premios disponibles',                       'Todos', ''],
+            ['!canjear Suscripción','Solicitar canjear el premio "Suscripción"',              'Todos', ''],
+          ].map(([cmd, desc, who, note]) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <div style="min-width:220px;"><code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;">${cmd}</code></div>
+              <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+                ${permBadge(who)}
+                ${note?`<span style="font-size:10px;color:var(--text-muted);">${note}</span>`:''}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Comandos de control del bot -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Control del bot</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${[
+            ['!muffeton',          'Activa el bot',                                           'Mods', ''],
+            ['!muffetoff',         'Desactiva el bot',                                        'Mods', ''],
+            ['!muffetstatus',      'Ver si el bot está activo o en silencio',                 'Todos', ''],
+            ['!muffetsilencio',    'Modo silencio — solo responde comandos y menciones',       'Mods', 'Para streams compartidos'],
+            ['!muffethabla',       'Desactiva el modo silencio',                              'Mods', ''],
+            ['!uptime',            'Ver cuánto tiempo llevan en vivo',                        'Todos', ''],
+          ].map(([cmd, desc, who, note]) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <div style="min-width:220px;"><code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;">${cmd}</code></div>
+              <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+                ${permBadge(who)}
+                ${note?`<span style="font-size:10px;color:var(--text-muted);">${note}</span>`:''}
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Primerin -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🥇 Primerin</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${[
+            ['!primerin',    'El primero en usarlo cada stream gana un punto en el ranking',   'Todos', 'Una vez por día'],
+            ['!toprimerin',  'Ver el top 5 del ranking de primerines',                         'Todos', ''],
+          ].map(([cmd, desc, who, note]) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <div style="min-width:220px;"><code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;">${cmd}</code></div>
+              <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;">
+                ${permBadge(who)}
+                ${note?`<span style="font-size:10px;color:var(--text-muted);">${note}</span>`:''}
+              </div>
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-dim);">
+          💡 El nombre del comando es editable desde <strong style="color:var(--text);">🥇 Primerin</strong> en el sidebar — puedes cambiarlo a !primero, !first, etc.
+        </div>
+      </div>
+    </div>
+
     <!-- Cómo usar -->
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">💡 Cómo usar las variables</span></div>
