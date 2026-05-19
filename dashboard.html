@@ -1899,7 +1899,7 @@ function renderMain() {
   </div>
 
   <!-- HORARIO -->
-  <!-- PERFIL PÚBLICO (tabs que muestran socials o schedule) -->
+  <!-- PERFIL PÚBLICO -->
   <div id="sec-profile" class="section">
     <div class="page-header">
       <div class="page-title">🌐 Perfil público</div>
@@ -1909,10 +1909,10 @@ function renderMain() {
       <button id="profileTab-socials" onclick="switchProfileTab('socials')" style="padding:7px 16px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--purple);color:white;transition:all 0.15s;">🌐 Redes sociales</button>
       <button id="profileTab-schedule" onclick="switchProfileTab('schedule')" style="padding:7px 16px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:transparent;color:var(--text-dim);transition:all 0.15s;">📅 Horario</button>
     </div>
-    <div id="profileContent"></div>
-  </div>
-
-  <!-- REDES SOCIALES (oculta, usada por sec-profile) -->
+    <div id="profileContent-socials">
+      <!-- Las redes sociales se cargan aquí desde sec-socials -->
+    </div>
+    <div id="profileContent-schedule" style="display:none;">
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">Días y horas</span></div>
       <div class="panel-body">
@@ -1961,6 +1961,7 @@ function renderMain() {
         </div>
         <button class="btn btn-primary" onclick="saveSchedule()">Guardar horario</button>
       </div>
+    </div>
     </div>
   </div>
 
@@ -2429,16 +2430,25 @@ async function deleteKeyword(kw) {
 }
 
 function switchProfileTab(tab) {
-  const content = document.getElementById('profileContent');
   const tabSocials = document.getElementById('profileTab-socials');
   const tabSchedule = document.getElementById('profileTab-schedule');
+  const divSocials = document.getElementById('profileContent-socials');
+  const divSchedule = document.getElementById('profileContent-schedule');
+  if (!divSocials || !divSchedule) return;
 
   if (tab === 'socials') {
-    content.innerHTML = document.getElementById('sec-socials').innerHTML;
+    // Cargar contenido de redes desde sec-socials
+    const srcSocials = document.getElementById('sec-socials');
+    if (srcSocials && !divSocials.hasChildNodes()) {
+      divSocials.innerHTML = srcSocials.innerHTML;
+    }
+    divSocials.style.display = 'block';
+    divSchedule.style.display = 'none';
     tabSocials.style.background = 'var(--purple)'; tabSocials.style.color = 'white';
     tabSchedule.style.background = 'transparent'; tabSchedule.style.color = 'var(--text-dim)';
   } else {
-    content.innerHTML = document.getElementById('sec-schedule').innerHTML;
+    divSocials.style.display = 'none';
+    divSchedule.style.display = 'block';
     tabSchedule.style.background = 'var(--purple)'; tabSchedule.style.color = 'white';
     tabSocials.style.background = 'transparent'; tabSocials.style.color = 'var(--text-dim)';
   }
