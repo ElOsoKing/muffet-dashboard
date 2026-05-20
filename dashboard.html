@@ -1016,6 +1016,7 @@ function renderMain() {
         ${[
           ['{user}', 'Nombre del usuario que escribió el comando', '!saludo', 'Hola {user}, bienvenido al reino! 🐻'],
           ['{touser}', 'Usuario mencionado en el comando (ej: !so @alguien)', '!so @lordlonelywolf', '¡Amor para lordlonelywolf! 🕷️'],
+          ['{randomuser}', 'Elige un viewer aleatorio del chat', '!mordida', '{user} mordió a {randomuser} 😈'],
         ].map(([variable, desc, ejemplo, resultado]) => `
           <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div>
@@ -1045,6 +1046,7 @@ function renderMain() {
           ['{random}', 'Número aleatorio entre 1 y 100', '!amor', '💕 Te amo un {random}%', '💕 Te amo un 73%'],
           ['{random:50}', 'Número aleatorio entre 1 y 50', '!dado', 'Sacaste {random:50}', 'Sacaste 23'],
           ['{random:1-6}', 'Número aleatorio entre 1 y 6', '!dado6', '🎲 Dado: {random:1-6}', '🎲 Dado: 4'],
+          ['{randomlist[op1;op2;op3]}', 'Elige una opción aleatoria de la lista', '!bebida', '{user} toma un {randomlist[Agua;Té;Café;Jugo]}', '{user} toma un Café'],
         ].map(([variable, desc, ejemplo, comando, resultado]) => `
           <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div>
