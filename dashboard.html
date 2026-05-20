@@ -1016,7 +1016,6 @@ function renderMain() {
         ${[
           ['{user}', 'Nombre del usuario que escribió el comando', '!saludo', 'Hola {user}, bienvenido al reino! 🐻'],
           ['{touser}', 'Usuario mencionado en el comando (ej: !so @alguien)', '!so @lordlonelywolf', '¡Amor para lordlonelywolf! 🕷️'],
-          ['{randomuser}', 'Elige un viewer aleatorio del chat', '!mordida', '{user} mordió a {randomuser} 😈'],
         ].map(([variable, desc, ejemplo, resultado]) => `
           <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div>
@@ -1046,8 +1045,48 @@ function renderMain() {
           ['{random}', 'Número aleatorio entre 1 y 100', '!amor', '💕 Te amo un {random}%', '💕 Te amo un 73%'],
           ['{random:50}', 'Número aleatorio entre 1 y 50', '!dado', 'Sacaste {random:50}', 'Sacaste 23'],
           ['{random:1-6}', 'Número aleatorio entre 1 y 6', '!dado6', '🎲 Dado: {random:1-6}', '🎲 Dado: 4'],
-          ['{randomlist[op1;op2;op3]}', 'Elige una opción aleatoria de la lista', '!bebida', '{user} toma un {randomlist[Agua;Té;Café;Jugo]}', '{user} toma un Café'],
         ].map(([variable, desc, ejemplo, comando, resultado]) => `
+          <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div>
+              <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">${variable}</code>
+            </div>
+            <div>
+              <div style="font-size:13px;color:var(--text);margin-bottom:4px;">${desc}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
+              <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">${ejemplo} → "${resultado}"</code>
+            </div>
+          </div>`).join('')}
+
+        <!-- randomlist separado por ser más largo -->
+        <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          <div style="overflow:hidden;">
+            <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 6px;font-size:11px;color:var(--purple-light);font-family:monospace;word-break:break-all;">{randomlist[op1;op2;op3]}</code>
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--text);margin-bottom:4px;">Elige una opción aleatoria de la lista separada por ;</div>
+            <div style="font-size:11px;color:var(--text-muted);">Separa las opciones con ; y ponlas entre [ ]</div>
+          </div>
+          <div class="var-example">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
+            <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">!bebida → {user} toma {randomlist[Agua;Café;Té;Jugo]}</code>
+          </div>
+        </div>
+
+        <!-- randomuser separado -->
+        <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;">
+          <div>
+            <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">{randomuser}</code>
+          </div>
+          <div>
+            <div style="font-size:13px;color:var(--text);margin-bottom:4px;">Elige un viewer aleatorio del chat</div>
+          </div>
+          <div class="var-example">
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
+            <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">!mordida → {user} mordió a {randomuser} 😈</code>
+          </div>
+        </div>
           <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <div>
               <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">${variable}</code>
