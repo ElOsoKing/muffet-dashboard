@@ -1062,19 +1062,19 @@ function renderMain() {
         <!-- randomlist separado por ser más largo -->
         <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
           <div style="overflow:hidden;">
-            <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 6px;font-size:11px;color:var(--purple-light);font-family:monospace;word-break:break-all;">{randomlist[op1;op2;op3]}</code>
+            <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 6px;font-size:11px;color:var(--purple-light);font-family:monospace;word-break:break-all;">{randomlist&#91;op1;op2;op3&#93;}</code>
           </div>
           <div>
             <div style="font-size:13px;color:var(--text);margin-bottom:4px;">Elige una opción aleatoria de la lista separada por ;</div>
-            <div style="font-size:11px;color:var(--text-muted);">Separa las opciones con ; y ponlas entre [ ]</div>
+            <div style="font-size:11px;color:var(--text-muted);">Separa las opciones con ; y ponlas entre &#91; &#93;</div>
           </div>
-          <div class="var-example">
+          <div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
-            <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">!bebida → {user} toma {randomlist[Agua;Café;Té;Jugo]}</code>
+            <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">!bebida → &#123;user&#125; toma &#123;randomlist&#91;Agua;Café;Té&#93;&#125;</code>
           </div>
         </div>
 
-        <!-- randomuser separado -->
+        <!-- randomuser -->
         <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;">
           <div>
             <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">{randomuser}</code>
@@ -1082,9 +1082,9 @@ function renderMain() {
           <div>
             <div style="font-size:13px;color:var(--text);margin-bottom:4px;">Elige un viewer aleatorio del chat</div>
           </div>
-          <div class="var-example">
+          <div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
-            <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">!mordida → {user} mordió a {randomuser} 😈</code>
+            <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">!mordida → &#123;user&#125; mordió a &#123;randomuser&#125; 😈</code>
           </div>
         </div>
           <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
