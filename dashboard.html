@@ -1909,16 +1909,16 @@ function renderMain() {
       <div class="panel-body">
         <div style="display:flex;flex-direction:column;gap:8px;">
           ${[
-            ['!sorteo crear [premio]', 'Inicia un nuevo sorteo con el premio indicado', 'mod'],
-            ['!entrar', 'Los viewers escriben esto para participar (configurable arriba)', 'todos'],
-            ['!sorteo info', 'Muestra cuántos participantes hay en el sorteo activo', 'todos'],
-            ['!sorteo end', 'Elige un ganador al azar y anuncia en el chat', 'mod'],
-            ['!sorteo cancel', 'Cancela el sorteo sin elegir ganador', 'mod'],
+            ['!sorteo crear [premio]', 'Inicia un nuevo sorteo con el premio indicado', 'Mods'],
+            ['!entrar', 'Los viewers escriben esto para participar (configurable arriba)', 'Todos'],
+            ['!sorteo info', 'Muestra cuántos participantes hay en el sorteo activo', 'Todos'],
+            ['!sorteo end', 'Elige un ganador al azar y anuncia en el chat', 'Mods'],
+            ['!sorteo cancel', 'Cancela el sorteo sin elegir ganador', 'Mods'],
           ].map(([cmd, desc, who]) => `
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
               <code style="font-size:13px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:200px;">${cmd}</code>
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
-              ${permBadge(who==='mod'?'Mods':'Todos')}
+              ${permBadge(who)}
             </div>`).join('')}
         </div>
       </div>
