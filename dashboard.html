@@ -1087,18 +1087,6 @@ function renderMain() {
             <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">!mordida → &#123;user&#125; mordió a &#123;randomuser&#125; 😈</code>
           </div>
         </div>
-          <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-            <div>
-              <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:13px;color:var(--purple-light);font-family:monospace;">${variable}</code>
-            </div>
-            <div>
-              <div style="font-size:13px;color:var(--text);margin-bottom:4px;">${desc}</div>
-            </div>
-            <div>
-              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
-              <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">${ejemplo} → "${resultado}"</code>
-            </div>
-          </div>`).join('')}
       </div>
     </div>
 
@@ -1530,7 +1518,7 @@ function renderMain() {
             <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${i===0?'rgba(240,192,96,0.06)':'var(--bg3)'};border:1px solid ${i===0?'rgba(240,192,96,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius-sm);margin-bottom:6px;">
               <div style="font-size:${i<3?'18px':'12px'};width:24px;text-align:center;${i>=3?'color:var(--text-muted);font-weight:700;':''}">${i<3?medals[i]:i+1}</div>
               <div style="font-size:13px;font-weight:500;color:var(--text);flex:1;">@${user}</div>
-              <div style="font-size:12px;font-weight:600;color:var(--yellow);">${wins} vez${wins>1?'es':''}</div>
+              <div style="font-size:12px;font-weight:600;color:var(--yellow);">${wins}x</div>
               <div style="width:80px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
                 <div style="height:100%;width:${Math.round((wins/max)*100)}%;background:var(--yellow);border-radius:2px;"></div>
               </div>
