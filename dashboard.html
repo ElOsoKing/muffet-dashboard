@@ -1300,44 +1300,6 @@ function renderMain() {
     </div>
   </div>
 
-  <!-- STATS -->
-  <div id="sec-stats" class="section">
-    <div class="page-header"><div class="page-title">Estadísticas</div><div class="page-subtitle">Uso de comandos en tu canal</div></div>
-    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-label">Comandos usados</span><span class="stat-icon">⚡</span></div>
-        <div class="stat-value">${Object.keys(s.command_stats||{}).length}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-label">Total de usos</span><span class="stat-icon">🔢</span></div>
-        <div class="stat-value">${Object.values(s.command_stats||{}).reduce((a,b)=>a+b,0)}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-top"><span class="stat-label">Más popular</span><span class="stat-icon">🏆</span></div>
-        <div class="stat-value" style="font-size:18px">${Object.entries(s.command_stats||{}).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—'}</div>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">Comandos más usados</span></div>
-      <div class="panel-body">
-        ${(()=>{
-          const stats=s.command_stats||{};
-          const sorted=Object.entries(stats).sort((a,b)=>b[1]-a[1]);
-          if(!sorted.length) return '<div style="color:var(--text-dim);font-size:13px;text-align:center;padding:20px">Aún no hay estadísticas — usa comandos en el chat 🕷️</div>';
-          const max=sorted[0][1];
-          return sorted.map(([cmd,count])=>`
-            <div class="stat-bar-item">
-              <div class="stat-bar-header">
-                <span class="stat-bar-cmd">${cmd}</span>
-                <span class="stat-bar-count">${count} usos</span>
-              </div>
-              <div class="stat-bar-track"><div class="stat-bar-fill" style="width:${Math.round((count/max)*100)}%"></div></div>
-            </div>`).join('');
-        })()}
-      </div>
-    </div>
-  </div>
-
   <!-- ESTADÍSTICAS -->
   <div id="sec-stats" class="section">
     <div class="page-header">
