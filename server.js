@@ -269,7 +269,7 @@ app.get('/admin', requireAdmin, (req, res) => {
 // API admin — obtener todos los streamers
 app.get('/api/admin/streamers', requireAdmin, async (req, res) => {
   try {
-    const url = `${SUPABASE_URL}/rest/v1/streamers?select=id,twitch_username,twitch_id,role,approved,plan,created_at,ai_enabled,mod_enabled&order=created_at.desc`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?select=id,twitch_username,twitch_id,role,approved,plan,created_at,ai_enabled,mod_enabled,custom_bot_username,commands,auto_messages,viewer_points,command_stats&order=created_at.desc`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
     res.json(data);
