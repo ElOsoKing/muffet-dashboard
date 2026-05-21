@@ -388,6 +388,9 @@ function showSection(name) {
   if(sec) sec.classList.add('active');
   if(name === 'stats') loadStats();
   if(name === 'profile') setTimeout(() => switchProfileTab('socials'), 100);
+  if(name === 'primerin') renderPrimerinRanking();
+  if(name === 'counters') renderCountersList();
+  if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
   if(name === 'spotify') { loadSpotifyStatus(); startSpotifyPolling(); }
@@ -1508,22 +1511,9 @@ function renderMain() {
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🏆 Ranking histórico</span></div>
       <div class="panel-body">
-        ${(()=>{
-          const pc = s.primerin_config || {};
-          const ranking = Object.entries(pc.ranking || {}).sort(([,a],[,b]) => b-a);
-          if (!ranking.length) return `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Nadie ha ganado aún. Activa el comando y que el chat compita 🥇</div>`;
-          const medals = ['🥇','🥈','🥉'];
-          const max = ranking[0][1];
-          return ranking.map(([user, wins], i) => `
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${i===0?'rgba(240,192,96,0.06)':'var(--bg3)'};border:1px solid ${i===0?'rgba(240,192,96,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius-sm);margin-bottom:6px;">
-              <div style="font-size:${i<3?'18px':'12px'};width:24px;text-align:center;${i>=3?'color:var(--text-muted);font-weight:700;':''}">${i<3?medals[i]:i+1}</div>
-              <div style="font-size:13px;font-weight:500;color:var(--text);flex:1;">@${user}</div>
-              <div style="font-size:12px;font-weight:600;color:var(--yellow);">${wins}x</div>
-              <div style="width:80px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
-                <div style="height:100%;width:${Math.round((wins/max)*100)}%;background:var(--yellow);border-radius:2px;"></div>
-              </div>
-            </div>`).join('');
-        })()}
+        <div id="primerinRanking">
+          <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Cargando...</div>
+        </div>
       </div>
     </div>
   </div>
@@ -2666,7 +2656,87 @@ async function saveLiveAnnouncement() {
   else showToast('Error','error');
 }
 
-// ── PRIMERIN ──
+// ── RELOAD SECTIONS ──
+function renderCountersList() {
+  const el = document.getElementById('countersList');
+  if (!el) return;
+  const counters = streamerData.counters || {};
+  const entries = Object.entries(counters);
+  if (!entries.length) {
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">No hay contadores. Agrega uno con el botón de arriba.</div>`;
+    return;
+  }
+  el.innerHTML = entries.map(([name, val]) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);">
+      <code style="font-size:14px;font-weight:600;color:var(--purple-light);">!${name}</code>
+      <div style="flex:1;font-size:12px;color:var(--text-dim);">Valor actual:</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="adjustCounter('${name}', -1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">−</button>
+        <span style="font-size:18px;font-weight:700;color:var(--text);min-width:36px;text-align:center;" id="counterVal_${name}">${val}</span>
+        <button onclick="adjustCounter('${name}', 1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
+      </div>
+      <button onclick="resetCounter('${name}')" style="font-size:11px;padding:4px 8px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;">Reset</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCounter('${name}')">✕</button>
+    </div>`).join('');
+}
+
+function renderRewardsList() {
+  const el = document.getElementById('rewardsList');
+  if (!el) return;
+  const rewards = streamerData.points_config?.rewards || [];
+  const emoji = streamerData.points_config?.emoji || '🏆';
+  if (!rewards.length) {
+    el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">No hay premios aún. Agrega uno arriba.</div>`;
+    return;
+  }
+  el.innerHTML = rewards.map((r, i) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);">
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);">${r.name}</div>
+        <div style="font-size:11px;color:var(--yellow);">${r.cost} ${emoji}</div>
+      </div>
+      <button onclick="removeReward(${i})" class="btn btn-danger btn-sm">✕</button>
+    </div>`).join('');
+}
+
+function renderLevelsList() {
+  const el = document.getElementById('levelsList');
+  if (!el) return;
+  const levels = streamerData.points_config?.levels || [];
+  const emoji = streamerData.points_config?.emoji || '🏆';
+  el.innerHTML = levels.map((l, i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);">
+      <div style="font-size:18px;width:28px;text-align:center;">${emoji}</div>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:500;">${l.name}</div>
+        <div style="font-size:11px;color:var(--text-muted);">Nivel ${l.level} — desde ${l.xp} XP</div>
+      </div>
+      ${i > 0 ? `<button onclick="removeLevel(${i})" class="btn btn-danger btn-sm">✕</button>` : ''}
+    </div>`).join('');
+}
+
+function renderPrimerinRanking() {
+  const el = document.getElementById('primerinRanking');
+  if (!el) return;
+  const ranking = Object.entries(streamerData.primerin_config?.ranking || {}).sort(([,a],[,b]) => b-a);
+  const medals = ['🥇','🥈','🥉'];
+  if (!ranking.length) {
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Nadie ha ganado aún 🥇</div>`;
+    return;
+  }
+  const max = ranking[0][1];
+  el.innerHTML = ranking.map(([user, wins], i) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${i===0?'rgba(240,192,96,0.06)':'var(--bg3)'};border:1px solid ${i===0?'rgba(240,192,96,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius-sm);margin-bottom:6px;">
+      <div style="font-size:${i<3?'18px':'12px'};width:24px;text-align:center;${i>=3?'color:var(--text-muted);font-weight:700;':''}">${i<3?medals[i]:i+1}</div>
+      <div style="font-size:13px;font-weight:500;color:var(--text);flex:1;">@${user}</div>
+      <div style="font-size:12px;font-weight:600;color:var(--yellow);">${wins} vez${wins>1?'es':''}</div>
+      <div style="width:80px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
+        <div style="height:100%;width:${Math.round((wins/max)*100)}%;background:var(--yellow);border-radius:2px;"></div>
+      </div>
+    </div>`).join('');
+}
+
+// ── FIN RELOAD SECTIONS ──
 async function savePrimerinConfig(inputId) {
   const id = inputId || 'priminCmd';
   const command = document.getElementById(id)?.value.trim().replace('!','').toLowerCase();
@@ -2674,7 +2744,7 @@ async function savePrimerinConfig(inputId) {
   const message = document.getElementById('priminMsg')?.value.trim() || '';
   const config = { ...(streamerData.primerin_config || {}), command, message };
   const res = await fetch('/api/primerin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ primerin_config: config }) });
-  if(res.ok) { streamerData.primerin_config = config; showToast('Guardado ✓'); }
+  if(res.ok) { streamerData.primerin_config = config; renderPrimerinRanking(); showToast('Guardado ✓'); }
   else showToast('Error','error');
 }
 
@@ -2684,7 +2754,7 @@ async function resetPrimerinRanking() {
   if (!confirm('¿Reiniciar el ranking? Se borrarán todas las victorias.')) return;
   const config = { ...(streamerData.primerin_config || {}), ranking: {}, used_today: {} };
   const res = await fetch('/api/primerin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ primerin_config: config }) });
-  if(res.ok) { streamerData.primerin_config = config; showToast('Ranking reiniciado ✓'); showSection('primerin'); }
+  if(res.ok) { streamerData.primerin_config = config; renderPrimerinRanking(); showToast('Ranking reiniciado ✓'); }
   else showToast('Error','error');
 }
 
@@ -2694,7 +2764,7 @@ async function addCounter() {
   if (!name || !/^[a-z0-9_]+$/.test(name)) { if(name) showToast('Solo letras, números y guion bajo','error'); return; }
   const counters = { ...(streamerData.counters || {}), [name]: 0 };
   const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
-  if(res.ok) { streamerData.counters = counters; showToast(`Contador !${name} creado ✓`); showSection('counters'); }
+  if(res.ok) { streamerData.counters = counters; renderCountersList(); showToast(`Contador !${name} creado ✓`); }
   else showToast('Error al crear','error');
 }
 
@@ -2721,7 +2791,7 @@ async function deleteCounter(name) {
   const counters = { ...(streamerData.counters || {}) };
   delete counters[name];
   const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
-  if(res.ok) { streamerData.counters = counters; showToast(`!${name} eliminado ✓`); showSection('counters'); }
+  if(res.ok) { streamerData.counters = counters; renderCountersList(); showToast(`!${name} eliminado ✓`); }
 }
 
 // ── ESTADÍSTICAS ──
@@ -2826,7 +2896,7 @@ async function saveRewards() {
   const max_bet = parseInt(document.getElementById('maxBet')?.value) || 500;
   const points_config = { ...config, max_bet };
   const res = await fetch('/api/points-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ points_config }) });
-  if(res.ok) { streamerData.points_config = points_config; showToast('Guardado ✓'); showSection('points'); }
+  if(res.ok) { streamerData.points_config = points_config; renderRewardsList(); showToast('Guardado ✓'); }
   else showToast('Error','error');
 }
 
@@ -2889,7 +2959,7 @@ async function savePointsConfig() {
   const levels = getLevels();
   const points_config = { enabled, name, emoji, xp_per_message, xp_bonus, levels };
   const res = await fetch('/api/points-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ points_config }) });
-  if(res.ok) { streamerData.points_config = points_config; showToast('Configuración guardada ✓'); }
+  if(res.ok) { streamerData.points_config = points_config; renderLevelsList(); showToast('Configuración guardada ✓'); }
   else showToast('Error al guardar','error');
 }
 
@@ -2929,7 +2999,7 @@ async function saveLevels() {
   const levels = getLevels();
   const config = { ...(streamerData.points_config || {}), levels };
   const res = await fetch('/api/points-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ points_config: config }) });
-  if(res.ok) { streamerData.points_config = config; showToast('Niveles guardados ✓'); }
+  if(res.ok) { streamerData.points_config = config; renderLevelsList(); showToast('Niveles guardados ✓'); }
   else showToast('Error al guardar','error');
 }
 
