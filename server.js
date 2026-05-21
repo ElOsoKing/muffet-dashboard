@@ -552,6 +552,18 @@ app.post('/api/live-announcement', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/points-clean-broadcaster', requireAuth, async (req, res) => {
+  try {
+    const username = req.session.user.login.toLowerCase();
+    const result = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${req.session.user.id}&select=viewer_points`, { headers: sbHeaders });
+    const data = await result.json();
+    const viewer_points = data?.[0]?.viewer_points || {};
+    delete viewer_points[username];
+    await sbUpdate('streamers', { viewer_points }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/primerin', requireAuth, async (req, res) => {
   try {
     const { primerin_config } = req.body;
