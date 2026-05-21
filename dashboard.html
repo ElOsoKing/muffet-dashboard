@@ -1344,6 +1344,9 @@ function renderMain() {
       <div class="page-title">📊 Estadísticas</div>
       <div class="page-subtitle">Resumen de actividad de tu canal</div>
     </div>
+    <div style="margin-bottom:16px;">
+      <button class="btn" onclick="cleanBroadcasterFromRanking()" style="background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.25);color:var(--pink);font-size:12px;padding:7px 14px;">🧹 Quitarme del ranking de puntos</button>
+    </div>
 
     <!-- Tarjetas rápidas -->
     <div class="stats-grid" style="margin-bottom:16px;">
@@ -2792,6 +2795,17 @@ async function deleteCounter(name) {
   delete counters[name];
   const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
   if(res.ok) { streamerData.counters = counters; renderCountersList(); showToast(`!${name} eliminado ✓`); }
+}
+
+async function cleanBroadcasterFromRanking() {
+  if (!confirm('¿Quitarte del ranking de puntos? Esto elimina tus puntos acumulados como streamer.')) return;
+  const res = await fetch('/api/points-clean-broadcaster', { method: 'POST' });
+  if (res.ok) {
+    const username = userData.username?.toLowerCase();
+    if (streamerData.viewer_points && username) delete streamerData.viewer_points[username];
+    showToast('¡Listo! Ya no apareces en el ranking 🧹');
+    loadStats();
+  } else showToast('Error','error');
 }
 
 // ── ESTADÍSTICAS ──
