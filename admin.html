@@ -167,24 +167,39 @@ td{padding:12px 16px;font-size:13px;vertical-align:middle;}
     <div class="stat-card">
       <div class="stat-top"><span class="stat-label">Total</span><span class="stat-icon">👥</span></div>
       <div class="stat-value" id="totalCount">—</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">registrados</div>
     </div>
     <div class="stat-card">
       <div class="stat-top"><span class="stat-label">Activos</span><span class="stat-icon">✅</span></div>
       <div class="stat-value" id="activeCount">—</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">canales con bot</div>
     </div>
     <div class="stat-card">
       <div class="stat-top"><span class="stat-label">Pendientes</span><span class="stat-icon">⏳</span></div>
-      <div class="stat-value" id="pendingCount">—</div>
+      <div class="stat-value" id="pendingCount" style="color:var(--yellow);">—</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">esperando aprobación</div>
     </div>
     <div class="stat-card">
       <div class="stat-top"><span class="stat-label">Plan Pro</span><span class="stat-icon">⭐</span></div>
-      <div class="stat-value" id="proCount">—</div>
+      <div class="stat-value" id="proCount" style="color:var(--purple-light);">—</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">usuarios Pro</div>
     </div>
+  </div>
+
+  <!-- Notificación de nuevos registros -->
+  <div id="newRegistrations" style="display:none;background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+    <span style="font-size:20px;">🔔</span>
+    <div style="flex:1;">
+      <div style="font-size:13px;font-weight:500;color:var(--yellow);">Nuevos registros pendientes</div>
+      <div style="font-size:12px;color:var(--text-dim);" id="newRegText"></div>
+    </div>
+    <button class="filter-btn" onclick="setFilter('pending')">Ver pendientes</button>
   </div>
 
   <div class="panel">
     <div class="panel-header">
       <span class="panel-title-text">Streamers</span>
+      <button class="btn-footer" style="padding:6px 12px;font-size:12px;" onclick="loadStreamers()">↻ Actualizar</button>
     </div>
     <div class="toolbar">
       <input class="search-input" id="searchInput" placeholder="Buscar por nombre..." oninput="filterStreamers()">
@@ -195,6 +210,17 @@ td{padding:12px 16px;font-size:13px;vertical-align:middle;}
     </div>
     <div class="table-wrap">
       <div id="tableContent" class="loading">Cargando streamers...</div>
+    </div>
+  </div>
+
+  <!-- Modal de detalles -->
+  <div id="detailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;">
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:24px;width:480px;max-width:90vw;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div style="font-size:16px;font-weight:600;" id="modalTitle">Detalles</div>
+        <button onclick="document.getElementById('detailModal').style.display='none'" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;">✕</button>
+      </div>
+      <div id="modalContent"></div>
     </div>
   </div>
 </div>
@@ -240,10 +266,26 @@ function renderTable(){
     return matchSearch&&matchFilter;
   });
 
-  document.getElementById('totalCount').textContent=allStreamers.length;
-  document.getElementById('activeCount').textContent=allStreamers.filter(s=>s.approved&&s.role!=='admin').length;
-  document.getElementById('pendingCount').textContent=allStreamers.filter(s=>s.role==='pending').length;
-  document.getElementById('proCount').textContent=allStreamers.filter(s=>s.plan==='pro').length;
+  const total = allStreamers.length;
+  const active = allStreamers.filter(s=>s.approved&&s.role!=='admin').length;
+  const pending = allStreamers.filter(s=>s.role==='pending').length;
+  const pro = allStreamers.filter(s=>s.plan==='pro').length;
+
+  document.getElementById('totalCount').textContent=total;
+  document.getElementById('activeCount').textContent=active;
+  document.getElementById('pendingCount').textContent=pending;
+  document.getElementById('proCount').textContent=pro;
+
+  // Notificación de pendientes
+  const notif = document.getElementById('newRegistrations');
+  const notifText = document.getElementById('newRegText');
+  if(pending > 0){
+    notif.style.display='flex';
+    const names = allStreamers.filter(s=>s.role==='pending').map(s=>s.twitch_username).join(', ');
+    notifText.textContent = `${pending} streamer${pending>1?'s':''} esperando aprobación: ${names}`;
+  } else {
+    notif.style.display='none';
+  }
 
   if(!filtered.length){
     document.getElementById('tableContent').innerHTML='<div class="empty">No hay streamers en esta categoría</div>';
@@ -256,8 +298,7 @@ function renderTable(){
         <th>Streamer</th>
         <th>Estado</th>
         <th>Plan</th>
-        <th>IA</th>
-        <th>Mod</th>
+        <th>Bot</th>
         <th>Registro</th>
         <th>Acciones</th>
       </tr></thead>
@@ -268,20 +309,25 @@ function renderTable(){
               <div class="user-cell">
                 <div>
                   <a href="https://twitch.tv/${s.twitch_username}" target="_blank" class="user-link">${s.twitch_username}</a>
-                  <div class="user-id">ID: ${s.twitch_id}</div>
+                  ${s.custom_bot_username ? `<div class="user-id">🤖 ${s.custom_bot_username}</div>` : `<div class="user-id">🤖 muffet_osoking</div>`}
                 </div>
               </div>
             </td>
             <td>${getBadgeRole(s.role)}</td>
             <td>${getPlanBadge(s.plan)}</td>
-            <td><span class="dot ${s.ai_enabled?'dot-on':'dot-off'}"></span>${s.ai_enabled?'On':'Off'}</td>
-            <td><span class="dot ${s.mod_enabled?'dot-on':'dot-off'}"></span>${s.mod_enabled?'On':'Off'}</td>
-            <td style="color:var(--text-dim)">${new Date(s.created_at).toLocaleDateString('es-DO')}</td>
+            <td>
+              <span class="dot ${s.ai_enabled?'dot-on':'dot-off'}"></span>
+              <span style="font-size:11px;color:var(--text-dim);">IA ${s.ai_enabled?'On':'Off'}</span>
+            </td>
+            <td style="color:var(--text-dim);font-size:12px;">
+              ${new Date(s.created_at).toLocaleDateString('es-DO')}
+            </td>
             <td>
               <div class="actions">
                 ${s.role==='admin'
                   ? `<span class="you-badge">👑 Tú</span>`
                   : `
+                    <button class="btn-action" style="background:rgba(145,71,255,0.1);border-color:rgba(145,71,255,0.3);color:var(--purple-light);" onclick="showDetails(${s.id})">Ver</button>
                     ${!s.approved||s.role==='pending' ? `<button class="btn-action btn-approve" onclick="approve(${s.id})">Aprobar</button>` : ''}
                     ${s.approved&&s.role!=='blocked' ? `<button class="btn-action btn-revoke" onclick="revoke(${s.id})">Revocar</button>` : ''}
                     ${s.role==='blocked' ? `<button class="btn-action btn-restore" onclick="approve(${s.id})">Restaurar</button>` : ''}
@@ -293,6 +339,56 @@ function renderTable(){
           </tr>`).join('')}
       </tbody>
     </table>`;
+}
+
+function showDetails(id){
+  const s = allStreamers.find(x=>x.id===id);
+  if(!s) return;
+  const modal = document.getElementById('detailModal');
+  document.getElementById('modalTitle').textContent = `@${s.twitch_username}`;
+  const cmds = Object.keys(s.commands||{}).length;
+  const autoMsgs = (s.auto_messages||[]).length;
+  const viewers = Object.keys(s.viewer_points||{}).length;
+  const topViewers = Object.entries(s.viewer_points||{}).sort(([,a],[,b])=>b-a).slice(0,3).map(([u,p])=>`${u} (${p})`).join(', ') || '—';
+  const cmdStats = Object.entries(s.command_stats||{}).sort(([,a],[,b])=>b-a).slice(0,3).map(([c,n])=>`${c}: ${n}`).join(', ') || '—';
+
+  document.getElementById('modalContent').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Plan</div>
+        <div style="font-size:14px;font-weight:600;">${s.plan==='pro'?'⭐ Pro':'🆓 Free'}</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Bot</div>
+        <div style="font-size:13px;font-weight:500;">${s.custom_bot_username||'muffet_osoking'}</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Comandos</div>
+        <div style="font-size:24px;font-weight:700;color:var(--purple-light);">${cmds}</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Auto mensajes</div>
+        <div style="font-size:24px;font-weight:700;color:var(--purple-light);">${autoMsgs}</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Viewers con puntos</div>
+        <div style="font-size:24px;font-weight:700;color:var(--yellow);">${viewers}</div>
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Registro</div>
+        <div style="font-size:13px;">${new Date(s.created_at).toLocaleDateString('es-DO')}</div>
+      </div>
+    </div>
+    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;">
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Top viewers</div>
+      <div style="font-size:12px;color:var(--text-dim);">${topViewers}</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Comandos más usados</div>
+      <div style="font-size:12px;color:var(--text-dim);">${cmdStats}</div>
+    </div>
+  `;
+  modal.style.display='flex';
 }
 
 async function loadStreamers(){
@@ -324,6 +420,14 @@ async function setPlan(id,plan){
   if(res.ok){showToast(plan==='pro'?'Plan Pro activado ⭐':'Plan bajado a Free');loadStreamers();}
   else showToast('Error','error');
 }
+
+// Cerrar modal al hacer click fuera
+document.getElementById('detailModal').addEventListener('click', function(e){
+  if(e.target===this) this.style.display='none';
+});
+
+// Auto-actualizar cada 60 segundos para detectar nuevos registros
+setInterval(loadStreamers, 60000);
 
 loadStreamers();
 </script>
