@@ -554,7 +554,7 @@ app.post('/api/live-announcement', requireAuth, async (req, res) => {
 
 app.post('/api/points-clean-broadcaster', requireAuth, async (req, res) => {
   try {
-    const username = req.session.user.login.toLowerCase();
+    const username = req.session.user.username.toLowerCase();
     const result = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${req.session.user.id}&select=viewer_points`, { headers: sbHeaders });
     const data = await result.json();
     const viewer_points = data?.[0]?.viewer_points || {};
