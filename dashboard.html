@@ -20,11 +20,11 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 /* ── SIDEBAR ── */
 .sidebar{
   position:fixed;top:0;left:0;width:240px;height:100vh;
-  background:var(--bg2);border-right:1px solid rgba(255,255,255,0.06);
+  background:var(--bg2);border-right:1px solid rgba(255,255,255,0.05);
   display:flex;flex-direction:column;z-index:100;overflow-y:auto;
 }
 .sidebar-logo{
-  padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.06);
+  padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.05);
   display:flex;align-items:center;gap:12px;
 }
 .sidebar-logo img{width:32px;height:32px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(145,71,255,0.5));}
@@ -32,15 +32,15 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 .logo-badge{font-size:10px;color:var(--purple);font-weight:500;}
 
 .user-card{
-  padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.06);
+  padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.05);
   display:flex;align-items:center;gap:10px;
 }
-.user-avatar{width:32px;height:32px;border-radius:50%;border:2px solid var(--purple-border);}
+.user-avatar{width:34px;height:34px;border-radius:50%;border:2px solid var(--purple-border);box-shadow:0 0 8px rgba(145,71,255,0.2);}
 .user-name{font-size:13px;font-weight:500;color:var(--text);}
 .user-plan{font-size:11px;color:var(--text-dim);margin-top:1px;}
 
-.nav{flex:1;padding:8px 12px;}
-.nav-section{font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text-muted);padding:12px 8px 4px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;}
+.nav{flex:1;padding:8px 10px;}
+.nav-section{font-size:10px;font-weight:600;letter-spacing:0.8px;color:var(--text-muted);padding:14px 8px 4px;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;}
 .nav-section.collapsible{cursor:pointer;user-select:none;}
 .nav-section.collapsible:hover{color:var(--text-dim);}
 .nav-arrow{font-size:12px;transition:transform 0.2s;margin-right:4px;}
@@ -51,13 +51,22 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
   display:flex;align-items:center;gap:10px;
   padding:9px 10px;cursor:pointer;border-radius:var(--radius-sm);
   font-size:13px;font-weight:400;color:var(--text-dim);
-  transition:all 0.15s;margin-bottom:1px;
+  transition:all 0.15s;margin-bottom:1px;position:relative;
 }
-.nav-item:hover{background:rgba(255,255,255,0.05);color:var(--text);}
-.nav-item.active{background:var(--purple-dim);color:var(--purple-light);font-weight:500;}
-.nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
+.nav-item:hover{background:rgba(255,255,255,0.04);color:var(--text);}
+.nav-item.active{
+  background:var(--purple-dim);
+  color:var(--purple-light);
+  font-weight:600;
+}
+.nav-item.active::before{
+  content:'';position:absolute;left:0;top:20%;height:60%;width:3px;
+  background:var(--purple);border-radius:0 3px 3px 0;
+}
+.nav-item.active .nav-icon{filter:drop-shadow(0 0 4px rgba(145,71,255,0.5));}
+.nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;transition:filter 0.15s;}
 
-.sidebar-footer{padding:12px;border-top:1px solid rgba(255,255,255,0.06);}
+.sidebar-footer{padding:12px;border-top:1px solid rgba(255,255,255,0.05);}
 .btn-logout{
   width:100%;padding:9px;background:transparent;border-radius:var(--radius-sm);
   border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);
@@ -77,11 +86,23 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 
 /* ── CARDS STATS ── */
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
-.stat-card{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:16px 20px;}
+.stat-card{
+  background:var(--bg2);border:1px solid rgba(255,255,255,0.06);
+  border-radius:var(--radius);padding:16px 20px;
+  transition:border-color 0.2s, transform 0.2s;
+  position:relative;overflow:hidden;
+}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--purple),transparent);
+  opacity:0;transition:opacity 0.2s;
+}
+.stat-card:hover{border-color:var(--purple-border);transform:translateY(-1px);}
+.stat-card:hover::before{opacity:1;}
 .stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.stat-label{font-size:12px;font-weight:500;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;}
-.stat-icon{font-size:16px;}
-.stat-value{font-size:26px;font-weight:600;color:var(--text);letter-spacing:-0.5px;}
+.stat-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;}
+.stat-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;background:var(--purple-dim);}
+.stat-value{font-size:28px;font-weight:700;color:var(--text);letter-spacing:-1px;line-height:1;}
 .stat-value.on{color:var(--green);}
 .stat-value.off{color:var(--text-dim);}
 
@@ -416,29 +437,29 @@ function renderMain() {
   <!-- OVERVIEW -->
   <div id="sec-overview" class="section active">
     <div class="page-header">
-      <div class="page-title"><span class="status-dot"></span>Bienvenido, ${userData.display_name}</div>
-      <div class="page-subtitle">Tu bot está activo y corriendo en la nube 24/7</div>
+      <div class="page-title"><span class="status-dot"></span>¡Hola, ${userData.display_name}! 👋</div>
+      <div class="page-subtitle">Tu bot está activo y listo para el chat 🕷️</div>
     </div>
 
     <!-- Barra de estado -->
-    <div style="background:linear-gradient(135deg,rgba(64,208,144,0.08),var(--bg2));border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius);padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
-      <div style="width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 8px rgba(64,208,144,0.6);animation:pulse 2s infinite;"></div>
+    <div style="background:linear-gradient(135deg,rgba(64,208,144,0.06),rgba(145,71,255,0.06));border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 10px rgba(64,208,144,0.7);animation:pulse 2s infinite;"></div>
       <div style="flex:1;">
-        <div style="font-size:13px;font-weight:500;color:var(--text);">Bot online — ${userData.username}</div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">Corriendo en Railway • Plan ${s.plan==='pro'?'Pro ⭐':'Gratuito'}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);">Bot online — @${userData.username}</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Corriendo en Railway • Plan ${s.plan==='pro'?'<span style="color:var(--purple-light);">Pro ⭐</span>':'Gratuito'}</div>
       </div>
-      <div style="display:flex;gap:16px;text-align:center;">
+      <div style="display:flex;gap:20px;text-align:center;">
         <div>
-          <div style="font-size:18px;font-weight:700;color:var(--purple-light);">${Object.keys(commands).length}</div>
-          <div style="font-size:10px;color:var(--text-muted);">comandos</div>
+          <div style="font-size:20px;font-weight:700;color:var(--purple-light);">${Object.keys(commands).length}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">comandos</div>
         </div>
         <div>
-          <div id="statusIA" style="font-size:18px;font-weight:700;color:var(--green);">${s.ai_enabled?'ON':'OFF'}</div>
-          <div style="font-size:10px;color:var(--text-muted);">IA</div>
+          <div id="statusIA" style="font-size:20px;font-weight:700;color:${s.ai_enabled?'var(--green)':'var(--text-muted)'};">${s.ai_enabled?'ON':'OFF'}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">IA</div>
         </div>
         <div>
-          <div id="statusMod" style="font-size:18px;font-weight:700;color:var(--yellow);">${s.mod_enabled?'ON':'OFF'}</div>
-          <div style="font-size:10px;color:var(--text-muted);">mod</div>
+          <div id="statusMod" style="font-size:20px;font-weight:700;color:${s.mod_enabled?'var(--yellow)':'var(--text-muted)'};">${s.mod_enabled?'ON':'OFF'}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">mod</div>
         </div>
       </div>
     </div>
