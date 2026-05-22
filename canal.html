@@ -92,8 +92,8 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 .schedule-note{font-size:11px;color:var(--text-muted);margin-left:auto;}
 
 /* Videos y Clips */
-.media-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
-@media(max-width:480px){.media-grid{grid-template-columns:1fr;}}
+.media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+@media(max-width:600px){.media-grid{grid-template-columns:repeat(2,1fr);}}
 .media-card{background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);overflow:hidden;text-decoration:none;transition:all 0.15s;}
 .media-card:hover{border-color:var(--purple-border);transform:translateY(-2px);}
 .media-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--bg4);}
