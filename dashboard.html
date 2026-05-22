@@ -965,6 +965,7 @@ function renderMain() {
           { id:'puntos',   icon:'🏆', name:'!puntos',   desc:'Ver puntos y nivel del usuario',            who:'Todos' },
           { id:'top',      icon:'📊', name:'!top',      desc:'Top 5 viewers con más puntos',              who:'Todos' },
           { id:'apostar',  icon:'🎰', name:'!apostar',  desc:'Apostar puntos — 50/50',                    who:'Todos' },
+          { id:'duelo',    icon:'⚔️', name:'!duelo',    desc:'Retar a otro viewer a un duelo de puntos',  who:'Todos' },
           { id:'canjear',  icon:'🎁', name:'!canjear',  desc:'Canjear puntos por premios',                who:'Todos' },
           { id:'sorteo',   icon:'🎉', name:'!sorteo',   desc:'Gestionar sorteos',                         who:'Mods'  },
           { id:'random',   icon:'🎲', name:'!random',   desc:'Número aleatorio y opciones',               who:'Todos' },
@@ -1192,6 +1193,7 @@ function renderMain() {
             ['!top',             'Top 5 viewers con más puntos',                              'Todos', ''],
             ['!dar 100 @usuario','Dar 100 puntos a un viewer',                                'Mods',  ''],
             ['!apostar 50',      'Apostar 50 puntos — 50% ganar, 50% perder',                 'Todos', 'Límite configurable'],
+            ['!duelo @usuario 100', 'Retar a un viewer a un duelo por 100 puntos',             'Todos', ''],
             ['!canjear',         'Ver la lista de premios disponibles',                       'Todos', ''],
             ['!canjear Suscripción','Solicitar canjear el premio "Suscripción"',              'Todos', ''],
           ].map(([cmd, desc, who, note]) => `
@@ -1306,8 +1308,9 @@ function renderMain() {
       <div class="page-title">📊 Estadísticas</div>
       <div class="page-subtitle">Resumen de actividad de tu canal</div>
     </div>
-    <div style="margin-bottom:16px;">
-      <button class="btn" onclick="cleanBroadcasterFromRanking()" style="background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.25);color:var(--pink);font-size:12px;padding:7px 14px;">🧹 Quitarme del ranking de puntos</button>
+    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn" onclick="cleanBroadcasterFromRanking()" style="background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.25);color:var(--pink);font-size:12px;padding:7px 14px;">🧹 Quitarme del ranking</button>
+      <button class="btn" onclick="resetCommandStats()" style="background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.25);color:var(--pink);font-size:12px;padding:7px 14px;">🔄 Resetear estadísticas de comandos</button>
     </div>
 
     <!-- Tarjetas rápidas -->
@@ -2757,6 +2760,13 @@ async function deleteCounter(name) {
   delete counters[name];
   const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
   if(res.ok) { streamerData.counters = counters; renderCountersList(); showToast(`!${name} eliminado ✓`); }
+}
+
+async function resetCommandStats() {
+  if (!confirm('¿Resetear todas las estadísticas de comandos? No se puede deshacer.')) return;
+  const res = await fetch('/api/reset-command-stats', { method: 'POST' });
+  if (res.ok) { streamerData.command_stats = {}; loadStats(); showToast('Estadísticas reseteadas ✓'); }
+  else showToast('Error','error');
 }
 
 async function cleanBroadcasterFromRanking() {
