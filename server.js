@@ -552,6 +552,13 @@ app.post('/api/live-announcement', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/reset-command-stats', requireAuth, async (req, res) => {
+  try {
+    await sbUpdate('streamers', { command_stats: {} }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/points-clean-broadcaster', requireAuth, async (req, res) => {
   try {
     const username = req.session.user.username.toLowerCase();
