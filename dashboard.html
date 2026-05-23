@@ -1558,6 +1558,7 @@ function renderMain() {
         <div style="display:flex;gap:8px;">
           <a href="/auth/spotify" style="font-size:12px;padding:6px 14px;border-radius:20px;text-decoration:none;background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.3);color:#1ed760;font-weight:500;transition:all 0.15s;">↻ Reconectar</a>
           <button onclick="disconnectSpotify()" style="font-size:12px;padding:6px 14px;border-radius:20px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);color:var(--pink);cursor:pointer;font-weight:500;">Desconectar</button>
+          <button onclick="navigator.clipboard.writeText(window.location.origin+'/overlay/spotify/${userData.username}').then(()=>showToast('Link del overlay copiado ✓'))" style="font-size:12px;padding:6px 14px;border-radius:20px;background:rgba(145,71,255,0.1);border:1px solid rgba(145,71,255,0.2);color:var(--purple-light);cursor:pointer;font-weight:500;">🎬 Overlay OBS</button>
         </div>` : `
         <a href="/auth/spotify" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:#1ed760;color:black;font-weight:700;font-size:13px;padding:10px 22px;border-radius:24px;transition:all 0.15s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
           🎵 Conectar
