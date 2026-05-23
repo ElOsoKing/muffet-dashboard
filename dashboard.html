@@ -329,7 +329,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Herramientas <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
-      <div class="nav-item" onclick="showSection('spotify')"><span class="nav-icon">🎵</span> Spotify</div>
+      <div class="nav-item" onclick="showSection('music')"><span class="nav-icon">🎵</span> Música</div>
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
       <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin</div>
@@ -414,6 +414,7 @@ function showSection(name) {
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
+  if(name === 'music') { switchMusicTab('spotify'); startSpotifyPolling(); }
   if(name === 'spotify') { loadSpotifyStatus(); startSpotifyPolling(); }
   else stopSpotifyPolling();
   if(window.innerWidth <= 768) toggleSidebar();
@@ -1011,6 +1012,7 @@ function renderMain() {
           { id:'bola8',    icon:'🎱', name:'!8ball',    desc:'La bola mágica responde tu pregunta',        who:'Todos' },
           { id:'poll',     icon:'📋', name:'!poll',     desc:'Crear una encuesta en el chat',             who:'Mods'  },
           { id:'cancion',  icon:'🎵', name:'!cancion',  desc:'Pedir canción en Spotify',                  who:'Según config' },
+          { id:'yt',       icon:'🔴', name:'!yt',       desc:'Pedir video en YouTube Music',              who:'Según config' },
           { id:'social',   icon:'🤗', name:'Sociales',  desc:'!hug, !pat, !kiss, !slap, !bite, !highfive',who:'Todos' },
           { id:'dados',    icon:'🎲', name:'Dados',     desc:'!d6, !d20, !2d6',                           who:'Todos' },
           { id:'dar',      icon:'💰', name:'!dar',      desc:'Dar puntos a un usuario',                   who:'Mods'  },
@@ -1523,7 +1525,21 @@ function renderMain() {
     </div>
   </div>
 
-  <!-- SPOTIFY -->
+  <!-- MÚSICA -->
+  <div id="sec-music" class="section">
+    <div class="page-header">
+      <div class="page-title">🎵 Música</div>
+      <div class="page-subtitle">Configura Spotify y YouTube para el chat</div>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:20px;background:var(--bg3);padding:4px;border-radius:var(--radius-sm);width:fit-content;">
+      <button id="musicTab-spotify" onclick="switchMusicTab('spotify')" style="padding:7px 20px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--green);color:black;transition:all 0.15s;">🟢 Spotify</button>
+      <button id="musicTab-youtube" onclick="switchMusicTab('youtube')" style="padding:7px 20px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:transparent;color:var(--text-dim);transition:all 0.15s;">🔴 YouTube</button>
+    </div>
+    <div id="musicContent-spotify"></div>
+    <div id="musicContent-youtube" style="display:none;"></div>
+  </div>
+
+  <!-- SPOTIFY (oculto, usado por sec-music) -->
   <div id="sec-spotify" class="section">
     <div class="page-header">
       <div class="page-title">🎵 Spotify</div>
@@ -2525,6 +2541,114 @@ async function saveSchedule() {
   const res = await fetch('/api/schedule', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ stream_schedule: schedule }) });
   if(res.ok) { streamerData.stream_schedule = schedule; showToast('Horario guardado ✓'); }
   else showToast('Error al guardar','error');
+}
+
+// ── MÚSICA TABS ──
+function switchMusicTab(tab) {
+  const tabSpotify = document.getElementById('musicTab-spotify');
+  const tabYoutube = document.getElementById('musicTab-youtube');
+  const divSpotify = document.getElementById('musicContent-spotify');
+  const divYoutube = document.getElementById('musicContent-youtube');
+  if (!divSpotify || !divYoutube) return;
+
+  if (tab === 'spotify') {
+    divSpotify.style.display = 'block'; divYoutube.style.display = 'none';
+    tabSpotify.style.background = 'var(--green)'; tabSpotify.style.color = 'black';
+    tabYoutube.style.background = 'transparent'; tabYoutube.style.color = 'var(--text-dim)';
+    // Cargar contenido de Spotify desde sec-spotify
+    if (!divSpotify.hasChildNodes()) {
+      const src = document.getElementById('sec-spotify');
+      if (src) divSpotify.innerHTML = src.innerHTML;
+      loadSpotifyStatus();
+    }
+  } else {
+    divSpotify.style.display = 'none'; divYoutube.style.display = 'block';
+    tabYoutube.style.background = '#ff0000'; tabYoutube.style.color = 'white';
+    tabSpotify.style.background = 'transparent'; tabSpotify.style.color = 'var(--text-dim)';
+    renderYoutubePanel();
+  }
+}
+
+function renderYoutubePanel() {
+  const el = document.getElementById('musicContent-youtube');
+  if (!el) return;
+  const ytConfig = streamerData.youtube_music_config || {};
+  const queue = ytConfig.queue || [];
+  const allowed = ytConfig.allowed || ['everyone'];
+
+  el.innerHTML = `
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración de YouTube</span></div>
+      <div class="panel-body">
+        <div class="toggle-row" style="margin-bottom:16px;">
+          <div><div class="toggle-label">Activar solicitudes de YouTube</div><div class="toggle-desc">Los viewers usan !yt para pedir videos</div></div>
+          <label class="toggle"><input type="checkbox" id="ytEnabled" ${ytConfig.enabled?'checked':''} onchange="saveYtConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">¿Quién puede pedir?</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="ytPerms">
+            ${['everyone','sub','vip','mod'].map(p => `
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--bg3);border:1px solid ${allowed.includes(p)?'var(--purple-border)':'rgba(255,255,255,0.06)'};border-radius:var(--radius-sm);padding:6px 12px;">
+                <input type="checkbox" ${allowed.includes(p)?'checked':''} value="${p}" onchange="saveYtConfig()" style="accent-color:var(--purple);">
+                <span style="font-size:12px;">${{everyone:'Todos',sub:'Subs',vip:'VIPs',mod:'Mods'}[p]}</span>
+              </label>`).join('')}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Máximo por usuario</label>
+          <input class="form-input" id="ytMaxPerUser" type="number" min="1" max="20" value="${ytConfig.max_per_user||3}" style="width:80px;" onchange="saveYtConfig()">
+        </div>
+        <div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-dim);margin-top:4px;">
+          💡 Comandos: <code style="color:var(--purple-light);">!yt [nombre o link]</code> para pedir • <code style="color:var(--purple-light);">!ytcola</code> para ver la cola • <code style="color:var(--purple-light);">!ytskip</code> para saltar (mods)
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">📋 Cola de reproducción <span style="font-size:11px;color:var(--text-muted);">${queue.length} videos</span></span>
+        ${queue.length ? `<button class="btn btn-danger btn-sm" onclick="clearYtQueue()">🗑️ Vaciar cola</button>` : ''}
+      </div>
+      <div class="panel-body" id="ytQueueList">
+        ${queue.length ? queue.map((v, i) => `
+          <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div style="font-size:12px;font-weight:700;color:var(--text-muted);width:20px;text-align:center;">${i+1}</div>
+            <img src="${v.thumb}" style="width:64px;height:36px;border-radius:4px;object-fit:cover;background:var(--bg4);">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.title}</div>
+              <div style="font-size:11px;color:var(--text-muted);">pedido por @${v.requester}</div>
+            </div>
+            <a href="${v.url}" target="_blank" class="btn btn-success btn-sm" style="text-decoration:none;flex-shrink:0;">▶ Abrir</a>
+            <button class="btn btn-danger btn-sm" onclick="removeYtVideo(${i})" style="flex-shrink:0;">✕</button>
+          </div>`).join('') : `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">La cola está vacía — activa las solicitudes y los viewers podrán pedir videos con !yt</div>`}
+      </div>
+    </div>`;
+}
+
+async function saveYtConfig() {
+  const enabled = document.getElementById('ytEnabled')?.checked || false;
+  const maxPerUser = parseInt(document.getElementById('ytMaxPerUser')?.value) || 3;
+  const allowed = Array.from(document.querySelectorAll('#ytPerms input:checked')).map(i => i.value);
+  const config = { ...(streamerData.youtube_music_config || {}), enabled, max_per_user: maxPerUser, allowed };
+  const res = await fetch('/api/youtube-music', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ youtube_music_config: config }) });
+  if(res.ok) { streamerData.youtube_music_config = config; showToast('Guardado ✓'); }
+  else showToast('Error','error');
+}
+
+async function removeYtVideo(index) {
+  const config = streamerData.youtube_music_config || {};
+  const queue = [...(config.queue || [])];
+  queue.splice(index, 1);
+  const newConfig = { ...config, queue };
+  const res = await fetch('/api/youtube-music', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ youtube_music_config: newConfig }) });
+  if(res.ok) { streamerData.youtube_music_config = newConfig; renderYoutubePanel(); showToast('Video eliminado ✓'); }
+}
+
+async function clearYtQueue() {
+  if (!confirm('¿Vaciar toda la cola de YouTube?')) return;
+  const config = { ...(streamerData.youtube_music_config || {}), queue: [] };
+  const res = await fetch('/api/youtube-music', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ youtube_music_config: config }) });
+  if(res.ok) { streamerData.youtube_music_config = config; renderYoutubePanel(); showToast('Cola vaciada ✓'); }
 }
 
 // ── SPOTIFY ──
