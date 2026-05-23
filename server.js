@@ -543,6 +543,43 @@ app.get('/api/clips/:username', async (req, res) => {
     res.json(clips);
   } catch(err) { res.json([]); }
 });
+app.get('/overlay/spotify/:username', async (req, res) => {
+  res.sendFile(path.join(__dirname, 'spotify-overlay.html'));
+});
+
+app.get('/api/overlay/spotify/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const streamer = await sbSelect('streamers', { twitch_username: username.toLowerCase() });
+    if (!streamer?.spotify_token) return res.json({ playing: false });
+
+    let token = streamer.spotify_token;
+    let r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (r.status === 401 && streamer.spotify_refresh) {
+      token = await refreshSpotifyToken(streamer.spotify_refresh, streamer.spotify_client_id, streamer.spotify_client_secret);
+      if (token) {
+        await sbUpdate('streamers', { spotify_token: token }, { twitch_username: username.toLowerCase() });
+        r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': `Bearer ${token}` } });
+      }
+    }
+    if (r.status === 204 || !r.ok) return res.json({ playing: false });
+    const data = await r.json();
+    if (!data.item) return res.json({ playing: false });
+    res.json({
+      playing: true,
+      track: data.item.name,
+      artist: data.item.artists.map(a => a.name).join(', '),
+      album: data.item.album.name,
+      image: data.item.album.images?.[1]?.url || data.item.album.images?.[0]?.url || '',
+      progress_ms: data.progress_ms,
+      duration_ms: data.item.duration_ms,
+      is_playing: data.is_playing
+    });
+  } catch(err) { res.json({ playing: false }); }
+});
+
 app.post('/api/youtube-music', requireAuth, async (req, res) => {
   try {
     const { youtube_music_config } = req.body;
