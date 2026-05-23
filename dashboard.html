@@ -420,9 +420,9 @@ function showSection(name) {
       const src = document.getElementById('sec-spotify');
       if (src) div.innerHTML = src.innerHTML;
     }
-    loadSpotifyStatus(); startSpotifyPolling();
+    loadSpotifyStatus(); loadSpotifyHistory(); startSpotifyPolling();
   }
-  if(name === 'spotify') { loadSpotifyStatus(); startSpotifyPolling(); }
+  if(name === 'spotify') { loadSpotifyStatus(); loadSpotifyHistory(); startSpotifyPolling(); }
   if(name !== 'music' && name !== 'spotify') stopSpotifyPolling();
   if(window.innerWidth <= 768) toggleSidebar();
 }
@@ -1682,6 +1682,7 @@ function renderMain() {
             ['!cancion link', 'Agrega por link de Spotify', 'Todos'],
             ['!cancion actual', 'Muestra qué está sonando ahora', 'Todos'],
             ['!cola', 'Muestra las próximas 5 canciones', 'Todos'],
+            ['!vskip', 'Votar para saltar la canción', 'Todos'],
             ['!skip', 'Salta la canción actual', 'Mods'],
           ].map(([cmd, desc, who]) => `
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
@@ -1689,6 +1690,48 @@ function renderMain() {
               <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
               ${permBadge(who)}
             </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Historial -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">📜 Historial de solicitudes</span>
+        <button class="btn btn-success btn-sm" onclick="loadSpotifyHistory()">↻</button>
+      </div>
+      <div class="panel-body" id="spotifyHistory">
+        <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">Cargando historial...</div>
+      </div>
+    </div>
+
+    <!-- Blacklist -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🚫 Lista negra</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Bloquea artistas o canciones. El bot rechazará solicitudes que coincidan.</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input class="form-input" id="blacklistInput" placeholder="Ej: Bad Bunny, Despacito..." style="flex:1;">
+          <button class="btn btn-primary btn-sm" onclick="addToBlacklist()">Agregar</button>
+        </div>
+        <div id="blacklistItems" style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${(s.spotify_config?.blacklist||[]).map(b => `
+            <div style="display:flex;align-items:center;gap:6px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:20px;padding:4px 10px;">
+              <span style="font-size:12px;color:var(--pink);">${b}</span>
+              <button onclick="removeFromBlacklist('${b}')" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
+            </div>`).join('') || `<div style="font-size:12px;color:var(--text-muted);">No hay nada bloqueado</div>`}
+        </div>
+      </div>
+    </div>
+
+    <!-- Votos para saltar -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⏭️ Votos para saltar</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Los viewers usan <code style="color:#1ed760;">!vskip</code> para votar. Cuando se alcanzan los votos necesarios, la canción se salta automáticamente.</div>
+        <div class="form-group">
+          <label class="form-label">Votos necesarios para saltar</label>
+          <input class="form-input" id="skipVotes" type="number" min="2" max="50" value="${s.spotify_config?.skip_votes||5}" style="width:80px;" onchange="saveSpotifyConfig()">
         </div>
       </div>
     </div>
@@ -2688,6 +2731,61 @@ async function clearYtQueue() {
   if(res.ok) { streamerData.youtube_music_config = config; renderYoutubePanel(); showToast('Cola vaciada ✓'); }
 }
 
+// ── SPOTIFY HISTORIAL Y BLACKLIST ──
+async function loadSpotifyHistory() {
+  const el = document.getElementById('spotifyHistory');
+  if (!el) return;
+  const history = streamerData.spotify_config?.history || [];
+  if (!history.length) {
+    el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">No hay solicitudes aún</div>`;
+    return;
+  }
+  el.innerHTML = history.map((h, i) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;${i<history.length-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
+      ${h.image ? `<img src="${h.image}" style="width:40px;height:40px;border-radius:4px;object-fit:cover;flex-shrink:0;">` : `<div style="width:40px;height:40px;border-radius:4px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🎵</div>`}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.name}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${h.artist} · pedido por @${h.requester}</div>
+      </div>
+      <div style="font-size:10px;color:var(--text-muted);flex-shrink:0;">${new Date(h.requestedAt).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`).join('');
+}
+
+async function addToBlacklist() {
+  const input = document.getElementById('blacklistInput');
+  const term = input?.value.trim();
+  if (!term) return;
+  const blacklist = [...(streamerData.spotify_config?.blacklist || [])];
+  if (blacklist.includes(term)) { showToast('Ya está en la lista','error'); return; }
+  blacklist.push(term);
+  const config = { ...(streamerData.spotify_config || {}), blacklist };
+  const res = await fetch('/api/spotify/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ spotify_config: config }) });
+  if (res.ok) {
+    streamerData.spotify_config = config;
+    if (input) input.value = '';
+    renderBlacklist();
+    showToast(`"${term}" bloqueado ✓`);
+  }
+}
+
+async function removeFromBlacklist(term) {
+  const blacklist = (streamerData.spotify_config?.blacklist || []).filter(b => b !== term);
+  const config = { ...(streamerData.spotify_config || {}), blacklist };
+  const res = await fetch('/api/spotify/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ spotify_config: config }) });
+  if (res.ok) { streamerData.spotify_config = config; renderBlacklist(); showToast(`"${term}" desbloqueado ✓`); }
+}
+
+function renderBlacklist() {
+  const el = document.getElementById('blacklistItems');
+  if (!el) return;
+  const blacklist = streamerData.spotify_config?.blacklist || [];
+  el.innerHTML = blacklist.length ? blacklist.map(b => `
+    <div style="display:flex;align-items:center;gap:6px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:20px;padding:4px 10px;">
+      <span style="font-size:12px;color:var(--pink);">${b}</span>
+      <button onclick="removeFromBlacklist('${b}')" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
+    </div>`).join('') : `<div style="font-size:12px;color:var(--text-muted);">No hay nada bloqueado</div>`;
+}
+
 // ── SPOTIFY ──
 let spotifyInterval = null;
 function startSpotifyPolling(){ stopSpotifyPolling(); spotifyInterval = setInterval(loadSpotifyStatus, 10000); loadSpotifyStatus(); }
@@ -2789,7 +2887,12 @@ async function saveSpotifyConfig() {
   const enabled = document.getElementById('spotifyEnabled')?.checked;
   const allowed = Array.from(document.querySelectorAll('#sec-spotify [data-perm]:checked')).map(i=>i.dataset.perm);
   const max_per_user = parseInt(document.getElementById('spotifyMaxQueue')?.value) || 3;
-  const spotify_config = { enabled, allowed: allowed.length ? allowed : ['everyone'], max_per_user };
+  const skip_votes = parseInt(document.getElementById('skipVotes')?.value) || 5;
+  const spotify_config = {
+    ...(streamerData.spotify_config || {}),
+    enabled, allowed: allowed.length ? allowed : ['everyone'],
+    max_per_user, skip_votes
+  };
   const res = await fetch('/api/spotify/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ spotify_config }) });
   if(res.ok) { streamerData.spotify_config = spotify_config; showToast('Configuración guardada ✓'); }
   else showToast('Error al guardar','error');
