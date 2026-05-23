@@ -414,7 +414,14 @@ function showSection(name) {
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
-  if(name === 'music') { switchMusicTab('spotify'); startSpotifyPolling(); }
+  if(name === 'music') {
+    const div = document.getElementById('musicContent-spotify');
+    if (div && !div.hasChildNodes()) {
+      const src = document.getElementById('sec-spotify');
+      if (src) div.innerHTML = src.innerHTML;
+    }
+    loadSpotifyStatus(); startSpotifyPolling();
+  }
   if(name === 'spotify') { loadSpotifyStatus(); startSpotifyPolling(); }
   else stopSpotifyPolling();
   if(window.innerWidth <= 768) toggleSidebar();
@@ -1529,14 +1536,9 @@ function renderMain() {
   <div id="sec-music" class="section">
     <div class="page-header">
       <div class="page-title">🎵 Música</div>
-      <div class="page-subtitle">Configura Spotify y YouTube para el chat</div>
-    </div>
-    <div style="display:flex;gap:4px;margin-bottom:20px;background:var(--bg3);padding:4px;border-radius:var(--radius-sm);width:fit-content;">
-      <button id="musicTab-spotify" onclick="switchMusicTab('spotify')" style="padding:7px 20px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--green);color:black;transition:all 0.15s;">🟢 Spotify</button>
-      <button id="musicTab-youtube" onclick="switchMusicTab('youtube')" style="padding:7px 20px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:transparent;color:var(--text-dim);transition:all 0.15s;">🔴 YouTube</button>
+      <div class="page-subtitle">Conecta Spotify para que tu chat pida canciones</div>
     </div>
     <div id="musicContent-spotify"></div>
-    <div id="musicContent-youtube" style="display:none;"></div>
   </div>
 
   <!-- SPOTIFY (oculto, usado por sec-music) -->
