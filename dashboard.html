@@ -2690,7 +2690,7 @@ async function clearYtQueue() {
 
 // ── SPOTIFY ──
 let spotifyInterval = null;
-function startSpotifyPolling(){ stopSpotifyPolling(); spotifyInterval = setInterval(loadSpotifyStatus, 10000); }
+function startSpotifyPolling(){ stopSpotifyPolling(); spotifyInterval = setInterval(loadSpotifyStatus, 10000); loadSpotifyStatus(); }
 function stopSpotifyPolling(){ if(spotifyInterval){ clearInterval(spotifyInterval); spotifyInterval = null; } }
 
 async function saveSpotifyCredentials() {
