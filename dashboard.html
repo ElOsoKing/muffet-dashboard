@@ -423,7 +423,7 @@ function showSection(name) {
     loadSpotifyStatus(); startSpotifyPolling();
   }
   if(name === 'spotify') { loadSpotifyStatus(); startSpotifyPolling(); }
-  else stopSpotifyPolling();
+  if(name !== 'music' && name !== 'spotify') stopSpotifyPolling();
   if(window.innerWidth <= 768) toggleSidebar();
 }
 
