@@ -1543,195 +1543,194 @@ function renderMain() {
 
   <!-- SPOTIFY (oculto, usado por sec-music) -->
   <div id="sec-spotify" class="section">
-    <div class="page-header">
-      <div class="page-title">🎵 Spotify</div>
-      <div class="page-subtitle">Permite que el chat pida canciones</div>
-    </div>
-
-    ${s.spotify_token ? `
-    <!-- Sonando ahora -->
-    <div id="spotifyNowPlaying" style="background:linear-gradient(135deg,rgba(30,215,96,0.08),rgba(30,215,96,0.02));border:1px solid rgba(30,215,96,0.2);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
-      <div style="font-size:11px;font-weight:600;color:#1ed760;text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;">▶ Sonando ahora</div>
-      <div style="display:flex;align-items:center;gap:16px;">
-        <div style="position:relative;flex-shrink:0;">
-          <img id="spotifyImg" src="" style="width:72px;height:72px;border-radius:8px;object-fit:cover;background:var(--bg4);display:none;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
-          <div id="spotifyImgPlaceholder" style="width:72px;height:72px;border-radius:8px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:28px;">🎵</div>
+    <!-- Header con estilo Spotify -->
+    <div style="background:linear-gradient(135deg,rgba(30,215,96,0.12),rgba(30,215,96,0.02),transparent);border:1px solid rgba(30,215,96,0.15);border-radius:var(--radius);padding:24px;margin-bottom:20px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;background:radial-gradient(circle,rgba(30,215,96,0.12),transparent);border-radius:50%;pointer-events:none;"></div>
+      <div style="display:flex;align-items:center;gap:14px;position:relative;">
+        <div style="width:48px;height:48px;background:#1ed760;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 20px rgba(30,215,96,0.4);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="black"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
         </div>
-        <div style="flex:1;min-width:0;">
-          <div id="spotifyTrack" style="font-size:16px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Sin reproducción activa</div>
-          <div id="spotifyArtist" style="font-size:13px;color:var(--text-dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
-          <!-- Barra de progreso -->
-          <div style="margin-top:12px;">
-            <div style="height:3px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;">
-              <div id="spotifyProgress" style="height:100%;width:0%;background:#1ed760;border-radius:2px;transition:width 1s linear;"></div>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-top:4px;">
-              <span id="spotifyCurrentTime" style="font-size:10px;color:var(--text-muted);">0:00</span>
-              <span id="spotifyTotalTime" style="font-size:10px;color:var(--text-muted);">0:00</span>
-            </div>
-          </div>
+        <div style="flex:1;">
+          <div style="font-size:18px;font-weight:700;color:var(--text);">Spotify</div>
+          <div style="font-size:12px;color:#1ed760;margin-top:2px;">${s.spotify_token ? '✓ Conectado' : 'No conectado'}</div>
         </div>
-        <button onclick="loadSpotifyStatus()" style="background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.2);border-radius:8px;padding:8px;cursor:pointer;color:#1ed760;font-size:16px;flex-shrink:0;">↻</button>
-      </div>
-    </div>
-
-    <!-- Cola visual -->
-    <div class="panel" style="margin-bottom:16px;">
-      <div class="panel-header">
-        <span class="panel-title-text">📋 Cola de reproducción</span>
-        <span id="spotifyQueueCount" style="font-size:11px;color:var(--text-muted);background:var(--bg3);padding:2px 8px;border-radius:10px;">—</span>
-      </div>
-      <div class="panel-body" id="spotifyQueueList">
-        <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Cargando cola...</div>
-      </div>
-    </div>` : ''}
-
-    <!-- Paso 1: Credenciales -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">1️⃣ Crear tu app de Spotify</span>
-        ${s.spotify_client_id ? `<span style="font-size:11px;color:var(--green);">✓ Configurado</span>` : ''}
-      </div>
-      <div class="panel-body">
-        <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;border-left:3px solid rgba(30,215,96,0.4);">
-          <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:10px;">📖 Pasos para crear tu app:</div>
-          <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-dim);line-height:1.7;">
-            <div>1. Ve a <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1ed760;">developer.spotify.com/dashboard</a></div>
-            <div>2. Click en <strong style="color:var(--text)">Create app</strong></div>
-            <div>3. Nombre: cualquiera, ej: <strong style="color:var(--text)">MiCanalBot</strong></div>
-            <div>4. Redirect URI: <code style="color:#1ed760;background:rgba(30,215,96,0.08);padding:1px 6px;border-radius:3px;font-size:11px;">https://muffet-dashboard.onrender.com/auth/spotify/callback</code></div>
-            <div>5. Marca <strong style="color:var(--text)">Web API</strong> → Acepta → <strong style="color:var(--text)">Save</strong></div>
-            <div>6. Ve a <strong style="color:var(--text)">Settings</strong> y copia tu <strong style="color:var(--text)">Client ID</strong> y <strong style="color:var(--text)">Client Secret</strong></div>
-            <div>7. En <strong style="color:var(--text)">User Management</strong> agrega tu propio email de Spotify</div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Spotify Client ID</label>
-          <input class="form-input" id="spotifyClientId" value="${s.spotify_client_id||''}" placeholder="Tu Client ID de Spotify">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Spotify Client Secret</label>
-          <div style="display:flex;gap:8px;">
-            <input class="form-input" id="spotifyClientSecret" type="password" value="${s.spotify_client_secret||''}" placeholder="Tu Client Secret de Spotify" style="flex:1;">
-            <button type="button" onclick="const i=document.getElementById('spotifyClientSecret');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁️':'🔒'" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:0 12px;color:var(--text-dim);cursor:pointer;">👁️</button>
-          </div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">⚠️ Nunca compartas tu Client Secret</div>
-        </div>
-        <button class="btn btn-primary" onclick="saveSpotifyCredentials()">Guardar credenciales</button>
-      </div>
-    </div>
-
-    <!-- Paso 2: Conectar cuenta -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">2️⃣ Conectar tu cuenta de Spotify</span>
-        ${s.spotify_token ? `<span style="font-size:11px;color:var(--green);">✓ Conectado</span>` : ''}
-      </div>
-      <div class="panel-body">
         ${s.spotify_token ? `
         <div style="display:flex;gap:8px;">
-          <a href="/auth/spotify" class="btn btn-primary" style="text-decoration:none;background:rgba(30,215,96,0.15);border:1px solid rgba(30,215,96,0.3);color:#1ed760;">↻ Reconectar</a>
-          <button class="btn btn-danger btn-sm" onclick="disconnectSpotify()">Desconectar</button>
+          <a href="/auth/spotify" style="font-size:12px;padding:6px 14px;border-radius:20px;text-decoration:none;background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.3);color:#1ed760;font-weight:500;transition:all 0.15s;">↻ Reconectar</a>
+          <button onclick="disconnectSpotify()" style="font-size:12px;padding:6px 14px;border-radius:20px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);color:var(--pink);cursor:pointer;font-weight:500;">Desconectar</button>
         </div>` : `
-        <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
-          Después de guardar tus credenciales, conecta tu cuenta de Spotify.<br>
-          Requiere <strong style="color:var(--text)">Spotify Premium</strong>.
-        </p>
-        <a href="/auth/spotify" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:#1ed760;color:black;font-weight:600;font-size:13px;padding:10px 20px;border-radius:20px;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">
-          🎵 Conectar con Spotify
+        <a href="/auth/spotify" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:#1ed760;color:black;font-weight:700;font-size:13px;padding:10px 22px;border-radius:24px;transition:all 0.15s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
+          🎵 Conectar
         </a>`}
       </div>
     </div>
 
-    <!-- Configuración -->
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
-      <div class="panel-body">
-        <div class="toggle-row">
-          <div><div class="toggle-label">Solicitudes activas</div><div class="toggle-desc">El chat puede pedir canciones con !cancion</div></div>
-          <label class="toggle"><input type="checkbox" id="spotifyEnabled" ${s.spotify_config?.enabled?'checked':''} onchange="saveSpotifyConfig()"><span class="toggle-slider"></span></label>
+    ${s.spotify_token ? `
+    <!-- Sonando ahora + Cola — layout de dos columnas -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+      <!-- Sonando ahora -->
+      <div style="background:var(--bg2);border:1px solid rgba(30,215,96,0.15);border-radius:var(--radius);padding:20px;position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;background:linear-gradient(135deg,rgba(30,215,96,0.05),transparent);pointer-events:none;"></div>
+        <div style="font-size:10px;font-weight:700;color:#1ed760;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;display:flex;align-items:center;gap:6px;">
+          <span style="width:6px;height:6px;background:#1ed760;border-radius:50%;animation:pulse 1.5s infinite;display:inline-block;"></span>
+          Sonando ahora
         </div>
-        <div style="margin-top:16px;">
-          <label class="form-label">¿Quién puede pedir canciones?</label>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
-            ${['everyone','sub','vip','mod'].map(p => {
-              const labels = {everyone:'👥 Todos',sub:'⭐ Subs',vip:'💎 VIPs',mod:'🛡️ Mods'};
-              const active = (s.spotify_config?.allowed||['everyone']).includes(p);
-              return `<label style="display:flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid ${active?'rgba(30,215,96,0.4)':'rgba(255,255,255,0.08)'};border-radius:20px;cursor:pointer;font-size:12px;color:${active?'#1ed760':'var(--text-dim)'};background:${active?'rgba(30,215,96,0.08)':'transparent'};transition:all 0.15s;" onclick="toggleSpotifyPerm(this,'${p}')">
-                <input type="checkbox" ${active?'checked':''} data-perm="${p}" style="display:none;">
-                ${labels[p]}
-              </label>`;
-            }).join('')}
+        <div style="display:flex;gap:14px;align-items:center;position:relative;">
+          <div style="position:relative;flex-shrink:0;">
+            <img id="spotifyImg" src="" style="width:80px;height:80px;border-radius:10px;object-fit:cover;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.5);">
+            <div id="spotifyImgPlaceholder" style="width:80px;height:80px;border-radius:10px;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:32px;">🎵</div>
+          </div>
+          <div style="flex:1;min-width:0;">
+            <div id="spotifyTrack" style="font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;">Sin reproducción</div>
+            <div id="spotifyArtist" style="font-size:12px;color:var(--text-dim);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+            <div style="margin-top:14px;">
+              <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:2px;overflow:hidden;cursor:pointer;">
+                <div id="spotifyProgress" style="height:100%;width:0%;background:#1ed760;border-radius:2px;transition:width 1s linear;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:5px;">
+                <span id="spotifyCurrentTime" style="font-size:10px;color:var(--text-muted);">0:00</span>
+                <span id="spotifyTotalTime" style="font-size:10px;color:var(--text-muted);">0:00</span>
+              </div>
+            </div>
           </div>
         </div>
-        <div class="form-group" style="margin-top:16px;">
-          <label class="form-label">Máximo de canciones por usuario</label>
-          <input class="form-input" type="number" id="spotifyMaxQueue" value="${s.spotify_config?.max_per_user||3}" min="1" max="10" style="width:100px;">
-        </div>
-        <button class="btn btn-primary" style="margin-top:8px;background:rgba(30,215,96,0.15);border:1px solid rgba(30,215,96,0.3);color:#1ed760;" onclick="saveSpotifyConfig()">Guardar configuración</button>
+        <button onclick="loadSpotifyStatus()" style="position:absolute;top:16px;right:16px;background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.15);border-radius:6px;padding:5px 8px;cursor:pointer;color:#1ed760;font-size:13px;transition:all 0.15s;" onmouseover="this.style.background='rgba(30,215,96,0.2)'" onmouseout="this.style.background='rgba(30,215,96,0.1)'">↻</button>
       </div>
-    </div>
 
-    <!-- Comandos -->
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">📋 Comandos disponibles</span></div>
-      <div class="panel-body">
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          ${[
-            ['!cancion nombre', 'Agrega una canción a la cola', 'Todos'],
-            ['!cancion link', 'Agrega por link de Spotify', 'Todos'],
-            ['!cancion actual', 'Muestra qué está sonando ahora', 'Todos'],
-            ['!cola', 'Muestra las próximas 5 canciones', 'Todos'],
-            ['!vskip', 'Votar para saltar la canción', 'Todos'],
-            ['!skip', 'Salta la canción actual', 'Mods'],
-          ].map(([cmd, desc, who]) => `
-            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
-              <code style="font-size:12px;font-weight:600;color:#1ed760;font-family:monospace;min-width:180px;">${cmd}</code>
-              <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
-              ${permBadge(who)}
-            </div>`).join('')}
+      <!-- Cola -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">Próximas</div>
+          <span id="spotifyQueueCount" style="font-size:11px;color:var(--text-muted);background:var(--bg3);padding:2px 8px;border-radius:10px;">—</span>
+        </div>
+        <div id="spotifyQueueList" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">Cargando...</div>
         </div>
       </div>
     </div>
 
     <!-- Historial -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">📜 Historial de solicitudes</span>
-        <button class="btn btn-success btn-sm" onclick="loadSpotifyHistory()">↻</button>
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">Historial de solicitudes</div>
+        <button onclick="loadSpotifyHistory()" style="font-size:11px;color:var(--text-muted);background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:4px 10px;cursor:pointer;">↻</button>
       </div>
-      <div class="panel-body" id="spotifyHistory">
-        <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">Cargando historial...</div>
+      <div id="spotifyHistory" style="display:flex;flex-direction:column;gap:8px;">
+        <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">Cargando historial...</div>
+      </div>
+    </div>` : ''}
+
+    <!-- Setup + Config en grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+      <!-- Credenciales -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">App de Spotify</div>
+          ${s.spotify_client_id ? `<span style="font-size:10px;color:#1ed760;background:rgba(30,215,96,0.1);padding:2px 8px;border-radius:10px;font-weight:600;">✓ Configurado</span>` : `<span style="font-size:10px;color:var(--yellow);background:rgba(240,192,96,0.1);padding:2px 8px;border-radius:10px;">Pendiente</span>`}
+        </div>
+        <details style="margin-bottom:14px;">
+          <summary style="font-size:12px;color:#1ed760;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
+            <span>▶</span> Ver instrucciones
+          </summary>
+          <div style="margin-top:10px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);border-left:3px solid rgba(30,215,96,0.4);">
+            <div style="display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--text-dim);line-height:1.6;">
+              <div>1. <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1ed760;">developer.spotify.com/dashboard</a></div>
+              <div>2. Create app → cualquier nombre</div>
+              <div>3. Redirect URI: <code style="color:#1ed760;font-size:10px;">...onrender.com/auth/spotify/callback</code></div>
+              <div>4. Web API → Save → copiar Client ID y Secret</div>
+              <div>5. User Management → agregar tu email</div>
+            </div>
+          </div>
+        </details>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div>
+            <div style="font-size:11px;font-weight:500;color:var(--text-dim);margin-bottom:5px;">Client ID</div>
+            <input class="form-input" id="spotifyClientId" value="${s.spotify_client_id||''}" placeholder="Tu Client ID" style="font-size:12px;">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:500;color:var(--text-dim);margin-bottom:5px;">Client Secret</div>
+            <div style="display:flex;gap:6px;">
+              <input class="form-input" id="spotifyClientSecret" type="password" value="${s.spotify_client_secret||''}" placeholder="Tu Client Secret" style="flex:1;font-size:12px;">
+              <button type="button" onclick="const i=document.getElementById('spotifyClientSecret');i.type=i.type==='password'?'text':'password'" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:0 10px;color:var(--text-dim);cursor:pointer;font-size:12px;">👁</button>
+            </div>
+          </div>
+          <button onclick="saveSpotifyCredentials()" style="padding:8px;border-radius:var(--radius-sm);background:rgba(30,215,96,0.12);border:1px solid rgba(30,215,96,0.25);color:#1ed760;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--sans);" onmouseover="this.style.background='rgba(30,215,96,0.2)'" onmouseout="this.style.background='rgba(30,215,96,0.12)'">Guardar credenciales</button>
+        </div>
+      </div>
+
+      <!-- Configuración -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;">Configuración</div>
+        <div class="toggle-row" style="margin-bottom:16px;">
+          <div><div style="font-size:13px;font-weight:500;color:var(--text);">Solicitudes activas</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Chat usa !cancion para pedir</div></div>
+          <label class="toggle"><input type="checkbox" id="spotifyEnabled" ${s.spotify_config?.enabled?'checked':''} onchange="saveSpotifyConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11px;font-weight:500;color:var(--text-dim);margin-bottom:8px;">¿Quién puede pedir?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${['everyone','sub','vip','mod'].map(p => {
+              const labels = {everyone:'Todos',sub:'Subs',vip:'VIPs',mod:'Mods'};
+              const icons = {everyone:'👥',sub:'⭐',vip:'💎',mod:'🛡️'};
+              const active = (s.spotify_config?.allowed||['everyone']).includes(p);
+              return `<label style="display:flex;align-items:center;gap:5px;padding:5px 12px;border:1px solid ${active?'rgba(30,215,96,0.4)':'rgba(255,255,255,0.08)'};border-radius:16px;cursor:pointer;font-size:11px;font-weight:500;color:${active?'#1ed760':'var(--text-dim)'};background:${active?'rgba(30,215,96,0.08)':'transparent'};transition:all 0.15s;" onclick="toggleSpotifyPerm(this,'${p}')">
+                <input type="checkbox" ${active?'checked':''} data-perm="${p}" style="display:none;">
+                ${icons[p]} ${labels[p]}
+              </label>`;
+            }).join('')}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:11px;font-weight:500;color:var(--text-dim);margin-bottom:5px;">Máx. por usuario</div>
+            <input class="form-input" type="number" id="spotifyMaxQueue" value="${s.spotify_config?.max_per_user||3}" min="1" max="10" style="font-size:12px;">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:500;color:var(--text-dim);margin-bottom:5px;">Votos para !vskip</div>
+            <input class="form-input" id="skipVotes" type="number" min="2" max="50" value="${s.spotify_config?.skip_votes||5}" style="font-size:12px;" onchange="saveSpotifyConfig()">
+          </div>
+        </div>
+        <button onclick="saveSpotifyConfig()" style="width:100%;padding:8px;border-radius:var(--radius-sm);background:rgba(30,215,96,0.12);border:1px solid rgba(30,215,96,0.25);color:#1ed760;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--sans);" onmouseover="this.style.background='rgba(30,215,96,0.2)'" onmouseout="this.style.background='rgba(30,215,96,0.12)'">Guardar configuración</button>
       </div>
     </div>
 
-    <!-- Blacklist -->
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">🚫 Lista negra</span></div>
-      <div class="panel-body">
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Bloquea artistas o canciones. El bot rechazará solicitudes que coincidan.</div>
-        <div style="display:flex;gap:8px;margin-bottom:12px;">
-          <input class="form-input" id="blacklistInput" placeholder="Ej: Bad Bunny, Despacito..." style="flex:1;">
-          <button class="btn btn-primary btn-sm" onclick="addToBlacklist()">Agregar</button>
+    <!-- Blacklist + Comandos en grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+      <!-- Lista negra -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">Lista negra</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;">Artistas o canciones bloqueadas</div>
+        <div style="display:flex;gap:6px;margin-bottom:12px;">
+          <input class="form-input" id="blacklistInput" placeholder="Artista o canción..." style="flex:1;font-size:12px;">
+          <button onclick="addToBlacklist()" style="padding:8px 14px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius-sm);color:var(--pink);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--sans);">+ Bloquear</button>
         </div>
-        <div id="blacklistItems" style="display:flex;flex-wrap:wrap;gap:6px;">
+        <div id="blacklistItems" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;">
           ${(s.spotify_config?.blacklist||[]).map(b => `
-            <div style="display:flex;align-items:center;gap:6px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:20px;padding:4px 10px;">
-              <span style="font-size:12px;color:var(--pink);">${b}</span>
-              <button onclick="removeFromBlacklist('${b}')" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:14px;line-height:1;padding:0;">×</button>
-            </div>`).join('') || `<div style="font-size:12px;color:var(--text-muted);">No hay nada bloqueado</div>`}
+            <div style="display:flex;align-items:center;gap:5px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:16px;padding:3px 10px;">
+              <span style="font-size:11px;color:var(--pink);">${b}</span>
+              <button onclick="removeFromBlacklist('${b}')" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:14px;line-height:1;padding:0;opacity:0.7;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7">×</button>
+            </div>`).join('') || `<div style="font-size:12px;color:var(--text-muted);padding:4px 0;">Sin restricciones</div>`}
         </div>
       </div>
-    </div>
 
-    <!-- Votos para saltar -->
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">⏭️ Votos para saltar</span></div>
-      <div class="panel-body">
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Los viewers usan <code style="color:#1ed760;">!vskip</code> para votar. Cuando se alcanzan los votos necesarios, la canción se salta automáticamente.</div>
-        <div class="form-group">
-          <label class="form-label">Votos necesarios para saltar</label>
-          <input class="form-input" id="skipVotes" type="number" min="2" max="50" value="${s.spotify_config?.skip_votes||5}" style="width:80px;" onchange="saveSpotifyConfig()">
+      <!-- Comandos -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;">Comandos del chat</div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${[
+            ['!cancion [nombre]', 'Pedir por nombre'],
+            ['!cancion [link]', 'Pedir por link de Spotify'],
+            ['!cancion actual', 'Ver qué suena ahora'],
+            ['!cola', 'Ver próximas canciones'],
+            ['!vskip', 'Votar para saltar'],
+            ['!skip', 'Saltar (solo mods)'],
+          ].map(([cmd, desc]) => `
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <code style="font-size:11px;font-weight:600;color:#1ed760;font-family:monospace;min-width:130px;">${cmd}</code>
+              <span style="font-size:11px;color:var(--text-muted);">${desc}</span>
+            </div>`).join('')}
         </div>
       </div>
     </div>
