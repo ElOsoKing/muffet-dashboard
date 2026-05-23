@@ -543,6 +543,15 @@ app.get('/api/clips/:username', async (req, res) => {
     res.json(clips);
   } catch(err) { res.json([]); }
 });
+app.post('/api/youtube-music', requireAuth, async (req, res) => {
+  try {
+    const { youtube_music_config } = req.body;
+    if (!isValidObject(youtube_music_config)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { youtube_music_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/live-announcement', requireAuth, async (req, res) => {
   try {
     const { live_announcement } = req.body;
