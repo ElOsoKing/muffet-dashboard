@@ -720,6 +720,8 @@ app.get('/api/spotify/current', requireAuth, async (req, res) => {
     const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
     let token = streamer?.spotify_token;
     if (!token) return res.json({ connected: false });
+
+    // Refrescar token si expiró
     let r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -730,9 +732,35 @@ app.get('/api/spotify/current', requireAuth, async (req, res) => {
         r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': `Bearer ${token}` } });
       }
     }
-    if (r.status === 204) return res.json({ connected: true, playing: false });
+    if (r.status === 204) return res.json({ connected: true, playing: false, queue: [] });
     const data = await r.json();
-    res.json({ connected: true, playing: true, track: data.item?.name, artist: data.item?.artists?.[0]?.name, album_art: data.item?.album?.images?.[0]?.url });
+
+    // Obtener cola
+    let queue = [];
+    try {
+      const qr = await fetch('https://api.spotify.com/v1/me/player/queue', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (qr.ok) {
+        const qd = await qr.json();
+        queue = (qd.queue || []).slice(0, 8).map(t => ({
+          name: t.name,
+          artist: t.artists?.[0]?.name || '',
+          image: t.album?.images?.[1]?.url || t.album?.images?.[0]?.url || ''
+        }));
+      }
+    } catch(e) {}
+
+    res.json({
+      connected: true,
+      playing: true,
+      track: data.item?.name,
+      artist: data.item?.artists?.[0]?.name,
+      album_art: data.item?.album?.images?.[0]?.url,
+      progress_ms: data.progress_ms,
+      duration_ms: data.item?.duration_ms,
+      queue
+    });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
