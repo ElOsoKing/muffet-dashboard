@@ -3107,7 +3107,7 @@ async function saveModConfig() {
   const bannedWords = Array.from(document.querySelectorAll('#wordsContainer .word-tag')).map(t => t.textContent.replace('×','').trim()).filter(Boolean);
 
   const res = await fetch('/api/mod-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mod_config }) });
-  const res2 = await fetch('/api/moderation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ banned_words: bannedWords, warn_message: warnMsg }) });
+  const res2 = await fetch('/api/moderation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mod_enabled: streamerData.mod_enabled || false, banned_words: bannedWords, warn_message: warnMsg }) });
   if (res.ok && res2.ok) { streamerData.mod_config = mod_config; streamerData.warn_message = warnMsg; streamerData.banned_words = bannedWords; showToast('Guardado ✓'); }
   else showToast('Error','error');
 }
