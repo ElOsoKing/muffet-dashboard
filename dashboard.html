@@ -451,7 +451,7 @@ function showSection(name) {
   if(sec) sec.classList.add('active');
   if(name === 'stats') loadStats();
   if(name === 'profile') setTimeout(() => switchProfileTab('socials'), 100);
-  if(name === 'primerin') renderPrimerinRanking();
+  if(name === 'commands') renderCommandsList();
   if(name === 'counters') renderCountersList();
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
@@ -2545,6 +2545,48 @@ function togglePerm(label,perm){
   if(!any){const el=item.querySelector('.perm-label.everyone');if(el){el.classList.add('active');el.querySelector('input').checked=true;}}
 }
 function getPerms(item){return Array.from(item.querySelectorAll('.perm-label input:checked')).map(i=>i.dataset.perm);}
+function renderCommandsList() {
+  const list = document.getElementById('commandList');
+  const countEl = document.getElementById('cmdCount');
+  if (!list) return;
+
+  const commands = streamerData.commands || {};
+  const entries = Object.entries(commands);
+  const permIcons = {everyone:'👥',sub:'⭐',vip:'💎',mod:'🛡️',broadcaster:'👑'};
+
+  if (countEl) countEl.textContent = entries.length;
+
+  if (!entries.length) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:48px 20px;color:var(--text-muted);">
+        <div style="font-size:48px;margin-bottom:12px;opacity:0.5;">⚡</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">No hay comandos aún</div>
+        <div style="font-size:12px;line-height:1.6;">Crea tu primer comando con el botón <strong style="color:var(--text)">+ Nuevo comando</strong><br>o escribe <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 6px;border-radius:3px;">!addcmd !hola ¡Hola!</code> en el chat</div>
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = entries.map(([trigger, val]) => {
+    const response = typeof val === 'object' ? val.response : val;
+    const perms = typeof val === 'object' && val.perms ? val.perms : ['everyone'];
+    const permStr = perms.map(p => permIcons[p]||p).join(' ');
+    return `
+      <div class="cmd-card" data-trigger="${trigger}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);transition:all 0.15s;" onmouseover="this.style.borderColor='rgba(145,71,255,0.25)';this.style.background='var(--bg4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)';this.style.background='var(--bg3)'">
+        <div style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:8px;padding:6px 12px;flex-shrink:0;min-width:80px;text-align:center;">
+          <span style="font-family:monospace;font-size:13px;font-weight:700;color:var(--purple-light);">${trigger}</span>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${response}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${permStr}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="openCmdModal('${trigger}')" style="padding:6px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(145,71,255,0.2)'" onmouseout="this.style.background='var(--purple-dim)'">✏️ Editar</button>
+          <button onclick="deleteCommandCard('${trigger}')" style="padding:6px 10px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:6px;color:var(--pink);font-size:12px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(224,90,122,0.15)'" onmouseout="this.style.background='rgba(224,90,122,0.08)'">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
 // ── MODAL DE COMANDOS ──
 let cmdModalEditing = null; // trigger que se está editando
 
@@ -2656,8 +2698,8 @@ async function saveCmdModal() {
   if (res.ok) {
     streamerData.commands = commands;
     closeCmdModal();
+    renderCommandsList();
     showToast(`${trigger} guardado ✓`);
-    showSection('commands'); // re-renderizar
   } else showToast('Error al guardar','error');
 }
 
@@ -2668,8 +2710,8 @@ async function deleteCommandCard(trigger) {
   const res = await fetch('/api/commands', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ commands }) });
   if (res.ok) {
     streamerData.commands = commands;
+    renderCommandsList();
     showToast(`${trigger} eliminado ✓`);
-    showSection('commands');
   } else showToast('Error','error');
 }
 
