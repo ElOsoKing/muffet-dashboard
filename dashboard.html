@@ -815,34 +815,85 @@ function renderMain() {
   <!-- COMANDOS -->
   <div id="sec-commands" class="section">
     <div class="page-header">
-      <div class="page-title">Comandos</div>
-      <div class="page-subtitle">Gestiona los comandos del chat</div>
+      <div class="page-title">⚡ Comandos</div>
+      <div class="page-subtitle">Gestiona los comandos personalizados de tu chat</div>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-      <button class="btn" onclick="showSection('syscommands')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">🔧 Comandos del sistema →</button>
-      <button class="btn" onclick="showSection('counters')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">🔢 Contadores →</button>
-      <button class="btn" onclick="showSection('variables')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">📋 Ver variables →</button>
+
+    <!-- Accesos rápidos -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+      <button onclick="showSection('syscommands')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--sans);" onmouseover="this.style.borderColor='var(--purple-border)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+        <span style="font-size:20px;">🔧</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">Sistema</div>
+          <div style="font-size:11px;color:var(--text-muted);">Activa o desactiva</div>
+        </div>
+      </button>
+      <button onclick="showSection('counters')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--sans);" onmouseover="this.style.borderColor='var(--purple-border)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+        <span style="font-size:20px;">🔢</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">Contadores</div>
+          <div style="font-size:11px;color:var(--text-muted);">Gestiona contadores</div>
+        </div>
+      </button>
+      <button onclick="showSection('variables')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--sans);" onmouseover="this.style.borderColor='var(--purple-border)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
+        <span style="font-size:20px;">📋</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">Variables</div>
+          <div style="font-size:11px;color:var(--text-muted);">Referencia completa</div>
+        </div>
+      </button>
     </div>
+
+    <!-- Panel de comandos -->
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title-text">Lista de comandos <span id="cmdCount" style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">${Object.keys(commands).length} comandos</span></span>
-        <button class="btn btn-success btn-sm" onclick="addCommand()">+ Agregar</button>
+        <div style="display:flex;align-items:center;gap:12px;flex:1;">
+          <span class="panel-title-text">Lista de comandos</span>
+          <span id="cmdCount" style="font-size:11px;font-weight:500;color:var(--text-muted);background:var(--bg3);padding:2px 8px;border-radius:10px;">${Object.keys(commands).length}</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-success btn-sm" onclick="addCommand()">+ Agregar</button>
+          <button class="btn btn-primary" onclick="saveCommands()">Guardar</button>
+        </div>
       </div>
+
+      <!-- Buscador -->
+      <div style="padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <div style="position:relative;">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-muted);">🔍</span>
+          <input id="cmdSearch" class="form-input" placeholder="Buscar comando..." oninput="filterCommands(this.value)" style="padding-left:36px;font-size:13px;">
+        </div>
+      </div>
+
       <div class="panel-body">
-        <div class="command-list" id="commandList" style="display:flex;flex-direction:column;gap:8px;">
-          ${Object.entries(commands).map(([trigger,val])=>{
-            const response=typeof val==='object'?val.response:val;
-            const perms=typeof val==='object'&&val.perms?val.perms:['everyone'];
-            const permLabels={everyone:'👥 Todos',sub:'⭐ Subs',vip:'💎 VIPs',mod:'🛡️ Mods',broadcaster:'👑 Yo'};
-            return `<div class="command-item">
-              <div class="command-top">
-                <input class="command-trigger" value="${trigger}" placeholder="!comando">
-                <input class="command-response" value="${response.replace(/"/g,'&quot;')}" placeholder="Respuesta...">
-                <button class="btn btn-danger btn-sm" onclick="removeCommand(this)" style="flex-shrink:0;">✕</button>
+        <div id="commandList" style="display:flex;flex-direction:column;gap:6px;">
+          ${Object.entries(commands).length === 0 ? `
+          <div style="text-align:center;padding:40px;color:var(--text-muted);">
+            <div style="font-size:40px;margin-bottom:12px;">⚡</div>
+            <div style="font-size:14px;font-weight:500;color:var(--text-dim);margin-bottom:6px;">No hay comandos aún</div>
+            <div style="font-size:12px;">Agrega uno con el botón de arriba o escribe <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 6px;border-radius:3px;">!addcmd !comando respuesta</code> en el chat</div>
+          </div>` : Object.entries(commands).map(([trigger, val]) => {
+            const response = typeof val === 'object' ? val.response : val;
+            const perms = typeof val === 'object' && val.perms ? val.perms : ['everyone'];
+            const permLabels = {everyone:'👥 Todos', sub:'⭐ Subs', vip:'💎 VIPs', mod:'🛡️ Mods', broadcaster:'👑 Yo'};
+            return `
+            <div class="command-item" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);overflow:hidden;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(145,71,255,0.2)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
+              <!-- Fila principal -->
+              <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;">
+                <div style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;padding:5px 10px;flex-shrink:0;">
+                  <input class="command-trigger" value="${trigger}" placeholder="!comando" style="background:transparent;border:none;outline:none;font-family:monospace;font-size:13px;font-weight:700;color:var(--purple-light);width:${Math.max(trigger.length,8)}ch;min-width:60px;max-width:140px;">
+                </div>
+                <input class="command-response" value="${response.replace(/"/g,'&quot;')}" placeholder="Respuesta del comando..." style="flex:1;background:transparent;border:none;outline:none;font-size:13px;color:var(--text);border-bottom:1px solid transparent;transition:border-color 0.15s;padding-bottom:2px;" onfocus="this.style.borderColor='var(--purple-border)'" onblur="this.style.borderColor='transparent'" oninput="updatePreview(this)">
+                <button class="btn btn-danger btn-sm" onclick="removeCommand(this)" style="flex-shrink:0;padding:5px 8px;">✕</button>
               </div>
-              <div class="command-perms" style="margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                <span class="perm-title" style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:2px;">Permisos:</span>
-                ${['everyone','sub','vip','mod','broadcaster'].map(p=>`
+              <!-- Preview de variables -->
+              <div class="cmd-preview" style="display:none;padding:0 14px 10px;font-size:11px;color:var(--text-muted);border-top:1px solid rgba(255,255,255,0.03);padding-top:8px;margin-top:-2px;">
+                <span style="color:var(--text-muted);">Preview: </span><span class="preview-text" style="color:var(--purple-light);"></span>
+              </div>
+              <!-- Permisos -->
+              <div style="display:flex;align-items:center;gap:6px;padding:8px 14px;border-top:1px solid rgba(255,255,255,0.04);background:rgba(0,0,0,0.1);">
+                <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:2px;">Permisos:</span>
+                ${['everyone','sub','vip','mod','broadcaster'].map(p => `
                   <label class="perm-label ${p} ${perms.includes(p)?'active':''}" onclick="togglePerm(this,'${p}')" style="cursor:pointer;">
                     <input type="checkbox" ${perms.includes(p)?'checked':''} data-perm="${p}" style="display:none;">
                     ${permLabels[p]}
@@ -851,13 +902,8 @@ function renderMain() {
             </div>`;
           }).join('')}
         </div>
-        ${Object.keys(commands).length === 0 ? `
-        <div style="text-align:center;padding:32px;color:var(--text-muted);">
-          <div style="font-size:32px;margin-bottom:8px;">⚡</div>
-          <div style="font-size:14px;font-weight:500;color:var(--text-dim);margin-bottom:4px;">No hay comandos</div>
-          <div style="font-size:12px;">Agrega uno con el botón de arriba o usa <code style="color:var(--purple-light)">!addcmd</code> en el chat</div>
-        </div>` : ''}
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.04);">
+
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
           <span style="font-size:12px;color:var(--text-muted);">También puedes usar <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 5px;border-radius:3px;">!addcmd !comando respuesta</code> desde el chat</span>
           <button class="btn btn-primary" onclick="saveCommands()">Guardar cambios</button>
         </div>
@@ -2474,6 +2520,43 @@ function togglePerm(label,perm){
   if(!any){const el=item.querySelector('.perm-label.everyone');if(el){el.classList.add('active');el.querySelector('input').checked=true;}}
 }
 function getPerms(item){return Array.from(item.querySelectorAll('.perm-label input:checked')).map(i=>i.dataset.perm);}
+// ── BÚSQUEDA Y PREVIEW DE COMANDOS ──
+function filterCommands(query) {
+  const items = document.querySelectorAll('#commandList .command-item');
+  const q = query.toLowerCase().trim();
+  items.forEach(item => {
+    const trigger = item.querySelector('.command-trigger')?.value?.toLowerCase() || '';
+    const response = item.querySelector('.command-response')?.value?.toLowerCase() || '';
+    item.style.display = (!q || trigger.includes(q) || response.includes(q)) ? 'block' : 'none';
+  });
+}
+
+function updatePreview(input) {
+  const item = input.closest('.command-item');
+  if (!item) return;
+  const preview = item.querySelector('.cmd-preview');
+  const previewText = item.querySelector('.preview-text');
+  const val = input.value;
+  if (!previewText || !preview) return;
+  const hasVars = /\{user\}|\{touser\}|\{random|\{channel\}|\{game\}|\{count:|\{randomuser\}|\{randomlist/.test(val);
+  if (hasVars) {
+    preview.style.display = 'block';
+    previewText.textContent = val
+      .replace(/\{user\}/g, userData?.username || 'ElOsoKing1')
+      .replace(/\{touser\}/g, 'Wolf')
+      .replace(/\{channel\}/g, userData?.username || 'elosoking1')
+      .replace(/\{random\}/g, Math.floor(Math.random()*100)+1)
+      .replace(/\{random:(\d+)-(\d+)\}/g, (_, a, b) => Math.floor(Math.random()*(parseInt(b)-parseInt(a)+1))+parseInt(a))
+      .replace(/\{random:(\d+)\}/g, (_, n) => Math.floor(Math.random()*parseInt(n))+1)
+      .replace(/\{game\}/g, 'Hunt: Showdown')
+      .replace(/\{count:\w+\}/g, '5')
+      .replace(/\{randomlist\[([^\]]+)\]\}/g, (_, l) => { const o=l.split(';'); return o[Math.floor(Math.random()*o.length)].trim(); })
+      .replace(/\{randomuser\}/g, 'lordlonelywolf');
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
 function addCommand(){
   const list=document.getElementById('commandList');const div=document.createElement('div');div.className='command-item';
   div.innerHTML=`<div class="command-top"><input class="command-trigger" value="!nuevo" placeholder="!comando"><input class="command-response" value="Respuesta de Muffet" placeholder="Respuesta..."><button class="btn btn-danger btn-sm" onclick="removeCommand(this)">✕</button></div>
