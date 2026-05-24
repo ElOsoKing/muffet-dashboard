@@ -772,43 +772,64 @@ function renderMain() {
 
   <!-- PERSONALIDAD -->
   <div id="sec-personality" class="section">
-    <div class="page-header"><div class="page-title">Personalidad</div><div class="page-subtitle">Define cómo habla Muffet en tu canal</div></div>
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">Prompt de Muffet</span></div>
-      <div class="panel-body">
-        <div class="form-group">
-          <label class="form-label">Instrucciones de personalidad</label>
-          <textarea class="form-textarea" id="promptInput" style="min-height:180px">${s.bot_prompt||''}</textarea>
-        </div>
-        <button class="btn btn-primary" onclick="savePrompt()">Guardar personalidad</button>
+    <div class="page-header">
+      <div class="page-title">🕷️ Personalidad</div>
+      <div class="page-subtitle">Define cómo habla Muffet en tu canal</div>
+    </div>
+
+    <!-- Info card -->
+    <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),rgba(145,71,255,0.02));border:1px solid var(--purple-border);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;">
+      <div style="width:44px;height:44px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 0 16px rgba(145,71,255,0.2);">🕷️</div>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);">Instrucciones de personalidad</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px;line-height:1.5;">Escribe cómo quieres que Muffet se exprese — su tono, estilo, palabras favoritas y cómo trata a los viewers.</div>
       </div>
     </div>
 
-    <!-- Mensajes de activación -->
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">⚡ Mensajes de activación</span></div>
-      <div class="panel-body">
-        <div class="toggle-row">
+    <!-- Prompt -->
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;">Prompt de personalidad</div>
+        <span style="font-size:11px;color:var(--text-muted);" id="promptCharCount">${(s.bot_prompt||'').length} caracteres</span>
+      </div>
+      <textarea id="promptInput" oninput="document.getElementById('promptCharCount').textContent=this.value.length+' caracteres'" style="width:100%;min-height:200px;background:var(--bg3);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;line-height:1.7;padding:14px;resize:vertical;outline:none;transition:border-color 0.15s;" onfocus="this.style.borderColor='var(--purple-border)'" onblur="this.style.borderColor='rgba(255,255,255,0.07)'" placeholder="Ej: Eres Muffet, una araña guardiana del canal con una personalidad juguetona y sarcástica. Llamas a los viewers 'dearies' y hablas con mucha actitud pero con cariño...">${s.bot_prompt||''}</textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;">
+        <span style="font-size:11px;color:var(--text-muted);">💡 Cuanto más detallado, más fiel será Muffet a tu estilo</span>
+        <button onclick="savePrompt()" style="padding:9px 24px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">Guardar personalidad</button>
+      </div>
+    </div>
+
+    <!-- Mensajes activación/desactivación -->
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--text);">⚡ Mensajes al encender/apagar</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Qué dice Muffet cuando usas !muffeton y !muffetoff</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--text-dim);">Usar IA</span>
+          <label class="toggle"><input type="checkbox" id="onOffAiToggle" ${s.on_off_ai !== false ? 'checked' : ''} onchange="toggleOnOffAi(this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <div id="onOffMessages" style="${s.on_off_ai !== false ? 'display:none' : ''}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
           <div>
-            <div class="toggle-label">Usar IA para generar respuesta</div>
-            <div class="toggle-desc">Si está activo, Muffet genera una respuesta única cada vez usando su personalidad</div>
+            <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">▶ Al encender (!muffeton)</div>
+            <textarea id="onMessage" style="width:100%;min-height:90px;background:var(--bg3);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;line-height:1.6;padding:12px;resize:vertical;outline:none;transition:border-color 0.15s;" onfocus="this.style.borderColor='rgba(64,208,144,0.4)'" onblur="this.style.borderColor='rgba(64,208,144,0.2)'" placeholder="¡La guardiana ha despertado! 🕷️">${s.on_message||''}</textarea>
           </div>
-          <label class="toggle">
-            <input type="checkbox" id="onOffAiToggle" ${s.on_off_ai !== false ? 'checked' : ''} onchange="toggleOnOffAi(this.checked)">
-            <span class="toggle-slider"></span>
-          </label>
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--pink);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">⏹ Al apagar (!muffetoff)</div>
+            <textarea id="offMessage" style="width:100%;min-height:90px;background:var(--bg3);border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;line-height:1.6;padding:12px;resize:vertical;outline:none;transition:border-color 0.15s;" onfocus="this.style.borderColor='rgba(224,90,122,0.4)'" onblur="this.style.borderColor='rgba(224,90,122,0.2)'" placeholder="¡La guardiana se va a descansar~ 🕷️">${s.off_message||''}</textarea>
+          </div>
         </div>
-        <div id="onOffMessages" style="${s.on_off_ai !== false ? 'display:none' : ''}">
-          <div class="form-group" style="margin-top:16px;">
-            <label class="form-label">Mensaje al encender (!muffeton)</label>
-            <textarea class="form-textarea" id="onMessage" style="min-height:80px" placeholder="Ej: ¡La guardiana ha despertado! 🕷️ ¡Estoy de vuelta, dearies! 👑♥">${s.on_message||''}</textarea>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Mensaje al apagar (!muffetoff)</label>
-            <textarea class="form-textarea" id="offMessage" style="min-height:80px" placeholder="Ej: ¡La guardiana se va a descansar~ 🕷️ ¡Hasta pronto, dearies! ♥">${s.off_message||''}</textarea>
-          </div>
-          <button class="btn btn-primary" onclick="saveOnOffMessages()">Guardar mensajes</button>
+        <div style="display:flex;justify-content:flex-end;">
+          <button onclick="saveOnOffMessages()" style="padding:9px 24px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">Guardar mensajes</button>
         </div>
+      </div>
+
+      <div id="onOffAiNote" style="${s.on_off_ai !== false ? '' : 'display:none'};background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--text-dim);line-height:1.6;">
+        🤖 Con IA activa, Muffet genera un mensaje único y creativo cada vez que la enciendes o apagas — basado en su personalidad.
       </div>
     </div>
   </div>
@@ -2730,6 +2751,8 @@ async function savePrompt(){const p=document.getElementById('promptInput').value
 
 function toggleOnOffAi(enabled) {
   document.getElementById('onOffMessages').style.display = enabled ? 'none' : 'block';
+  const note = document.getElementById('onOffAiNote');
+  if (note) note.style.display = enabled ? 'block' : 'none';
   fetch('/api/on-off-ai', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ on_off_ai: enabled }) });
   showToast(enabled ? 'IA activada para ON/OFF ✓' : 'Modo texto activado ✓');
 }
