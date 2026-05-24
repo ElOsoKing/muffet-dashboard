@@ -2777,7 +2777,7 @@ async function saveAutoMsgModal() {
     msgs.push(newMsg);
   }
 
-  const res = await fetch('/api/automessages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ auto_messages: msgs }) });
+  const res = await fetch('/api/auto-messages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ auto_messages: msgs }) });
   if (res.ok) {
     streamerData.auto_messages = msgs;
     closeAutoMsgModal();
@@ -2790,7 +2790,7 @@ async function deleteAutoMsg(idx) {
   if (!confirm('¿Eliminar este auto mensaje?')) return;
   const msgs = [...(streamerData.auto_messages || [])];
   msgs.splice(idx, 1);
-  const res = await fetch('/api/automessages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ auto_messages: msgs }) });
+  const res = await fetch('/api/auto-messages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ auto_messages: msgs }) });
   if (res.ok) {
     streamerData.auto_messages = msgs;
     renderAutoMsgList();
