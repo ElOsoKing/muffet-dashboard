@@ -174,6 +174,10 @@ app.get('/auth/twitch/callback', async (req, res) => {
 });
 
 // ── Página pública del canal ──
+function proOnlyPage(res) {
+  res.status(403).send(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MuffetBot Pro</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#0d0d0f;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;}.card{background:#141416;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:40px;max-width:400px;width:100%;text-align:center;}.icon{font-size:48px;margin-bottom:16px;}h1{font-size:20px;font-weight:700;color:#e8e8f0;margin-bottom:8px;}p{font-size:14px;color:#6b6b80;line-height:1.6;margin-bottom:24px;}a{display:inline-flex;align-items:center;gap:8px;background:#f0c060;color:black;font-weight:700;font-size:14px;padding:12px 24px;border-radius:24px;text-decoration:none;transition:opacity 0.15s;}a:hover{opacity:0.85;}.badge{display:inline-block;background:rgba(240,192,96,0.1);border:1px solid rgba(240,192,96,0.3);color:#f0c060;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;margin-bottom:20px;letter-spacing:0.5px;}</style></head><body><div class="card"><div class="icon">🕷️</div><div class="badge">⭐ PLAN PRO</div><h1>Función exclusiva Pro</h1><p>Esta función está disponible para los usuarios del plan Pro de MuffetBot por solo $5/mes.</p><a href="https://ko-fi.com/muffetbot" target="_blank">☕ Obtener Plan Pro</a></div></body></html>`);
+}
+
 app.get('/canal/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
@@ -182,7 +186,7 @@ app.get('/canal/:username', async (req, res) => {
     const data = await result.json();
     const streamer = data?.[0];
     if (!streamer) return res.status(404).send('Canal no encontrado');
-    if (streamer.plan !== 'pro') return res.status(403).send('Página pública disponible en plan Pro');
+    if (streamer.plan !== 'pro') return proOnlyPage(res);
     res.sendFile(path.join(__dirname, 'canal.html'));
   } catch (err) {
     res.status(500).send('Error');
@@ -550,7 +554,7 @@ app.get('/overlay/spotify/:username', async (req, res) => {
     const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=plan&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
-    if (!data?.[0] || data[0].plan !== 'pro') return res.status(403).send('Overlay disponible en plan Pro');
+    if (!data?.[0] || data[0].plan !== 'pro') return proOnlyPage(res);
     res.sendFile(path.join(__dirname, 'spotify-overlay.html'));
   } catch(err) { res.status(500).send('Error'); }
 });
@@ -857,7 +861,7 @@ app.get('/overlay/sorteo/:username', async (req, res) => {
     const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=plan&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
-    if (!data?.[0] || data[0].plan !== 'pro') return res.status(403).send('Overlay disponible en plan Pro');
+    if (!data?.[0] || data[0].plan !== 'pro') return proOnlyPage(res);
     res.sendFile(path.join(__dirname, 'raffle-overlay.html'));
   } catch(err) { res.status(500).send('Error'); }
 });
