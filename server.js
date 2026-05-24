@@ -601,6 +601,14 @@ app.post('/api/youtube-music', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/mod-config', requireAuth, async (req, res) => {
+  try {
+    const { mod_config } = req.body;
+    await sbUpdate('streamers', { mod_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/live-announcement', requireAuth, async (req, res) => {
   try {
     const { live_announcement } = req.body;
