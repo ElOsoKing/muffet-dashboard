@@ -363,10 +363,10 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Herramientas <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
-      <div class="nav-item" onclick="showSection('music')"><span class="nav-icon">🎵</span> Música ${s.plan!=='pro'?'<span class="pro-badge">PRO</span>':''}</div>
+      <div class="nav-item" onclick="showSection('music')"><span class="nav-icon">🎵</span> Música <span class="pro-badge" id="badge-music" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
-      <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin ${s.plan!=='pro'?'<span class="pro-badge">PRO</span>':''}</div>
+      <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin <span class="pro-badge" id="badge-primerin" style="display:none;">PRO</span></div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Análisis <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
@@ -431,6 +431,14 @@ async function loadData() {
 
   if (userData.role === 'admin') document.getElementById('adminNavItem').style.display = 'flex';
   renderMain();
+  // Mostrar badges Pro en sidebar si es Free
+  if (streamerData.plan !== 'pro') {
+    ['music','primerin'].forEach(id => {
+      const badge = document.getElementById(`badge-${id}`);
+      if (badge) badge.style.display = 'inline-flex';
+    });
+  }
+
   showSection('overview');
 }
 
@@ -2361,7 +2369,7 @@ function renderMain() {
     </div>`:''}
 
     <div class="panel ${s.plan!=='pro'?'pro-lock':''}">
-      <div class="panel-header"><span class="panel-title-text">📢 Anuncio cuando vas en vivo ${s.plan!=='pro'?'<span class="pro-badge">PRO</span>':''}</span></div>
+      <div class="panel-header"><span class="panel-title-text">📢 Anuncio cuando vas en vivo</span></div>
       ${s.plan!=='pro'?`
       <div class="pro-lock-overlay" style="border-radius:var(--radius);">
         <div class="pro-lock-badge">⭐ Función Pro</div>
