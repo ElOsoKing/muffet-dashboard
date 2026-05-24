@@ -821,91 +821,116 @@ function renderMain() {
 
     <!-- Accesos rápidos -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
-      <button onclick="showSection('syscommands')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--sans);" onmouseover="this.style.borderColor='var(--purple-border)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
-        <span style="font-size:20px;">🔧</span>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);">Sistema</div>
-          <div style="font-size:11px;color:var(--text-muted);">Activa o desactiva</div>
-        </div>
-      </button>
-      <button onclick="showSection('counters')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--sans);" onmouseover="this.style.borderColor='var(--purple-border)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
-        <span style="font-size:20px;">🔢</span>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);">Contadores</div>
-          <div style="font-size:11px;color:var(--text-muted);">Gestiona contadores</div>
-        </div>
-      </button>
-      <button onclick="showSection('variables')" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--sans);" onmouseover="this.style.borderColor='var(--purple-border)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)'">
-        <span style="font-size:20px;">📋</span>
-        <div>
-          <div style="font-size:13px;font-weight:600;color:var(--text);">Variables</div>
-          <div style="font-size:11px;color:var(--text-muted);">Referencia completa</div>
-        </div>
-      </button>
+      ${[
+        ['syscommands','🔧','Sistema','Activa o desactiva'],
+        ['counters','🔢','Contadores','Gestiona contadores'],
+        ['variables','📋','Variables','Referencia completa'],
+      ].map(([sec,icon,title,desc]) => `
+        <button onclick="showSection('${sec}')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);cursor:pointer;text-align:left;transition:all 0.15s;font-family:var(--sans);width:100%;" onmouseover="this.style.borderColor='var(--purple-border)';this.style.background='var(--bg3)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.06)';this.style.background='var(--bg2)'">
+          <div style="width:38px;height:38px;border-radius:10px;background:var(--purple-dim);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">${icon}</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);">${title}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:1px;">${desc}</div>
+          </div>
+          <span style="margin-left:auto;color:var(--text-muted);font-size:16px;">›</span>
+        </button>`).join('')}
     </div>
 
-    <!-- Panel de comandos -->
+    <!-- Panel -->
     <div class="panel">
       <div class="panel-header">
-        <div style="display:flex;align-items:center;gap:12px;flex:1;">
-          <span class="panel-title-text">Lista de comandos</span>
-          <span id="cmdCount" style="font-size:11px;font-weight:500;color:var(--text-muted);background:var(--bg3);padding:2px 8px;border-radius:10px;">${Object.keys(commands).length}</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="panel-title-text">Mis comandos</span>
+          <span id="cmdCount" style="font-size:11px;background:var(--purple-dim);color:var(--purple-light);padding:2px 8px;border-radius:10px;font-weight:600;">${Object.keys(commands).length}</span>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-success btn-sm" onclick="addCommand()">+ Agregar</button>
-          <button class="btn btn-primary" onclick="saveCommands()">Guardar</button>
-        </div>
+        <button class="btn btn-success btn-sm" onclick="openCmdModal()">+ Nuevo comando</button>
       </div>
 
       <!-- Buscador -->
       <div style="padding:12px 20px;border-bottom:1px solid rgba(255,255,255,0.04);">
         <div style="position:relative;">
-          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--text-muted);">🔍</span>
-          <input id="cmdSearch" class="form-input" placeholder="Buscar comando..." oninput="filterCommands(this.value)" style="padding-left:36px;font-size:13px;">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);">🔍</span>
+          <input id="cmdSearch" class="form-input" placeholder="Buscar por nombre o respuesta..." oninput="filterCommands(this.value)" style="padding-left:38px;font-size:13px;">
         </div>
       </div>
 
-      <div class="panel-body">
+      <div class="panel-body" style="padding:12px 16px;">
         <div id="commandList" style="display:flex;flex-direction:column;gap:6px;">
           ${Object.entries(commands).length === 0 ? `
-          <div style="text-align:center;padding:40px;color:var(--text-muted);">
-            <div style="font-size:40px;margin-bottom:12px;">⚡</div>
-            <div style="font-size:14px;font-weight:500;color:var(--text-dim);margin-bottom:6px;">No hay comandos aún</div>
-            <div style="font-size:12px;">Agrega uno con el botón de arriba o escribe <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 6px;border-radius:3px;">!addcmd !comando respuesta</code> en el chat</div>
-          </div>` : Object.entries(commands).map(([trigger, val]) => {
+          <div style="text-align:center;padding:48px 20px;color:var(--text-muted);">
+            <div style="font-size:48px;margin-bottom:12px;opacity:0.5;">⚡</div>
+            <div style="font-size:15px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">No hay comandos aún</div>
+            <div style="font-size:12px;line-height:1.6;">Crea tu primer comando con el botón <strong style="color:var(--text)">+ Nuevo comando</strong><br>o escribe <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 6px;border-radius:3px;">!addcmd !hola ¡Hola!</code> en el chat</div>
+          </div>` : Object.entries(commands).map(([trigger, val], idx) => {
             const response = typeof val === 'object' ? val.response : val;
             const perms = typeof val === 'object' && val.perms ? val.perms : ['everyone'];
-            const permLabels = {everyone:'👥 Todos', sub:'⭐ Subs', vip:'💎 VIPs', mod:'🛡️ Mods', broadcaster:'👑 Yo'};
+            const permIcons = {everyone:'👥',sub:'⭐',vip:'💎',mod:'🛡️',broadcaster:'👑'};
+            const permStr = perms.map(p => permIcons[p]||p).join(' ');
             return `
-            <div class="command-item" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);overflow:hidden;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(145,71,255,0.2)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
-              <!-- Fila principal -->
-              <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;">
-                <div style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;padding:5px 10px;flex-shrink:0;">
-                  <input class="command-trigger" value="${trigger}" placeholder="!comando" style="background:transparent;border:none;outline:none;font-family:monospace;font-size:13px;font-weight:700;color:var(--purple-light);width:${Math.max(trigger.length,8)}ch;min-width:60px;max-width:140px;">
-                </div>
-                <input class="command-response" value="${response.replace(/"/g,'&quot;')}" placeholder="Respuesta del comando..." style="flex:1;background:transparent;border:none;outline:none;font-size:13px;color:var(--text);border-bottom:1px solid transparent;transition:border-color 0.15s;padding-bottom:2px;" onfocus="this.style.borderColor='var(--purple-border)'" onblur="this.style.borderColor='transparent'" oninput="updatePreview(this)">
-                <button class="btn btn-danger btn-sm" onclick="removeCommand(this)" style="flex-shrink:0;padding:5px 8px;">✕</button>
+            <div class="cmd-card" data-trigger="${trigger}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);transition:all 0.15s;cursor:default;" onmouseover="this.style.borderColor='rgba(145,71,255,0.25)';this.style.background='var(--bg4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)';this.style.background='var(--bg3)'">
+              <!-- Trigger badge -->
+              <div style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:8px;padding:6px 12px;flex-shrink:0;min-width:80px;text-align:center;">
+                <span style="font-family:monospace;font-size:13px;font-weight:700;color:var(--purple-light);">${trigger}</span>
               </div>
-              <!-- Preview de variables -->
-              <div class="cmd-preview" style="display:none;padding:0 14px 10px;font-size:11px;color:var(--text-muted);border-top:1px solid rgba(255,255,255,0.03);padding-top:8px;margin-top:-2px;">
-                <span style="color:var(--text-muted);">Preview: </span><span class="preview-text" style="color:var(--purple-light);"></span>
+              <!-- Respuesta -->
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${response}</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${permStr}</div>
               </div>
-              <!-- Permisos -->
-              <div style="display:flex;align-items:center;gap:6px;padding:8px 14px;border-top:1px solid rgba(255,255,255,0.04);background:rgba(0,0,0,0.1);">
-                <span style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-right:2px;">Permisos:</span>
-                ${['everyone','sub','vip','mod','broadcaster'].map(p => `
-                  <label class="perm-label ${p} ${perms.includes(p)?'active':''}" onclick="togglePerm(this,'${p}')" style="cursor:pointer;">
-                    <input type="checkbox" ${perms.includes(p)?'checked':''} data-perm="${p}" style="display:none;">
-                    ${permLabels[p]}
-                  </label>`).join('')}
+              <!-- Acciones -->
+              <div style="display:flex;gap:6px;flex-shrink:0;">
+                <button onclick="openCmdModal('${trigger}')" style="padding:6px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(145,71,255,0.2)'" onmouseout="this.style.background='var(--purple-dim)'">✏️ Editar</button>
+                <button onclick="deleteCommandCard('${trigger}')" style="padding:6px 10px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:6px;color:var(--pink);font-size:12px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(224,90,122,0.15)'" onmouseout="this.style.background='rgba(224,90,122,0.08)'">✕</button>
               </div>
             </div>`;
           }).join('')}
         </div>
+      </div>
+    </div>
 
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-          <span style="font-size:12px;color:var(--text-muted);">También puedes usar <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 5px;border-radius:3px;">!addcmd !comando respuesta</code> desde el chat</span>
-          <button class="btn btn-primary" onclick="saveCommands()">Guardar cambios</button>
+    <!-- Modal de edición -->
+    <div id="cmdModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:28px;width:520px;max-width:90vw;box-shadow:0 24px 48px rgba(0,0,0,0.5);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);" id="cmdModalTitle">Nuevo comando</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Los cambios se guardan al hacer click en Guardar</div>
+          </div>
+          <button onclick="closeCmdModal()" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;width:32px;height:32px;cursor:pointer;color:var(--text-dim);font-size:18px;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Comando <span style="color:var(--text-muted);font-size:11px;">(debe empezar con !)</span></label>
+          <input class="form-input" id="modalTrigger" placeholder="!saludo" style="font-family:monospace;font-weight:600;font-size:14px;color:var(--purple-light);">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Respuesta</label>
+          <textarea class="form-input" id="modalResponse" placeholder="¡Hola {user}! Bienvenido al canal 🎉" oninput="updateModalPreview()" style="min-height:80px;resize:vertical;line-height:1.6;"></textarea>
+        </div>
+
+        <!-- Preview -->
+        <div id="modalPreview" style="display:none;background:var(--bg3);border:1px solid var(--purple-border);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:600;color:var(--purple-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Vista previa</div>
+          <div id="modalPreviewText" style="font-size:13px;color:var(--text);"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">¿Quién puede usar este comando?</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;" id="modalPerms">
+            ${['everyone','sub','vip','mod','broadcaster'].map(p => {
+              const labels = {everyone:'👥 Todos',sub:'⭐ Subs',vip:'💎 VIPs',mod:'🛡️ Mods',broadcaster:'👑 Yo'};
+              return `<label id="modalperm-${p}" style="display:flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid rgba(255,255,255,0.08);border-radius:16px;cursor:pointer;font-size:12px;font-weight:500;color:var(--text-dim);background:transparent;transition:all 0.15s;user-select:none;" onclick="toggleModalPerm('${p}')">
+                <input type="checkbox" data-perm="${p}" style="display:none;">
+                ${labels[p]}
+              </label>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+          <button onclick="closeCmdModal()" style="padding:10px 20px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);font-size:13px;cursor:pointer;font-family:var(--sans);">Cancelar</button>
+          <button onclick="saveCmdModal()" style="padding:10px 24px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">Guardar comando</button>
         </div>
       </div>
     </div>
@@ -2520,6 +2545,151 @@ function togglePerm(label,perm){
   if(!any){const el=item.querySelector('.perm-label.everyone');if(el){el.classList.add('active');el.querySelector('input').checked=true;}}
 }
 function getPerms(item){return Array.from(item.querySelectorAll('.perm-label input:checked')).map(i=>i.dataset.perm);}
+// ── MODAL DE COMANDOS ──
+let cmdModalEditing = null; // trigger que se está editando
+
+function openCmdModal(trigger) {
+  cmdModalEditing = trigger || null;
+  const modal = document.getElementById('cmdModal');
+  const titleEl = document.getElementById('cmdModalTitle');
+  const triggerEl = document.getElementById('modalTrigger');
+  const responseEl = document.getElementById('modalResponse');
+
+  // Resetear perms
+  document.querySelectorAll('#modalPerms label').forEach(l => {
+    l.style.borderColor = 'rgba(255,255,255,0.08)';
+    l.style.color = 'var(--text-dim)';
+    l.style.background = 'transparent';
+    l.querySelector('input').checked = false;
+  });
+
+  if (trigger) {
+    titleEl.textContent = `Editar ${trigger}`;
+    triggerEl.value = trigger;
+    const cmd = streamerData.commands?.[trigger];
+    const response = typeof cmd === 'object' ? cmd.response : cmd;
+    const perms = typeof cmd === 'object' && cmd.perms ? cmd.perms : ['everyone'];
+    responseEl.value = response || '';
+    perms.forEach(p => activateModalPerm(p));
+  } else {
+    titleEl.textContent = 'Nuevo comando';
+    triggerEl.value = '!';
+    responseEl.value = '';
+    activateModalPerm('everyone');
+  }
+
+  updateModalPreview();
+  modal.style.display = 'flex';
+  setTimeout(() => responseEl.focus(), 100);
+}
+
+function closeCmdModal() {
+  document.getElementById('cmdModal').style.display = 'none';
+  cmdModalEditing = null;
+}
+
+function activateModalPerm(p) {
+  const label = document.getElementById(`modalperm-${p}`);
+  if (!label) return;
+  label.style.borderColor = 'var(--purple-border)';
+  label.style.color = 'var(--purple-light)';
+  label.style.background = 'var(--purple-dim)';
+  label.querySelector('input').checked = true;
+}
+
+function toggleModalPerm(p) {
+  const label = document.getElementById(`modalperm-${p}`);
+  if (!label) return;
+  const input = label.querySelector('input');
+  input.checked = !input.checked;
+  if (input.checked) {
+    label.style.borderColor = 'var(--purple-border)';
+    label.style.color = 'var(--purple-light)';
+    label.style.background = 'var(--purple-dim)';
+  } else {
+    label.style.borderColor = 'rgba(255,255,255,0.08)';
+    label.style.color = 'var(--text-dim)';
+    label.style.background = 'transparent';
+  }
+}
+
+function updateModalPreview() {
+  const val = document.getElementById('modalResponse')?.value || '';
+  const preview = document.getElementById('modalPreview');
+  const previewText = document.getElementById('modalPreviewText');
+  if (!preview || !previewText) return;
+  const hasVars = /\{user\}|\{touser\}|\{random|\{channel\}|\{game\}|\{count:|\{randomuser\}|\{randomlist/.test(val);
+  if (hasVars && val) {
+    preview.style.display = 'block';
+    previewText.textContent = val
+      .replace(/\{user\}/g, userData?.username || 'ElOsoKing1')
+      .replace(/\{touser\}/g, 'Wolf')
+      .replace(/\{channel\}/g, userData?.username || 'elosoking1')
+      .replace(/\{random\}/g, Math.floor(Math.random()*100)+1)
+      .replace(/\{random:(\d+)-(\d+)\}/g, (_, a, b) => Math.floor(Math.random()*(parseInt(b)-parseInt(a)+1))+parseInt(a))
+      .replace(/\{random:(\d+)\}/g, (_, n) => Math.floor(Math.random()*parseInt(n))+1)
+      .replace(/\{game\}/g, 'Hunt: Showdown')
+      .replace(/\{count:\w+\}/g, '5')
+      .replace(/\{randomlist\[([^\]]+)\]\}/g, (_, l) => { const o=l.split(';'); return o[Math.floor(Math.random()*o.length)].trim(); })
+      .replace(/\{randomuser\}/g, 'lordlonelywolf');
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+async function saveCmdModal() {
+  const trigger = document.getElementById('modalTrigger')?.value.trim().toLowerCase();
+  const response = document.getElementById('modalResponse')?.value.trim();
+  const perms = Array.from(document.querySelectorAll('#modalPerms input:checked')).map(i => i.dataset.perm);
+
+  if (!trigger || !trigger.startsWith('!')) { showToast('El comando debe empezar con !','error'); return; }
+  if (!response) { showToast('Escribe una respuesta','error'); return; }
+
+  const commands = { ...(streamerData.commands || {}) };
+
+  // Si editamos y cambió el nombre, eliminar el anterior
+  if (cmdModalEditing && cmdModalEditing !== trigger) delete commands[cmdModalEditing];
+
+  commands[trigger] = { response, perms: perms.length ? perms : ['everyone'] };
+
+  const res = await fetch('/api/commands', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ commands }) });
+  if (res.ok) {
+    streamerData.commands = commands;
+    closeCmdModal();
+    showToast(`${trigger} guardado ✓`);
+    showSection('commands'); // re-renderizar
+  } else showToast('Error al guardar','error');
+}
+
+async function deleteCommandCard(trigger) {
+  if (!confirm(`¿Eliminar el comando ${trigger}?`)) return;
+  const commands = { ...(streamerData.commands || {}) };
+  delete commands[trigger];
+  const res = await fetch('/api/commands', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ commands }) });
+  if (res.ok) {
+    streamerData.commands = commands;
+    showToast(`${trigger} eliminado ✓`);
+    showSection('commands');
+  } else showToast('Error','error');
+}
+
+// ── BÚSQUEDA DE COMANDOS ──
+function filterCommands(query) {
+  const items = document.querySelectorAll('#commandList .cmd-card');
+  const q = query.toLowerCase().trim();
+  items.forEach(item => {
+    const trigger = item.dataset.trigger?.toLowerCase() || '';
+    const text = item.textContent?.toLowerCase() || '';
+    item.style.display = (!q || trigger.includes(q) || text.includes(q)) ? 'flex' : 'none';
+  });
+}
+
+// Cerrar modal al hacer click fuera
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('cmdModal');
+  if (modal && e.target === modal) closeCmdModal();
+});
+
 // ── BÚSQUEDA Y PREVIEW DE COMANDOS ──
 function filterCommands(query) {
   const items = document.querySelectorAll('#commandList .command-item');
