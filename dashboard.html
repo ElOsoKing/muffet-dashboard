@@ -1523,14 +1523,14 @@ function renderMain() {
     </div>
 
     <!-- Header de estado -->
-    <div style="background:${s.mod_enabled?'linear-gradient(135deg,rgba(64,208,144,0.1),rgba(64,208,144,0.02))'  :'linear-gradient(135deg,rgba(255,255,255,0.03),transparent)'};border:1px solid ${s.mod_enabled?'rgba(64,208,144,0.25)'  :'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+    <div id="modStatusBar" style="background:${s.mod_enabled?'linear-gradient(135deg,rgba(88,166,255,0.1),rgba(88,166,255,0.02))':'linear-gradient(135deg,rgba(255,255,255,0.03),transparent)'};border:1px solid ${s.mod_enabled?'rgba(88,166,255,0.25)':'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px;transition:all 0.3s;">
       <div style="position:relative;flex-shrink:0;">
-        <div style="width:48px;height:48px;background:${s.mod_enabled?'rgba(64,208,144,0.15)'  :'rgba(255,255,255,0.04)'};border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;">🛡️</div>
-        ${s.mod_enabled?'<div style="position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;background:var(--green);border-radius:50%;border:2px solid var(--bg);"></div>':''}
+        <div style="width:48px;height:48px;background:${s.mod_enabled?'rgba(88,166,255,0.15)':'rgba(255,255,255,0.04)'};border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;">🛡️</div>
+        ${s.mod_enabled?'<div style="position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;background:#58a6ff;border-radius:50%;border:2px solid var(--bg);animation:pulse 2s infinite;"></div>':''}
       </div>
-      <div style="flex:1;">
-        <div style="font-size:15px;font-weight:700;color:var(--text);">Moderación ${s.mod_enabled?'<span style="color:var(--green);">activa</span>'  :'<span style="color:var(--text-muted);">desactivada</span>'}</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${s.mod_enabled?`Muffet está vigilando el chat`  :'Activa la moderación para proteger tu chat'}</div>
+      <div style="flex:1;" id="modStatusText">
+        <div style="font-size:15px;font-weight:700;color:var(--text);">Moderación ${s.mod_enabled?'<span style="color:#58a6ff;">activa</span>':'<span style="color:var(--text-muted);">desactivada</span>'}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${s.mod_enabled?'Muffet está vigilando el chat':'Activa la moderación para proteger tu chat'}</div>
       </div>
       <label class="toggle"><input type="checkbox" id="modEnabled" ${s.mod_enabled?'checked':''} onchange="saveModEnabled()"><span class="toggle-slider"></span></label>
     </div>
@@ -3086,8 +3086,22 @@ async function saveModEnabled() {
   const banned_words = streamerData.banned_words || [];
   const warn_message = streamerData.warn_message || '⚠️ Cuidado, dearie~ 🕷️';
   const res = await fetch('/api/moderation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mod_enabled: enabled, banned_words, warn_message }) });
-  if (res.ok) { streamerData.mod_enabled = enabled; showToast(enabled ? 'Moderación activada ✓' : 'Moderación desactivada'); }
-  else showToast('Error','error');
+  if (res.ok) {
+    streamerData.mod_enabled = enabled;
+    // Actualizar header visualmente sin recargar
+    const bar = document.getElementById('modStatusBar');
+    const text = document.getElementById('modStatusText');
+    if (bar) {
+      bar.style.background = enabled ? 'linear-gradient(135deg,rgba(88,166,255,0.1),rgba(88,166,255,0.02))' : 'linear-gradient(135deg,rgba(255,255,255,0.03),transparent)';
+      bar.style.borderColor = enabled ? 'rgba(88,166,255,0.25)' : 'rgba(255,255,255,0.06)';
+    }
+    if (text) {
+      text.innerHTML = `
+        <div style="font-size:15px;font-weight:700;color:var(--text);">Moderación ${enabled?'<span style="color:#58a6ff;">activa</span>':'<span style="color:var(--text-muted);">desactivada</span>'}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${enabled?'Muffet está vigilando el chat':'Activa la moderación para proteger tu chat'}</div>`;
+    }
+    showToast(enabled ? 'Moderación activada ✓' : 'Moderación desactivada');
+  } else showToast('Error','error');
 }
 
 async function saveModConfig() {
