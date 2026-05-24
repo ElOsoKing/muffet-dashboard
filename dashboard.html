@@ -3080,7 +3080,9 @@ document.addEventListener('click', function(e) {
 // ── MODERACIÓN ──
 async function saveModEnabled() {
   const enabled = document.getElementById('modEnabled')?.checked;
-  const res = await fetch('/api/mod', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mod_enabled: enabled }) });
+  const banned_words = streamerData.banned_words || [];
+  const warn_message = streamerData.warn_message || '⚠️ Cuidado, dearie~ 🕷️';
+  const res = await fetch('/api/moderation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mod_enabled: enabled, banned_words, warn_message }) });
   if (res.ok) { streamerData.mod_enabled = enabled; showToast(enabled ? 'Moderación activada ✓' : 'Moderación desactivada'); }
   else showToast('Error','error');
 }
