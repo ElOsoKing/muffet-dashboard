@@ -74,6 +74,40 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 }
 .btn-logout:hover{border-color:var(--pink);color:var(--pink);}
 
+/* Pro lock */
+.pro-lock{
+  position:relative;overflow:hidden;
+}
+.pro-lock-overlay{
+  position:absolute;inset:0;
+  background:rgba(13,13,15,0.85);
+  backdrop-filter:blur(4px);
+  z-index:10;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:8px;border-radius:var(--radius);
+}
+.pro-lock-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,rgba(240,192,96,0.15),rgba(240,192,96,0.05));
+  border:1px solid rgba(240,192,96,0.3);border-radius:20px;
+  padding:8px 20px;font-size:13px;font-weight:600;color:var(--yellow);
+}
+.pro-lock-text{font-size:12px;color:var(--text-muted);text-align:center;max-width:240px;line-height:1.5;}
+.pro-lock-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--yellow);color:black;font-weight:700;font-size:12px;
+  padding:8px 20px;border-radius:20px;text-decoration:none;
+  transition:all 0.15s;margin-top:4px;
+}
+.pro-lock-btn:hover{opacity:0.85;transform:scale(1.03);}
+
+/* Badge Pro en sidebar */
+.nav-item .pro-badge{
+  margin-left:auto;font-size:9px;font-weight:700;
+  background:rgba(240,192,96,0.15);border:1px solid rgba(240,192,96,0.25);
+  color:var(--yellow);border-radius:8px;padding:1px 6px;letter-spacing:0.3px;
+}
+
 /* ── MAIN ── */
 .main{margin-left:240px;min-height:100vh;padding:32px;}
 .section{display:none;}
@@ -329,10 +363,10 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Herramientas <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
-      <div class="nav-item" onclick="showSection('music')"><span class="nav-icon">🎵</span> Música</div>
+      <div class="nav-item" onclick="showSection('music')"><span class="nav-icon">🎵</span> Música ${s.plan!=='pro'?'<span class="pro-badge">PRO</span>':''}</div>
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
-      <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin</div>
+      <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin ${s.plan!=='pro'?'<span class="pro-badge">PRO</span>':''}</div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Análisis <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
@@ -1369,6 +1403,15 @@ function renderMain() {
       <div class="page-title">📊 Estadísticas</div>
       <div class="page-subtitle">Resumen de actividad de tu canal</div>
     </div>
+    ${s.plan!=='pro'?`
+    <div style="background:linear-gradient(135deg,rgba(240,192,96,0.08),rgba(240,192,96,0.02));border:1px solid rgba(240,192,96,0.2);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:20px;">⭐</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:var(--yellow);">Estadísticas básicas — Plan Free</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Con Pro desbloqueas estadísticas avanzadas, top viewers detallado y más.</div>
+      </div>
+      <a href="https://ko-fi.com/muffetbot" target="_blank" style="font-size:12px;padding:6px 14px;border-radius:16px;text-decoration:none;background:rgba(240,192,96,0.15);border:1px solid rgba(240,192,96,0.3);color:var(--yellow);font-weight:600;white-space:nowrap;">Ver Pro</a>
+    </div>`:''}
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
       <button class="btn" onclick="cleanBroadcasterFromRanking()" style="background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.25);color:var(--pink);font-size:12px;padding:7px 14px;">🧹 Quitarme del ranking</button>
       <button class="btn" onclick="resetCommandStats()" style="background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.25);color:var(--pink);font-size:12px;padding:7px 14px;">🔄 Resetear estadísticas de comandos</button>
@@ -1489,7 +1532,13 @@ function renderMain() {
 
   <!-- PRIMERIN -->
   <!-- PRIMERIN -->
-  <div id="sec-primerin" class="section">
+  <div id="sec-primerin" class="section ${s.plan!=='pro'?'pro-lock':''}">
+    ${s.plan!=='pro'?`
+    <div class="pro-lock-overlay">
+      <div class="pro-lock-badge">⭐ Función Pro</div>
+      <div class="pro-lock-text">El sistema Primerin y el ranking histórico son exclusivos del plan Pro.</div>
+      <a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
+    </div>`:''}
     <div class="page-header">
       <div class="page-title">🥇 Primerin</div>
       <div class="page-subtitle">El primero en llegar al stream gana un punto en el ranking</div>
@@ -1548,7 +1597,13 @@ function renderMain() {
   </div>
 
   <!-- MÚSICA -->
-  <div id="sec-music" class="section">
+  <div id="sec-music" class="section ${s.plan!=='pro'?'pro-lock':''}">
+    ${s.plan!=='pro'?`
+    <div class="pro-lock-overlay">
+      <div class="pro-lock-badge">⭐ Función Pro</div>
+      <div class="pro-lock-text">Spotify, overlay para OBS, historial, lista negra y votos para saltar son exclusivos del plan Pro.</div>
+      <a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
+    </div>`:''}
     <div class="page-header">
       <div class="page-title">🎵 Música</div>
       <div class="page-subtitle">Conecta Spotify para que tu chat pida canciones</div>
@@ -2305,8 +2360,14 @@ function renderMain() {
       </div>
     </div>`:''}
 
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">📢 Anuncio cuando vas en vivo</span></div>
+    <div class="panel ${s.plan!=='pro'?'pro-lock':''}">
+      <div class="panel-header"><span class="panel-title-text">📢 Anuncio cuando vas en vivo ${s.plan!=='pro'?'<span class="pro-badge">PRO</span>':''}</span></div>
+      ${s.plan!=='pro'?`
+      <div class="pro-lock-overlay" style="border-radius:var(--radius);">
+        <div class="pro-lock-badge">⭐ Función Pro</div>
+        <div class="pro-lock-text">El anuncio automático cuando vas en vivo es exclusivo del plan Pro.</div>
+        <a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
+      </div>`:''}
       <div class="panel-body">
         <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
           El bot anuncia en tu chat cuando detecta que empezaste el stream. Se activa una sola vez por stream.
