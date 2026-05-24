@@ -3236,8 +3236,8 @@ async function saveAutoMessages() {
   if (res.ok) { streamerData.auto_messages = auto_messages; showToast('Mensajes guardados ✓'); }
   else showToast('Error al guardar', 'error');
 }
-function addWord(e){if(e.key!=='Enter')return;const input=document.getElementById('wordInput');const word=input.value.trim().toLowerCase();if(!word)return;const container=document.getElementById('wordsContainer');const span=document.createElement('span');span.className='word-tag';span.innerHTML=`${word}<button onclick="removeWord(this)">×</button>`;container.appendChild(span);input.value='';}
-function removeWord(btn){btn.closest('.word-tag').remove();}
+function addWord(e){if(e.key!=='Enter')return;const input=document.getElementById('wordInput');const word=input.value.trim().toLowerCase();if(!word)return;const container=document.getElementById('wordsContainer');const span=document.createElement('span');span.className='word-tag';span.innerHTML=`${word}<button onclick="removeWord(this)">×</button>`;container.appendChild(span);input.value='';saveModConfig();}
+function removeWord(btn,word){btn.closest('.word-tag').remove();saveModConfig();}
 async function saveModeration(){const banned_words=Array.from(document.querySelectorAll('.word-tag')).map(el=>el.textContent.replace('×','').trim());const warn_message=document.getElementById('warnInput').value;const mod_enabled=streamerData.mod_enabled;const res=await fetch('/api/moderation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mod_enabled,banned_words,warn_message})});res.ok?(streamerData.banned_words=banned_words,streamerData.warn_message=warn_message,showToast('Moderación guardada ✓')):showToast('Error','error');}
 async function saveSocials(){
   const keys=['twitch','youtube','tiktok','twitter','instagram','discord'];
