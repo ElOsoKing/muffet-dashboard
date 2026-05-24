@@ -454,6 +454,7 @@ function showSection(name) {
   if(name === 'commands') renderCommandsList();
   if(name === 'automessages') renderAutoMsgList();
   if(name === 'counters') renderCountersList();
+  if(name === 'primerin') renderPrimerinRanking();
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
