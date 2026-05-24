@@ -182,6 +182,7 @@ app.get('/canal/:username', async (req, res) => {
     const data = await result.json();
     const streamer = data?.[0];
     if (!streamer) return res.status(404).send('Canal no encontrado');
+    if (streamer.plan !== 'pro') return res.status(403).send('Página pública disponible en plan Pro');
     res.sendFile(path.join(__dirname, 'canal.html'));
   } catch (err) {
     res.status(500).send('Error');
@@ -544,7 +545,14 @@ app.get('/api/clips/:username', async (req, res) => {
   } catch(err) { res.json([]); }
 });
 app.get('/overlay/spotify/:username', async (req, res) => {
-  res.sendFile(path.join(__dirname, 'spotify-overlay.html'));
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=plan&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    if (!data?.[0] || data[0].plan !== 'pro') return res.status(403).send('Overlay disponible en plan Pro');
+    res.sendFile(path.join(__dirname, 'spotify-overlay.html'));
+  } catch(err) { res.status(500).send('Error'); }
 });
 
 app.get('/api/overlay/spotify/:username', async (req, res) => {
@@ -843,8 +851,15 @@ app.get('/api/youtube-videos/:channelId', async (req, res) => {
   } catch(err) { res.json([]); }
 });
 
-app.get('/overlay/sorteo/:username', (req, res) => {
-  res.sendFile(path.join(__dirname, 'raffle-overlay.html'));
+app.get('/overlay/sorteo/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=plan&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    if (!data?.[0] || data[0].plan !== 'pro') return res.status(403).send('Overlay disponible en plan Pro');
+    res.sendFile(path.join(__dirname, 'raffle-overlay.html'));
+  } catch(err) { res.status(500).send('Error'); }
 });
 
 app.get('/api/raffle/overlay/:username', async (req, res) => {
