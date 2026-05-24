@@ -1522,92 +1522,69 @@ function renderMain() {
       <div class="page-subtitle">Protege tu chat automáticamente</div>
     </div>
 
-    <!-- Toggle principal -->
-    <div style="background:linear-gradient(135deg,rgba(64,208,144,0.08),rgba(64,208,144,0.02));border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;">
-      <div style="width:44px;height:44px;background:rgba(64,208,144,0.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🛡️</div>
+    <!-- Header de estado -->
+    <div style="background:${s.mod_enabled?'linear-gradient(135deg,rgba(64,208,144,0.1),rgba(64,208,144,0.02))'  :'linear-gradient(135deg,rgba(255,255,255,0.03),transparent)'};border:1px solid ${s.mod_enabled?'rgba(64,208,144,0.25)'  :'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px;">
+      <div style="position:relative;flex-shrink:0;">
+        <div style="width:48px;height:48px;background:${s.mod_enabled?'rgba(64,208,144,0.15)'  :'rgba(255,255,255,0.04)'};border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;">🛡️</div>
+        ${s.mod_enabled?'<div style="position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;background:var(--green);border-radius:50%;border:2px solid var(--bg);"></div>':''}
+      </div>
       <div style="flex:1;">
-        <div style="font-size:14px;font-weight:700;color:var(--text);">Moderación activa</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Muffet vigilará el chat y aplicará las reglas configuradas</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);">Moderación ${s.mod_enabled?'<span style="color:var(--green);">activa</span>'  :'<span style="color:var(--text-muted);">desactivada</span>'}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px;">${s.mod_enabled?`Muffet está vigilando el chat`  :'Activa la moderación para proteger tu chat'}</div>
       </div>
       <label class="toggle"><input type="checkbox" id="modEnabled" ${s.mod_enabled?'checked':''} onchange="saveModEnabled()"><span class="toggle-slider"></span></label>
     </div>
 
-    <!-- Grid de funciones -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-
-      <!-- Palabras prohibidas -->
-      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:34px;height:34px;background:rgba(224,90,122,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">🚫</div>
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text);">Palabras prohibidas</div>
-              <div style="font-size:11px;color:var(--text-muted);">Elimina mensajes con estas palabras</div>
-            </div>
+    <!-- Palabras prohibidas -->
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;margin-bottom:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:38px;height:38px;background:rgba(224,90,122,0.12);border:1px solid rgba(224,90,122,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;">🚫</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text);">Palabras prohibidas</div>
+            <div style="font-size:11px;color:var(--text-muted);">Muffet detecta y actúa cuando alguien las escribe</div>
           </div>
         </div>
-        <div style="display:flex;gap:6px;margin-bottom:10px;">
-          <input class="form-input" id="wordInput" placeholder="Agregar palabra..." onkeydown="addWord(event)" style="flex:1;font-size:12px;">
-          <button onclick="addWord({key:'Enter',target:document.getElementById('wordInput')})" style="padding:8px 12px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius-sm);color:var(--pink);font-size:12px;cursor:pointer;font-family:var(--sans);">+</button>
-        </div>
-        <div class="words-container" id="wordsContainer" style="min-height:36px;">
-          ${bannedWords.map(w=>`<span class="word-tag">${w}<button onclick="removeWord(this,'${w}')">×</button></span>`).join('')}
-        </div>
-        <div class="form-group" style="margin-top:12px;margin-bottom:8px;">
-          <label class="form-label" style="font-size:11px;">Mensaje de advertencia</label>
-          <input class="form-input" id="warnInput" value="${(s.warn_message||'').replace(/"/g,'&quot;')}" placeholder="⚠️ Cuidado, dearie~ 🕷️" style="font-size:12px;">
-        </div>
-        <div class="toggle-row" style="margin-bottom:0;">
-          <div style="font-size:12px;color:var(--text-dim);">Timeout al detectar</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:var(--text-dim);">Timeout al detectar</span>
           <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutBanned" ${s.mod_config?.timeout_banned?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
         </div>
       </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <input class="form-input" id="wordInput" placeholder="Escribe una palabra y presiona Enter..." onkeydown="addWord(event)" style="flex:1;">
+        <button onclick="addWord({key:'Enter',target:document.getElementById('wordInput')})" style="padding:0 18px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.25);border-radius:var(--radius-sm);color:var(--pink);font-size:20px;cursor:pointer;font-family:var(--sans);font-weight:600;">+</button>
+      </div>
+      <div class="words-container" id="wordsContainer" style="min-height:40px;margin-bottom:14px;">
+        ${bannedWords.map(w=>`<span class="word-tag">${w}<button onclick="removeWord(this,'${w}')">×</button></span>`).join('')}
+      </div>
+      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Mensaje de advertencia</div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="warnInput" value="${(s.warn_message||''  ).replace(/"/g,'&quot;')}" placeholder="⚠️ Cuidado, dearie~ 🕷️" style="flex:1;font-size:12px;background:var(--bg4);">
+          <button onclick="saveModConfig()" style="padding:8px 16px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius-sm);color:var(--pink);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid módulos -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
 
       <!-- Anti-spam -->
       <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:34px;height:34px;background:rgba(240,192,96,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">🔁</div>
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text);">Anti-spam</div>
-              <div style="font-size:11px;color:var(--text-muted);">Detecta mensajes repetidos</div>
-            </div>
+            <div style="width:36px;height:36px;background:rgba(240,192,96,0.1);border:1px solid rgba(240,192,96,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;">🔁</div>
+            <div><div style="font-size:13px;font-weight:700;color:var(--text);">Anti-spam</div><div style="font-size:11px;color:var(--text-muted);">Mensajes repetidos</div></div>
           </div>
           <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="antiSpam" ${s.mod_config?.anti_spam?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
         </div>
-        <div class="form-group" style="margin-bottom:10px;">
-          <label class="form-label" style="font-size:11px;">Máx. mensajes en 10 segundos</label>
-          <input class="form-input" id="spamMaxMsgs" type="number" min="2" max="20" value="${s.mod_config?.spam_max_msgs||5}" onchange="saveModConfig()" style="font-size:12px;width:80px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span style="font-size:12px;color:var(--text-dim);flex:1;">Máx. msgs en 10s</span>
+          <input class="form-input" id="spamMaxMsgs" type="number" min="2" max="20" value="${s.mod_config?.spam_max_msgs||5}" onchange="saveModConfig()" style="width:60px;font-size:13px;font-weight:700;text-align:center;padding:6px;">
         </div>
-        <div class="toggle-row" style="margin-bottom:0;">
-          <div style="font-size:12px;color:var(--text-dim);">Timeout al detectar spam</div>
-          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutSpam" ${s.mod_config?.timeout_spam?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <!-- Bloqueo de links -->
-      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:34px;height:34px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">🔗</div>
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text);">Bloqueo de links</div>
-              <div style="font-size:11px;color:var(--text-muted);">Elimina links no permitidos</div>
-            </div>
-          </div>
-          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="blockLinks" ${s.mod_config?.block_links?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
-        </div>
-        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Dominios permitidos (whitelist)</div>
-        <div style="display:flex;gap:6px;margin-bottom:8px;">
-          <input class="form-input" id="whitelistInput" placeholder="twitch.tv, youtube.com..." onkeydown="addWhitelist(event)" style="flex:1;font-size:12px;">
-          <button onclick="addWhitelist({key:'Enter',target:document.getElementById('whitelistInput')})" style="padding:8px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius-sm);color:var(--purple-light);font-size:12px;cursor:pointer;font-family:var(--sans);">+</button>
-        </div>
-        <div id="whitelistContainer" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;">
-          ${(s.mod_config?.link_whitelist||[]).map(d=>`<span style="display:flex;align-items:center;gap:4px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:12px;padding:3px 8px;font-size:11px;color:var(--purple-light);">${d}<button onclick="removeWhitelist('${d}')" style="background:none;border:none;color:var(--purple-light);cursor:pointer;font-size:13px;padding:0;line-height:1;">×</button></span>`).join('')}
-        </div>
-        <div class="toggle-row" style="margin-top:10px;margin-bottom:0;">
-          <div style="font-size:12px;color:var(--text-dim);">Timeout al detectar link</div>
-          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutLinks" ${s.mod_config?.timeout_links?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid rgba(255,255,255,0.04);">
+          <span style="font-size:11px;color:var(--text-muted);">Timeout al detectar</span>
+          <label class="toggle" style="transform:scale(0.8);transform-origin:right;"><input type="checkbox" id="timeoutSpam" ${s.mod_config?.timeout_spam?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
         </div>
       </div>
 
@@ -1615,50 +1592,76 @@ function renderMain() {
       <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:34px;height:34px;background:rgba(64,208,144,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">⏱️</div>
-            <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text);">Modo lento</div>
-              <div style="font-size:11px;color:var(--text-muted);">Limita mensajes por usuario</div>
-            </div>
+            <div style="width:36px;height:36px;background:rgba(64,208,144,0.1);border:1px solid rgba(64,208,144,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;">⏱️</div>
+            <div><div style="font-size:13px;font-weight:700;color:var(--text);">Modo lento</div><div style="font-size:11px;color:var(--text-muted);">Límite por usuario</div></div>
           </div>
           <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="slowMode" ${s.mod_config?.slow_mode?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
         </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label" style="font-size:11px;">Segundos entre mensajes</label>
-          <input class="form-input" id="slowSeconds" type="number" min="3" max="120" value="${s.mod_config?.slow_seconds||10}" onchange="saveModConfig()" style="font-size:12px;width:80px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:var(--text-dim);flex:1;">Segundos entre msgs</span>
+          <input class="form-input" id="slowSeconds" type="number" min="3" max="120" value="${s.mod_config?.slow_seconds||10}" onchange="saveModConfig()" style="width:60px;font-size:13px;font-weight:700;text-align:center;padding:6px;">
         </div>
       </div>
-    </div>
 
-    <!-- Duración del timeout -->
-    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;margin-bottom:14px;">
-      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;">⚙️ Configuración general</div>
-      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-        <div>
-          <label class="form-label" style="font-size:11px;">Duración del timeout (segundos)</label>
-          <input class="form-input" id="timeoutDuration" type="number" min="10" max="86400" value="${s.mod_config?.timeout_duration||60}" onchange="saveModConfig()" style="width:100px;font-size:12px;">
-        </div>
-        <div style="font-size:12px;color:var(--text-muted);padding-top:20px;">Los timeouts aplican cuando activas esa opción en cada módulo</div>
-      </div>
-    </div>
-
-    <!-- Moderación con IA — Pro only -->
-    <div style="position:relative;${s.plan!=='pro'?'':''}">
-      ${s.plan!=='pro'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">La moderación automática con IA es exclusiva del plan Pro.</div><a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
-      <div style="background:var(--bg2);border:1px solid ${s.plan==='pro'?'rgba(145,71,255,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:18px;${s.plan!=='pro'?'filter:blur(2px);':''}">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <!-- Bloqueo de links -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <div style="display:flex;align-items:center;gap:10px;">
-            <div style="width:34px;height:34px;background:var(--purple-dim);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">🤖</div>
+            <div style="width:36px;height:36px;background:rgba(145,71,255,0.1);border:1px solid rgba(145,71,255,0.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;">🔗</div>
+            <div><div style="font-size:13px;font-weight:700;color:var(--text);">Bloqueo de links</div><div style="font-size:11px;color:var(--text-muted);">Links no permitidos</div></div>
+          </div>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="blockLinks" ${s.mod_config?.block_links?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Dominios permitidos</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input class="form-input" id="whitelistInput" placeholder="twitch.tv..." onkeydown="addWhitelist(event)" style="flex:1;font-size:12px;">
+          <button onclick="addWhitelist({key:'Enter',target:document.getElementById('whitelistInput')})" style="padding:6px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius-sm);color:var(--purple-light);font-size:14px;cursor:pointer;font-family:var(--sans);">+</button>
+        </div>
+        <div id="whitelistContainer" style="display:flex;flex-wrap:wrap;gap:5px;min-height:24px;margin-bottom:10px;">
+          ${(s.mod_config?.link_whitelist||[]).map(d=>`<span style="display:flex;align-items:center;gap:3px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:10px;padding:2px 8px;font-size:11px;color:var(--purple-light);">${d}<button onclick="removeWhitelist('${d}')" style="background:none;border:none;color:var(--purple-light);cursor:pointer;font-size:12px;padding:0;line-height:1;margin-left:2px;">×</button></span>`).join('')}
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid rgba(255,255,255,0.04);">
+          <span style="font-size:11px;color:var(--text-muted);">Timeout al detectar</span>
+          <label class="toggle" style="transform:scale(0.8);transform-origin:right;"><input type="checkbox" id="timeoutLinks" ${s.mod_config?.timeout_links?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <!-- Config general -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div style="width:36px;height:36px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;">⚙️</div>
+          <div><div style="font-size:13px;font-weight:700;color:var(--text);">General</div><div style="font-size:11px;color:var(--text-muted);">Config de timeouts</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <span style="font-size:12px;color:var(--text-dim);flex:1;">Duración del timeout</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input class="form-input" id="timeoutDuration" type="number" min="10" max="86400" value="${s.mod_config?.timeout_duration||60}" onchange="saveModConfig()" style="width:70px;font-size:13px;font-weight:700;text-align:center;padding:6px;">
+            <span style="font-size:11px;color:var(--text-muted);">seg</span>
+          </div>
+        </div>
+        <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:10px 12px;font-size:11px;color:var(--text-muted);line-height:1.6;">
+          💡 Los timeouts aplican cuando activas esa opción en cada módulo. Mods y subs están exentos.
+        </div>
+      </div>
+    </div>
+
+    <!-- IA Pro -->
+    <div style="position:relative;">
+      ${s.plan!=='pro'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">La moderación con IA analiza cada mensaje y detecta contenido inapropiado sin palabras clave.</div><a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
+      <div style="background:var(--bg2);border:1px solid ${s.plan==='pro'?'rgba(145,71,255,0.2)'  :'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:20px;${s.plan!=='pro'?'filter:blur(2px);':''  }">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;">🤖</div>
             <div>
-              <div style="font-size:13px;font-weight:600;color:var(--text);">Moderación con IA</div>
-              <div style="font-size:11px;color:var(--text-muted);">Muffet analiza mensajes sospechosos automáticamente</div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);">Moderación con IA</div>
+              <div style="font-size:11px;color:var(--text-muted);">Analiza mensajes sin necesidad de palabras clave</div>
             </div>
           </div>
-          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="aiMod" ${s.mod_config?.ai_mod?'checked':''} ${s.plan!=='pro'?'disabled':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+          <label class="toggle"><input type="checkbox" id="aiMod" ${s.mod_config?.ai_mod?'checked':''} ${s.plan!=='pro'?'disabled':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
         </div>
-        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">Muffet usará IA para detectar lenguaje inapropiado, insultos y contenido dañino. Solo aplica a usuarios sin insignia de sub o VIP.</div>
-        <div class="toggle-row" style="margin-top:12px;margin-bottom:0;">
-          <div style="font-size:12px;color:var(--text-dim);">Timeout al detectar con IA</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:14px;">Muffet analiza cada mensaje con IA para detectar insultos, acoso y contenido dañino. No requiere lista de palabras.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid rgba(255,255,255,0.04);">
+          <span style="font-size:12px;color:var(--text-dim);">Timeout al detectar con IA</span>
           <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutAI" ${s.mod_config?.timeout_ai?'checked':''} ${s.plan!=='pro'?'disabled':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
         </div>
       </div>
