@@ -452,6 +452,7 @@ function showSection(name) {
   if(name === 'stats') loadStats();
   if(name === 'profile') setTimeout(() => switchProfileTab('socials'), 100);
   if(name === 'commands') renderCommandsList();
+  if(name === 'automessages') renderAutoMsgList();
   if(name === 'counters') renderCountersList();
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
@@ -938,47 +939,138 @@ function renderMain() {
 
   <!-- AUTO MENSAJES -->
   <div id="sec-automessages" class="section">
-    <div class="page-header"><div class="page-title">Auto mensajes</div><div class="page-subtitle">Cada mensaje con su propio tiempo y tipo</div></div>
+    <div class="page-header">
+      <div class="page-title">💬 Auto mensajes</div>
+      <div class="page-subtitle">Mensajes que Muffet envía automáticamente mientras streameas</div>
+    </div>
+
+    <!-- Info -->
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;">
+      <div style="width:40px;height:40px;background:var(--purple-dim);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">💡</div>
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">
+        Los mensajes se envían automáticamente según el intervalo que configures. <strong style="color:var(--text);">Fijo</strong> envía el texto tal cual, <strong style="color:var(--text);">IA 🤖</strong> hace que Muffet improvise sobre el tema que le des.
+        Solo se envían si el chat estuvo activo en los últimos 10 minutos.
+      </div>
+    </div>
+
     <div class="panel">
       <div class="panel-header">
-        <span class="panel-title-text">Lista de mensajes</span>
-        <button class="btn btn-success btn-sm" onclick="addAutoMsg()">+ Agregar</button>
-      </div>
-      <div class="panel-body">
-        <div style="display:grid;grid-template-columns:80px 1fr 130px 36px;gap:8px;padding:0 0 8px;border-bottom:1px solid rgba(255,255,255,0.04);margin-bottom:10px;">
-          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Tipo</span>
-          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Mensaje o tema</span>
-          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Intervalo</span>
-          <span></span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span class="panel-title-text">Mensajes programados</span>
+          <span id="autoMsgCount" style="font-size:11px;background:var(--purple-dim);color:var(--purple-light);padding:2px 8px;border-radius:10px;font-weight:600;">${Array.isArray(autoMessages)?autoMessages.length:0}</span>
         </div>
-        <div class="msg-list" id="msgList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-success btn-sm" onclick="openAutoMsgModal()">+ Agregar</button>
+      </div>
+
+      <div class="panel-body" style="padding:12px 16px;">
+        <div id="autoMsgList" style="display:flex;flex-direction:column;gap:8px;">
           ${(()=>{
             const msgs = Array.isArray(autoMessages) ? autoMessages : [];
-            if(!msgs.length) return `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">No hay mensajes. Agrega uno con el botón de arriba.</div>`;
-            return msgs.map(msg => {
+            if (!msgs.length) return `
+              <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+                <div style="font-size:40px;margin-bottom:12px;opacity:0.5;">💬</div>
+                <div style="font-size:15px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">Sin mensajes programados</div>
+                <div style="font-size:12px;">Agrega un mensaje y Muffet lo enviará automáticamente durante el stream</div>
+              </div>`;
+            return msgs.map((msg, i) => {
               const isObj = typeof msg === 'object';
               const text = isObj ? msg.text : msg;
               const interval = isObj ? (msg.interval || 20) : 20;
               const type = isObj ? (msg.type || 'fixed') : 'fixed';
               const h = Math.floor(interval / 60);
               const m = interval % 60;
-              return `<div style="display:grid;grid-template-columns:80px 1fr 130px 36px;gap:8px;align-items:center;">
-                <button class="automsg-type-btn ${type==='ai'?'ai':''}" onclick="toggleMsgType(this)" data-type="${type}">
-                  ${type==='ai'?'🤖 IA':'📝 Fijo'}
-                </button>
-                <input class="automsg-msg-input" value="${text.replace(/"/g,'&quot;')}" placeholder="${type==='ai'?'Tema para Muffet...':'Mensaje del chat...'}">
-                <div style="display:flex;align-items:center;gap:4px;">
-                  <input type="number" class="automsg-time-input msg-hours" min="0" max="23" value="${h}" title="Horas">
-                  <span class="automsg-time-label">h</span>
-                  <input type="number" class="automsg-time-input msg-minutes" min="0" max="59" value="${m}" title="Minutos">
-                  <span class="automsg-time-label">m</span>
+              const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+              const isAI = type === 'ai';
+              return `
+              <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:12px;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(145,71,255,0.2)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
+                <!-- Badge tipo -->
+                <div style="flex-shrink:0;">
+                  <div style="background:${isAI?'rgba(145,71,255,0.15)':'rgba(64,208,144,0.1)'};border:1px solid ${isAI?'var(--purple-border)':'rgba(64,208,144,0.25)'};border-radius:8px;padding:5px 10px;text-align:center;">
+                    <div style="font-size:11px;font-weight:700;color:${isAI?'var(--purple-light)':'var(--green)'};">${isAI?'🤖 IA':'📝 Fijo'}</div>
+                  </div>
                 </div>
-                <button class="btn btn-danger btn-sm" onclick="removeMsg(this)" style="padding:6px 8px;width:36px;">✕</button>
+                <!-- Texto -->
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${text}</div>
+                  ${isAI?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Muffet improvisa sobre este tema</div>`:''}
+                </div>
+                <!-- Intervalo -->
+                <div style="flex-shrink:0;text-align:center;">
+                  <div style="font-size:14px;font-weight:700;color:var(--text);">⏱️ ${timeStr}</div>
+                  <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">intervalo</div>
+                </div>
+                <!-- Acciones -->
+                <div style="display:flex;gap:6px;flex-shrink:0;">
+                  <button onclick="openAutoMsgModal(${i})" style="padding:6px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(145,71,255,0.2)'" onmouseout="this.style.background='var(--purple-dim)'">✏️ Editar</button>
+                  <button onclick="deleteAutoMsg(${i})" style="padding:6px 10px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:6px;color:var(--pink);font-size:12px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(224,90,122,0.15)'" onmouseout="this.style.background='rgba(224,90,122,0.08)'">✕</button>
+                </div>
               </div>`;
             }).join('');
           })()}
         </div>
-        <button class="btn btn-primary" onclick="saveAutoMessages()">Guardar mensajes</button>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="autoMsgModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:28px;width:480px;max-width:90vw;box-shadow:0 24px 48px rgba(0,0,0,0.5);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text);" id="autoMsgModalTitle">Nuevo auto mensaje</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Configura el mensaje y cada cuánto lo enviará Muffet</div>
+          </div>
+          <button onclick="closeAutoMsgModal()" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;width:32px;height:32px;cursor:pointer;color:var(--text-dim);font-size:18px;display:flex;align-items:center;justify-content:center;">×</button>
+        </div>
+
+        <!-- Tipo -->
+        <div class="form-group">
+          <label class="form-label">Tipo de mensaje</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">
+            <label id="autoMsgTypeFixed" onclick="setAutoMsgType('fixed')" style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--purple-border);border-radius:var(--radius-sm);cursor:pointer;background:var(--purple-dim);transition:all 0.15s;">
+              <input type="radio" name="autoMsgType" value="fixed" checked style="accent-color:var(--purple);">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--text);">📝 Fijo</div>
+                <div style="font-size:11px;color:var(--text-muted);">Texto exacto</div>
+              </div>
+            </label>
+            <label id="autoMsgTypeAI" onclick="setAutoMsgType('ai')" style="display:flex;align-items:center;gap:10px;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);cursor:pointer;background:transparent;transition:all 0.15s;">
+              <input type="radio" name="autoMsgType" value="ai" style="accent-color:var(--purple);">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--text-dim);">🤖 IA</div>
+                <div style="font-size:11px;color:var(--text-muted);">Muffet improvisa</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Mensaje -->
+        <div class="form-group">
+          <label class="form-label" id="autoMsgTextLabel">Mensaje</label>
+          <textarea class="form-input" id="autoMsgText" placeholder="Escribe el mensaje que enviará Muffet..." style="min-height:80px;resize:vertical;line-height:1.6;"></textarea>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" id="autoMsgHint">El bot enviará este mensaje exactamente como está escrito</div>
+        </div>
+
+        <!-- Intervalo -->
+        <div class="form-group">
+          <label class="form-label">Intervalo de envío</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:6px;">
+            <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:8px 12px;">
+              <input type="number" id="autoMsgHours" min="0" max="23" value="0" style="width:50px;background:transparent;border:none;outline:none;font-size:16px;font-weight:700;color:var(--text);text-align:center;font-family:var(--sans);">
+              <span style="font-size:12px;color:var(--text-muted);">horas</span>
+            </div>
+            <span style="color:var(--text-muted);font-size:18px;">:</span>
+            <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:8px 12px;">
+              <input type="number" id="autoMsgMinutes" min="0" max="59" value="20" style="width:50px;background:transparent;border:none;outline:none;font-size:16px;font-weight:700;color:var(--text);text-align:center;font-family:var(--sans);">
+              <span style="font-size:12px;color:var(--text-muted);">minutos</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Mínimo 5 minutos entre mensajes</div>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
+          <button onclick="closeAutoMsgModal()" style="padding:10px 20px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);font-size:13px;cursor:pointer;font-family:var(--sans);">Cancelar</button>
+          <button onclick="saveAutoMsgModal()" style="padding:10px 24px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">Guardar mensaje</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2586,6 +2678,171 @@ function renderCommandsList() {
       </div>`;
   }).join('');
 }
+
+// ── AUTO MENSAJES ──
+let autoMsgEditingIdx = null;
+
+function renderAutoMsgList() {
+  const list = document.getElementById('autoMsgList');
+  const countEl = document.getElementById('autoMsgCount');
+  if (!list) return;
+  const msgs = streamerData.auto_messages || [];
+  if (countEl) countEl.textContent = msgs.length;
+  if (!msgs.length) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:40px 20px;color:var(--text-muted);">
+        <div style="font-size:40px;margin-bottom:12px;opacity:0.5;">💬</div>
+        <div style="font-size:15px;font-weight:600;color:var(--text-dim);margin-bottom:8px;">Sin mensajes programados</div>
+        <div style="font-size:12px;">Agrega un mensaje y Muffet lo enviará automáticamente durante el stream</div>
+      </div>`;
+    return;
+  }
+  list.innerHTML = msgs.map((msg, i) => {
+    const isObj = typeof msg === 'object';
+    const text = isObj ? msg.text : msg;
+    const interval = isObj ? (msg.interval || 20) : 20;
+    const type = isObj ? (msg.type || 'fixed') : 'fixed';
+    const h = Math.floor(interval / 60);
+    const m = interval % 60;
+    const timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    const isAI = type === 'ai';
+    return `
+      <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:12px;transition:border-color 0.15s;" onmouseover="this.style.borderColor='rgba(145,71,255,0.2)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)'">
+        <div style="flex-shrink:0;">
+          <div style="background:${isAI?'rgba(145,71,255,0.15)':'rgba(64,208,144,0.1)'};border:1px solid ${isAI?'var(--purple-border)':'rgba(64,208,144,0.25)'};border-radius:8px;padding:5px 10px;text-align:center;">
+            <div style="font-size:11px;font-weight:700;color:${isAI?'var(--purple-light)':'var(--green)'};">${isAI?'🤖 IA':'📝 Fijo'}</div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${text}</div>
+          ${isAI?`<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Muffet improvisa sobre este tema</div>`:''}
+        </div>
+        <div style="flex-shrink:0;text-align:center;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);">⏱️ ${timeStr}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">intervalo</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button onclick="openAutoMsgModal(${i})" style="padding:6px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(145,71,255,0.2)'" onmouseout="this.style.background='var(--purple-dim)'">✏️ Editar</button>
+          <button onclick="deleteAutoMsg(${i})" style="padding:6px 10px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:6px;color:var(--pink);font-size:12px;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(224,90,122,0.15)'" onmouseout="this.style.background='rgba(224,90,122,0.08)'">✕</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openAutoMsgModal(idx) {
+  autoMsgEditingIdx = idx !== undefined ? idx : null;
+  const modal = document.getElementById('autoMsgModal');
+  const title = document.getElementById('autoMsgModalTitle');
+  const textEl = document.getElementById('autoMsgText');
+  const hoursEl = document.getElementById('autoMsgHours');
+  const minsEl = document.getElementById('autoMsgMinutes');
+
+  setAutoMsgType('fixed');
+
+  if (autoMsgEditingIdx !== null) {
+    title.textContent = 'Editar auto mensaje';
+    const msg = streamerData.auto_messages?.[idx];
+    const isObj = typeof msg === 'object';
+    const text = isObj ? msg.text : msg;
+    const interval = isObj ? (msg.interval || 20) : 20;
+    const type = isObj ? (msg.type || 'fixed') : 'fixed';
+    textEl.value = text || '';
+    hoursEl.value = Math.floor(interval / 60);
+    minsEl.value = interval % 60;
+    setAutoMsgType(type);
+  } else {
+    title.textContent = 'Nuevo auto mensaje';
+    textEl.value = '';
+    hoursEl.value = 0;
+    minsEl.value = 20;
+  }
+
+  modal.style.display = 'flex';
+  setTimeout(() => textEl.focus(), 100);
+}
+
+function closeAutoMsgModal() {
+  document.getElementById('autoMsgModal').style.display = 'none';
+  autoMsgEditingIdx = null;
+}
+
+function setAutoMsgType(type) {
+  const fixedLabel = document.getElementById('autoMsgTypeFixed');
+  const aiLabel = document.getElementById('autoMsgTypeAI');
+  const textLabel = document.getElementById('autoMsgTextLabel');
+  const hint = document.getElementById('autoMsgHint');
+  const textEl = document.getElementById('autoMsgText');
+  if (!fixedLabel) return;
+
+  if (type === 'ai') {
+    aiLabel.style.borderColor = 'var(--purple-border)';
+    aiLabel.style.background = 'var(--purple-dim)';
+    aiLabel.querySelector('div > div:first-child').style.color = 'var(--text)';
+    fixedLabel.style.borderColor = 'rgba(255,255,255,0.08)';
+    fixedLabel.style.background = 'transparent';
+    fixedLabel.querySelector('div > div:first-child').style.color = 'var(--text-dim)';
+    aiLabel.querySelector('input').checked = true;
+    if (textLabel) textLabel.textContent = 'Tema para Muffet';
+    if (hint) hint.textContent = 'Muffet improvisará un mensaje relacionado con este tema';
+    if (textEl) textEl.placeholder = 'Ej: recuerda seguir el canal, habla sobre el juego de hoy...';
+  } else {
+    fixedLabel.style.borderColor = 'var(--purple-border)';
+    fixedLabel.style.background = 'var(--purple-dim)';
+    fixedLabel.querySelector('div > div:first-child').style.color = 'var(--text)';
+    aiLabel.style.borderColor = 'rgba(255,255,255,0.08)';
+    aiLabel.style.background = 'transparent';
+    aiLabel.querySelector('div > div:first-child').style.color = 'var(--text-dim)';
+    fixedLabel.querySelector('input').checked = true;
+    if (textLabel) textLabel.textContent = 'Mensaje';
+    if (hint) hint.textContent = 'El bot enviará este mensaje exactamente como está escrito';
+    if (textEl) textEl.placeholder = 'Escribe el mensaje que enviará Muffet...';
+  }
+}
+
+async function saveAutoMsgModal() {
+  const text = document.getElementById('autoMsgText')?.value.trim();
+  const h = parseInt(document.getElementById('autoMsgHours')?.value) || 0;
+  const m = parseInt(document.getElementById('autoMsgMinutes')?.value) || 0;
+  const type = document.querySelector('input[name="autoMsgType"]:checked')?.value || 'fixed';
+  const interval = Math.max(5, h * 60 + m);
+
+  if (!text) { showToast('Escribe un mensaje','error'); return; }
+
+  const msgs = [...(streamerData.auto_messages || [])];
+  const newMsg = { text, type, interval };
+
+  if (autoMsgEditingIdx !== null) {
+    msgs[autoMsgEditingIdx] = newMsg;
+  } else {
+    msgs.push(newMsg);
+  }
+
+  const res = await fetch('/api/automessages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ auto_messages: msgs }) });
+  if (res.ok) {
+    streamerData.auto_messages = msgs;
+    closeAutoMsgModal();
+    renderAutoMsgList();
+    showToast('Mensaje guardado ✓');
+  } else showToast('Error al guardar','error');
+}
+
+async function deleteAutoMsg(idx) {
+  if (!confirm('¿Eliminar este auto mensaje?')) return;
+  const msgs = [...(streamerData.auto_messages || [])];
+  msgs.splice(idx, 1);
+  const res = await fetch('/api/automessages', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ auto_messages: msgs }) });
+  if (res.ok) {
+    streamerData.auto_messages = msgs;
+    renderAutoMsgList();
+    showToast('Mensaje eliminado ✓');
+  } else showToast('Error','error');
+}
+
+// Cerrar modal al click fuera
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('autoMsgModal');
+  if (modal && e.target === modal) closeAutoMsgModal();
+});
 
 // ── MODAL DE COMANDOS ──
 let cmdModalEditing = null; // trigger que se está editando
