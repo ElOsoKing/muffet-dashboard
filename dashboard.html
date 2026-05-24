@@ -1517,22 +1517,150 @@ function renderMain() {
 
   <!-- MODERACIÓN -->
   <div id="sec-moderation" class="section">
-    <div class="page-header"><div class="page-title">Moderación</div><div class="page-subtitle">Protege tu chat con estilo</div></div>
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">Palabras prohibidas</span></div>
-      <div class="panel-body">
-        <div class="form-group">
-          <label class="form-label">Palabras (presiona Enter para agregar)</label>
-          <div class="words-container" id="wordsContainer">
-            ${bannedWords.map(w=>`<span class="word-tag">${w}<button onclick="removeWord(this,'${w}')">×</button></span>`).join('')}
+    <div class="page-header">
+      <div class="page-title">🛡️ Moderación</div>
+      <div class="page-subtitle">Protege tu chat automáticamente</div>
+    </div>
+
+    <!-- Toggle principal -->
+    <div style="background:linear-gradient(135deg,rgba(64,208,144,0.08),rgba(64,208,144,0.02));border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius);padding:18px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;">
+      <div style="width:44px;height:44px;background:rgba(64,208,144,0.15);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🛡️</div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);">Moderación activa</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Muffet vigilará el chat y aplicará las reglas configuradas</div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="modEnabled" ${s.mod_enabled?'checked':''} onchange="saveModEnabled()"><span class="toggle-slider"></span></label>
+    </div>
+
+    <!-- Grid de funciones -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+
+      <!-- Palabras prohibidas -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:34px;height:34px;background:rgba(224,90,122,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">🚫</div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);">Palabras prohibidas</div>
+              <div style="font-size:11px;color:var(--text-muted);">Elimina mensajes con estas palabras</div>
+            </div>
           </div>
-          <input class="form-input" id="wordInput" placeholder="Escribe una palabra y presiona Enter..." onkeydown="addWord(event)">
         </div>
-        <div class="form-group">
-          <label class="form-label">Mensaje de advertencia</label>
-          <input class="form-input" id="warnInput" value="${(s.warn_message||'').replace(/"/g,'&quot;')}" placeholder="Mensaje de advertencia...">
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <input class="form-input" id="wordInput" placeholder="Agregar palabra..." onkeydown="addWord(event)" style="flex:1;font-size:12px;">
+          <button onclick="addWord({key:'Enter',target:document.getElementById('wordInput')})" style="padding:8px 12px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius-sm);color:var(--pink);font-size:12px;cursor:pointer;font-family:var(--sans);">+</button>
         </div>
-        <button class="btn btn-primary" onclick="saveModeration()">Guardar moderación</button>
+        <div class="words-container" id="wordsContainer" style="min-height:36px;">
+          ${bannedWords.map(w=>`<span class="word-tag">${w}<button onclick="removeWord(this,'${w}')">×</button></span>`).join('')}
+        </div>
+        <div class="form-group" style="margin-top:12px;margin-bottom:8px;">
+          <label class="form-label" style="font-size:11px;">Mensaje de advertencia</label>
+          <input class="form-input" id="warnInput" value="${(s.warn_message||'').replace(/"/g,'&quot;')}" placeholder="⚠️ Cuidado, dearie~ 🕷️" style="font-size:12px;">
+        </div>
+        <div class="toggle-row" style="margin-bottom:0;">
+          <div style="font-size:12px;color:var(--text-dim);">Timeout al detectar</div>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutBanned" ${s.mod_config?.timeout_banned?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <!-- Anti-spam -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:34px;height:34px;background:rgba(240,192,96,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">🔁</div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);">Anti-spam</div>
+              <div style="font-size:11px;color:var(--text-muted);">Detecta mensajes repetidos</div>
+            </div>
+          </div>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="antiSpam" ${s.mod_config?.anti_spam?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label class="form-label" style="font-size:11px;">Máx. mensajes en 10 segundos</label>
+          <input class="form-input" id="spamMaxMsgs" type="number" min="2" max="20" value="${s.mod_config?.spam_max_msgs||5}" onchange="saveModConfig()" style="font-size:12px;width:80px;">
+        </div>
+        <div class="toggle-row" style="margin-bottom:0;">
+          <div style="font-size:12px;color:var(--text-dim);">Timeout al detectar spam</div>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutSpam" ${s.mod_config?.timeout_spam?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <!-- Bloqueo de links -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:34px;height:34px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">🔗</div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);">Bloqueo de links</div>
+              <div style="font-size:11px;color:var(--text-muted);">Elimina links no permitidos</div>
+            </div>
+          </div>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="blockLinks" ${s.mod_config?.block_links?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Dominios permitidos (whitelist)</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <input class="form-input" id="whitelistInput" placeholder="twitch.tv, youtube.com..." onkeydown="addWhitelist(event)" style="flex:1;font-size:12px;">
+          <button onclick="addWhitelist({key:'Enter',target:document.getElementById('whitelistInput')})" style="padding:8px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius-sm);color:var(--purple-light);font-size:12px;cursor:pointer;font-family:var(--sans);">+</button>
+        </div>
+        <div id="whitelistContainer" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;">
+          ${(s.mod_config?.link_whitelist||[]).map(d=>`<span style="display:flex;align-items:center;gap:4px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:12px;padding:3px 8px;font-size:11px;color:var(--purple-light);">${d}<button onclick="removeWhitelist('${d}')" style="background:none;border:none;color:var(--purple-light);cursor:pointer;font-size:13px;padding:0;line-height:1;">×</button></span>`).join('')}
+        </div>
+        <div class="toggle-row" style="margin-top:10px;margin-bottom:0;">
+          <div style="font-size:12px;color:var(--text-dim);">Timeout al detectar link</div>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutLinks" ${s.mod_config?.timeout_links?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+
+      <!-- Modo lento -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:34px;height:34px;background:rgba(64,208,144,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">⏱️</div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);">Modo lento</div>
+              <div style="font-size:11px;color:var(--text-muted);">Limita mensajes por usuario</div>
+            </div>
+          </div>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="slowMode" ${s.mod_config?.slow_mode?'checked':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label" style="font-size:11px;">Segundos entre mensajes</label>
+          <input class="form-input" id="slowSeconds" type="number" min="3" max="120" value="${s.mod_config?.slow_seconds||10}" onchange="saveModConfig()" style="font-size:12px;width:80px;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Duración del timeout -->
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:18px;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px;">⚙️ Configuración general</div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div>
+          <label class="form-label" style="font-size:11px;">Duración del timeout (segundos)</label>
+          <input class="form-input" id="timeoutDuration" type="number" min="10" max="86400" value="${s.mod_config?.timeout_duration||60}" onchange="saveModConfig()" style="width:100px;font-size:12px;">
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);padding-top:20px;">Los timeouts aplican cuando activas esa opción en cada módulo</div>
+      </div>
+    </div>
+
+    <!-- Moderación con IA — Pro only -->
+    <div style="position:relative;${s.plan!=='pro'?'':''}">
+      ${s.plan!=='pro'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">La moderación automática con IA es exclusiva del plan Pro.</div><a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
+      <div style="background:var(--bg2);border:1px solid ${s.plan==='pro'?'rgba(145,71,255,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:18px;${s.plan!=='pro'?'filter:blur(2px);':''}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:34px;height:34px;background:var(--purple-dim);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;">🤖</div>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);">Moderación con IA</div>
+              <div style="font-size:11px;color:var(--text-muted);">Muffet analiza mensajes sospechosos automáticamente</div>
+            </div>
+          </div>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="aiMod" ${s.mod_config?.ai_mod?'checked':''} ${s.plan!=='pro'?'disabled':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">Muffet usará IA para detectar lenguaje inapropiado, insultos y contenido dañino. Solo aplica a usuarios sin insignia de sub o VIP.</div>
+        <div class="toggle-row" style="margin-top:12px;margin-bottom:0;">
+          <div style="font-size:12px;color:var(--text-dim);">Timeout al detectar con IA</div>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutAI" ${s.mod_config?.timeout_ai?'checked':''} ${s.plan!=='pro'?'disabled':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+        </div>
       </div>
     </div>
   </div>
@@ -2948,6 +3076,68 @@ document.addEventListener('click', function(e) {
   const modal = document.getElementById('cmdModal');
   if (modal && e.target === modal) closeCmdModal();
 });
+
+// ── MODERACIÓN ──
+async function saveModEnabled() {
+  const enabled = document.getElementById('modEnabled')?.checked;
+  const res = await fetch('/api/mod', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mod_enabled: enabled }) });
+  if (res.ok) { streamerData.mod_enabled = enabled; showToast(enabled ? 'Moderación activada ✓' : 'Moderación desactivada'); }
+  else showToast('Error','error');
+}
+
+async function saveModConfig() {
+  const mod_config = {
+    ...(streamerData.mod_config || {}),
+    anti_spam: document.getElementById('antiSpam')?.checked || false,
+    spam_max_msgs: parseInt(document.getElementById('spamMaxMsgs')?.value) || 5,
+    timeout_spam: document.getElementById('timeoutSpam')?.checked || false,
+    block_links: document.getElementById('blockLinks')?.checked || false,
+    timeout_links: document.getElementById('timeoutLinks')?.checked || false,
+    slow_mode: document.getElementById('slowMode')?.checked || false,
+    slow_seconds: parseInt(document.getElementById('slowSeconds')?.value) || 10,
+    timeout_banned: document.getElementById('timeoutBanned')?.checked || false,
+    timeout_duration: parseInt(document.getElementById('timeoutDuration')?.value) || 60,
+    ai_mod: document.getElementById('aiMod')?.checked || false,
+    timeout_ai: document.getElementById('timeoutAI')?.checked || false,
+    link_whitelist: streamerData.mod_config?.link_whitelist || [],
+  };
+  const warnMsg = document.getElementById('warnInput')?.value || '⚠️ Cuidado, dearie~ 🕷️';
+  const bannedWords = Array.from(document.querySelectorAll('#wordsContainer .word-tag')).map(t => t.textContent.replace('×','').trim()).filter(Boolean);
+
+  const res = await fetch('/api/mod-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ mod_config }) });
+  const res2 = await fetch('/api/moderation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ banned_words: bannedWords, warn_message: warnMsg }) });
+  if (res.ok && res2.ok) { streamerData.mod_config = mod_config; streamerData.warn_message = warnMsg; streamerData.banned_words = bannedWords; showToast('Guardado ✓'); }
+  else showToast('Error','error');
+}
+
+function addWhitelist(e) {
+  if (e.key !== 'Enter') return;
+  const input = e.target;
+  const domain = input.value.trim().toLowerCase().replace(/https?:\/\//,'').split('/')[0];
+  if (!domain) return;
+  const list = streamerData.mod_config?.link_whitelist || [];
+  if (list.includes(domain)) { showToast('Ya está en la lista','error'); return; }
+  list.push(domain);
+  if (!streamerData.mod_config) streamerData.mod_config = {};
+  streamerData.mod_config.link_whitelist = list;
+  const container = document.getElementById('whitelistContainer');
+  if (container) {
+    const span = document.createElement('span');
+    span.style.cssText = 'display:flex;align-items:center;gap:4px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:12px;padding:3px 8px;font-size:11px;color:var(--purple-light);';
+    span.innerHTML = `${domain}<button onclick="removeWhitelist('${domain}')" style="background:none;border:none;color:var(--purple-light);cursor:pointer;font-size:13px;padding:0;line-height:1;">×</button>`;
+    container.appendChild(span);
+  }
+  input.value = '';
+  saveModConfig();
+}
+
+function removeWhitelist(domain) {
+  if (!streamerData.mod_config) return;
+  streamerData.mod_config.link_whitelist = (streamerData.mod_config.link_whitelist || []).filter(d => d !== domain);
+  const container = document.getElementById('whitelistContainer');
+  if (container) container.innerHTML = (streamerData.mod_config.link_whitelist).map(d => `<span style="display:flex;align-items:center;gap:4px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:12px;padding:3px 8px;font-size:11px;color:var(--purple-light);">${d}<button onclick="removeWhitelist('${d}')" style="background:none;border:none;color:var(--purple-light);cursor:pointer;font-size:13px;padding:0;line-height:1;">×</button></span>`).join('');
+  saveModConfig();
+}
 
 // ── BÚSQUEDA Y PREVIEW DE COMANDOS ──
 function filterCommands(query) {
