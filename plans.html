@@ -182,7 +182,8 @@ async function goToCheckout() {
       window.location.href = '/login';
     }
   } catch(e) {
-    alert('Error al crear el checkout. Intenta de nuevo.');
+    alert('Necesitas iniciar sesión con Twitch primero para suscribirte.');
+    window.location.href = '/login';
     if (btn) { btn.textContent = 'Suscribirse por ' + selectedPrice + ' →'; btn.disabled = false; }
   }
 }
