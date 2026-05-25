@@ -82,13 +82,22 @@ app.post('/webhooks/lemonsqueezy', express.raw({ type: '*/*' }), async (req, res
       }
     }
 
-    if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
+    if (eventName === 'subscription_cancelled') {
+      // Al cancelar mantenemos el Pro hasta que venza el período pagado
+      await sbUpdate('streamers', {
+        lemon_subscription_id: null, // ya no hay suscripción activa para cobrar
+      }, { twitch_id: streamer.twitch_id });
+      console.log(`[LS] ⚠️ Suscripción cancelada para ${streamer.twitch_username} — mantiene Pro hasta ${streamer.plan_expires_at}`);
+    }
+
+    if (eventName === 'subscription_expired') {
+      // Solo al expirar quitamos el Pro
       await sbUpdate('streamers', {
         plan: 'free',
         plan_expires_at: null,
         lemon_subscription_id: null,
       }, { twitch_id: streamer.twitch_id });
-      console.log(`[LS] ❌ Plan cancelado para ${streamer.twitch_username}`);
+      console.log(`[LS] ❌ Plan expirado para ${streamer.twitch_username}`);
     }
 
     res.status(200).json({ received: true });
