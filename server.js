@@ -629,14 +629,13 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
           attributes: {
             checkout_data: {
               custom: { twitch_id: String(req.session.user.id) },
-              email: streamer.email || '',
             },
             product_options: {
               redirect_url: `https://muffet-dashboard.onrender.com/dashboard?upgraded=1`,
             },
           },
           relationships: {
-            store: { data: { type: 'stores', id: process.env.LEMONSQUEEZY_STORE_ID } },
+            store: { data: { type: 'stores', id: String(process.env.LEMONSQUEEZY_STORE_ID) } },
             variant: { data: { type: 'variants', id: String(variant_id) } },
           },
         },
@@ -644,6 +643,7 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
     });
 
     const checkoutData = await checkoutRes.json();
+    console.log('[LS Checkout]', JSON.stringify(checkoutData).slice(0, 500));
     const url = checkoutData.data?.attributes?.url;
     if (!url) return res.status(500).json({ error: 'No se pudo crear el checkout' });
     res.json({ url });
