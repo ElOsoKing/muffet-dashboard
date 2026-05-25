@@ -2501,7 +2501,41 @@ function renderMain() {
       <div class="panel-body">
         <div class="form-group"><label class="form-label">Canal de Twitch</label><input class="form-input" value="${userData.display_name}" disabled></div>
         <div class="form-group"><label class="form-label">ID de Twitch</label><input class="form-input" value="${userData.id}" disabled></div>
-        <div class="form-group"><label class="form-label">Plan actual</label><input class="form-input" value="${s.plan==='pro'?'⭐ Plan Pro':s.plan==='admin'?'👑 Admin':'🆓 Plan Gratuito'}" disabled></div>
+
+        <!-- Card de plan -->
+        ${s.plan==='pro'||s.plan==='admin' ? `
+        <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),rgba(145,71,255,0.02));border:1px solid var(--purple-border);border-radius:var(--radius);padding:18px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <div style="width:40px;height:40px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">⭐</div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text);">${s.plan==='admin'?'👑 Admin':'Plan Pro'}</div>
+              <div style="font-size:12px;color:var(--purple-light);margin-top:2px;">Todas las funciones desbloqueadas</div>
+            </div>
+            <div style="margin-left:auto;background:rgba(64,208,144,0.1);border:1px solid rgba(64,208,144,0.2);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:700;color:var(--green);">ACTIVO</div>
+          </div>
+          ${s.plan_expires_at ? `
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);margin-bottom:12px;">
+            <span style="font-size:16px;">📅</span>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Vence el</div>
+              <div style="font-size:13px;font-weight:600;color:var(--text);">${new Date(s.plan_expires_at).toLocaleDateString('es-DO',{day:'numeric',month:'long',year:'numeric'})}</div>
+            </div>
+          </div>` : ''}
+          ${s.lemon_subscription_id ? `
+          <button onclick="cancelSubscription()" style="width:100%;padding:9px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius-sm);color:var(--pink);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(224,90,122,0.15)'" onmouseout="this.style.background='rgba(224,90,122,0.08)'">
+            Cancelar suscripción
+          </button>
+          <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;">Si cancelas mantendrás el Pro hasta que venza el período pagado</div>` : ''}
+        </div>` : `
+        <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+          <div style="width:40px;height:40px;background:rgba(255,255,255,0.05);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;">🆓</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;color:var(--text);">Plan Gratuito</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Funciones básicas del bot</div>
+          </div>
+          <a href="/plans" style="padding:8px 16px;background:var(--purple);border-radius:20px;color:white;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;">⭐ Upgrade a Pro</a>
+        </div>`}
+
         ${s.plan!=='pro'&&s.plan!=='admin'?`
         <div class="upgrade-banner">
           <div class="upgrade-text"><strong>Desbloquea el Plan Pro</strong><br>Bot propio, Spotify + overlay OBS, sorteos OBS, Primerin, duelos, anuncio en vivo y más por solo $5/mes</div>
@@ -2999,6 +3033,18 @@ document.addEventListener('click', function(e) {
   const modal = document.getElementById('cmdModal');
   if (modal && e.target === modal) closeCmdModal();
 });
+
+async function cancelSubscription() {
+  if (!confirm('¿Cancelar tu suscripción Pro? Mantendrás el acceso hasta que venza el período pagado.')) return;
+  const res = await fetch('/api/cancel-subscription', { method: 'POST' });
+  if (res.ok) {
+    showToast('Suscripción cancelada — mantienes el Pro hasta que venza ✓');
+    streamerData.lemon_subscription_id = null;
+    // Ocultar botón de cancelar
+    const btn = document.querySelector('[onclick="cancelSubscription()"]');
+    if (btn) btn.parentElement.removeChild(btn);
+  } else showToast('Error al cancelar','error');
+}
 
 // ── MODERACIÓN ──
 async function saveModEnabled() {
