@@ -1565,7 +1565,7 @@ function renderMain() {
 
     <!-- IA Pro -->
     <div style="position:relative;">
-      ${s.plan!=='pro'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">La moderación con IA analiza cada mensaje y detecta contenido inapropiado sin palabras clave.</div><a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
+      ${s.plan!=='pro'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">La moderación con IA analiza cada mensaje y detecta contenido inapropiado sin palabras clave.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
       <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),var(--bg2));border:1px solid rgba(145,71,255,0.25);border-radius:var(--radius);padding:20px;${s.plan!=='pro'?'filter:blur(2px);':''  }">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <div style="display:flex;align-items:center;gap:12px;">
@@ -1599,7 +1599,7 @@ function renderMain() {
         <div style="font-size:13px;font-weight:600;color:var(--yellow);">Estadísticas básicas — Plan Free</div>
         <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Con Pro desbloqueas estadísticas avanzadas, top viewers detallado y más.</div>
       </div>
-      <a href="https://ko-fi.com/muffetbot" target="_blank" style="font-size:12px;padding:6px 14px;border-radius:16px;text-decoration:none;background:rgba(240,192,96,0.15);border:1px solid rgba(240,192,96,0.3);color:var(--yellow);font-weight:600;white-space:nowrap;">Ver Pro</a>
+      <a href="/plans" style="font-size:12px;padding:6px 14px;border-radius:16px;text-decoration:none;background:rgba(240,192,96,0.15);border:1px solid rgba(240,192,96,0.3);color:var(--yellow);font-weight:600;white-space:nowrap;">Ver Pro</a>
     </div>`:''}
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
       <button class="btn" onclick="cleanBroadcasterFromRanking()" style="background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.25);color:var(--pink);font-size:12px;padding:7px 14px;">🧹 Quitarme del ranking</button>
@@ -1726,7 +1726,7 @@ function renderMain() {
     <div class="pro-lock-overlay">
       <div class="pro-lock-badge">⭐ Función Pro</div>
       <div class="pro-lock-text">El sistema Primerin y el ranking histórico son exclusivos del plan Pro.</div>
-      <a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
+      <a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
     </div>`:''}
     <div class="page-header">
       <div class="page-title">🥇 Primerin</div>
@@ -1791,7 +1791,7 @@ function renderMain() {
     <div class="pro-lock-overlay">
       <div class="pro-lock-badge">⭐ Función Pro</div>
       <div class="pro-lock-text">Spotify, overlay para OBS, historial, lista negra y votos para saltar son exclusivos del plan Pro.</div>
-      <a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
+      <a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
     </div>`:''}
     <div class="page-header">
       <div class="page-title">🎵 Música</div>
@@ -2589,7 +2589,7 @@ function renderMain() {
       <div class="pro-lock-overlay" style="border-radius:var(--radius);">
         <div class="pro-lock-badge">⭐ Función Pro</div>
         <div class="pro-lock-text">El anuncio automático cuando vas en vivo es exclusivo del plan Pro.</div>
-        <a href="https://ko-fi.com/muffetbot" target="_blank" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
+        <a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
       </div>`:''}
       <div class="panel-body">
         <div style="font-size:13px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
