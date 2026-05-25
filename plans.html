@@ -147,7 +147,46 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
   .nav-links .nav-btn.ghost{display:none;}
   .container{padding:40px 16px 60px;}
 }
+.plan-selector{background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 8px;cursor:pointer;text-align:center;transition:all 0.15s;font-family:var(--sans);color:var(--text);}
+.plan-selector:hover{border-color:var(--purple-border);background:var(--purple-dim);}
+.plan-selector.active{border-color:var(--purple);background:var(--purple-dim);box-shadow:0 0 12px rgba(145,71,255,0.2);}
 </style>
+<script>
+let selectedVariant = '1701661';
+let selectedPrice = '$5/mes';
+
+function selectPlan(type, price, variantId, btn) {
+  document.querySelectorAll('.plan-selector').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedVariant = variantId;
+  const labels = { monthly: '$5/mes', quarterly: '$12 por 3 meses', biannual: '$20 por 6 meses', annual: '$40 al año' };
+  selectedPrice = labels[type] || '$' + price;
+  const checkoutBtn = document.getElementById('checkoutBtn');
+  if (checkoutBtn) checkoutBtn.textContent = 'Suscribirse por ' + selectedPrice + ' →';
+}
+
+async function goToCheckout() {
+  const btn = document.getElementById('checkoutBtn');
+  if (btn) { btn.textContent = 'Redirigiendo...'; btn.disabled = true; }
+  try {
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variant_id: selectedVariant })
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert('Necesitas iniciar sesión primero para suscribirte.');
+      window.location.href = '/login';
+    }
+  } catch(e) {
+    alert('Error al crear el checkout. Intenta de nuevo.');
+    if (btn) { btn.textContent = 'Suscribirse por ' + selectedPrice + ' →'; btn.disabled = false; }
+  }
+}
+</script>
 </head>
 <body>
 <div class="bg-glow"></div>
@@ -215,13 +254,35 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
       <div class="plan-popular">⭐ Más popular</div>
       <div class="plan-name">Pro</div>
       <div class="plan-desc">Para streamers que quieren destacar con una experiencia única.</div>
-      <div class="plan-price-area">
-        <div class="plan-price"><sup>$</sup>5<sub>/mes</sub></div>
-        <div class="plan-price-note">Cancela cuando quieras</div>
+
+      <!-- Selector de plan -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0;">
+        <button onclick="selectPlan('monthly',5,'1701661',this)" class="plan-selector active" id="plan-monthly">
+          <div style="font-size:13px;font-weight:700;">Mensual</div>
+          <div style="font-size:18px;font-weight:800;color:var(--purple);">$5</div>
+          <div style="font-size:10px;color:var(--text-muted);">por mes</div>
+        </button>
+        <button onclick="selectPlan('quarterly',12,'1701725',this)" class="plan-selector" id="plan-quarterly">
+          <div style="font-size:13px;font-weight:700;">Trimestral</div>
+          <div style="font-size:18px;font-weight:800;color:var(--purple);">$12</div>
+          <div style="font-size:10px;color:#1ed760;font-weight:600;">20% off</div>
+        </button>
+        <button onclick="selectPlan('biannual',20,'1701765',this)" class="plan-selector" id="plan-biannual">
+          <div style="font-size:13px;font-weight:700;">Semestral</div>
+          <div style="font-size:18px;font-weight:800;color:var(--purple);">$20</div>
+          <div style="font-size:10px;color:#1ed760;font-weight:600;">33% off</div>
+        </button>
+        <button onclick="selectPlan('annual',40,'1701778',this)" class="plan-selector" id="plan-annual">
+          <div style="font-size:13px;font-weight:700;">Anual</div>
+          <div style="font-size:18px;font-weight:800;color:var(--purple);">$40</div>
+          <div style="font-size:10px;color:#1ed760;font-weight:600;">33% off</div>
+        </button>
       </div>
+
       <div id="proBtnArea">
-        <a href="https://ko-fi.com/muffetbot" target="_blank" class="plan-btn pro">Suscribirse por $5/mes →</a>
+        <button onclick="goToCheckout()" class="plan-btn pro" id="checkoutBtn">Suscribirse por $5/mes →</button>
       </div>
+      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px;">Cancela cuando quieras · Pago seguro con Lemon Squeezy</div>
       <div class="plan-divider"></div>
       <div class="plan-features">
         <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>Todo lo del plan gratuito incluido</strong></span></div>
@@ -275,11 +336,11 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
     <div class="faq-title">Preguntas frecuentes</div>
     <div class="faq-item">
       <button class="faq-q" onclick="toggleFaq(this)">¿Cómo activo el Plan Pro después de pagar?<span class="faq-icon">+</span></button>
-      <div class="faq-a">Después de pagar en Ko-fi, envía tu usuario de Twitch en el mensaje o contacta a ElOsoKing1 directamente. Tu plan se activa en menos de 24 horas.</div>
+      <div class="faq-a">El plan se activa automáticamente al completar el pago. No necesitas hacer nada más — el sistema lo activa solo en segundos.</div>
     </div>
     <div class="faq-item">
       <button class="faq-q" onclick="toggleFaq(this)">¿Puedo cancelar cuando quiera?<span class="faq-icon">+</span></button>
-      <div class="faq-a">Sí, puedes cancelar tu membresía en Ko-fi en cualquier momento. No hay contratos ni penalizaciones.</div>
+      <div class="faq-a">Sí, puedes cancelar tu suscripción en cualquier momento desde tu dashboard. No hay contratos ni penalizaciones. Tu plan Pro se mantiene hasta que venza el período pagado.</div>
     </div>
     <div class="faq-item">
       <button class="faq-q" onclick="toggleFaq(this)">¿El bot funciona mientras no estoy en vivo?<span class="faq-icon">+</span></button>
