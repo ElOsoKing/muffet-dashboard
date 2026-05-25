@@ -601,6 +601,148 @@ app.post('/api/youtube-music', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── LEMON SQUEEZY CHECKOUT ──
+app.post('/api/checkout', requireAuth, async (req, res) => {
+  try {
+    const { variant_id } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+
+    const validVariants = [
+      process.env.LEMONSQUEEZY_VARIANT_MONTHLY,
+      process.env.LEMONSQUEEZY_VARIANT_QUARTERLY,
+      process.env.LEMONSQUEEZY_VARIANT_BIANNUAL,
+      process.env.LEMONSQUEEZY_VARIANT_ANNUAL,
+    ];
+    if (!validVariants.includes(String(variant_id))) return res.status(400).json({ error: 'Plan inválido' });
+
+    const checkoutRes = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.LEMONSQUEEZY_API_KEY}`,
+        'Content-Type': 'application/vnd.api+json',
+        'Accept': 'application/vnd.api+json',
+      },
+      body: JSON.stringify({
+        data: {
+          type: 'checkouts',
+          attributes: {
+            checkout_data: {
+              custom: { twitch_id: String(req.session.user.id) },
+              email: streamer.email || '',
+            },
+            product_options: {
+              redirect_url: `https://muffet-dashboard.onrender.com/dashboard?upgraded=1`,
+            },
+          },
+          relationships: {
+            store: { data: { type: 'stores', id: process.env.LEMONSQUEEZY_STORE_ID } },
+            variant: { data: { type: 'variants', id: String(variant_id) } },
+          },
+        },
+      }),
+    });
+
+    const checkoutData = await checkoutRes.json();
+    const url = checkoutData.data?.attributes?.url;
+    if (!url) return res.status(500).json({ error: 'No se pudo crear el checkout' });
+    res.json({ url });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/cancel-subscription', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer?.lemon_subscription_id) return res.status(400).json({ error: 'No tienes suscripción activa' });
+
+    await fetch(`https://api.lemonsqueezy.com/v1/subscriptions/${streamer.lemon_subscription_id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${process.env.LEMONSQUEEZY_API_KEY}`, 'Accept': 'application/vnd.api+json' },
+    });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── LEMON SQUEEZY WEBHOOK ──
+app.post('/webhooks/lemonsqueezy', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+    const signature = req.headers['x-signature'];
+
+    // Verificar firma
+    const crypto = require('crypto');
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(req.body);
+    const digest = hmac.digest('hex');
+    if (digest !== signature) return res.status(401).json({ error: 'Invalid signature' });
+
+    const payload = JSON.parse(req.body.toString());
+    const eventName = payload.meta?.event_name;
+    const data = payload.data?.attributes;
+    const customData = payload.meta?.custom_data;
+    const variantId = String(data?.variant_id || '');
+    const customerEmail = data?.user_email;
+    const customerId = String(data?.customer_id || '');
+    const subscriptionId = String(payload.data?.id || '');
+
+    // Calcular fecha de vencimiento según variante
+    const variantMap = {
+      [process.env.LEMONSQUEEZY_VARIANT_MONTHLY]:   1,
+      [process.env.LEMONSQUEEZY_VARIANT_QUARTERLY]:  3,
+      [process.env.LEMONSQUEEZY_VARIANT_BIANNUAL]:   6,
+      [process.env.LEMONSQUEEZY_VARIANT_ANNUAL]:     12,
+    };
+    const months = variantMap[variantId] || 1;
+
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + months);
+
+    // Buscar streamer por email de Twitch o por custom_data (twitch_id)
+    let streamer = null;
+    const twitchId = customData?.twitch_id;
+    if (twitchId) {
+      streamer = await sbSelect('streamers', { twitch_id: twitchId });
+    }
+    if (!streamer && customerEmail) {
+      const res2 = await fetch(`${SUPABASE_URL}/rest/v1/streamers?email=eq.${encodeURIComponent(customerEmail)}&limit=1`, { headers: sbHeaders });
+      const d = await res2.json();
+      streamer = d?.[0] || null;
+    }
+
+    if (!streamer) {
+      console.log(`[LS Webhook] Streamer no encontrado — email: ${customerEmail}, twitch_id: ${twitchId}`);
+      return res.status(200).json({ received: true });
+    }
+
+    if (eventName === 'subscription_created' || eventName === 'subscription_updated') {
+      const status = data?.status;
+      if (status === 'active' || status === 'on_trial') {
+        await sbUpdate('streamers', {
+          plan: 'pro',
+          plan_expires_at: expiresAt.toISOString(),
+          lemon_customer_id: customerId,
+          lemon_subscription_id: subscriptionId,
+        }, { twitch_id: streamer.twitch_id });
+        console.log(`[LS] ✅ Plan Pro activado para ${streamer.twitch_username} hasta ${expiresAt.toISOString()}`);
+      }
+    }
+
+    if (eventName === 'subscription_cancelled' || eventName === 'subscription_expired') {
+      await sbUpdate('streamers', {
+        plan: 'free',
+        plan_expires_at: null,
+        lemon_subscription_id: null,
+      }, { twitch_id: streamer.twitch_id });
+      console.log(`[LS] ❌ Plan Pro cancelado para ${streamer.twitch_username}`);
+    }
+
+    res.status(200).json({ received: true });
+  } catch(err) {
+    console.error('[LS Webhook Error]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/mod-config', requireAuth, async (req, res) => {
   try {
     const { mod_config } = req.body;
