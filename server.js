@@ -283,7 +283,7 @@ app.get('/canal/:username', async (req, res) => {
 app.get('/api/canal/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
-    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,public_name,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,public_name,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule,primerin_config&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
     const streamer = data?.[0];
@@ -314,7 +314,8 @@ app.get('/api/canal/:username', async (req, res) => {
       youtube_channel_id: streamer.youtube_channel_id || null,
       points_config: { name: pointsConfig.name || 'puntos', emoji: pointsConfig.emoji || '🏆', enabled: pointsConfig.enabled !== false, levels: pointsConfig.levels || [] },
       top_viewers: topViewers,
-      stream_schedule: streamer.stream_schedule || null
+      stream_schedule: streamer.stream_schedule || null,
+      primerin_config: streamer.primerin_config || null
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
