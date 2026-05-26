@@ -35,7 +35,8 @@ html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans
 .btn-footer.danger:hover{border-color:var(--pink);color:var(--pink);}
 
 /* MAIN */
-.main{margin-left:240px;min-height:100vh;padding:32px;max-width:1200px;}
+.main{margin-left:240px;min-height:100vh;padding:32px 48px;}
+.main-inner{max-width:1400px;margin:0 auto;}
 
 /* PAGE HEADER */
 .page-header{margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;}
@@ -207,6 +208,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
 </div>
 
 <div class="main">
+<div class="main-inner">
   <!-- Header -->
   <div class="page-header">
     <div>
@@ -276,9 +278,8 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
       <div id="tableContent" class="empty" style="padding:40px;">Cargando streamers...</div>
     </div>
   </div>
-</div>
-
-<!-- Modal detalles -->
+</div><!-- main-inner -->
+</div><!-- main -->
 <div id="detailModal" class="modal-overlay">
   <div class="modal-box">
     <div class="modal-head">
