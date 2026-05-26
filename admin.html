@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MuffetBot — Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -12,82 +12,119 @@
   --purple-light:#b388ff;--pink:#e05a7a;--green:#40d090;--yellow:#f0c060;
   --bg:#0d0d0f;--bg2:#141416;--bg3:#1a1a1e;--bg4:#0f0f12;
   --text:#e8e8f0;--text-dim:#6b6b80;--text-muted:#3a3a4a;
-  --sans:'Inter',sans-serif;--display:'VT323',monospace;
-  --radius:10px;--radius-sm:6px;
+  --sans:'Inter',sans-serif;--radius:12px;--radius-sm:8px;
 }
 html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans);color:var(--text);}
 
 /* SIDEBAR */
-.sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:var(--bg2);border-right:1px solid rgba(255,255,255,0.06);display:flex;flex-direction:column;z-index:100;}
-.sidebar-logo{padding:20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:12px;}
-.sidebar-logo img{width:32px;height:32px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(145,71,255,0.5));}
-.logo-text{font-size:15px;font-weight:600;color:var(--text);}
-.logo-badge{font-size:10px;color:var(--yellow);font-weight:500;}
-.nav{flex:1;padding:8px 12px;}
-.nav-section{font-size:10px;font-weight:500;letter-spacing:1px;color:var(--text-muted);padding:12px 8px 4px;text-transform:uppercase;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:9px 10px;cursor:pointer;border-radius:var(--radius-sm);font-size:13px;color:var(--text-dim);transition:all 0.15s;margin-bottom:1px;}
-.nav-item:hover{background:rgba(255,255,255,0.05);color:var(--text);}
-.nav-item.active{background:var(--purple-dim);color:var(--purple-light);font-weight:500;}
+.sidebar{position:fixed;top:0;left:0;width:240px;height:100vh;background:var(--bg2);border-right:1px solid rgba(255,255,255,0.05);display:flex;flex-direction:column;z-index:100;}
+.sidebar-logo{padding:20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:12px;}
+.sidebar-logo img{width:34px;height:34px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(145,71,255,0.5));}
+.logo-text{font-size:15px;font-weight:700;color:var(--text);}
+.logo-badge{font-size:10px;color:var(--yellow);font-weight:600;margin-top:1px;}
+.nav{flex:1;padding:10px;}
+.nav-section{font-size:10px;font-weight:600;letter-spacing:0.8px;color:var(--text-muted);padding:14px 8px 4px;text-transform:uppercase;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 10px;cursor:pointer;border-radius:var(--radius-sm);font-size:13px;color:var(--text-dim);transition:all 0.15s;margin-bottom:1px;position:relative;}
+.nav-item:hover{background:rgba(255,255,255,0.04);color:var(--text);}
+.nav-item.active{background:var(--purple-dim);color:var(--purple-light);font-weight:600;}
+.nav-item.active::before{content:'';position:absolute;left:0;top:20%;height:60%;width:3px;background:var(--purple);border-radius:0 3px 3px 0;}
 .nav-icon{font-size:15px;width:20px;text-align:center;}
-.sidebar-footer{padding:12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:8px;}
+.sidebar-footer{padding:12px;border-top:1px solid rgba(255,255,255,0.05);display:flex;gap:8px;}
 .btn-footer{flex:1;padding:9px;background:transparent;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;}
 .btn-footer:hover{border-color:rgba(255,255,255,0.16);color:var(--text);}
 .btn-footer.danger:hover{border-color:var(--pink);color:var(--pink);}
 
 /* MAIN */
-.main{margin-left:240px;min-height:100vh;padding:32px;}
-.page-header{margin-bottom:28px;}
-.page-title{font-size:22px;font-weight:600;color:var(--text);letter-spacing:-0.3px;}
+.main{margin-left:240px;min-height:100vh;padding:32px;max-width:1200px;}
+
+/* PAGE HEADER */
+.page-header{margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;}
+.page-title{font-size:24px;font-weight:700;color:var(--text);letter-spacing:-0.5px;}
 .page-subtitle{font-size:13px;color:var(--text-dim);margin-top:4px;}
+.refresh-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.15s;font-family:var(--sans);}
+.refresh-btn:hover{border-color:var(--purple-border);color:var(--purple-light);}
 
 /* STATS */
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
-.stat-card{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:16px 20px;}
-.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.stat-label{font-size:12px;font-weight:500;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;}
-.stat-icon{font-size:16px;}
-.stat-value{font-size:28px;font-weight:600;color:var(--text);letter-spacing:-0.5px;}
+.stats-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+.stat-card{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:16px 18px;position:relative;overflow:hidden;transition:border-color 0.2s;}
+.stat-card:hover{border-color:rgba(255,255,255,0.1);}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;opacity:0;transition:opacity 0.2s;}
+.stat-card:hover::before{opacity:1;}
+.stat-card.purple::before{background:linear-gradient(90deg,var(--purple),transparent);}
+.stat-card.green::before{background:linear-gradient(90deg,var(--green),transparent);}
+.stat-card.yellow::before{background:linear-gradient(90deg,var(--yellow),transparent);}
+.stat-card.pink::before{background:linear-gradient(90deg,var(--pink),transparent);}
+.stat-card.blue::before{background:linear-gradient(90deg,#58a6ff,transparent);}
+.stat-icon-wrap{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;margin-bottom:12px;}
+.stat-icon-wrap.purple{background:var(--purple-dim);}
+.stat-icon-wrap.green{background:rgba(64,208,144,0.1);}
+.stat-icon-wrap.yellow{background:rgba(240,192,96,0.1);}
+.stat-icon-wrap.pink{background:rgba(224,90,122,0.1);}
+.stat-icon-wrap.blue{background:rgba(88,166,255,0.1);}
+.stat-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.stat-value{font-size:30px;font-weight:700;letter-spacing:-1px;line-height:1;}
+.stat-value.purple{color:var(--purple-light);}
+.stat-value.green{color:var(--green);}
+.stat-value.yellow{color:var(--yellow);}
+.stat-value.pink{color:var(--pink);}
+.stat-value.blue{color:#58a6ff;}
+
+/* NOTIFICACIÓN */
+.notif{display:none;background:linear-gradient(135deg,rgba(240,192,96,0.1),rgba(240,192,96,0.03));border:1px solid rgba(240,192,96,0.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;align-items:center;gap:14px;}
+.notif-icon{width:40px;height:40px;background:rgba(240,192,96,0.12);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.notif-btn{padding:7px 14px;background:rgba(240,192,96,0.12);border:1px solid rgba(240,192,96,0.3);border-radius:20px;color:var(--yellow);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--sans);transition:all 0.15s;}
+.notif-btn:hover{background:rgba(240,192,96,0.2);}
 
 /* PANEL */
 .panel{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;}
-.panel-header{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;}
-.panel-title-text{font-size:13px;font-weight:600;color:var(--text);}
+.panel-header{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;}
+.panel-title{font-size:14px;font-weight:700;color:var(--text);}
 
-/* SEARCH & FILTERS */
-.toolbar{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.06);background:var(--bg3);}
-.search-input{flex:1;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 12px;outline:none;}
-.search-input:focus{border-color:var(--purple);}
-.filter-btn{font-size:12px;font-weight:500;padding:7px 12px;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.08);background:transparent;color:var(--text-dim);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+/* TOOLBAR */
+.toolbar{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.05);background:var(--bg3);}
+.search-wrap{position:relative;flex:1;}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;}
+.search-input{width:100%;background:var(--bg4);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:8px 12px 8px 32px;outline:none;transition:border-color 0.15s;}
+.search-input:focus{border-color:var(--purple-border);}
+.filter-btn{font-size:12px;font-weight:500;padding:7px 14px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);background:transparent;color:var(--text-dim);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
 .filter-btn:hover{border-color:rgba(255,255,255,0.16);color:var(--text);}
 .filter-btn.active{background:var(--purple-dim);border-color:var(--purple-border);color:var(--purple-light);}
 
 /* TABLE */
 .table-wrap{overflow-x:auto;}
 table{width:100%;border-collapse:collapse;}
-thead tr{border-bottom:1px solid rgba(255,255,255,0.06);}
-th{padding:10px 16px;text-align:left;font-size:11px;font-weight:500;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;background:var(--bg3);white-space:nowrap;}
-tbody tr{border-bottom:1px solid rgba(255,255,255,0.04);transition:background 0.1s;}
+thead tr{border-bottom:1px solid rgba(255,255,255,0.05);}
+th{padding:10px 16px;text-align:left;font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;background:var(--bg3);white-space:nowrap;}
+tbody tr{border-bottom:1px solid rgba(255,255,255,0.03);transition:background 0.1s;}
 tbody tr:last-child{border-bottom:none;}
 tbody tr:hover{background:rgba(255,255,255,0.02);}
-td{padding:12px 16px;font-size:13px;vertical-align:middle;}
+td{padding:13px 16px;font-size:13px;vertical-align:middle;}
+
+/* STREAMER CELL */
+.user-cell{display:flex;align-items:center;gap:10px;}
+.user-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--bg3);flex-shrink:0;}
+.user-name{font-size:13px;font-weight:600;color:var(--text);text-decoration:none;}
+.user-name:hover{color:var(--purple-light);}
+.user-bot{font-size:11px;color:var(--text-muted);margin-top:2px;}
 
 /* BADGES */
-.badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;border:1px solid;}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid;}
 .badge-admin{color:var(--yellow);border-color:rgba(240,192,96,0.3);background:rgba(240,192,96,0.08);}
 .badge-streamer{color:var(--green);border-color:rgba(64,208,144,0.3);background:rgba(64,208,144,0.08);}
-.badge-pending{color:var(--purple-light);border-color:var(--purple-border);background:var(--purple-dim);}
+.badge-pending{color:#58a6ff;border-color:rgba(88,166,255,0.3);background:rgba(88,166,255,0.08);}
 .badge-blocked{color:var(--pink);border-color:rgba(224,90,122,0.3);background:rgba(224,90,122,0.08);}
 .badge-pro{color:var(--yellow);border-color:rgba(240,192,96,0.3);background:rgba(240,192,96,0.08);}
 .badge-free{color:var(--text-muted);border-color:rgba(255,255,255,0.08);background:transparent;}
 
-/* STATUS DOT */
-.dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px;}
-.dot-on{background:var(--green);}
-.dot-off{background:var(--text-muted);}
+/* PLAN EXPIRY */
+.expiry{font-size:10px;color:var(--text-muted);margin-top:3px;}
+.expiry.soon{color:var(--pink);}
 
 /* ACTIONS */
-.actions{display:flex;gap:6px;align-items:center;}
-.btn-action{font-size:12px;font-weight:500;padding:5px 10px;border-radius:var(--radius-sm);border:1px solid;background:transparent;cursor:pointer;transition:all 0.15s;white-space:nowrap;}
+.actions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+.btn-action{font-size:11px;font-weight:600;padding:5px 10px;border-radius:6px;border:1px solid;background:transparent;cursor:pointer;transition:all 0.15s;white-space:nowrap;font-family:var(--sans);}
+.btn-view{color:var(--purple-light);border-color:rgba(145,71,255,0.3);}
+.btn-view:hover{background:var(--purple-dim);}
 .btn-approve{color:var(--green);border-color:rgba(64,208,144,0.3);}
 .btn-approve:hover{background:rgba(64,208,144,0.1);}
 .btn-revoke{color:var(--pink);border-color:rgba(224,90,122,0.3);}
@@ -96,25 +133,37 @@ td{padding:12px 16px;font-size:13px;vertical-align:middle;}
 .btn-pro:hover{background:rgba(240,192,96,0.08);}
 .btn-free{color:var(--text-dim);border-color:rgba(255,255,255,0.1);}
 .btn-free:hover{background:rgba(255,255,255,0.05);}
-.btn-restore{color:var(--purple-light);border-color:var(--purple-border);}
-.btn-restore:hover{background:var(--purple-dim);}
-.you-badge{font-size:11px;color:var(--yellow);font-weight:500;}
+.btn-restore{color:#58a6ff;border-color:rgba(88,166,255,0.3);}
+.btn-restore:hover{background:rgba(88,166,255,0.08);}
+.you-badge{font-size:11px;color:var(--yellow);font-weight:600;}
 
-/* AVATAR */
-.user-cell{display:flex;align-items:center;gap:10px;}
-.user-link{color:var(--text);text-decoration:none;font-weight:500;}
-.user-link:hover{color:var(--purple-light);}
-.user-id{font-size:11px;color:var(--text-muted);margin-top:2px;}
+/* STATUS */
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;}
+.dot-on{background:var(--green);box-shadow:0 0 6px rgba(64,208,144,0.5);}
+.dot-off{background:var(--text-muted);}
 
-/* EMPTY / LOADING */
-.empty{text-align:center;padding:48px;color:var(--text-dim);font-size:13px;}
-.loading{text-align:center;padding:48px;color:var(--text-dim);font-size:13px;}
+/* EMPTY */
+.empty{text-align:center;padding:56px;color:var(--text-dim);font-size:13px;}
 
 /* TOAST */
-.toast{position:fixed;bottom:24px;right:24px;z-index:1000;background:var(--bg2);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius);color:var(--text);font-size:13px;font-weight:500;padding:12px 18px;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(20px);opacity:0;transition:all 0.25s;}
+.toast{position:fixed;bottom:24px;right:24px;z-index:1000;background:var(--bg2);border:1px solid rgba(255,255,255,0.1);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-weight:500;padding:12px 18px;box-shadow:0 8px 32px rgba(0,0,0,0.4);transform:translateY(20px);opacity:0;transition:all 0.25s;}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast.success{border-color:rgba(64,208,144,0.3);}
 .toast.error{border-color:rgba(224,90,122,0.3);color:var(--pink);}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-box{background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);width:520px;max-width:90vw;max-height:85vh;overflow-y:auto;box-shadow:0 24px 48px rgba(0,0,0,0.5);}
+.modal-head{padding:20px 24px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:14px;}
+.modal-avatar{width:48px;height:48px;border-radius:50%;border:2px solid var(--purple-border);background:var(--bg3);flex-shrink:0;}
+.modal-close{background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;width:32px;height:32px;cursor:pointer;color:var(--text-dim);font-size:18px;display:flex;align-items:center;justify-content:center;margin-left:auto;transition:all 0.15s;}
+.modal-close:hover{border-color:var(--pink);color:var(--pink);}
+.modal-body{padding:20px 24px;}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.detail-card{background:var(--bg3);border-radius:var(--radius-sm);padding:14px;}
+.detail-label{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.detail-value{font-size:22px;font-weight:700;color:var(--text);line-height:1;}
+.detail-value.sm{font-size:13px;font-weight:500;}
 
 /* MOBILE */
 .hamburger{display:none;position:fixed;top:16px;left:16px;z-index:200;background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);padding:8px 10px;cursor:pointer;font-size:18px;color:var(--text);}
@@ -158,70 +207,89 @@ td{padding:12px 16px;font-size:13px;vertical-align:middle;}
 </div>
 
 <div class="main">
+  <!-- Header -->
   <div class="page-header">
-    <div class="page-title">Panel de administración</div>
-    <div class="page-subtitle">Gestiona los streamers y sus planes</div>
+    <div>
+      <div class="page-title">Panel de administración</div>
+      <div class="page-subtitle">Gestiona los streamers, planes y suscripciones</div>
+    </div>
+    <button class="refresh-btn" onclick="loadStreamers()">↻ Actualizar</button>
   </div>
 
+  <!-- Stats -->
   <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-top"><span class="stat-label">Total</span><span class="stat-icon">👥</span></div>
-      <div class="stat-value" id="totalCount">—</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">registrados</div>
+    <div class="stat-card purple">
+      <div class="stat-icon-wrap purple">👥</div>
+      <div class="stat-label">Total</div>
+      <div class="stat-value purple" id="totalCount">—</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-top"><span class="stat-label">Activos</span><span class="stat-icon">✅</span></div>
-      <div class="stat-value" id="activeCount">—</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">canales con bot</div>
+    <div class="stat-card green">
+      <div class="stat-icon-wrap green">✅</div>
+      <div class="stat-label">Activos</div>
+      <div class="stat-value green" id="activeCount">—</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-top"><span class="stat-label">Pendientes</span><span class="stat-icon">⏳</span></div>
-      <div class="stat-value" id="pendingCount" style="color:var(--yellow);">—</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">esperando aprobación</div>
+    <div class="stat-card yellow">
+      <div class="stat-icon-wrap yellow">⏳</div>
+      <div class="stat-label">Pendientes</div>
+      <div class="stat-value yellow" id="pendingCount">—</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-top"><span class="stat-label">Plan Pro</span><span class="stat-icon">⭐</span></div>
-      <div class="stat-value" id="proCount" style="color:var(--purple-light);">—</div>
-      <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">usuarios Pro</div>
+    <div class="stat-card pink">
+      <div class="stat-icon-wrap pink">⭐</div>
+      <div class="stat-label">Plan Pro</div>
+      <div class="stat-value pink" id="proCount">—</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="stat-icon-wrap blue">💰</div>
+      <div class="stat-label">Ingresos est.</div>
+      <div class="stat-value blue" id="revenueCount">—</div>
     </div>
   </div>
 
-  <!-- Notificación de nuevos registros -->
-  <div id="newRegistrations" style="display:none;background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.25);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;align-items:center;gap:12px;">
-    <span style="font-size:20px;">🔔</span>
+  <!-- Notificación pendientes -->
+  <div id="newRegistrations" class="notif">
+    <div class="notif-icon">🔔</div>
     <div style="flex:1;">
-      <div style="font-size:13px;font-weight:500;color:var(--yellow);">Nuevos registros pendientes</div>
-      <div style="font-size:12px;color:var(--text-dim);" id="newRegText"></div>
+      <div style="font-size:13px;font-weight:700;color:var(--yellow);">Nuevos registros pendientes</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:2px;" id="newRegText"></div>
     </div>
-    <button class="filter-btn" onclick="setFilter('pending')">Ver pendientes</button>
+    <button class="notif-btn" onclick="setFilter('pending')">Ver pendientes →</button>
   </div>
 
+  <!-- Panel tabla -->
   <div class="panel">
     <div class="panel-header">
-      <span class="panel-title-text">Streamers</span>
-      <button class="btn-footer" style="padding:6px 12px;font-size:12px;" onclick="loadStreamers()">↻ Actualizar</button>
+      <span class="panel-title">Streamers registrados</span>
+      <span id="tableCount" style="font-size:11px;color:var(--text-muted);background:var(--bg3);padding:2px 8px;border-radius:10px;font-weight:500;"></span>
     </div>
     <div class="toolbar">
-      <input class="search-input" id="searchInput" placeholder="Buscar por nombre..." oninput="filterStreamers()">
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="searchInput" placeholder="Buscar por nombre..." oninput="filterStreamers()">
+      </div>
       <button class="filter-btn active" id="filter-all" onclick="setFilter('all')">Todos</button>
       <button class="filter-btn" id="filter-pending" onclick="setFilter('pending')">Pendientes</button>
       <button class="filter-btn" id="filter-streamer" onclick="setFilter('streamer')">Activos</button>
+      <button class="filter-btn" id="filter-pro" onclick="setFilter('pro')">Pro</button>
       <button class="filter-btn" id="filter-blocked" onclick="setFilter('blocked')">Bloqueados</button>
     </div>
     <div class="table-wrap">
-      <div id="tableContent" class="loading">Cargando streamers...</div>
+      <div id="tableContent" class="empty" style="padding:40px;">Cargando streamers...</div>
     </div>
   </div>
+</div>
 
-  <!-- Modal de detalles -->
-  <div id="detailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;align-items:center;justify-content:center;">
-    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);padding:24px;width:480px;max-width:90vw;max-height:80vh;overflow-y:auto;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-        <div style="font-size:16px;font-weight:600;" id="modalTitle">Detalles</div>
-        <button onclick="document.getElementById('detailModal').style.display='none'" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;">✕</button>
+<!-- Modal detalles -->
+<div id="detailModal" class="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-head">
+      <img class="modal-avatar" id="modalAvatar" src="" alt="">
+      <div>
+        <div style="font-size:16px;font-weight:700;" id="modalTitle">Detalles</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="modalSubtitle"></div>
       </div>
-      <div id="modalContent"></div>
+      <button class="modal-close" onclick="document.getElementById('detailModal').style.display='none'">×</button>
     </div>
+    <div class="modal-body" id="modalContent"></div>
   </div>
 </div>
 
@@ -231,17 +299,22 @@ td{padding:12px 16px;font-size:13px;vertical-align:middle;}
 let allStreamers = [];
 let currentFilter = 'all';
 
-function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlayBg').classList.toggle('show');}
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlayBg').classList.toggle('show');
+}
 
 function showToast(msg, type='success'){
-  const t=document.getElementById('toast');t.textContent=msg;
-  t.className=`toast show ${type}`;setTimeout(()=>t.classList.remove('show'),3000);
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className=`toast show ${type}`;
+  setTimeout(()=>t.classList.remove('show'),3000);
 }
 
 function setFilter(f){
   currentFilter=f;
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  document.getElementById('filter-'+f).classList.add('active');
+  const el = document.getElementById('filter-'+f);
+  if(el) el.classList.add('active');
   renderTable();
 }
 
@@ -249,40 +322,54 @@ function filterStreamers(){renderTable();}
 
 function getBadgeRole(role){
   const map={admin:'badge-admin',streamer:'badge-streamer',pending:'badge-pending',blocked:'badge-blocked'};
-  const labels={admin:'👑 Admin',streamer:'Activo',pending:'Pendiente',blocked:'Bloqueado'};
+  const labels={admin:'👑 Admin',streamer:'✅ Activo',pending:'⏳ Pendiente',blocked:'🚫 Bloqueado'};
   return `<span class="badge ${map[role]||'badge-pending'}">${labels[role]||role}</span>`;
 }
 
-function getPlanBadge(plan){
-  if(plan==='pro'||plan==='admin') return `<span class="badge badge-pro">⭐ Pro</span>`;
-  return `<span class="badge badge-free">Free</span>`;
+function getPlanBadge(plan, expiresAt){
+  if(plan==='pro'||plan==='admin'){
+    let expText = '';
+    if(expiresAt){
+      const exp = new Date(expiresAt);
+      const daysLeft = Math.ceil((exp - new Date()) / (1000*60*60*24));
+      const isSoon = daysLeft <= 7;
+      expText = `<div class="expiry ${isSoon?'soon':''}">${isSoon?'⚠️ ':''} Vence ${exp.toLocaleDateString('es-DO')}</div>`;
+    }
+    return `<div><span class="badge badge-pro">⭐ Pro</span>${expText}</div>`;
+  }
+  return `<span class="badge badge-free">🆓 Free</span>`;
 }
 
 function renderTable(){
   const search=document.getElementById('searchInput').value.toLowerCase();
   const filtered=allStreamers.filter(s=>{
     const matchSearch=s.twitch_username.toLowerCase().includes(search);
-    const matchFilter=currentFilter==='all'||s.role===currentFilter;
+    let matchFilter = false;
+    if(currentFilter==='all') matchFilter=true;
+    else if(currentFilter==='pro') matchFilter=s.plan==='pro';
+    else matchFilter=s.role===currentFilter;
     return matchSearch&&matchFilter;
   });
 
-  const total = allStreamers.length;
-  const active = allStreamers.filter(s=>s.approved&&s.role!=='admin').length;
+  const total = allStreamers.filter(s=>s.role!=='admin').length;
+  const active = allStreamers.filter(s=>s.approved&&s.role==='streamer').length;
   const pending = allStreamers.filter(s=>s.role==='pending').length;
   const pro = allStreamers.filter(s=>s.plan==='pro').length;
+  const revenue = pro * 5;
 
   document.getElementById('totalCount').textContent=total;
   document.getElementById('activeCount').textContent=active;
   document.getElementById('pendingCount').textContent=pending;
   document.getElementById('proCount').textContent=pro;
+  document.getElementById('revenueCount').textContent=`$${revenue}`;
+  document.getElementById('tableCount').textContent=`${filtered.length} streamers`;
 
-  // Notificación de pendientes
+  // Notificación pendientes
   const notif = document.getElementById('newRegistrations');
-  const notifText = document.getElementById('newRegText');
   if(pending > 0){
     notif.style.display='flex';
     const names = allStreamers.filter(s=>s.role==='pending').map(s=>s.twitch_username).join(', ');
-    notifText.textContent = `${pending} streamer${pending>1?'s':''} esperando aprobación: ${names}`;
+    document.getElementById('newRegText').textContent=`${pending} streamer${pending>1?'s':''} esperando: ${names}`;
   } else {
     notif.style.display='none';
   }
@@ -298,7 +385,7 @@ function renderTable(){
         <th>Streamer</th>
         <th>Estado</th>
         <th>Plan</th>
-        <th>Bot</th>
+        <th>IA</th>
         <th>Registro</th>
         <th>Acciones</th>
       </tr></thead>
@@ -308,27 +395,25 @@ function renderTable(){
             <td>
               <div class="user-cell">
                 <div>
-                  <a href="https://twitch.tv/${s.twitch_username}" target="_blank" class="user-link">${s.twitch_username}</a>
-                  ${s.custom_bot_username ? `<div class="user-id">🤖 ${s.custom_bot_username}</div>` : `<div class="user-id">🤖 muffet_osoking</div>`}
+                  <a href="https://twitch.tv/${s.twitch_username}" target="_blank" class="user-name">${s.twitch_username}</a>
+                  <div class="user-bot">🤖 ${s.custom_bot_username||'muffet_osoking'}</div>
                 </div>
               </div>
             </td>
             <td>${getBadgeRole(s.role)}</td>
-            <td>${getPlanBadge(s.plan)}</td>
+            <td>${getPlanBadge(s.plan, s.plan_expires_at)}</td>
             <td>
-              <span class="dot ${s.ai_enabled?'dot-on':'dot-off'}"></span>
-              <span style="font-size:11px;color:var(--text-dim);">IA ${s.ai_enabled?'On':'Off'}</span>
+              <span class="status-dot ${s.ai_enabled?'dot-on':'dot-off'}"></span>
+              <span style="font-size:12px;color:var(--text-dim);">${s.ai_enabled?'On':'Off'}</span>
             </td>
-            <td style="color:var(--text-dim);font-size:12px;">
-              ${new Date(s.created_at).toLocaleDateString('es-DO')}
-            </td>
+            <td style="color:var(--text-dim);font-size:12px;">${new Date(s.created_at).toLocaleDateString('es-DO')}</td>
             <td>
               <div class="actions">
                 ${s.role==='admin'
                   ? `<span class="you-badge">👑 Tú</span>`
                   : `
-                    <button class="btn-action" style="background:rgba(145,71,255,0.1);border-color:rgba(145,71,255,0.3);color:var(--purple-light);" onclick="showDetails(${s.id})">Ver</button>
-                    ${!s.approved||s.role==='pending' ? `<button class="btn-action btn-approve" onclick="approve(${s.id})">Aprobar</button>` : ''}
+                    <button class="btn-action btn-view" onclick="showDetails(${s.id})">👁 Ver</button>
+                    ${!s.approved||s.role==='pending' ? `<button class="btn-action btn-approve" onclick="approve(${s.id})">✓ Aprobar</button>` : ''}
                     ${s.approved&&s.role!=='blocked' ? `<button class="btn-action btn-revoke" onclick="revoke(${s.id})">Revocar</button>` : ''}
                     ${s.role==='blocked' ? `<button class="btn-action btn-restore" onclick="approve(${s.id})">Restaurar</button>` : ''}
                     ${s.approved&&s.plan!=='pro'&&s.plan!=='admin' ? `<button class="btn-action btn-pro" onclick="setPlan(${s.id},'pro')">⭐ Pro</button>` : ''}
@@ -344,61 +429,72 @@ function renderTable(){
 function showDetails(id){
   const s = allStreamers.find(x=>x.id===id);
   if(!s) return;
-  const modal = document.getElementById('detailModal');
   document.getElementById('modalTitle').textContent = `@${s.twitch_username}`;
+  document.getElementById('modalSubtitle').textContent = `Registrado el ${new Date(s.created_at).toLocaleDateString('es-DO')}`;
+  document.getElementById('modalAvatar').src = `https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png`;
+
   const cmds = Object.keys(s.commands||{}).length;
   const autoMsgs = (s.auto_messages||[]).length;
   const viewers = Object.keys(s.viewer_points||{}).length;
-  const topViewers = Object.entries(s.viewer_points||{}).sort(([,a],[,b])=>b-a).slice(0,3).map(([u,p])=>`${u} (${p})`).join(', ') || '—';
-  const cmdStats = Object.entries(s.command_stats||{}).sort(([,a],[,b])=>b-a).slice(0,3).map(([c,n])=>`${c}: ${n}`).join(', ') || '—';
+  const topViewers = Object.entries(s.viewer_points||{}).sort(([,a],[,b])=>b-a).slice(0,3).map(([u,p])=>`@${u} (${p})`).join(', ') || '—';
+  const cmdStats = Object.entries(s.command_stats||{}).sort(([,a],[,b])=>b-a).slice(0,3).map(([c,n])=>`${c}: ${n}`).join(' · ') || '—';
 
   document.getElementById('modalContent').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
-        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Plan</div>
-        <div style="font-size:14px;font-weight:600;">${s.plan==='pro'?'⭐ Pro':'🆓 Free'}</div>
+    <div class="detail-grid">
+      <div class="detail-card" style="background:${s.plan==='pro'?'rgba(240,192,96,0.06)':'var(--bg3)'};border:1px solid ${s.plan==='pro'?'rgba(240,192,96,0.15)':'rgba(255,255,255,0.04)'};">
+        <div class="detail-label">Plan</div>
+        <div class="detail-value sm">${s.plan==='pro'?'⭐ Pro':'🆓 Free'}</div>
+        ${s.plan_expires_at?`<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Vence: ${new Date(s.plan_expires_at).toLocaleDateString('es-DO')}</div>`:''}
       </div>
-      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
-        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Bot</div>
-        <div style="font-size:13px;font-weight:500;">${s.custom_bot_username||'muffet_osoking'}</div>
+      <div class="detail-card">
+        <div class="detail-label">Bot</div>
+        <div class="detail-value sm">🤖 ${s.custom_bot_username||'muffet_osoking'}</div>
       </div>
-      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
-        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Comandos</div>
-        <div style="font-size:24px;font-weight:700;color:var(--purple-light);">${cmds}</div>
+      <div class="detail-card">
+        <div class="detail-label">Comandos</div>
+        <div class="detail-value purple" style="color:var(--purple-light);">${cmds}</div>
       </div>
-      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
-        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Auto mensajes</div>
-        <div style="font-size:24px;font-weight:700;color:var(--purple-light);">${autoMsgs}</div>
+      <div class="detail-card">
+        <div class="detail-label">Auto mensajes</div>
+        <div class="detail-value" style="color:var(--purple-light);">${autoMsgs}</div>
       </div>
-      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
-        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Viewers con puntos</div>
-        <div style="font-size:24px;font-weight:700;color:var(--yellow);">${viewers}</div>
+      <div class="detail-card">
+        <div class="detail-label">Viewers con puntos</div>
+        <div class="detail-value" style="color:var(--yellow);">${viewers}</div>
       </div>
-      <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
-        <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Registro</div>
-        <div style="font-size:13px;">${new Date(s.created_at).toLocaleDateString('es-DO')}</div>
+      <div class="detail-card">
+        <div class="detail-label">IA</div>
+        <div class="detail-value sm" style="color:${s.ai_enabled?'var(--green)':'var(--text-muted);font-size:16px;'};">${s.ai_enabled?'✅ Activa':'⭕ Inactiva'}</div>
       </div>
     </div>
-    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;">
-      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Top viewers</div>
-      <div style="font-size:12px;color:var(--text-dim);">${topViewers}</div>
+    <div class="detail-card" style="margin-bottom:10px;">
+      <div class="detail-label">Top viewers</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">${topViewers}</div>
     </div>
-    <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px;">
-      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Comandos más usados</div>
-      <div style="font-size:12px;color:var(--text-dim);">${cmdStats}</div>
+    <div class="detail-card" style="margin-bottom:16px;">
+      <div class="detail-label">Comandos más usados</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:6px;">${cmdStats}</div>
     </div>
+    ${s.role!=='admin'?`
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      ${!s.approved||s.role==='pending'?`<button class="btn-action btn-approve" style="flex:1;padding:9px;" onclick="approve(${s.id});document.getElementById('detailModal').style.display='none'">✓ Aprobar acceso</button>`:''}
+      ${s.approved&&s.plan!=='pro'?`<button class="btn-action btn-pro" style="flex:1;padding:9px;" onclick="setPlan(${s.id},'pro');document.getElementById('detailModal').style.display='none'">⭐ Activar Pro</button>`:''}
+      ${s.plan==='pro'?`<button class="btn-action btn-free" style="flex:1;padding:9px;" onclick="setPlan(${s.id},'free');document.getElementById('detailModal').style.display='none'">↓ Bajar a Free</button>`:''}
+      ${s.approved&&s.role!=='blocked'?`<button class="btn-action btn-revoke" style="padding:9px 14px;" onclick="revoke(${s.id});document.getElementById('detailModal').style.display='none'">Revocar</button>`:''}
+    </div>`:''}
   `;
-  modal.style.display='flex';
+
+  document.getElementById('detailModal').style.display='flex';
 }
 
 async function loadStreamers(){
-  document.getElementById('tableContent').innerHTML='<div class="loading">Cargando...</div>';
+  document.getElementById('tableContent').innerHTML='<div class="empty" style="padding:40px;">Cargando...</div>';
   try{
     const res=await fetch('/api/admin/streamers');
     allStreamers=await res.json();
     renderTable();
   }catch(err){
-    document.getElementById('tableContent').innerHTML='<div class="empty">Error al cargar streamers</div>';
+    document.getElementById('tableContent').innerHTML='<div class="empty">Error al cargar</div>';
   }
 }
 
@@ -421,14 +517,11 @@ async function setPlan(id,plan){
   else showToast('Error','error');
 }
 
-// Cerrar modal al hacer click fuera
 document.getElementById('detailModal').addEventListener('click', function(e){
   if(e.target===this) this.style.display='none';
 });
 
-// Auto-actualizar cada 60 segundos para detectar nuevos registros
 setInterval(loadStreamers, 60000);
-
 loadStreamers();
 </script>
 </body>
