@@ -1180,10 +1180,10 @@ function renderMain() {
       <div class="panel-body">
         ${[
           ['{channel}', 'Nombre de tu canal de Twitch', '!canal', 'El canal es {channel}! 👑', `El canal es ${userData?.display_name||'elosoking1'}! 👑`],
-          ['{game}', 'Juego que se está transmitiendo en Twitch', '!juego', 'Estamos jugando {game}! 🎮', 'Estamos jugando Minecraft! 🎮'],
-          ['{game:{touser}}', 'Juego que está jugando otro canal (para !so)', '!so @wolf', 'twitch.tv/{touser} jugando {game:{touser}}', 'twitch.tv/wolf jugando Minecraft'],
-          ['{title}', 'Título actual del stream', '!titulo', 'Stream: {title}', 'Stream: ¡Jugando con la comunidad!'],
-          ['{uptime}', 'Tiempo que lleva el stream en vivo', '!uptime', 'Llevamos {uptime} en vivo! ⏰', 'Llevamos 2h 30m en vivo! ⏰'],
+          ['{game}', 'Juego/categoría que estás transmitiendo', '!juego', '🎮 Jugando {game}!', '🎮 Jugando Just Chatting!'],
+          ['{game:nombre}', 'Juego que está jugando OTRO canal — úsalo como {game:{touser}} en !so', '!so @wolf', '¡Amor a {touser}! jugando {game:{touser}}', '¡Amor a wolf! jugando Minecraft'],
+          ['{title}', 'Título actual de tu stream', '!titulo', 'Stream: {title}', 'Stream: ¡Jugando con la comunidad!'],
+          ['{uptime}', 'Tiempo que llevas en vivo', '!uptime', 'Llevamos {uptime} en vivo! ⏰', 'Llevamos 2h 30m en vivo! ⏰'],
           ['{redes}', 'Todos tus links de redes sociales', '!sigueme', '¡Sígueme! {redes}', '¡Sígueme! 🎮 Twitch: twitch.tv/... | 📺 YouTube: ...'],
           ['{random}', 'Número aleatorio entre 1 y 100', '!amor', '💕 Te amo un {random}%', '💕 Te amo un 73%'],
           ['{random:50}', 'Número aleatorio entre 1 y 50', '!dado', 'Sacaste {random:50}', 'Sacaste 23'],
@@ -1401,8 +1401,9 @@ function renderMain() {
       <div class="panel-body">
         <div style="display:flex;flex-direction:column;gap:12px;">
           <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
-            <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:6px;">En comandos:</div>
-            <code style="font-size:12px;color:var(--text-dim);font-family:monospace;">!so → ¡Amor para {touser}! 🐻 Canal: twitch.tv/{touser} — jugando {game:{touser}} 🕷️</code>
+            <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:6px;">Shoutout con el juego actual:</div>
+            <code style="font-size:12px;color:var(--text-dim);font-family:monospace;">!so → ¡Todo el amor para @{touser}! 🐻 Canal: https://twitch.tv/{touser} — ¡Viene viciando a {game:{touser}}! 🕷️</code>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">💡 <code style="color:var(--purple-light);">{game:{touser}}</code> busca automáticamente el juego del canal mencionado</div>
           </div>
           <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
             <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:6px;">En auto mensajes:</div>
