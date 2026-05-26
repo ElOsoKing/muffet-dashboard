@@ -4,254 +4,423 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MuffetBot — El bot de Twitch con personalidad</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
   --purple:#9147ff;--purple-dim:rgba(145,71,255,0.12);--purple-border:rgba(145,71,255,0.3);
-  --purple-light:#b388ff;--green:#40d090;--yellow:#f0c060;
-  --bg:#0d0d0f;--bg2:#141416;--bg3:#1a1a1e;
-  --text:#e8e8f0;--text-dim:#6b6b80;--text-muted:#3a3a4a;
-  --sans:'Inter',sans-serif;--radius:12px;--radius-sm:8px;
+  --purple-light:#b388ff;--green:#40d090;--yellow:#f0c060;--pink:#e05a7a;
+  --bg:#0a0a0c;--bg2:#111113;--bg3:#17171a;
+  --text:#eeeef5;--text-dim:#6b6b82;--text-muted:#2e2e3a;
+  --sans:'Inter',sans-serif;--radius:14px;--radius-sm:8px;
 }
 html{scroll-behavior:smooth;}
 body{background:var(--bg);font-family:var(--sans);color:var(--text);overflow-x:hidden;}
-nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;background:rgba(13,13,15,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.05);}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,10,12,0.8);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.05);}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
-.nav-logo-text{font-size:16px;font-weight:700;color:var(--text);}
-.nav-links{display:flex;align-items:center;gap:24px;}
-.nav-links a{font-size:13px;color:var(--text-dim);text-decoration:none;}
+.nav-logo-img{width:28px;height:28px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(145,71,255,0.6));}
+.nav-logo-text{font-size:17px;font-weight:800;color:var(--text);letter-spacing:-0.3px;}
+.nav-links{display:flex;align-items:center;gap:28px;}
+.nav-links a{font-size:13px;font-weight:500;color:var(--text-dim);text-decoration:none;transition:color 0.15s;}
 .nav-links a:hover{color:var(--text);}
-.nav-cta{background:var(--purple);color:white;padding:9px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;text-decoration:none;}
-.nav-cta:hover{background:#7d2ff7;}
-.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:100px 24px 60px;position:relative;overflow:hidden;}
-.hero-glow{position:absolute;top:20%;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle,rgba(145,71,255,0.15) 0%,transparent 70%);pointer-events:none;}
-.hero-badge{display:inline-flex;align-items:center;gap:6px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:500;color:var(--purple-light);margin-bottom:24px;}
-.hero h1{font-size:clamp(36px,6vw,72px);font-weight:800;line-height:1.05;letter-spacing:-2px;margin-bottom:20px;background:linear-gradient(135deg,#fff 30%,var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-.hero p{font-size:clamp(15px,2vw,20px);color:var(--text-dim);max-width:560px;margin:0 auto 36px;line-height:1.6;}
-.btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;}
-.btn-p{background:var(--purple);color:white;padding:14px 28px;border-radius:var(--radius-sm);font-size:15px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:background 0.2s;}
-.btn-p:hover{background:#7d2ff7;}
-.btn-s{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.15);padding:14px 28px;border-radius:var(--radius-sm);font-size:15px;font-weight:500;text-decoration:none;transition:all 0.2s;}
-.btn-s:hover{border-color:var(--purple-border);color:var(--purple-light);}
-.chat-preview{margin-top:48px;background:var(--bg2);border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:20px;max-width:620px;margin-left:auto;margin-right:auto;text-align:left;}
-.cmsg{display:flex;gap:10px;margin-bottom:12px;}
-.cav{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px;}
-.cname{font-size:12px;font-weight:600;margin-bottom:2px;}
+.nav-cta{background:var(--purple);color:white;padding:9px 22px;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.2s;box-shadow:0 0 20px rgba(145,71,255,0.3);}
+.nav-cta:hover{background:#7d2ff7;box-shadow:0 0 28px rgba(145,71,255,0.5);}
+
+/* HERO */
+.hero{min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:120px 24px 80px;position:relative;overflow:hidden;}
+.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(145,71,255,0.12) 0%,transparent 60%);pointer-events:none;}
+.hero-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);background-size:60px 60px;pointer-events:none;mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,black,transparent);}
+.hero-inner{position:relative;z-index:1;max-width:860px;margin:0 auto;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:20px;padding:7px 16px;font-size:12px;font-weight:600;color:var(--purple-light);margin-bottom:28px;letter-spacing:0.3px;}
+.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--purple);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+h1{font-size:clamp(42px,7vw,80px);font-weight:900;line-height:1.0;letter-spacing:-3px;margin-bottom:24px;}
+h1 .grad{background:linear-gradient(135deg,#ffffff 20%,var(--purple-light) 60%,var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-desc{font-size:clamp(16px,2vw,20px);color:var(--text-dim);max-width:560px;margin:0 auto 40px;line-height:1.7;}
+.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-bottom:64px;}
+.btn-primary{background:var(--purple);color:white;padding:15px 32px;border-radius:24px;font-size:15px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s;box-shadow:0 0 32px rgba(145,71,255,0.35);}
+.btn-primary:hover{background:#7d2ff7;transform:translateY(-1px);box-shadow:0 4px 40px rgba(145,71,255,0.5);}
+.btn-secondary{background:rgba(255,255,255,0.05);color:var(--text);border:1px solid rgba(255,255,255,0.12);padding:15px 32px;border-radius:24px;font-size:15px;font-weight:600;text-decoration:none;transition:all 0.2s;}
+.btn-secondary:hover{border-color:var(--purple-border);color:var(--purple-light);background:var(--purple-dim);}
+
+/* CHAT PREVIEW */
+.chat-card{background:var(--bg2);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:20px 24px;max-width:580px;margin:0 auto;text-align:left;box-shadow:0 32px 80px rgba(0,0,0,0.5);}
+.chat-header{display:flex;align-items:center;gap:8px;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid rgba(255,255,255,0.05);}
+.chat-dot{width:8px;height:8px;border-radius:50%;}
+.chat-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-left:auto;}
+.cmsg{display:flex;gap:10px;margin-bottom:14px;}
+.cmsg:last-child{margin-bottom:0;}
+.cav{width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.cname{font-size:12px;font-weight:700;margin-bottom:3px;}
 .ctext{font-size:13px;color:var(--text-dim);line-height:1.5;}
-.stats-bar{padding:40px 24px;display:flex;justify-content:center;gap:48px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05);}
-.stat{text-align:center;}
-.stat-num{font-size:36px;font-weight:800;color:var(--purple-light);letter-spacing:-1px;}
-.stat-label{font-size:13px;color:var(--text-dim);margin-top:4px;}
-.wrap{max-width:1100px;margin:0 auto;padding:80px 24px;}
-.stag{font-size:12px;font-weight:600;color:var(--purple-light);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;}
-.stitle{font-size:clamp(28px,4vw,42px);font-weight:700;letter-spacing:-1px;margin-bottom:16px;}
-.sdesc{font-size:16px;color:var(--text-dim);max-width:520px;line-height:1.6;margin-bottom:48px;}
-.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
-.fcard{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:24px;transition:border-color 0.2s;}
-.fcard:hover{border-color:var(--purple-border);}
-.ficon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px;}
-.ftitle{font-size:15px;font-weight:600;margin-bottom:8px;}
-.fdesc{font-size:13px;color:var(--text-dim);line-height:1.6;}
-.steps-bg{padding:80px 24px;background:var(--bg2);border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05);}
-.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
-.step{text-align:center;padding:24px 16px;}
-.snum{width:40px;height:40px;border-radius:50%;background:var(--purple-dim);border:1px solid var(--purple-border);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--purple-light);margin:0 auto 16px;}
-.plans-bg{padding:80px 24px;text-align:center;}
-.plans{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:700px;margin:48px auto 0;}
-.pcard{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:28px;position:relative;text-align:left;}
-.pcard.pro{border-color:var(--purple);background:linear-gradient(135deg,rgba(145,71,255,0.08),var(--bg2));}
-.pbadge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--purple);color:white;font-size:11px;font-weight:600;padding:4px 12px;border-radius:20px;white-space:nowrap;}
-.pname{font-size:18px;font-weight:700;margin-bottom:4px;}
-.pprice{font-size:36px;font-weight:800;letter-spacing:-1px;margin:12px 0 4px;}
-.pperiod{font-size:13px;color:var(--text-dim);margin-bottom:20px;}
-.pfeats{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
-.pfeat{font-size:13px;color:var(--text-dim);display:flex;align-items:center;gap:8px;}
-.check{color:var(--green);}
-.users-bg{padding:80px 24px;background:var(--bg2);border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05);}
-.ugrid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1100px;margin:48px auto 0;}
-.ucard{background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;}
-.uhead{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
-.uav{width:44px;height:44px;border-radius:50%;background:var(--purple-dim);border:2px solid var(--purple-border);display:flex;align-items:center;justify-content:center;font-size:20px;}
-.uname{font-size:14px;font-weight:600;}
-.utag{font-size:11px;color:var(--text-dim);}
-.uquote{font-size:13px;color:var(--text-dim);line-height:1.6;font-style:italic;}
-.cta-bg{padding:80px 24px;text-align:center;position:relative;overflow:hidden;}
-.cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:300px;background:radial-gradient(ellipse,rgba(145,71,255,0.12) 0%,transparent 70%);pointer-events:none;}
-footer{padding:32px 24px;border-top:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
-.flinks{display:flex;gap:20px;flex-wrap:wrap;}
-.flinks a{font-size:13px;color:var(--text-muted);text-decoration:none;}
-.flinks a:hover{color:var(--text-dim);}
+.ctext.bot{color:var(--text);background:var(--bg3);border-radius:0 10px 10px 10px;padding:10px 14px;display:inline-block;}
+
+/* STATS BAR */
+.stats-bar{padding:48px 24px;display:flex;justify-content:center;gap:0;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.04);}
+.stat{text-align:center;padding:0 40px;border-right:1px solid rgba(255,255,255,0.06);}
+.stat:last-child{border-right:none;}
+.stat-num{font-size:38px;font-weight:900;letter-spacing:-2px;background:linear-gradient(135deg,var(--text),var(--purple-light));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.stat-label{font-size:13px;color:var(--text-dim);margin-top:6px;font-weight:500;}
+
+/* SECTIONS */
+.section{padding:100px 24px;}
+.section-inner{max-width:1100px;margin:0 auto;}
+.section-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--purple-light);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;background:var(--purple-dim);border:1px solid var(--purple-border);padding:5px 12px;border-radius:20px;}
+.section-title{font-size:clamp(32px,4vw,48px);font-weight:800;letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px;}
+.section-desc{font-size:17px;color:var(--text-dim);max-width:520px;line-height:1.7;margin-bottom:56px;}
+
+/* FEATURES GRID */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.fcard{background:var(--bg2);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius);padding:26px;transition:all 0.2s;position:relative;overflow:hidden;}
+.fcard::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--accent-color,rgba(145,71,255,0.05)),transparent);opacity:0;transition:opacity 0.2s;}
+.fcard:hover{border-color:rgba(255,255,255,0.1);transform:translateY(-2px);}
+.fcard:hover::before{opacity:1;}
+.ficon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:18px;}
+.ftitle{font-size:15px;font-weight:700;margin-bottom:8px;}
+.fdesc{font-size:13px;color:var(--text-dim);line-height:1.65;}
+.fpro{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--yellow);background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.2);border-radius:8px;padding:2px 8px;margin-top:10px;}
+
+/* STEPS */
+.steps-section{padding:100px 24px;background:var(--bg2);border-top:1px solid rgba(255,255,255,0.04);border-bottom:1px solid rgba(255,255,255,0.04);}
+.steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin-top:56px;}
+.step{background:var(--bg3);padding:32px 24px;text-align:center;position:relative;}
+.step:first-child{border-radius:14px 0 0 14px;}
+.step:last-child{border-radius:0 14px 14px 0;}
+.step-connector{position:absolute;top:40px;right:-20px;width:40px;height:2px;background:linear-gradient(90deg,var(--purple-border),transparent);z-index:1;}
+.step:last-child .step-connector{display:none;}
+.snum{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--purple),#7d2ff7);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:white;margin:0 auto 20px;box-shadow:0 0 20px rgba(145,71,255,0.4);}
+.step-title{font-size:14px;font-weight:700;margin-bottom:8px;}
+.step-desc{font-size:12px;color:var(--text-dim);line-height:1.6;}
+
+/* PLANES */
+.plans-section{padding:100px 24px;text-align:center;}
+.plans-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:20px;max-width:720px;margin:56px auto 0;}
+.pcard{background:var(--bg2);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:32px;position:relative;text-align:left;transition:border-color 0.2s;}
+.pcard.pro{border-color:rgba(145,71,255,0.4);background:linear-gradient(135deg,rgba(145,71,255,0.08),var(--bg2));}
+.pcard.pro::before{content:'';position:absolute;inset:-1px;border-radius:21px;background:linear-gradient(135deg,rgba(145,71,255,0.4),transparent,transparent);pointer-events:none;z-index:0;}
+.pbadge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--purple),#7d2ff7);color:white;font-size:11px;font-weight:700;padding:5px 16px;border-radius:20px;white-space:nowrap;box-shadow:0 4px 12px rgba(145,71,255,0.4);}
+.pname{font-size:20px;font-weight:800;margin-bottom:6px;position:relative;}
+.pprice{font-size:44px;font-weight:900;letter-spacing:-2px;margin:16px 0 6px;line-height:1;position:relative;}
+.pprice sup{font-size:20px;font-weight:700;vertical-align:top;margin-top:8px;margin-right:2px;}
+.pperiod{font-size:13px;color:var(--text-dim);margin-bottom:24px;position:relative;}
+.pfeats{display:flex;flex-direction:column;gap:10px;margin-bottom:28px;position:relative;}
+.pfeat{font-size:13px;color:var(--text-dim);display:flex;align-items:flex-start;gap:8px;line-height:1.5;}
+.check{color:var(--green);font-size:14px;flex-shrink:0;margin-top:1px;}
+.plan-btn{width:100%;padding:13px;border-radius:20px;font-size:14px;font-weight:700;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.2s;position:relative;}
+.plan-btn.free{background:rgba(255,255,255,0.06);color:var(--text);border:1px solid rgba(255,255,255,0.1);}
+.plan-btn.free:hover{background:rgba(255,255,255,0.1);}
+.plan-btn.pro-btn{background:linear-gradient(135deg,var(--purple),#7d2ff7);color:white;box-shadow:0 4px 24px rgba(145,71,255,0.4);}
+.plan-btn.pro-btn:hover{transform:translateY(-1px);box-shadow:0 8px 32px rgba(145,71,255,0.5);}
+
+/* TESTIMONIOS */
+.testi-section{padding:100px 24px;background:var(--bg2);border-top:1px solid rgba(255,255,255,0.04);}
+.testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1100px;margin:56px auto 0;}
+.tcard{background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius);padding:24px;transition:border-color 0.2s;}
+.tcard:hover{border-color:var(--purple-border);}
+.tcard-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.tav{width:48px;height:48px;border-radius:50%;background:var(--purple-dim);border:2px solid var(--purple-border);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.tname{font-size:14px;font-weight:700;}
+.ttag{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.tplan{font-size:10px;font-weight:700;color:var(--yellow);background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.2);border-radius:8px;padding:2px 7px;display:inline-block;margin-top:4px;}
+.tquote{font-size:13px;color:var(--text-dim);line-height:1.7;font-style:italic;border-left:2px solid var(--purple-border);padding-left:12px;}
+.tstar{color:var(--yellow);font-size:12px;margin-bottom:10px;}
+
+/* CTA */
+.cta-section{padding:120px 24px;text-align:center;position:relative;overflow:hidden;}
+.cta-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:600px;height:400px;background:radial-gradient(ellipse,rgba(145,71,255,0.15) 0%,transparent 70%);pointer-events:none;}
+.cta-title{font-size:clamp(32px,5vw,60px);font-weight:900;letter-spacing:-2px;line-height:1.1;margin-bottom:20px;position:relative;}
+.cta-desc{font-size:18px;color:var(--text-dim);margin-bottom:40px;position:relative;}
+
+/* FOOTER */
+footer{padding:40px 32px;border-top:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;max-width:1400px;margin:0 auto;}
+.footer-logo{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;}
+.footer-links{display:flex;gap:24px;flex-wrap:wrap;}
+.footer-links a{font-size:13px;color:var(--text-muted);text-decoration:none;transition:color 0.15s;}
+.footer-links a:hover{color:var(--text-dim);}
+.footer-copy{font-size:12px;color:var(--text-muted);}
+
+/* MOBILE */
 @media(max-width:768px){
-  .grid3,.ugrid{grid-template-columns:1fr;}
-  .steps,.plans{grid-template-columns:1fr;}
+  .feat-grid,.testi-grid{grid-template-columns:1fr;}
+  .steps-grid,.plans-grid{grid-template-columns:1fr;}
   .nav-links{display:none;}
-  .stats-bar{gap:24px;}
-  .steps{grid-template-columns:repeat(2,1fr);}
+  .stats-bar{gap:0;}
+  .stat{padding:24px 20px;border-right:none;border-bottom:1px solid rgba(255,255,255,0.06);}
+  .stat:last-child{border-bottom:none;}
 }
 </style>
 </head>
 <body>
 
 <nav>
-  <a href="/" class="nav-logo"><span style="font-size:22px;">🕷️</span><span class="nav-logo-text">MuffetBot</span></a>
+  <a href="/" class="nav-logo">
+    <img class="nav-logo-img" src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
+    <span class="nav-logo-text">MuffetBot</span>
+  </a>
   <div class="nav-links">
     <a href="#features">Funciones</a>
     <a href="#como-funciona">Cómo funciona</a>
     <a href="#planes">Planes</a>
     <a href="https://discord.gg/6DCDS3Sfet" target="_blank">Discord</a>
   </div>
-  <a href="/login" class="nav-cta">Empezar gratis</a>
+  <a href="/login" class="nav-cta">Empezar gratis →</a>
 </nav>
 
+<!-- HERO -->
 <section class="hero">
-  <div class="hero-glow"></div>
-  <div style="position:relative;z-index:1;width:100%;">
-    <div class="hero-badge">🕷️ El bot de Twitch más personalizable</div>
-    <h1>Tu bot de Twitch<br>con personalidad propia</h1>
-    <p>Muffet aprende tu estilo, anima tu chat y nunca se pierde un momento importante. IA, sorteos, puntos, Spotify y mucho más.</p>
-    <div class="btns">
-      <a href="/login" class="btn-p">🎮 Empezar gratis</a>
-      <a href="#features" class="btn-s">Ver funciones →</a>
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+  <div class="hero-inner">
+    <div class="hero-badge"><span class="hero-badge-dot"></span>🕷️ El bot de Twitch con personalidad</div>
+    <h1><span class="grad">Tu bot de Twitch<br>con alma propia</span></h1>
+    <p class="hero-desc">Muffet aprende tu estilo, anima tu chat y nunca se pierde un momento. IA, sorteos, música con Spotify, puntos y mucho más — todo desde un dashboard.</p>
+    <div class="hero-btns">
+      <a href="/login" class="btn-primary">🎮 Empezar gratis</a>
+      <a href="#features" class="btn-secondary">Ver funciones →</a>
     </div>
-    <div class="chat-preview">
-      <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:16px;">Vista previa del chat</div>
+    <!-- Chat preview -->
+    <div class="chat-card">
+      <div class="chat-header">
+        <div class="chat-dot" style="background:#ff5f57;"></div>
+        <div class="chat-dot" style="background:#febc2e;margin-left:4px;"></div>
+        <div class="chat-dot" style="background:#28c840;margin-left:4px;"></div>
+        <span class="chat-label">Chat de Twitch — EN VIVO</span>
+      </div>
       <div class="cmsg">
         <div class="cav" style="background:rgba(145,71,255,0.2);">👑</div>
         <div><div class="cname" style="color:#9147ff;">ElOsoKing1</div><div class="ctext">!ask ¿quién eres?</div></div>
       </div>
       <div class="cmsg">
-        <div class="cav" style="background:rgba(145,71,255,0.15);">🕷️</div>
-        <div><div class="cname" style="color:#b388ff;">muffet_osoking</div><div class="ctext">¡Soy Muffet, la guardiana de este reino, dearie! 🕷️ Estoy aquí para animar el chat y asegurarme de que nadie se vaya sin disfrutar. ¿En qué te puedo ayudar? 👑♥</div></div>
+        <div class="cav" style="background:rgba(179,136,255,0.2);">🕷️</div>
+        <div><div class="cname" style="color:#b388ff;">muffet_osoking</div><div class="ctext bot">¡Soy Muffet, la guardiana de este reino, dearie! 🕷️ Estoy aquí para animar el chat. ¿En qué te puedo ayudar? 👑♥</div></div>
       </div>
       <div class="cmsg">
         <div class="cav" style="background:rgba(64,208,144,0.15);">🐺</div>
-        <div><div class="cname" style="color:#40d090;">LordLonelyWolf</div><div class="ctext">!sorteo crear Premio: Suscripción</div></div>
+        <div><div class="cname" style="color:#40d090;">LordLonelyWolf</div><div class="ctext">!cancion Lofi hip hop</div></div>
       </div>
       <div class="cmsg">
-        <div class="cav" style="background:rgba(145,71,255,0.15);">🕷️</div>
-        <div><div class="cname" style="color:#b388ff;">muffet_osoking</div><div class="ctext">🎉 ¡Sorteo iniciado! Premio: Suscripción 🏆 Escribe !entrar para participar~ 🕷️</div></div>
+        <div class="cav" style="background:rgba(179,136,255,0.2);">🕷️</div>
+        <div><div class="cname" style="color:#b388ff;">muffet_osoking</div><div class="ctext bot">🎵 ¡@LordLonelyWolf agregó "Lofi Hip Hop Radio" a la cola! Posición #1 🎶</div></div>
       </div>
     </div>
   </div>
 </section>
 
+<!-- STATS -->
 <div class="stats-bar">
-  <div class="stat"><div class="stat-num">7+</div><div class="stat-label">Canales activos</div></div>
+  <div class="stat"><div class="stat-num">14+</div><div class="stat-label">Canales activos</div></div>
   <div class="stat"><div class="stat-num">24/7</div><div class="stat-label">Siempre en línea</div></div>
   <div class="stat"><div class="stat-num">∞</div><div class="stat-label">Personalidades</div></div>
   <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Gratis para empezar</div></div>
 </div>
 
-<section id="features">
-  <div class="wrap">
-    <div class="stag">Funciones</div>
-    <div class="stitle">Todo lo que necesitas<br>para tu stream</div>
-    <div class="sdesc">Desde respuestas con IA hasta sorteos en vivo — MuffetBot tiene todo lo que necesitas.</div>
-    <div class="grid3">
-      <div class="fcard"><div class="ficon" style="background:rgba(145,71,255,0.15);">🤖</div><div class="ftitle">IA con tu personalidad</div><div class="fdesc">Define cómo habla tu bot y responderá con ese estilo en cada mensaje, saludo y sorteo.</div></div>
-      <div class="fcard"><div class="ficon" style="background:rgba(64,208,144,0.15);">🎉</div><div class="ftitle">Sorteos con overlay OBS</div><div class="fdesc">Gestiona sorteos en vivo con multiplicadores para subs/VIPs y overlay transparente para OBS.</div></div>
-      <div class="fcard"><div class="ficon" style="background:rgba(240,192,96,0.15);">🏆</div><div class="ftitle">Sistema de puntos</div><div class="fdesc">Tus viewers ganan XP por chatear, suben de nivel y compiten en el ranking del canal.</div></div>
-      <div class="fcard"><div class="ficon" style="background:rgba(224,90,122,0.15);">🎵</div><div class="ftitle">Integración Spotify</div><div class="fdesc">El chat puede pedir canciones directamente con !cancion. Con tu propia app de Spotify.</div></div>
-      <div class="fcard"><div class="ficon" style="background:rgba(96,160,240,0.15);">📊</div><div class="ftitle">Encuestas en el chat</div><div class="fdesc">Lanza encuestas con !poll y el chat vota en tiempo real con números.</div></div>
-      <div class="fcard"><div class="ficon" style="background:rgba(145,71,255,0.15);">🌐</div><div class="ftitle">Página pública</div><div class="fdesc">Cada canal tiene su propia página con comandos, redes y videos de YouTube.</div></div>
-      <div class="fcard"><div class="ficon" style="background:rgba(64,208,144,0.15);">🔔</div><div class="ftitle">Alertas automáticas</div><div class="fdesc">El bot agradece follows, subs y bits con la personalidad de tu canal.</div></div>
-      <div class="fcard"><div class="ficon" style="background:rgba(240,192,96,0.15);">⚡</div><div class="ftitle">Comandos ilimitados</div><div class="fdesc">Crea comandos desde el dashboard o directamente desde el chat con !addcmd.</div></div>
-      <div class="fcard"><div class="ficon" style="background:rgba(224,90,122,0.15);">🛡️</div><div class="ftitle">Moderación con IA</div><div class="fdesc">Detecta spam, toxicidad y palabras prohibidas automáticamente.</div></div>
+<!-- FEATURES -->
+<section class="section" id="features">
+  <div class="section-inner">
+    <div class="section-tag">✨ Funciones</div>
+    <div class="section-title">Todo lo que necesitas<br>para tu comunidad</div>
+    <div class="section-desc">Desde respuestas con IA hasta sorteos en vivo — MuffetBot tiene todo.</div>
+    <div class="feat-grid">
+      <div class="fcard" style="--accent-color:rgba(145,71,255,0.08);">
+        <div class="ficon" style="background:rgba(145,71,255,0.15);">🤖</div>
+        <div class="ftitle">IA con tu personalidad</div>
+        <div class="fdesc">Define cómo habla tu bot y responderá con ese estilo en cada mensaje, saludo y sorteo.</div>
+      </div>
+      <div class="fcard" style="--accent-color:rgba(30,215,96,0.06);">
+        <div class="ficon" style="background:rgba(30,215,96,0.15);">🎵</div>
+        <div class="ftitle">Spotify integrado</div>
+        <div class="fdesc">El chat pide canciones con !cancion. Overlay para OBS con portada y barra de progreso en tiempo real.</div>
+        <div class="fpro">⭐ Pro</div>
+      </div>
+      <div class="fcard" style="--accent-color:rgba(240,192,96,0.06);">
+        <div class="ficon" style="background:rgba(240,192,96,0.15);">🎉</div>
+        <div class="ftitle">Sorteos con overlay OBS</div>
+        <div class="fdesc">Sorteos en vivo con multiplicadores para subs/VIPs y overlay transparente para OBS.</div>
+        <div class="fpro">⭐ Pro</div>
+      </div>
+      <div class="fcard" style="--accent-color:rgba(64,208,144,0.06);">
+        <div class="ficon" style="background:rgba(64,208,144,0.15);">🏆</div>
+        <div class="ftitle">Sistema de puntos</div>
+        <div class="fdesc">Viewers ganan XP por chatear, suben de nivel y compiten en el ranking del canal.</div>
+      </div>
+      <div class="fcard" style="--accent-color:rgba(224,90,122,0.06);">
+        <div class="ficon" style="background:rgba(224,90,122,0.15);">🛡️</div>
+        <div class="ftitle">Moderación avanzada</div>
+        <div class="fdesc">Anti-spam, modo lento, bloqueo de links y moderación automática con IA.</div>
+        <div class="fpro">⭐ IA Pro</div>
+      </div>
+      <div class="fcard" style="--accent-color:rgba(88,166,255,0.06);">
+        <div class="ficon" style="background:rgba(88,166,255,0.15);">🌐</div>
+        <div class="ftitle">Página pública</div>
+        <div class="fdesc">Cada canal tiene su propia página con comandos, clips de Twitch y redes sociales.</div>
+        <div class="fpro">⭐ Pro</div>
+      </div>
+      <div class="fcard" style="--accent-color:rgba(145,71,255,0.08);">
+        <div class="ficon" style="background:rgba(145,71,255,0.15);">🥇</div>
+        <div class="ftitle">!primerin y !duelo</div>
+        <div class="fdesc">El primero en llegar al stream gana. Reta a otros viewers a duelos de puntos.</div>
+        <div class="fpro">⭐ Pro</div>
+      </div>
+      <div class="fcard" style="--accent-color:rgba(240,192,96,0.06);">
+        <div class="ficon" style="background:rgba(240,192,96,0.15);">⚡</div>
+        <div class="ftitle">Comandos ilimitados</div>
+        <div class="fdesc">Crea comandos desde el dashboard o desde el chat con !addcmd. Variables dinámicas incluidas.</div>
+      </div>
+      <div class="fcard" style="--accent-color:rgba(64,208,144,0.06);">
+        <div class="ficon" style="background:rgba(64,208,144,0.15);">📢</div>
+        <div class="ftitle">Anuncio en vivo</div>
+        <div class="fdesc">El bot anuncia automáticamente cuando empiezas el stream con tu estilo personal.</div>
+        <div class="fpro">⭐ Pro</div>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="steps-bg" id="como-funciona">
+<!-- COMO FUNCIONA -->
+<section class="steps-section" id="como-funciona">
   <div style="max-width:1100px;margin:0 auto;text-align:center;">
-    <div class="stag">Proceso</div>
-    <div class="stitle">En 4 pasos sencillos</div>
-    <div class="steps">
-      <div class="step"><div class="snum">1</div><div style="font-size:14px;font-weight:600;margin-bottom:6px;">Conecta tu cuenta</div><div style="font-size:12px;color:var(--text-dim);line-height:1.6;">Inicia sesión con tu cuenta de Twitch en segundos.</div></div>
-      <div class="step"><div class="snum">2</div><div style="font-size:14px;font-weight:600;margin-bottom:6px;">Personaliza tu bot</div><div style="font-size:12px;color:var(--text-dim);line-height:1.6;">Define la personalidad, comandos y configuración desde el dashboard.</div></div>
-      <div class="step"><div class="snum">3</div><div style="font-size:14px;font-weight:600;margin-bottom:6px;">Actívalo en tu canal</div><div style="font-size:12px;color:var(--text-dim);line-height:1.6;">El bot se une automáticamente a tu canal de Twitch.</div></div>
-      <div class="step"><div class="snum">4</div><div style="font-size:14px;font-weight:600;margin-bottom:6px;">¡A streamear!</div><div style="font-size:12px;color:var(--text-dim);line-height:1.6;">Tu bot anima el chat 24/7 con IA, sorteos y mucho más.</div></div>
+    <div class="section-tag">🚀 Proceso</div>
+    <div class="section-title">En 4 pasos sencillos</div>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="snum">1</div>
+        <div class="step-connector"></div>
+        <div class="step-title">Conecta con Twitch</div>
+        <div class="step-desc">Inicia sesión con tu cuenta de Twitch en segundos. Sin contraseñas extras.</div>
+      </div>
+      <div class="step">
+        <div class="snum">2</div>
+        <div class="step-connector"></div>
+        <div class="step-title">Personaliza tu bot</div>
+        <div class="step-desc">Define la personalidad, comandos y configuración desde el dashboard.</div>
+      </div>
+      <div class="step">
+        <div class="snum">3</div>
+        <div class="step-connector"></div>
+        <div class="step-title">Actívalo en tu canal</div>
+        <div class="step-desc">El bot se une automáticamente a tu canal y empieza a responder.</div>
+      </div>
+      <div class="step">
+        <div class="snum">4</div>
+        <div class="step-title">¡A streamear!</div>
+        <div class="step-desc">Tu bot anima el chat 24/7 con IA, sorteos, música y mucho más.</div>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="plans-bg" id="planes">
-  <div class="stag">Planes</div>
-  <div class="stitle">Simple y transparente</div>
-  <div style="font-size:16px;color:var(--text-dim);">Empieza gratis y actualiza cuando quieras más.</div>
-  <div class="plans">
+<!-- PLANES -->
+<section class="plans-section" id="planes">
+  <div class="section-tag">💎 Precios</div>
+  <div class="section-title">Simple y transparente</div>
+  <div style="font-size:17px;color:var(--text-dim);">Empieza gratis y actualiza cuando quieras.</div>
+  <div class="plans-grid">
     <div class="pcard">
       <div class="pname">🆓 Gratuito</div>
-      <div class="pprice">$0</div>
+      <div class="pprice"><sup>$</sup>0</div>
       <div class="pperiod">para siempre</div>
       <div class="pfeats">
-        <div class="pfeat"><span class="check">✓</span> Comandos ilimitados</div>
-        <div class="pfeat"><span class="check">✓</span> Auto mensajes</div>
+        <div class="pfeat"><span class="check">✓</span> Comandos y auto mensajes</div>
         <div class="pfeat"><span class="check">✓</span> Moderación básica</div>
-        <div class="pfeat"><span class="check">✓</span> Página pública básica</div>
-        <div class="pfeat"><span class="check">✓</span> Variables dinámicas</div>
-        <div class="pfeat"><span class="check">✓</span> Sorteos sin overlay</div>
-        <div class="pfeat"><span class="check">✓</span> Puntos, niveles y !top</div>
+        <div class="pfeat"><span class="check">✓</span> Sistema de puntos y niveles</div>
         <div class="pfeat"><span class="check">✓</span> !ask, !chiste, !8ball</div>
-        <div class="pfeat"><span class="check">✓</span> Dados, acciones sociales</div>
+        <div class="pfeat"><span class="check">✓</span> Sorteos sin overlay</div>
+        <div class="pfeat"><span class="check">✓</span> Dados y acciones sociales</div>
+        <div class="pfeat"><span class="check">✓</span> Variables y contadores</div>
       </div>
-      <a href="/login" class="btn-p" style="width:100%;justify-content:center;">Empezar gratis</a>
+      <a href="/login" class="plan-btn free">Empezar gratis</a>
     </div>
     <div class="pcard pro">
       <div class="pbadge">⭐ Más popular</div>
       <div class="pname" style="color:var(--purple-light);">💎 Pro</div>
-      <div class="pprice" style="color:var(--purple-light);">$5</div>
-      <div class="pperiod">por mes</div>
+      <div class="pprice" style="color:var(--purple-light);"><sup>$</sup>5</div>
+      <div class="pperiod">por mes · planes anuales disponibles</div>
       <div class="pfeats">
         <div class="pfeat"><span class="check">✓</span> Todo lo del plan gratuito</div>
         <div class="pfeat"><span class="check">✓</span> Bot con tu propio nombre</div>
         <div class="pfeat"><span class="check">✓</span> 🎵 Spotify + Overlay OBS</div>
         <div class="pfeat"><span class="check">✓</span> 🎉 Sorteos con overlay OBS</div>
-        <div class="pfeat"><span class="check">✓</span> 🥇 !primerin — ranking de llegada</div>
-        <div class="pfeat"><span class="check">✓</span> ⚔️ !duelo y 🗳️ !poll</div>
+        <div class="pfeat"><span class="check">✓</span> 🥇 !primerin y ⚔️ !duelo</div>
         <div class="pfeat"><span class="check">✓</span> 📢 Anuncio automático en vivo</div>
         <div class="pfeat"><span class="check">✓</span> 🌐 Página pública con clips</div>
-        <div class="pfeat"><span class="check">✓</span> Soporte prioritario</div>
+        <div class="pfeat"><span class="check">✓</span> 🤖 Moderación con IA</div>
       </div>
-      <a href="/plans" class="btn-p" style="width:100%;justify-content:center;background:linear-gradient(135deg,#9147ff,#7d2ff7);">Obtener Pro →</a>
+      <a href="/plans" class="plan-btn pro-btn">Ver planes Pro →</a>
     </div>
   </div>
 </section>
 
-<section class="users-bg">
+<!-- TESTIMONIOS -->
+<section class="testi-section">
   <div style="text-align:center;">
-    <div class="stag">Comunidad</div>
-    <div class="stitle">Ya lo usan en Twitch</div>
+    <div class="section-tag">💬 Comunidad</div>
+    <div class="section-title">Ya lo usan en Twitch</div>
   </div>
-  <div class="ugrid">
-    <div class="ucard"><div class="uhead"><div class="uav">👑</div><div><div class="uname">ElOsoKing1</div><div class="utag">twitch.tv/elosoking1 • Pro</div></div></div><div class="uquote">"El rey oso y su guardiana Muffet conquistan el chat cada stream."</div></div>
-    <div class="ucard"><div class="uhead"><div class="uav">🐺</div><div><div class="uname">LordLonelyWolf</div><div class="utag">twitch.tv/lordlonelywolf • Pro</div></div></div><div class="uquote">"Bot_Wolfito mantiene el orden en el reino del lobo solitario."</div></div>
-    <div class="ucard"><div class="uhead"><div class="uav">💜</div><div><div class="uname">Andiita_93</div><div class="utag">twitch.tv/andiita_93 • Pro</div></div></div><div class="uquote">"Succubo♥ llena de energía cada stream con su personalidad única."</div></div>
+  <div class="testi-grid">
+    <div class="tcard">
+      <div class="tcard-head">
+        <div class="tav">👑</div>
+        <div>
+          <div class="tname">ElOsoKing1</div>
+          <div class="ttag">twitch.tv/elosoking1</div>
+          <div class="tplan">⭐ Plan Pro</div>
+        </div>
+      </div>
+      <div class="tstar">★★★★★</div>
+      <div class="tquote">"El rey oso y su guardiana Muffet conquistan el chat cada stream. No me imagino sin ella."</div>
+    </div>
+    <div class="tcard">
+      <div class="tcard-head">
+        <div class="tav">🐺</div>
+        <div>
+          <div class="tname">LordLonelyWolf</div>
+          <div class="ttag">twitch.tv/lordlonelywolf</div>
+          <div class="tplan">⭐ Plan Pro</div>
+        </div>
+      </div>
+      <div class="tstar">★★★★★</div>
+      <div class="tquote">"Bot_Wolfito mantiene el orden en el reino del lobo solitario. El chat está más activo que nunca."</div>
+    </div>
+    <div class="tcard">
+      <div class="tcard-head">
+        <div class="tav">💜</div>
+        <div>
+          <div class="tname">Andiita_93</div>
+          <div class="ttag">twitch.tv/andiita_93</div>
+          <div class="tplan">⭐ Plan Pro</div>
+        </div>
+      </div>
+      <div class="tstar">★★★★★</div>
+      <div class="tquote">"MeruBot_ llena de energía cada stream con su personalidad única. Los viewers la adoran."</div>
+    </div>
   </div>
 </section>
 
-<section class="cta-bg">
+<!-- CTA FINAL -->
+<section class="cta-section">
   <div class="cta-glow"></div>
-  <div style="position:relative;z-index:1;">
-    <div style="font-size:clamp(28px,4vw,48px);font-weight:800;letter-spacing:-1px;margin-bottom:16px;">¿Listo para animar<br>tu comunidad?</div>
-    <div style="font-size:16px;color:var(--text-dim);margin-bottom:32px;">Únete gratis en segundos. Sin tarjeta de crédito.</div>
-    <div class="btns">
-      <a href="/login" class="btn-p" style="font-size:16px;padding:16px 32px;">🎮 Empezar con Twitch</a>
-      <a href="https://discord.gg/6DCDS3Sfet" target="_blank" class="btn-s" style="font-size:16px;padding:16px 32px;">💬 Únete al Discord</a>
+  <div style="position:relative;z-index:1;max-width:700px;margin:0 auto;">
+    <div class="cta-title">¿Listo para animar<br>tu comunidad?</div>
+    <div class="cta-desc">Únete gratis en segundos. Sin tarjeta de crédito.</div>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;">
+      <a href="/login" class="btn-primary" style="font-size:16px;padding:17px 36px;">🎮 Empezar con Twitch</a>
+      <a href="https://discord.gg/6DCDS3Sfet" target="_blank" class="btn-secondary" style="font-size:16px;padding:17px 36px;">💬 Únete al Discord</a>
     </div>
   </div>
 </section>
 
 <footer>
-  <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">🕷️</span><span style="font-size:14px;font-weight:600;">MuffetBot</span></div>
-  <div class="flinks">
+  <div class="footer-logo"><span style="font-size:20px;">🕷️</span> MuffetBot</div>
+  <div class="footer-links">
     <a href="#features">Funciones</a>
     <a href="#planes">Planes</a>
     <a href="https://discord.gg/6DCDS3Sfet" target="_blank">Discord</a>
     <a href="https://ko-fi.com/muffetbot" target="_blank">☕ Ko-fi</a>
     <a href="/login">Iniciar sesión</a>
   </div>
-  <div style="font-size:12px;color:var(--text-muted);">© 2026 MuffetBot — Hecho con 🕷️</div>
+  <div class="footer-copy">© 2026 MuffetBot — Hecho con 🕷️</div>
 </footer>
 
 </body>
