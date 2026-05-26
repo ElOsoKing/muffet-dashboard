@@ -2176,61 +2176,102 @@ function renderMain() {
   <div id="sec-profile" class="section">
     <div class="page-header">
       <div class="page-title">🌐 Perfil público</div>
-      <div class="page-subtitle">Configura tu página pública y horario de streams</div>
+      <div class="page-subtitle">Tu página pública en muffet-dashboard.onrender.com/canal/${userData.username}</div>
     </div>
-    <div style="display:flex;gap:4px;margin-bottom:20px;background:var(--bg3);padding:4px;border-radius:var(--radius-sm);width:fit-content;">
-      <button id="profileTab-socials" onclick="switchProfileTab('socials')" style="padding:7px 16px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:var(--purple);color:white;transition:all 0.15s;">🌐 Redes sociales</button>
-      <button id="profileTab-schedule" onclick="switchProfileTab('schedule')" style="padding:7px 16px;border-radius:6px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:transparent;color:var(--text-dim);transition:all 0.15s;">📅 Horario</button>
+
+    <!-- Preview card de la página pública -->
+    <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),rgba(145,71,255,0.03));border:1px solid var(--purple-border);border-radius:var(--radius);padding:20px 24px;margin-bottom:20px;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;">
+      <div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;background:radial-gradient(circle,rgba(145,71,255,0.1),transparent);border-radius:50%;pointer-events:none;"></div>
+      <div style="width:52px;height:52px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;box-shadow:0 0 16px rgba(145,71,255,0.2);">🌐</div>
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px;">Tu página pública</div>
+        <code style="font-size:12px;color:var(--purple-light);">${window.location.origin}/canal/${userData.username}</code>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">Comparte este link con tu comunidad — muestra tus comandos, redes y más</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button onclick="navigator.clipboard.writeText('${window.location.origin}/canal/${userData.username}').then(()=>showToast('Link copiado ✓'))" style="padding:9px 16px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:20px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(145,71,255,0.2)'" onmouseout="this.style.background='var(--purple-dim)'">📋 Copiar</button>
+        <a href="/canal/${userData.username}" target="_blank" style="padding:9px 16px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:12px;font-weight:600;text-decoration:none;display:flex;align-items:center;gap:5px;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">↗ Ver</a>
+      </div>
     </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:4px;margin-bottom:20px;background:var(--bg3);padding:4px;border-radius:10px;width:fit-content;">
+      <button id="profileTab-socials" onclick="switchProfileTab('socials')" style="padding:8px 18px;border-radius:7px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:var(--purple);color:white;transition:all 0.15s;font-family:var(--sans);">🌐 Redes sociales</button>
+      <button id="profileTab-schedule" onclick="switchProfileTab('schedule')" style="padding:8px 18px;border-radius:7px;border:none;font-size:13px;font-weight:500;cursor:pointer;background:transparent;color:var(--text-dim);transition:all 0.15s;font-family:var(--sans);">📅 Horario</button>
+    </div>
+
+    <!-- TAB REDES -->
     <div id="profileContent-socials">
-      <!-- Botón página pública -->
-      <div style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:var(--radius);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;">
-        <div>
-          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px;">🌐 Tu página pública</div>
-          <div style="font-size:12px;color:var(--text-dim);">Comparte este link con tu comunidad</div>
-          <code style="font-size:12px;color:var(--purple-light);margin-top:6px;display:block;">${window.location.origin}/canal/${userData.username}</code>
+      <!-- Nombre y color -->
+      <div style="display:grid;grid-template-columns:1fr auto;gap:16px;margin-bottom:16px;align-items:start;">
+        <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;">✏️ Nombre público</div>
+          <input class="form-input" id="publicName" value="${s.public_name||userData.display_name||userData.username}" placeholder="Ej: ElOsoKing1" style="font-size:15px;font-weight:600;">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Así aparecerá tu nombre en tu página pública</div>
         </div>
-        <div style="display:flex;gap:8px;flex-shrink:0;">
-          <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('${window.location.origin}/canal/${userData.username}').then(()=>showToast('Link copiado ✓'))">Copiar link</button>
-          <a href="/canal/${userData.username}" target="_blank" class="btn btn-success btn-sm" style="text-decoration:none;">Ver página</a>
+        <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;text-align:center;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;">🎨 Color de acento</div>
+          <input type="color" id="pageAccentColor" value="${(s.social_links||{}).accent_color||'#9147ff'}" style="width:56px;height:56px;border:3px solid rgba(255,255,255,0.1);border-radius:50%;cursor:pointer;background:none;padding:0;display:block;margin:0 auto 10px;" oninput="document.getElementById('pageColorPreview').style.background=this.value">
+          <div id="pageColorPreview" style="width:100%;height:8px;border-radius:4px;background:${(s.social_links||{}).accent_color||'#9147ff'};transition:background 0.15s;"></div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:6px;">Se aplica en tu página</div>
         </div>
       </div>
-      <div class="panel">
-        <div class="panel-header"><span class="panel-title-text">Tus links</span></div>
-        <div class="panel-body">
-          <div class="form-group">
-            <label class="form-label">✏️ Nombre público</label>
-            <input class="form-input" id="publicName" value="${s.public_name||userData.display_name||userData.username}" placeholder="Ej: ElOsoKing1">
-            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Así aparecerá tu nombre en tu página pública</div>
-          </div>
-          ${[['twitch','🎮','Twitch','https://twitch.tv/tucanal'],['youtube','📺','YouTube','https://youtube.com/@tucanal'],['tiktok','🎵','TikTok','https://tiktok.com/@tucanal'],['twitter','🐦','Twitter/X','https://twitter.com/tucanal'],['instagram','📸','Instagram','https://instagram.com/tucanal'],['discord','💬','Discord','https://discord.gg/tuservidor']].map(([key,icon,label,placeholder])=>`
-          <div class="form-group">
-            <label class="form-label">${icon} ${label}</label>
-            <input class="form-input" id="social_${key}" value="${((s.social_links||{})[key]||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}">
-          </div>`).join('')}
-          <div class="form-group" style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
-            <label class="form-label">▶️ YouTube Channel ID</label>
-            <input class="form-input" id="youtube_channel_id" value="${(s.youtube_channel_id||'').replace(/"/g,'&quot;')}" placeholder="UCxxxxxxxxxxxxxxxxxxxxxxxxx">
-          </div>
-          <button class="btn btn-primary" onclick="saveSocials()" style="margin-top:16px;">Guardar redes</button>
-          <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
-            <label class="form-label">🎨 Color de tu página pública</label>
-            <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
-              <input type="color" id="pageAccentColor" value="${(s.social_links||{}).accent_color||'#9147ff'}" style="width:44px;height:44px;border:none;border-radius:var(--radius-sm);cursor:pointer;background:none;padding:0;" oninput="document.getElementById('pageColorPreview').style.background=this.value">
-              <div id="pageColorPreview" style="flex:1;height:44px;border-radius:var(--radius-sm);background:${(s.social_links||{}).accent_color||'#9147ff'};opacity:0.3;"></div>
-              <span style="font-size:12px;color:var(--text-dim);">Se aplica en tu página pública</span>
+
+      <!-- Links de redes -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px;">🔗 Redes sociales</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          ${[
+            ['twitch','🎮','Twitch','https://twitch.tv/tucanal','rgba(145,71,255,0.08)','rgba(145,71,255,0.2)'],
+            ['youtube','📺','YouTube','https://youtube.com/@tucanal','rgba(255,0,0,0.06)','rgba(255,0,0,0.15)'],
+            ['tiktok','🎵','TikTok','https://tiktok.com/@tucanal','rgba(255,255,255,0.04)','rgba(255,255,255,0.1)'],
+            ['twitter','🐦','Twitter/X','https://twitter.com/tucanal','rgba(29,161,242,0.06)','rgba(29,161,242,0.15)'],
+            ['instagram','📸','Instagram','https://instagram.com/tucanal','rgba(225,48,108,0.06)','rgba(225,48,108,0.15)'],
+            ['discord','💬','Discord','https://discord.gg/tuservidor','rgba(88,101,242,0.06)','rgba(88,101,242,0.15)'],
+          ].map(([key,icon,label,placeholder,bg,border])=>`
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;background:${bg};border:1px solid ${border};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${icon}</div>
+            <div style="flex:1;">
+              <div style="font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">${label}</div>
+              <input class="form-input" id="social_${key}" value="${((s.social_links||{})[key]||'').replace(/"/g,'&quot;')}" placeholder="${placeholder}" style="font-size:12px;padding:8px 12px;">
             </div>
-          </div>
+          </div>`).join('')}
         </div>
       </div>
+
+      <!-- YouTube Channel ID -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,0,0,0.1);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div style="width:36px;height:36px;background:rgba(255,0,0,0.08);border:1px solid rgba(255,0,0,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;">▶️</div>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);">YouTube Channel ID</div>
+            <div style="font-size:11px;color:var(--text-dim);">Para mostrar tus videos en tu página pública</div>
+          </div>
+        </div>
+        <input class="form-input" id="youtube_channel_id" value="${(s.youtube_channel_id||'').replace(/"/g,'&quot;')}" placeholder="UCxxxxxxxxxxxxxxxxxxxxxxxxx" style="margin-bottom:12px;">
+        <details style="cursor:pointer;">
+          <summary style="font-size:12px;color:var(--text-dim);list-style:none;display:flex;align-items:center;gap:6px;user-select:none;">
+            <span style="color:var(--purple-light);">▶</span> ¿Cómo encontrar mi Channel ID?
+          </summary>
+          <div style="margin-top:10px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:11px;color:var(--text-dim);line-height:1.8;">
+            1. Ve a YouTube e inicia sesión<br>
+            2. Click en tu foto de perfil → <strong style="color:var(--text)">Configuración</strong><br>
+            3. Click en <strong style="color:var(--text)">Configuración avanzada</strong><br>
+            4. Copia el <strong style="color:var(--purple-light)">ID de cuenta</strong> — empieza con UC
+          </div>
+        </details>
+      </div>
+
+      <button onclick="saveSocials()" style="padding:11px 28px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">💾 Guardar todo</button>
     </div>
+
+    <!-- TAB HORARIO -->
     <div id="profileContent-schedule" style="display:none;">
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">Días y horas</span></div>
-      <div class="panel-body">
-        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px;">
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:16px;">📅 Días de stream</div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
           ${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((day) => {
-            const key = day.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+            const key = day.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
             const schedule = s.stream_schedule || {};
             const dayData = schedule[key] || {};
             const active = dayData.active || false;
@@ -2240,40 +2281,41 @@ function renderMain() {
             const endM = dayData.end ? dayData.end.split(':')[1] : '00';
             const hours = Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
             const mins = ['00','15','30','45'];
-            const sel = (id,opts,val) => `<select id="${id}" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:5px 4px;outline:none;cursor:pointer;">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
-            return `<div style="background:var(--bg3);border:1px solid ${active?'var(--purple-border)':'rgba(255,255,255,0.06)'};border-radius:var(--radius-sm);padding:10px 14px;transition:border-color 0.15s;" id="daycard_${key}">
-              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:110px;">
+            const sel = (id,opts,val) => `<select id="${id}" style="background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:6px;color:var(--text);font-family:var(--sans);font-size:12px;padding:6px 4px;outline:none;cursor:pointer;">${opts.map(o=>`<option ${o===val?'selected':''}>${o}</option>`).join('')}</select>`;
+            return `<div style="background:var(--bg3);border:1px solid ${active?'var(--purple-border)':'rgba(255,255,255,0.05)'};border-radius:var(--radius-sm);padding:12px 16px;transition:all 0.15s;" id="daycard_${key}">
+              <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;min-width:120px;">
                   <input type="checkbox" id="day_${key}" ${active?'checked':''} onchange="updateDayActive('${key}')"
                     style="width:16px;height:16px;accent-color:var(--purple);cursor:pointer;">
-                  <span style="font-size:13px;font-weight:500;color:${active?'var(--text)':'var(--text-dim)'};" id="daylabel_${key}">${day}</span>
+                  <span style="font-size:13px;font-weight:600;color:${active?'var(--text)':'var(--text-dim)'};" id="daylabel_${key}">${day}</span>
                 </label>
-                <div style="display:flex;align-items:center;gap:4px;opacity:${active?1:0.4};" id="daycontrols_${key}">
+                <div style="display:flex;align-items:center;gap:5px;opacity:${active?1:0.35};transition:opacity 0.15s;" id="daycontrols_${key}">
                   ${sel(`startH_${key}`,hours,startH)}
-                  <span style="color:var(--purple-light);font-weight:600;">:</span>
+                  <span style="color:var(--purple-light);font-weight:700;font-size:14px;">:</span>
                   ${sel(`startM_${key}`,mins,startM)}
-                  <span style="font-size:12px;color:var(--text-muted);margin:0 4px;">—</span>
+                  <span style="font-size:12px;color:var(--text-muted);margin:0 6px;">→</span>
                   ${sel(`endH_${key}`,hours,endH)}
-                  <span style="color:var(--purple-light);font-weight:600;">:</span>
+                  <span style="color:var(--purple-light);font-weight:700;font-size:14px;">:</span>
                   ${sel(`endM_${key}`,mins,endM)}
                   <input class="form-input" id="note_${key}" value="${dayData.note||''}" placeholder="Nota (ej: ¡Ranked!)"
-                    style="font-size:12px;padding:5px 10px;width:140px;margin-left:4px;">
+                    style="font-size:12px;padding:6px 10px;width:130px;margin-left:6px;">
                 </div>
               </div>
             </div>`;
           }).join('')}
         </div>
-        <div class="form-group">
-          <label class="form-label">Zona horaria</label>
-          <select class="form-input" id="scheduleTimezone" style="padding:8px 12px;">
-            ${['America/Santo_Domingo','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Mexico_City','America/Bogota','America/Lima','America/Santiago','America/Argentina/Buenos_Aires','Europe/Madrid','Europe/London'].map(tz =>
-              `<option value="${tz}" ${(s.stream_schedule?.timezone||'America/Santo_Domingo')===tz?'selected':''}>${tz.replace(/_/g,' ')}</option>`
-            ).join('')}
-          </select>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="flex:1;">
+            <label class="form-label">🌍 Zona horaria</label>
+            <select class="form-input" id="scheduleTimezone" style="padding:8px 12px;margin-top:6px;">
+              ${['America/Santo_Domingo','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','America/Mexico_City','America/Bogota','America/Lima','America/Santiago','America/Argentina/Buenos_Aires','Europe/Madrid','Europe/London'].map(tz =>
+                `<option value="${tz}" ${(s.stream_schedule?.timezone||'America/Santo_Domingo')===tz?'selected':''}>${tz.replace(/_/g,' ')}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <button onclick="saveSchedule()" style="padding:11px 28px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);margin-top:22px;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">💾 Guardar horario</button>
         </div>
-        <button class="btn btn-primary" onclick="saveSchedule()">Guardar horario</button>
       </div>
-    </div>
     </div>
   </div>
 
