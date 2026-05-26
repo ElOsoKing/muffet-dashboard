@@ -4,165 +4,427 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MuffetBot — Planes</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
   --purple:#9147ff;--purple-dim:rgba(145,71,255,0.12);--purple-border:rgba(145,71,255,0.3);
   --purple-light:#b388ff;--green:#40d090;--yellow:#f0c060;--pink:#e05a7a;
-  --bg:#0d0d0f;--bg2:#141416;--bg3:#1a1a1e;
-  --text:#e8e8f0;--text-dim:#6b6b80;--text-muted:#3a3a4a;
-  --sans:'Inter',sans-serif;--display:'VT323',monospace;
-  --radius:12px;--radius-sm:8px;
+  --bg:#0a0a0c;--bg2:#111113;--bg3:#17171a;--bg4:#0d0d0f;
+  --text:#eeeef5;--text-dim:#6b6b82;--text-muted:#2e2e3a;
+  --sans:'Inter',sans-serif;--radius:14px;--radius-sm:8px;
 }
-html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans);color:var(--text);}
+html{scroll-behavior:smooth;}
+body{background:var(--bg);font-family:var(--sans);color:var(--text);overflow-x:hidden;}
 
-/* Fondo */
-.bg-glow{
-  position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;
-  background:radial-gradient(ellipse at 50% 0%, rgba(145,71,255,0.08) 0%, transparent 60%);
-}
+/* FONDO */
+.bg-glow{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(145,71,255,0.1) 0%,transparent 60%);}
+.bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px);
+  background-size:60px 60px;mask-image:radial-gradient(ellipse 80% 50% at 50% 0%,black,transparent);}
 
-.container{position:relative;z-index:10;max-width:960px;margin:0 auto;padding:60px 24px 80px;}
+.container{position:relative;z-index:10;max-width:1000px;margin:0 auto;padding:0 24px 100px;}
 
-/* Nav */
-.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:64px;}
+/* NAV */
+nav{position:sticky;top:0;z-index:100;padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;
+  background:rgba(10,10,12,0.85);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.05);margin:0 -24px 0;}
 .nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
 .nav-logo img{width:28px;height:28px;image-rendering:pixelated;filter:drop-shadow(0 0 8px rgba(145,71,255,0.5));}
-.nav-logo-text{font-size:15px;font-weight:600;color:var(--text);}
+.nav-logo-text{font-size:16px;font-weight:700;color:var(--text);}
 .nav-links{display:flex;gap:8px;}
-.nav-btn{font-size:13px;font-weight:500;padding:8px 16px;border-radius:var(--radius-sm);cursor:pointer;text-decoration:none;transition:all 0.15s;}
+.nav-btn{font-size:13px;font-weight:500;padding:8px 16px;border-radius:20px;cursor:pointer;text-decoration:none;transition:all 0.15s;}
 .nav-btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.1);color:var(--text-dim);}
 .nav-btn.ghost:hover{border-color:rgba(255,255,255,0.2);color:var(--text);}
-.nav-btn.solid{background:var(--purple);border:none;color:white;}
+.nav-btn.solid{background:var(--purple);border:none;color:white;box-shadow:0 0 16px rgba(145,71,255,0.3);}
 .nav-btn.solid:hover{background:#7d2ff7;}
 
-/* Hero */
-.hero{text-align:center;margin-bottom:64px;}
-.hero-badge{display:inline-flex;align-items:center;gap:6px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;color:var(--purple-light);margin-bottom:24px;}
-.hero-title{font-size:48px;font-weight:700;color:var(--text);letter-spacing:-1.5px;line-height:1.1;margin-bottom:16px;}
-.hero-title span{color:var(--purple);}
-.hero-sub{font-size:17px;color:var(--text-dim);max-width:520px;margin:0 auto 32px;line-height:1.6;font-weight:300;}
+/* HERO */
+.hero{text-align:center;padding:80px 0 60px;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:var(--purple-dim);border:1px solid var(--purple-border);
+  border-radius:20px;padding:7px 16px;font-size:12px;font-weight:600;color:var(--purple-light);margin-bottom:28px;letter-spacing:0.3px;}
+.hero-badge-dot{width:6px;height:6px;border-radius:50%;background:var(--purple);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.hero-title{font-size:clamp(36px,6vw,64px);font-weight:900;line-height:1.0;letter-spacing:-2px;margin-bottom:20px;}
+.hero-title .grad{background:linear-gradient(135deg,#fff 20%,var(--purple-light) 60%,var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:18px;color:var(--text-dim);max-width:480px;margin:0 auto;line-height:1.7;}
 
-/* Toggle facturación */
-.billing-toggle{display:flex;align-items:center;gap:12px;justify-content:center;margin-bottom:48px;}
-.billing-label{font-size:14px;color:var(--text-dim);}
-.billing-label.active{color:var(--text);font-weight:500;}
-.toggle-switch{position:relative;width:44px;height:24px;cursor:pointer;}
-.toggle-switch input{display:none;}
-.toggle-track{position:absolute;inset:0;background:#2a2a35;border-radius:12px;transition:.2s;}
-.toggle-thumb{position:absolute;width:18px;height:18px;background:white;border-radius:50%;top:3px;left:3px;transition:.2s;}
-.toggle-switch input:checked~.toggle-track{background:var(--purple);}
-.toggle-switch input:checked~.toggle-thumb{left:23px;}
-.billing-save{background:rgba(64,208,144,0.12);border:1px solid rgba(64,208,144,0.25);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;color:var(--green);}
+/* DURACIÓN SELECTOR */
+.duration-wrap{display:flex;justify-content:center;margin:40px 0 48px;}
+.duration-pills{display:flex;gap:4px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:4px;}
+.duration-pill{padding:8px 20px;border-radius:16px;border:none;background:transparent;color:var(--text-dim);
+  font-size:13px;font-weight:500;cursor:pointer;font-family:var(--sans);transition:all 0.15s;position:relative;}
+.duration-pill:hover{color:var(--text);}
+.duration-pill.active{background:var(--purple);color:white;box-shadow:0 2px 12px rgba(145,71,255,0.4);}
+.duration-pill .save-badge{position:absolute;top:-8px;right:-4px;background:var(--green);color:#000;
+  font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;white-space:nowrap;}
 
-/* Plans grid */
-.plans-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:64px;}
+/* PRECIO DISPLAY */
+.price-display{text-align:center;margin-bottom:48px;}
+.price-main{font-size:clamp(48px,8vw,80px);font-weight:900;letter-spacing:-3px;line-height:1;
+  background:linear-gradient(135deg,var(--text),var(--purple-light));-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text;}
+.price-main sup{font-size:40%;font-weight:700;vertical-align:top;margin-top:12px;display:inline-block;}
+.price-period{font-size:15px;color:var(--text-dim);margin-top:8px;}
+.price-original{font-size:13px;color:var(--text-muted);text-decoration:line-through;margin-right:8px;}
+.price-save{font-size:12px;font-weight:700;color:var(--green);background:rgba(64,208,144,0.1);
+  border:1px solid rgba(64,208,144,0.2);border-radius:12px;padding:2px 10px;}
 
-.plan-card{
-  background:var(--bg2);border:1px solid rgba(255,255,255,0.07);
-  border-radius:var(--radius);padding:32px;
-  display:flex;flex-direction:column;gap:0;
-  transition:border-color 0.2s;
-}
-.plan-card:hover{border-color:rgba(255,255,255,0.12);}
-.plan-card.featured{
-  background:linear-gradient(135deg,rgba(145,71,255,0.08),var(--bg2));
-  border-color:var(--purple-border);
-  position:relative;overflow:hidden;
-}
-.plan-card.featured::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:linear-gradient(90deg,transparent,var(--purple),transparent);
-}
+/* CTA CHECKOUT */
+.checkout-area{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:64px;}
+.btn-checkout{display:inline-flex;align-items:center;gap:8px;background:var(--purple);color:white;
+  padding:16px 40px;border-radius:24px;font-size:16px;font-weight:700;cursor:pointer;border:none;
+  font-family:var(--sans);transition:all 0.2s;box-shadow:0 0 32px rgba(145,71,255,0.4);letter-spacing:-0.3px;}
+.btn-checkout:hover{background:#7d2ff7;transform:translateY(-1px);box-shadow:0 4px 40px rgba(145,71,255,0.5);}
+.btn-checkout:disabled{opacity:0.7;cursor:not-allowed;transform:none;}
+.checkout-note{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;}
 
-.plan-popular{font-size:11px;font-weight:600;letter-spacing:1px;color:var(--purple-light);text-transform:uppercase;margin-bottom:16px;}
-.plan-name{font-size:20px;font-weight:600;color:var(--text);margin-bottom:8px;}
-.plan-desc{font-size:13px;color:var(--text-dim);margin-bottom:24px;line-height:1.5;}
+/* COMPARACIÓN */
+.compare-section{margin-bottom:64px;}
+.compare-title{text-align:center;font-size:clamp(22px,3vw,32px);font-weight:800;letter-spacing:-1px;margin-bottom:8px;}
+.compare-sub{text-align:center;font-size:15px;color:var(--text-dim);margin-bottom:40px;}
 
-.plan-price-area{margin-bottom:28px;}
-.plan-price{font-size:44px;font-weight:700;color:var(--text);letter-spacing:-1px;line-height:1;}
-.plan-price sup{font-size:20px;font-weight:600;vertical-align:top;margin-top:8px;display:inline-block;}
-.plan-price sub{font-size:14px;font-weight:400;color:var(--text-dim);}
-.plan-price-note{font-size:12px;color:var(--text-muted);margin-top:6px;}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
 
-.plan-btn{
-  display:block;width:100%;padding:13px;border-radius:var(--radius-sm);
-  font-size:14px;font-weight:600;cursor:pointer;text-align:center;
-  text-decoration:none;transition:all 0.15s;margin-bottom:28px;border:none;
-}
-.plan-btn.free{background:rgba(255,255,255,0.06);color:var(--text-dim);}
-.plan-btn.free:hover{background:rgba(255,255,255,0.1);color:var(--text);}
-.plan-btn.pro{background:var(--purple);color:white;box-shadow:0 4px 20px rgba(145,71,255,0.3);}
-.plan-btn.pro:hover{background:#7d2ff7;box-shadow:0 6px 28px rgba(145,71,255,0.4);transform:translateY(-1px);}
+.ccard{border-radius:var(--radius);overflow:hidden;}
+.ccard-head{padding:24px;display:flex;align-items:center;justify-content:space-between;}
+.ccard-name{font-size:18px;font-weight:700;}
+.ccard-badge{font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;}
 
-.plan-divider{width:100%;height:1px;background:rgba(255,255,255,0.06);margin-bottom:24px;}
+/* Free card */
+.ccard.free{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);}
+.ccard.free .ccard-head{border-bottom:1px solid rgba(255,255,255,0.05);}
+.ccard.free .ccard-badge{background:rgba(255,255,255,0.05);color:var(--text-dim);}
 
-.plan-features{display:flex;flex-direction:column;gap:10px;flex:1;}
-.feat{display:flex;align-items:flex-start;gap:10px;font-size:13px;}
-.feat-icon{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px;}
-.feat-icon.yes{background:rgba(64,208,144,0.15);color:var(--green);}
-.feat-icon.no{background:rgba(255,255,255,0.04);color:var(--text-muted);}
-.feat-text{color:var(--text-dim);line-height:1.4;}
-.feat-text strong{color:var(--text);font-weight:500;}
-.feat.no .feat-text{color:var(--text-muted);}
+/* Pro card */
+.ccard.pro{background:linear-gradient(135deg,rgba(145,71,255,0.1),var(--bg2));border:1px solid rgba(145,71,255,0.3);position:relative;}
+.ccard.pro::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--purple),transparent);}
+.ccard.pro .ccard-head{border-bottom:1px solid rgba(145,71,255,0.15);}
+.ccard.pro .ccard-badge{background:var(--purple-dim);color:var(--purple-light);border:1px solid var(--purple-border);}
 
-/* Social proof */
-.social-proof{text-align:center;margin-bottom:64px;}
-.social-title{font-size:13px;color:var(--text-muted);margin-bottom:20px;text-transform:uppercase;letter-spacing:1px;font-weight:500;}
-.testimonials{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-.testimonial{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;}
-.testimonial-text{font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:14px;}
-.testimonial-author{display:flex;align-items:center;gap:8px;}
-.testimonial-avatar{width:28px;height:28px;border-radius:50%;background:var(--purple-dim);border:1px solid var(--purple-border);display:flex;align-items:center;justify-content:center;font-size:12px;}
-.testimonial-name{font-size:12px;font-weight:500;color:var(--text);}
-.testimonial-channel{font-size:11px;color:var(--text-muted);}
+.ccard-body{padding:20px 24px;}
+.feat-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+.feat-row:last-child{border-bottom:none;}
+.feat-check{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:11px;flex-shrink:0;margin-top:1px;}
+.feat-check.yes{background:rgba(64,208,144,0.12);color:var(--green);}
+.feat-check.no{background:rgba(255,255,255,0.04);color:var(--text-muted);}
+.feat-check.pro-yes{background:rgba(145,71,255,0.12);color:var(--purple-light);}
+.feat-label{font-size:13px;color:var(--text-dim);line-height:1.4;}
+.feat-label strong{color:var(--text);font-weight:600;}
+.feat-label.muted{color:var(--text-muted);}
+
+/* STREAMERS */
+.streamers-section{margin-bottom:64px;text-align:center;}
+.section-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
+  color:var(--purple-light);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:16px;
+  background:var(--purple-dim);border:1px solid var(--purple-border);padding:5px 12px;border-radius:20px;}
+.section-title{font-size:clamp(22px,3vw,32px);font-weight:800;letter-spacing:-1px;margin-bottom:40px;}
+
+.testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.tcard{background:var(--bg2);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius);
+  padding:24px;text-align:left;transition:border-color 0.2s;}
+.tcard:hover{border-color:var(--purple-border);}
+.tcard-stars{color:var(--yellow);font-size:13px;margin-bottom:12px;letter-spacing:2px;}
+.tcard-quote{font-size:13px;color:var(--text-dim);line-height:1.7;margin-bottom:16px;
+  font-style:italic;border-left:2px solid var(--purple-border);padding-left:12px;}
+.tcard-author{display:flex;align-items:center;gap:10px;}
+.tcard-av{width:40px;height:40px;border-radius:50%;background:var(--purple-dim);
+  border:2px solid var(--purple-border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.tcard-name{font-size:13px;font-weight:700;color:var(--text);}
+.tcard-tag{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.tcard-plan{font-size:10px;font-weight:700;color:var(--yellow);background:rgba(240,192,96,0.08);
+  border:1px solid rgba(240,192,96,0.2);border-radius:8px;padding:2px 7px;display:inline-block;margin-top:4px;}
 
 /* FAQ */
-.faq{max-width:640px;margin:0 auto;}
-.faq-title{font-size:22px;font-weight:600;color:var(--text);text-align:center;margin-bottom:32px;letter-spacing:-0.3px;}
+.faq-section{max-width:680px;margin:0 auto 64px;}
 .faq-item{border-bottom:1px solid rgba(255,255,255,0.06);}
-.faq-q{width:100%;background:none;border:none;text-align:left;padding:18px 0;font-size:14px;font-weight:500;color:var(--text);cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-family:var(--sans);}
+.faq-q{width:100%;background:none;border:none;text-align:left;padding:20px 0;
+  font-size:15px;font-weight:600;color:var(--text);cursor:pointer;
+  display:flex;justify-content:space-between;align-items:center;font-family:var(--sans);transition:color 0.15s;}
 .faq-q:hover{color:var(--purple-light);}
-.faq-icon{font-size:18px;color:var(--text-muted);transition:transform 0.2s;flex-shrink:0;}
-.faq-a{font-size:13px;color:var(--text-dim);line-height:1.7;max-height:0;overflow:hidden;transition:all 0.3s;}
-.faq-a.open{max-height:200px;padding-bottom:18px;}
-.faq-icon.open{transform:rotate(45deg);}
+.faq-icon{font-size:20px;color:var(--text-muted);transition:transform 0.25s;flex-shrink:0;line-height:1;}
+.faq-a{font-size:14px;color:var(--text-dim);line-height:1.75;max-height:0;overflow:hidden;transition:all 0.3s;}
+.faq-a.open{max-height:200px;padding-bottom:20px;}
+.faq-icon.open{transform:rotate(45deg);color:var(--purple-light);}
 
-/* CTA bottom */
-.cta-bottom{text-align:center;margin-top:64px;padding:48px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);}
-.cta-title{font-size:26px;font-weight:600;color:var(--text);margin-bottom:10px;letter-spacing:-0.3px;}
-.cta-sub{font-size:14px;color:var(--text-dim);margin-bottom:28px;}
-.cta-btn{display:inline-flex;align-items:center;gap:8px;background:var(--purple);color:white;padding:14px 28px;border-radius:var(--radius-sm);font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;border:none;font-family:var(--sans);transition:all 0.15s;box-shadow:0 4px 20px rgba(145,71,255,0.3);}
-.cta-btn:hover{background:#7d2ff7;transform:translateY(-1px);}
+/* CTA FINAL */
+.cta-final{text-align:center;padding:56px 40px;background:linear-gradient(135deg,rgba(145,71,255,0.1),rgba(145,71,255,0.02));
+  border:1px solid var(--purple-border);border-radius:20px;position:relative;overflow:hidden;}
+.cta-final::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 0%,rgba(145,71,255,0.12),transparent 70%);pointer-events:none;}
+.cta-final-title{font-size:clamp(22px,4vw,36px);font-weight:800;letter-spacing:-1px;margin-bottom:12px;position:relative;}
+.cta-final-sub{font-size:16px;color:var(--text-dim);margin-bottom:32px;position:relative;}
+.btn-cta{display:inline-flex;align-items:center;gap:8px;background:var(--purple);color:white;
+  padding:14px 32px;border-radius:24px;font-size:15px;font-weight:700;text-decoration:none;
+  transition:all 0.2s;box-shadow:0 0 24px rgba(145,71,255,0.3);position:relative;}
+.btn-cta:hover{background:#7d2ff7;transform:translateY(-1px);box-shadow:0 4px 32px rgba(145,71,255,0.5);}
+.btn-secondary{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,0.05);
+  color:var(--text-dim);border:1px solid rgba(255,255,255,0.1);padding:14px 28px;border-radius:24px;
+  font-size:15px;font-weight:600;text-decoration:none;transition:all 0.2s;margin-left:12px;}
+.btn-secondary:hover{border-color:var(--purple-border);color:var(--purple-light);background:var(--purple-dim);}
 
-/* Current plan badge */
-.current-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(64,208,144,0.1);border:1px solid rgba(64,208,144,0.25);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:500;color:var(--green);margin-bottom:12px;}
+/* FREE PLAN LINK */
+.free-plan-row{display:flex;align-items:center;justify-content:center;gap:16px;
+  margin-bottom:48px;padding:16px 24px;background:var(--bg2);border:1px solid rgba(255,255,255,0.06);
+  border-radius:var(--radius);max-width:500px;margin-left:auto;margin-right:auto;}
+.free-plan-row .free-info{flex:1;text-align:left;}
+.free-plan-row .free-name{font-size:14px;font-weight:700;color:var(--text);}
+.free-plan-row .free-desc{font-size:12px;color:var(--text-dim);margin-top:2px;}
+.free-plan-row .free-price{font-size:22px;font-weight:800;color:var(--text-dim);}
+.btn-free{padding:9px 22px;border-radius:20px;background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1);color:var(--text-dim);font-size:13px;font-weight:600;
+  text-decoration:none;transition:all 0.15s;}
+.btn-free:hover{background:rgba(255,255,255,0.1);color:var(--text);}
 
-/* Responsive */
+/* MOBILE */
 @media(max-width:680px){
-  .hero-title{font-size:32px;}
-  .plans-grid{grid-template-columns:1fr;}
-  .testimonials{grid-template-columns:1fr;}
+  .compare-grid,.testi-grid{grid-template-columns:1fr;}
   .nav-links .nav-btn.ghost{display:none;}
-  .container{padding:40px 16px 60px;}
+  .cta-final{padding:36px 24px;}
+  .btn-secondary{display:none;}
+  .duration-pill{padding:7px 14px;font-size:12px;}
 }
-.plan-selector{background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 8px;cursor:pointer;text-align:center;transition:all 0.15s;font-family:var(--sans);color:var(--text);}
-.plan-selector:hover{border-color:var(--purple-border);background:var(--purple-dim);}
-.plan-selector.active{border-color:var(--purple);background:var(--purple-dim);box-shadow:0 0 12px rgba(145,71,255,0.2);}
 </style>
-<script>
-let selectedVariant = '1701661';
-let selectedPrice = '$5/mes';
+</head>
+<body>
+<div class="bg-glow"></div>
+<div class="bg-grid"></div>
 
-function selectPlan(type, price, variantId, btn) {
-  document.querySelectorAll('.plan-selector').forEach(b => b.classList.remove('active'));
+<nav>
+  <a href="/" class="nav-logo">
+    <img src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
+    <span class="nav-logo-text">MuffetBot</span>
+  </a>
+  <div class="nav-links">
+    <a href="/dashboard" class="nav-btn ghost">← Dashboard</a>
+    <a href="/login" class="nav-btn solid">Empezar gratis</a>
+  </div>
+</nav>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-badge"><span class="hero-badge-dot"></span>🕷️ Precios simples y transparentes</div>
+    <h1 class="hero-title"><span class="grad">El bot que tu canal<br>merece</span></h1>
+    <p class="hero-sub">Empieza gratis. Actualiza cuando quieras. Sin contratos.</p>
+  </div>
+
+  <!-- SELECTOR DE DURACIÓN -->
+  <div class="duration-wrap">
+    <div class="duration-pills">
+      <button class="duration-pill active" onclick="setDuration('monthly',this)">Mensual</button>
+      <button class="duration-pill" onclick="setDuration('quarterly',this)">
+        Trimestral <span class="save-badge">−20%</span>
+      </button>
+      <button class="duration-pill" onclick="setDuration('biannual',this)">
+        Semestral <span class="save-badge">−33%</span>
+      </button>
+      <button class="duration-pill" onclick="setDuration('annual',this)">
+        Anual <span class="save-badge">−33%</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- PRECIO Y CTA -->
+  <div class="price-display" id="priceDisplay">
+    <div class="price-main"><sup>$</sup><span id="priceNum">5</span></div>
+    <div class="price-period" id="pricePeriod">por mes</div>
+  </div>
+
+  <div class="checkout-area">
+    <button class="btn-checkout" id="checkoutBtn" onclick="goToCheckout()">
+      ⭐ Suscribirse al Plan Pro →
+    </button>
+    <div class="checkout-note">🔒 Pago seguro con Lemon Squeezy · Cancela cuando quieras</div>
+  </div>
+
+  <!-- FREE PLAN ROW -->
+  <div class="free-plan-row" id="freePlanRow">
+    <div class="free-info">
+      <div class="free-name">🆓 Plan Gratuito</div>
+      <div class="free-desc">Comandos, puntos, moderación básica y más — para siempre</div>
+    </div>
+    <div class="free-price">$0</div>
+    <a href="/dashboard" class="btn-free">Empezar gratis</a>
+  </div>
+
+  <!-- COMPARACIÓN -->
+  <div class="compare-section">
+    <div class="section-tag">✦ Comparación</div>
+    <div class="compare-title">¿Qué incluye cada plan?</div>
+    <div class="compare-sub">Todo lo que necesitas para animar tu comunidad</div>
+
+    <div class="compare-grid">
+      <!-- FREE -->
+      <div class="ccard free">
+        <div class="ccard-head">
+          <div>
+            <div class="ccard-name">Gratuito</div>
+            <div style="font-size:24px;font-weight:800;margin-top:4px;color:var(--text-dim);">$0<span style="font-size:13px;font-weight:400;"> / mes</span></div>
+          </div>
+          <div class="ccard-badge">Para siempre</div>
+        </div>
+        <div class="ccard-body">
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">Muffet_Osoking en tu chat</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">Comandos ilimitados con permisos</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">Variables dinámicas — {user}, {random}, {randomlist}</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">Auto mensajes programados</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">Moderación básica con palabras prohibidas</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">!ask, !chiste, !8ball — IA en el chat</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">Sistema de puntos, niveles y !top</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">!apostar, !canjear, !duelo, contadores</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">Sorteos básicos sin overlay</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">Página pública básica</div></div>
+          <div class="feat-row"><div class="feat-check yes">✓</div><div class="feat-label">!uptime, !clip, !titulo, !redes</div></div>
+          <div class="feat-row"><div class="feat-check no">—</div><div class="feat-label muted">Bot con tu nombre propio</div></div>
+          <div class="feat-row"><div class="feat-check no">—</div><div class="feat-label muted">Spotify + overlay OBS</div></div>
+          <div class="feat-row"><div class="feat-check no">—</div><div class="feat-label muted">Sorteos con overlay OBS</div></div>
+          <div class="feat-row"><div class="feat-check no">—</div><div class="feat-label muted">!primerin, !poll, anuncio en vivo</div></div>
+          <div class="feat-row"><div class="feat-check no">—</div><div class="feat-label muted">Moderación avanzada con IA</div></div>
+        </div>
+      </div>
+
+      <!-- PRO -->
+      <div class="ccard pro">
+        <div class="ccard-head">
+          <div>
+            <div class="ccard-name" style="color:var(--purple-light);">Pro ⭐</div>
+            <div style="font-size:24px;font-weight:800;margin-top:4px;color:var(--purple-light);" id="cardPrice">$5<span style="font-size:13px;font-weight:400;color:var(--text-dim);"> / mes</span></div>
+          </div>
+          <div class="ccard-badge">Más popular</div>
+        </div>
+        <div class="ccard-body">
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>Todo lo del plan gratuito</strong></div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>Bot con tu nombre personalizado</strong></div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>🎵 Spotify</strong> — el chat pide canciones con !cancion</div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>🎬 Overlay de Spotify para OBS</strong> en tiempo real</div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label">Historial, lista negra y !vskip</div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>🎉 Sorteos con overlay para OBS</strong></div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>🥇 !primerin</strong> — ranking de llegada al stream</div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>🗳️ !poll</strong> — encuestas en el chat</div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>📢 Anuncio automático</strong> cuando vas en vivo</div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>🌐 Página pública completa</strong> con clips y YouTube</div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>🤖 Moderación con IA</strong> — detecta sin palabras clave</div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>📊 Estadísticas avanzadas</strong> de comandos y viewers</div></div>
+          <div class="feat-row"><div class="feat-check pro-yes">★</div><div class="feat-label"><strong>Soporte prioritario</strong> de ElOsoKing1</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STREAMERS -->
+  <div class="streamers-section">
+    <div class="section-tag">💬 Comunidad</div>
+    <div class="section-title">Ya lo usan en Twitch</div>
+    <div class="testi-grid">
+      <div class="tcard">
+        <div class="tcard-stars">★★★★★</div>
+        <div class="tcard-quote">"El rey oso y su guardiana Muffet conquistan el chat cada stream. No me imagino sin ella."</div>
+        <div class="tcard-author">
+          <div class="tcard-av">👑</div>
+          <div>
+            <div class="tcard-name">ElOsoKing1</div>
+            <div class="tcard-tag">twitch.tv/elosoking1</div>
+            <div class="tcard-plan">⭐ Plan Pro</div>
+          </div>
+        </div>
+      </div>
+      <div class="tcard">
+        <div class="tcard-stars">★★★★★</div>
+        <div class="tcard-quote">"Bot_Wolfito mantiene el orden en el reino del lobo solitario. El chat está más activo que nunca."</div>
+        <div class="tcard-author">
+          <div class="tcard-av">🐺</div>
+          <div>
+            <div class="tcard-name">LordLonelyWolf</div>
+            <div class="tcard-tag">twitch.tv/lordlonelywolf</div>
+            <div class="tcard-plan">⭐ Plan Pro</div>
+          </div>
+        </div>
+      </div>
+      <div class="tcard">
+        <div class="tcard-stars">★★★★★</div>
+        <div class="tcard-quote">"MeruBot_ llena de energía cada stream con su personalidad única. Los viewers la adoran."</div>
+        <div class="tcard-author">
+          <div class="tcard-av">💜</div>
+          <div>
+            <div class="tcard-name">Andiita_93</div>
+            <div class="tcard-tag">twitch.tv/andiita_93</div>
+            <div class="tcard-plan">⭐ Plan Pro</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ -->
+  <div class="faq-section">
+    <div style="text-align:center;margin-bottom:40px;">
+      <div class="section-tag">❓ FAQ</div>
+      <div class="section-title">Preguntas frecuentes</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">¿Cómo activo el Plan Pro después de pagar?<span class="faq-icon">+</span></button>
+      <div class="faq-a">El plan se activa automáticamente al completar el pago. No necesitas hacer nada más — el sistema lo activa solo en segundos.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">¿Puedo cancelar cuando quiera?<span class="faq-icon">+</span></button>
+      <div class="faq-a">Sí, puedes cancelar tu suscripción en cualquier momento desde el dashboard en Configuración → Plan. No hay contratos ni penalizaciones. Tu plan Pro se mantiene hasta que venza el período pagado.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">¿El bot funciona mientras no estoy en vivo?<span class="faq-icon">+</span></button>
+      <div class="faq-a">MuffetBot corre en la nube 24/7 sin necesidad de que tu PC esté encendida. Siempre estará listo cuando lleguen viewers a tu canal.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">¿Qué pasa cuando cancelo el Plan Pro?<span class="faq-icon">+</span></button>
+      <div class="faq-a">Tu bot vuelve automáticamente al plan gratuito cuando vence el período pagado. Todas tus configuraciones se mantienen guardadas.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">¿Necesito conocimientos técnicos?<span class="faq-icon">+</span></button>
+      <div class="faq-a">Para nada. El panel de control es muy fácil de usar. En menos de 5 minutos puedes tener el bot configurado y activo en tu canal.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-q" onclick="toggleFaq(this)">¿Puedo cambiar de plan mensual a anual?<span class="faq-icon">+</span></button>
+      <div class="faq-a">Sí, puedes cambiar de plan en cualquier momento. El nuevo plan aplica al siguiente ciclo de facturación.</div>
+    </div>
+  </div>
+
+  <!-- CTA FINAL -->
+  <div class="cta-final">
+    <div class="cta-final-title">¿Listo para animar<br>tu comunidad?</div>
+    <div class="cta-final-sub">Únete gratis en segundos. Sin tarjeta de crédito.</div>
+    <a href="/login" class="btn-cta">🎮 Empezar con Twitch</a>
+    <a href="https://discord.gg/6DCDS3Sfet" target="_blank" class="btn-secondary">💬 Discord</a>
+  </div>
+
+</div>
+
+<script>
+const plans = {
+  monthly:  { variant:'1701661', price:'5',  period:'por mes',                    cardPrice:'$5', save:'' },
+  quarterly:{ variant:'1701725', price:'12', period:'cada 3 meses ($4/mes)',       cardPrice:'$12', save:'Ahorras $3' },
+  biannual: { variant:'1701765', price:'20', period:'cada 6 meses ($3.33/mes)',    cardPrice:'$20', save:'Ahorras $10' },
+  annual:   { variant:'1701778', price:'40', period:'al año ($3.33/mes)',          cardPrice:'$40', save:'Ahorras $20' },
+};
+
+let currentDuration = 'monthly';
+
+function setDuration(type, btn) {
+  currentDuration = type;
+  document.querySelectorAll('.duration-pill').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  selectedVariant = variantId;
-  const labels = { monthly: '$5/mes', quarterly: '$12 por 3 meses', biannual: '$20 por 6 meses', annual: '$40 al año' };
-  selectedPrice = labels[type] || '$' + price;
-  const checkoutBtn = document.getElementById('checkoutBtn');
-  if (checkoutBtn) checkoutBtn.textContent = 'Suscribirse por ' + selectedPrice + ' →';
+
+  const plan = plans[type];
+  document.getElementById('priceNum').textContent = plan.price;
+  document.getElementById('pricePeriod').textContent = plan.period;
+  document.getElementById('cardPrice').innerHTML = `$${plan.price}<span style="font-size:13px;font-weight:400;color:var(--text-dim);"> ${type==='monthly'?'/ mes':''}</span>`;
+
+  const btn2 = document.getElementById('checkoutBtn');
+  const labels = { monthly:'$5/mes', quarterly:'$12 por 3 meses', biannual:'$20 por 6 meses', annual:'$40 al año' };
+  if (btn2) btn2.textContent = `⭐ Suscribirse por ${labels[type]} →`;
 }
 
 async function goToCheckout() {
@@ -170,205 +432,19 @@ async function goToCheckout() {
   if (btn) { btn.textContent = 'Redirigiendo...'; btn.disabled = true; }
   try {
     const res = await fetch('/api/checkout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ variant_id: selectedVariant })
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ variant_id: plans[currentDuration].variant })
     });
     const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      alert('Necesitas iniciar sesión primero para suscribirte.');
-      window.location.href = '/login';
-    }
+    if (data.url) { window.location.href = data.url; }
+    else { alert('Necesitas iniciar sesión primero.'); window.location.href = '/login'; }
   } catch(e) {
-    alert('Necesitas iniciar sesión con Twitch primero para suscribirte.');
+    alert('Necesitas iniciar sesión con Twitch primero.');
     window.location.href = '/login';
-    if (btn) { btn.textContent = 'Suscribirse por ' + selectedPrice + ' →'; btn.disabled = false; }
+    if (btn) { btn.textContent = '⭐ Suscribirse al Plan Pro →'; btn.disabled = false; }
   }
 }
-</script>
-</head>
-<body>
-<div class="bg-glow"></div>
-<div class="container">
 
-  <!-- NAV -->
-  <nav class="nav">
-    <a href="/dashboard" class="nav-logo">
-      <img src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
-      <span class="nav-logo-text">MuffetBot</span>
-    </a>
-    <div class="nav-links">
-      <a href="/dashboard" class="nav-btn ghost">← Dashboard</a>
-      <a href="/plans" class="nav-btn solid">Ver planes</a>
-    </div>
-  </nav>
-
-  <!-- HERO -->
-  <div class="hero">
-    <div class="hero-badge">🕷️ Bot de Twitch con IA</div>
-    <h1 class="hero-title">El bot que tu canal<br><span>merece</span></h1>
-    <p class="hero-sub">Muffet de Undertale como tu consejera personal. Comandos, IA, moderación y más — sin complicaciones.</p>
-  </div>
-
-  <!-- PLANES -->
-  <div class="plans-grid" id="plansGrid">
-
-    <!-- FREE -->
-    <div class="plan-card">
-      <div class="plan-name">Gratuito</div>
-      <div class="plan-desc">Perfecto para empezar y probar el bot en tu canal.</div>
-      <div class="plan-price-area">
-        <div class="plan-price"><sup>$</sup>0</div>
-        <div class="plan-price-note">Para siempre gratis</div>
-      </div>
-      <a href="/dashboard" class="plan-btn free" id="freeBtnArea">Ir al dashboard</a>
-      <div class="plan-divider"></div>
-      <div class="plan-features">
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Muffet_Osoking en tu chat</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Comandos ilimitados con permisos por nivel</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Variables dinámicas — {user}, {random}, {randomlist}, {randomuser}</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Saludos automáticos a viewers</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Auto mensajes con tiempo personalizable</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Moderación básica con lista manual</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">!ask, !chiste, !8ball — IA en el chat</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Contadores, dados, acciones sociales</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Sistema de puntos, niveles y !top</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">!apostar y !canjear premios</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Sorteos básicos sin overlay</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">!uptime, !clip, !titulo, !juego</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Página pública básica con comandos</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">!redes — muestra tus links en el chat</span></div>
-        <div class="feat no"><div class="feat-icon no">—</div><span class="feat-text">Bot con tu nombre propio</span></div>
-        <div class="feat no"><div class="feat-icon no">—</div><span class="feat-text">Spotify + Overlay para OBS</span></div>
-        <div class="feat no"><div class="feat-icon no">—</div><span class="feat-text">Sorteos con overlay OBS</span></div>
-        <div class="feat no"><div class="feat-icon no">—</div><span class="feat-text">!primerin — ranking de llegada al stream</span></div>
-        <div class="feat no"><div class="feat-icon no">—</div><span class="feat-text">!duelo y !poll</span></div>
-        <div class="feat no"><div class="feat-icon no">—</div><span class="feat-text">Anuncio automático cuando vas en vivo</span></div>
-        <div class="feat no"><div class="feat-icon no">—</div><span class="feat-text">Clips recientes en página pública</span></div>
-      </div>
-    </div>
-
-    <!-- PRO -->
-    <div class="plan-card featured">
-      <div class="plan-popular">⭐ Más popular</div>
-      <div class="plan-name">Pro</div>
-      <div class="plan-desc">Para streamers que quieren destacar con una experiencia única.</div>
-
-      <!-- Selector de plan -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:16px 0;">
-        <button onclick="selectPlan('monthly',5,'1701661',this)" class="plan-selector active" id="plan-monthly">
-          <div style="font-size:13px;font-weight:700;">Mensual</div>
-          <div style="font-size:18px;font-weight:800;color:var(--purple);">$5</div>
-          <div style="font-size:10px;color:var(--text-muted);">por mes</div>
-        </button>
-        <button onclick="selectPlan('quarterly',12,'1701725',this)" class="plan-selector" id="plan-quarterly">
-          <div style="font-size:13px;font-weight:700;">Trimestral</div>
-          <div style="font-size:18px;font-weight:800;color:var(--purple);">$12</div>
-          <div style="font-size:10px;color:#1ed760;font-weight:600;">20% off</div>
-        </button>
-        <button onclick="selectPlan('biannual',20,'1701765',this)" class="plan-selector" id="plan-biannual">
-          <div style="font-size:13px;font-weight:700;">Semestral</div>
-          <div style="font-size:18px;font-weight:800;color:var(--purple);">$20</div>
-          <div style="font-size:10px;color:#1ed760;font-weight:600;">33% off</div>
-        </button>
-        <button onclick="selectPlan('annual',40,'1701778',this)" class="plan-selector" id="plan-annual">
-          <div style="font-size:13px;font-weight:700;">Anual</div>
-          <div style="font-size:18px;font-weight:800;color:var(--purple);">$40</div>
-          <div style="font-size:10px;color:#1ed760;font-weight:600;">33% off</div>
-        </button>
-      </div>
-
-      <div id="proBtnArea">
-        <button onclick="goToCheckout()" class="plan-btn pro" id="checkoutBtn">Suscribirse por $5/mes →</button>
-      </div>
-      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:8px;">Cancela cuando quieras · Pago seguro con Lemon Squeezy</div>
-      <div class="plan-divider"></div>
-      <div class="plan-features">
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>Todo lo del plan gratuito incluido</strong></span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>Bot con tu nombre personalizado</strong></span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>🎵 Spotify — el chat pide canciones con !cancion</strong></span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>🎬 Overlay de Spotify para OBS</strong> — muestra la canción en tiempo real</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text">Historial, lista negra y votos para saltar canciones</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>🎉 Overlay de sorteos para OBS</strong></span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>🥇 !primerin</strong> — ranking de quién llega primero al stream</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>⚔️ !duelo</strong> — duelos de puntos entre viewers</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>🗳️ !poll</strong> — encuestas en el chat</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>📢 Anuncio automático</strong> cuando vas en vivo</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>🌐 Página pública completa</strong> con clips recientes y YouTube</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>📊 Estadísticas avanzadas</strong> de comandos y viewers</span></div>
-        <div class="feat"><div class="feat-icon yes">✓</div><span class="feat-text"><strong>Soporte prioritario</strong> de ElOsoKing1</span></div>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- TESTIMONIOS -->
-  <div class="social-proof">
-    <div class="social-title">Lo que dicen los streamers</div>
-    <div class="testimonials">
-      <div class="testimonial">
-        <div class="testimonial-text">"El bot es increíble, mi chat se volvió mucho más activo desde que lo instalé. Muffet interactúa con todos~"</div>
-        <div class="testimonial-author">
-          <div class="testimonial-avatar">🎮</div>
-          <div><div class="testimonial-name">StreamerRD</div><div class="testimonial-channel">twitch.tv/streamerrd</div></div>
-        </div>
-      </div>
-      <div class="testimonial">
-        <div class="testimonial-text">"La moderación automática me salvó de mucho spam. Y los comandos con permisos son justo lo que necesitaba."</div>
-        <div class="testimonial-author">
-          <div class="testimonial-avatar">🕹️</div>
-          <div><div class="testimonial-name">GamerLatino</div><div class="testimonial-channel">twitch.tv/gamerlatino</div></div>
-        </div>
-      </div>
-      <div class="testimonial">
-        <div class="testimonial-text">"Por $5 al mes no hay nada mejor. El bot tiene más personalidad que cualquier otro que haya probado."</div>
-        <div class="testimonial-author">
-          <div class="testimonial-avatar">🎯</div>
-          <div><div class="testimonial-name">ProStreamer</div><div class="testimonial-channel">twitch.tv/prostreamer</div></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- FAQ -->
-  <div class="faq">
-    <div class="faq-title">Preguntas frecuentes</div>
-    <div class="faq-item">
-      <button class="faq-q" onclick="toggleFaq(this)">¿Cómo activo el Plan Pro después de pagar?<span class="faq-icon">+</span></button>
-      <div class="faq-a">El plan se activa automáticamente al completar el pago. No necesitas hacer nada más — el sistema lo activa solo en segundos.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q" onclick="toggleFaq(this)">¿Puedo cancelar cuando quiera?<span class="faq-icon">+</span></button>
-      <div class="faq-a">Sí, puedes cancelar tu suscripción en cualquier momento desde tu dashboard. No hay contratos ni penalizaciones. Tu plan Pro se mantiene hasta que venza el período pagado.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q" onclick="toggleFaq(this)">¿El bot funciona mientras no estoy en vivo?<span class="faq-icon">+</span></button>
-      <div class="faq-a">MuffetBot corre en la nube 24/7 sin necesidad de que tu PC esté encendida. Siempre estará listo cuando lleguen viewers.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q" onclick="toggleFaq(this)">¿Qué pasa si cancelo el Plan Pro?<span class="faq-icon">+</span></button>
-      <div class="faq-a">Tu bot vuelve automáticamente al plan gratuito. Tus configuraciones se guardan por 30 días en caso de que quieras reactivar.</div>
-    </div>
-    <div class="faq-item">
-      <button class="faq-q" onclick="toggleFaq(this)">¿Necesito conocimientos técnicos para usarlo?<span class="faq-icon">+</span></button>
-      <div class="faq-a">Para nada. El panel de control es muy fácil de usar. En menos de 5 minutos puedes tener el bot configurado y activo en tu canal.</div>
-    </div>
-  </div>
-
-  <!-- CTA BOTTOM -->
-  <div class="cta-bottom">
-    <div class="cta-title">¿Listo para mejorar tu canal?</div>
-    <div class="cta-sub">Únete a los streamers que ya usan MuffetBot. Empieza gratis hoy.</div>
-    <a href="https://muffet-dashboard.onrender.com" class="cta-btn">
-      Empezar gratis →
-    </a>
-  </div>
-
-</div>
-
-<script>
 function toggleFaq(btn) {
   const answer = btn.nextElementSibling;
   const icon = btn.querySelector('.faq-icon');
@@ -378,16 +454,21 @@ function toggleFaq(btn) {
   if (!isOpen) { answer.classList.add('open'); icon.classList.add('open'); }
 }
 
-// Mostrar plan activo si está logueado
 async function checkPlan() {
   try {
     const res = await fetch('/api/streamer');
     if (!res.ok) return;
     const { streamer } = await res.json();
     if (streamer.plan === 'pro' || streamer.plan === 'admin') {
-      document.getElementById('proBtnArea').innerHTML = `
-        <div class="current-badge">✓ Plan Pro activo</div>
-        <a href="/dashboard" class="plan-btn free" style="margin-bottom:28px">Ir al dashboard</a>`;
+      const btn = document.getElementById('checkoutBtn');
+      if (btn) {
+        btn.textContent = '✅ Plan Pro activo — Ir al dashboard';
+        btn.onclick = () => window.location.href = '/dashboard';
+        btn.style.background = 'rgba(64,208,144,0.15)';
+        btn.style.boxShadow = '0 0 24px rgba(64,208,144,0.2)';
+        btn.style.border = '1px solid rgba(64,208,144,0.3)';
+        btn.style.color = 'var(--green)';
+      }
     }
   } catch(e) {}
 }
