@@ -1113,7 +1113,6 @@ function renderMain() {
           { id:'bola8',    icon:'🎱', name:'!8ball',    desc:'La bola mágica responde tu pregunta',        who:'Todos' },
           { id:'poll',     icon:'📋', name:'!poll',     desc:'Crear una encuesta en el chat',             who:'Mods'  },
           { id:'cancion',  icon:'🎵', name:'!cancion',  desc:'Pedir canción en Spotify',                  who:'Según config' },
-          { id:'yt',       icon:'🔴', name:'!yt',       desc:'Pedir video en YouTube Music',              who:'Según config' },
           { id:'social',   icon:'🤗', name:'Sociales',  desc:'!hug, !pat, !kiss, !slap, !bite, !highfive',who:'Todos' },
           { id:'dados',    icon:'🎲', name:'Dados',     desc:'!d6, !d20, !2d6',                           who:'Todos' },
           { id:'dar',      icon:'💰', name:'!dar',      desc:'Dar puntos a un usuario',                   who:'Mods'  },
@@ -1176,13 +1175,12 @@ function renderMain() {
       </div>
     </div>
 
-    <!-- Variables del canal -->
-    <div class="panel">
       <div class="panel-header"><span class="panel-title-text">📺 Variables del canal</span></div>
       <div class="panel-body">
         ${[
           ['{channel}', 'Nombre de tu canal de Twitch', '!canal', 'El canal es {channel}! 👑', `El canal es ${userData?.display_name||'elosoking1'}! 👑`],
           ['{game}', 'Juego que se está transmitiendo en Twitch', '!juego', 'Estamos jugando {game}! 🎮', 'Estamos jugando Minecraft! 🎮'],
+          ['{game:usuario}', 'Juego que está jugando otro canal (para !so)', '!so @wolf', 'twitch.tv/{touser} jugando {game:{touser}}', 'twitch.tv/wolf jugando Minecraft'],
           ['{title}', 'Título actual del stream', '!titulo', 'Stream: {title}', 'Stream: ¡Jugando con la comunidad!'],
           ['{uptime}', 'Tiempo que lleva el stream en vivo', '!uptime', 'Llevamos {uptime} en vivo! ⏰', 'Llevamos 2h 30m en vivo! ⏰'],
           ['{redes}', 'Todos tus links de redes sociales', '!sigueme', '¡Sígueme! {redes}', '¡Sígueme! 🎮 Twitch: twitch.tv/... | 📺 YouTube: ...'],
@@ -1405,7 +1403,7 @@ function renderMain() {
         <div style="display:flex;flex-direction:column;gap:12px;">
           <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
             <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:6px;">En comandos:</div>
-            <code style="font-size:12px;color:var(--text-dim);font-family:monospace;">!so → ¡Amor para {touser}! 🐻 Canal: twitch.tv/{touser}</code>
+            <code style="font-size:12px;color:var(--text-dim);font-family:monospace;">!so → ¡Amor para {touser}! 🐻 Canal: twitch.tv/{touser} — jugando {game:{touser}} 🕷️</code>
           </div>
           <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
             <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:6px;">En auto mensajes:</div>
