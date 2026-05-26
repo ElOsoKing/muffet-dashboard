@@ -4,299 +4,442 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MuffetBot — Canal</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --purple:#9147ff;--purple-dim:rgba(145,71,255,0.12);--purple-border:rgba(145,71,255,0.25);
-  --purple-light:#b388ff;--green:#40d090;--yellow:#f0c060;--pink:#e05a7a;
-  --bg:#0d0d0f;--bg2:#141416;--bg3:#1a1a1e;--bg4:#1f1f26;
-  --text:#e8e8f0;--text-dim:#6b6b80;--text-muted:#3a3a4a;
-  --sans:'Inter',sans-serif;--display:'VT323',monospace;
-  --radius:12px;--radius-sm:8px;
+  --accent:#9147ff;
+  --accent-dim:rgba(145,71,255,0.12);
+  --accent-border:rgba(145,71,255,0.25);
+  --accent-light:#b388ff;
+  --green:#40d090;--yellow:#f0c060;--pink:#e05a7a;
+  --bg:#0a0a0c;--bg2:#111113;--bg3:#17171a;--bg4:#0d0d0f;
+  --text:#eeeef5;--text-dim:#6b6b82;--text-muted:#2e2e3a;
+  --sans:'Inter',sans-serif;--radius:14px;--radius-sm:8px;
 }
 html,body{width:100%;min-height:100%;background:var(--bg);font-family:var(--sans);color:var(--text);}
 
-/* Background */
-.bg-mesh{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;
-  background:radial-gradient(ellipse at 20% 20%,rgba(145,71,255,0.06) 0%,transparent 50%),
-             radial-gradient(ellipse at 80% 80%,rgba(145,71,255,0.04) 0%,transparent 50%);
-}
+/* BG */
+.bg-glow{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 100% 40% at 50% 0%,var(--accent-glow,rgba(145,71,255,0.08)) 0%,transparent 60%);}
 
-/* Nav */
-.nav{position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);background:rgba(13,13,15,0.8);border-bottom:1px solid rgba(255,255,255,0.04);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;}
-.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
-.nav-logo img{width:22px;height:22px;image-rendering:pixelated;filter:drop-shadow(0 0 6px rgba(145,71,255,0.5));}
-.nav-logo-text{font-size:14px;font-weight:600;color:var(--text);}
-.nav-btn{font-size:12px;font-weight:500;padding:7px 16px;border-radius:20px;cursor:pointer;text-decoration:none;transition:all 0.15s;background:var(--purple);color:white;border:none;}
+/* NAV */
+nav{position:sticky;top:0;z-index:100;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;
+  background:rgba(10,10,12,0.85);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,0.05);}
+.nav-logo{display:flex;align-items:center;gap:8px;text-decoration:none;}
+.nav-logo img{width:24px;height:24px;image-rendering:pixelated;filter:drop-shadow(0 0 6px rgba(145,71,255,0.5));}
+.nav-logo-text{font-size:14px;font-weight:700;color:var(--text);}
+.nav-btn{font-size:12px;font-weight:600;padding:7px 18px;border-radius:20px;cursor:pointer;
+  text-decoration:none;background:var(--accent);color:white;border:none;transition:opacity 0.15s;
+  box-shadow:0 0 12px rgba(145,71,255,0.3);}
 .nav-btn:hover{opacity:0.85;}
 
-/* Hero */
-.hero{position:relative;z-index:1;padding:48px 24px 0;max-width:780px;margin:0 auto;}
-.hero-inner{display:flex;align-items:center;gap:28px;}
+/* HERO BANNER */
+.hero-banner{position:relative;z-index:1;overflow:hidden;}
+.hero-bg{width:100%;height:220px;object-fit:cover;display:block;opacity:0.35;filter:blur(2px) saturate(0.5);background:var(--bg2);}
+.hero-bg-fallback{width:100%;height:220px;background:linear-gradient(135deg,var(--accent-dim),var(--bg2));}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(10,10,12,0.2) 0%,rgba(10,10,12,0.9) 70%,var(--bg) 100%);}
+
+/* HERO INFO */
+.hero-content{position:relative;z-index:1;max-width:860px;margin:-80px auto 0;padding:0 24px;}
+.hero-card{display:flex;align-items:flex-end;gap:20px;padding-bottom:20px;}
 .avatar-wrap{position:relative;flex-shrink:0;}
-.channel-avatar{width:96px;height:96px;border-radius:50%;border:3px solid var(--purple-border);background:var(--bg2);box-shadow:0 0 24px rgba(145,71,255,0.15);}
-.avatar-live{position:absolute;bottom:4px;right:4px;width:16px;height:16px;background:#e05a7a;border-radius:50%;border:2px solid var(--bg);display:none;}
-.hero-info{flex:1;}
-.channel-name{font-size:28px;font-weight:700;color:var(--text);letter-spacing:-0.5px;line-height:1.1;}
-.channel-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
-.badge{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:500;}
-.badge-bot{background:var(--purple-dim);border:1px solid var(--purple-border);color:var(--purple-light);}
-.badge-twitch{background:rgba(145,71,255,0.08);border:1px solid rgba(145,71,255,0.2);color:var(--purple-light);}
-.hero-twitch{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;color:var(--text-dim);text-decoration:none;transition:color 0.15s;}
-.hero-twitch:hover{color:var(--purple-light);}
+.channel-avatar{width:110px;height:110px;border-radius:50%;border:4px solid var(--bg);
+  background:var(--bg2);box-shadow:0 0 0 2px var(--accent-border),0 8px 32px rgba(0,0,0,0.5);object-fit:cover;}
+.live-badge{position:absolute;bottom:6px;right:6px;background:#e05a7a;color:white;
+  font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px;border:2px solid var(--bg);
+  text-transform:uppercase;letter-spacing:0.5px;display:none;}
+.hero-info{flex:1;padding-bottom:4px;}
+.channel-name{font-size:clamp(22px,4vw,32px);font-weight:800;letter-spacing:-0.5px;line-height:1.1;}
+.channel-meta{display:flex;align-items:center;gap:10px;margin-top:8px;flex-wrap:wrap;}
+.meta-badge{display:inline-flex;align-items:center;gap:5px;border-radius:20px;
+  padding:4px 12px;font-size:11px;font-weight:600;}
+.meta-badge.bot{background:var(--accent-dim);border:1px solid var(--accent-border);color:var(--accent-light);}
+.meta-badge.twitch{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);}
+.twitch-link{font-size:12px;color:var(--text-dim);text-decoration:none;transition:color 0.15s;margin-top:4px;display:flex;align-items:center;gap:5px;}
+.twitch-link:hover{color:var(--accent-light);}
 
-/* Main */
-.main{position:relative;z-index:1;max-width:780px;margin:0 auto;padding:32px 24px 80px;}
+/* SOCIALS */
+.socials-row{display:flex;flex-wrap:wrap;gap:8px;padding:20px 24px;max-width:860px;margin:0 auto;position:relative;z-index:1;}
+.social-btn{display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:20px;
+  font-size:13px;font-weight:600;text-decoration:none;transition:all 0.15s;border:1px solid;}
+.social-btn:hover{transform:translateY(-1px);}
+.social-twitch{background:rgba(145,71,255,0.1);border-color:rgba(145,71,255,0.25);color:#b388ff;}
+.social-youtube{background:rgba(255,0,0,0.08);border-color:rgba(255,0,0,0.2);color:#ff5555;}
+.social-tiktok{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.1);color:var(--text-dim);}
+.social-twitter{background:rgba(29,161,242,0.08);border-color:rgba(29,161,242,0.2);color:#1da1f2;}
+.social-instagram{background:rgba(225,48,108,0.08);border-color:rgba(225,48,108,0.2);color:#e1306c;}
+.social-discord{background:rgba(88,101,242,0.08);border-color:rgba(88,101,242,0.2);color:#7289da;}
 
-/* Socials */
-.socials{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px;}
-.social-link{display:flex;align-items:center;gap:8px;background:var(--bg2);border:1px solid rgba(255,255,255,0.07);border-radius:var(--radius-sm);padding:9px 16px;font-size:13px;font-weight:500;color:var(--text-dim);text-decoration:none;transition:all 0.15s;}
-.social-link:hover{border-color:var(--purple-border);color:var(--text);transform:translateY(-1px);}
+/* MAIN */
+.main{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:8px 24px 80px;}
 
-/* Grid layout */
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
-@media(max-width:600px){.grid{grid-template-columns:1fr;}}
+/* PANEL */
+.panel{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);
+  overflow:hidden;margin-bottom:16px;transition:border-color 0.15s;}
+.panel:hover{border-color:rgba(255,255,255,0.09);}
+.panel-header{padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);
+  display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,0.01);}
+.panel-title{font-size:14px;font-weight:700;color:var(--text);}
+.panel-badge{font-size:11px;color:var(--text-muted);background:var(--bg3);
+  padding:3px 10px;border-radius:10px;font-weight:500;}
+.panel-body{padding:18px 20px;}
 
-/* Panel */
-.panel{background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
-.panel-header{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;}
-.panel-title{font-size:13px;font-weight:600;color:var(--text);}
-.panel-count{font-size:11px;color:var(--text-muted);background:var(--bg3);padding:2px 8px;border-radius:10px;}
-.panel-body{padding:16px 20px;}
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+@media(max-width:620px){.grid-2{grid-template-columns:1fr;}}
 
-/* Comandos */
-.commands-list{display:flex;flex-direction:column;gap:4px;}
-.cmd-item{display:flex;align-items:center;gap:12px;padding:9px 12px;background:var(--bg3);border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s;border:1px solid transparent;}
-.cmd-item:hover{border-color:var(--purple-border);background:var(--bg4);}
-.cmd-trigger{font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:90px;}
+/* TOP VIEWERS */
+.top-list{display:flex;flex-direction:column;gap:8px;}
+.top-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--radius-sm);
+  background:var(--bg3);border:1px solid rgba(255,255,255,0.04);transition:border-color 0.15s;}
+.top-item:hover{border-color:rgba(255,255,255,0.08);}
+.top-item.first{background:linear-gradient(135deg,rgba(240,192,96,0.08),var(--bg3));border-color:rgba(240,192,96,0.2);}
+.top-medal{font-size:18px;width:28px;text-align:center;flex-shrink:0;}
+.top-info{flex:1;min-width:0;}
+.top-name{font-size:13px;font-weight:600;color:var(--text);}
+.top-level{font-size:11px;color:var(--text-muted);margin-top:2px;}
+.top-right{text-align:right;flex-shrink:0;}
+.top-pts{font-size:14px;font-weight:700;color:var(--yellow);}
+.top-bar-wrap{width:60px;height:3px;background:rgba(255,255,255,0.05);border-radius:2px;margin-top:4px;overflow:hidden;}
+.top-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--yellow),rgba(240,192,96,0.5));}
+
+/* COMANDOS */
+.cmd-search{width:100%;background:var(--bg3);border:1px solid rgba(255,255,255,0.07);
+  border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;
+  padding:10px 14px 10px 36px;outline:none;transition:border-color 0.15s;margin-bottom:12px;}
+.cmd-search:focus{border-color:var(--accent-border);}
+.cmd-search-wrap{position:relative;}
+.cmd-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;}
+.cmd-list{display:flex;flex-direction:column;gap:5px;}
+.cmd-item{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);
+  border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s;border:1px solid transparent;}
+.cmd-item:hover{border-color:var(--accent-border);background:var(--bg4);}
+.cmd-trigger{font-size:12px;font-weight:700;color:var(--accent-light);font-family:monospace;
+  background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:6px;
+  padding:3px 8px;flex-shrink:0;white-space:nowrap;}
 .cmd-response{font-size:12px;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cmd-copy{font-size:10px;color:var(--text-muted);flex-shrink:0;padding:2px 8px;border:1px solid rgba(255,255,255,0.06);border-radius:4px;opacity:0;transition:opacity 0.15s;}
-.cmd-item:hover .cmd-copy{opacity:1;color:var(--purple-light);border-color:var(--purple-border);}
+.cmd-copy{font-size:10px;color:var(--text-muted);flex-shrink:0;padding:3px 8px;
+  border:1px solid rgba(255,255,255,0.06);border-radius:4px;opacity:0;transition:opacity 0.15s;}
+.cmd-item:hover .cmd-copy{opacity:1;color:var(--accent-light);border-color:var(--accent-border);}
 
-/* Top viewers */
-.top-list{display:flex;flex-direction:column;gap:6px;}
-.top-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);}
-.top-item:first-child{background:rgba(240,192,96,0.06);border:1px solid rgba(240,192,96,0.15);}
-.top-medal{font-size:16px;width:24px;text-align:center;flex-shrink:0;}
-.top-name{font-size:13px;font-weight:500;color:var(--text);flex:1;}
-.top-level{font-size:10px;color:var(--text-muted);}
-.top-points{font-size:12px;font-weight:600;color:var(--yellow);}
-
-/* Horario */
-.schedule-grid{display:flex;flex-direction:column;gap:6px;}
-.schedule-day{display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);}
-.schedule-day.today{background:var(--purple-dim);border:1px solid var(--purple-border);}
-.schedule-day-name{font-size:12px;font-weight:500;min-width:90px;}
+/* HORARIO */
+.schedule-list{display:flex;flex-direction:column;gap:6px;}
+.schedule-item{display:flex;align-items:center;gap:14px;padding:11px 14px;
+  background:var(--bg3);border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.04);}
+.schedule-item.today{background:linear-gradient(135deg,var(--accent-dim),var(--bg3));
+  border-color:var(--accent-border);}
+.schedule-dot{width:8px;height:8px;border-radius:50%;background:var(--text-muted);flex-shrink:0;}
+.schedule-item.today .schedule-dot{background:var(--green);box-shadow:0 0 8px rgba(64,208,144,0.5);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+.schedule-day-name{font-size:13px;font-weight:600;min-width:90px;}
+.schedule-item.today .schedule-day-name{color:var(--accent-light);}
 .schedule-time{font-size:12px;color:var(--text-dim);}
-.schedule-note{font-size:11px;color:var(--text-muted);margin-left:auto;}
+.schedule-note{font-size:11px;color:var(--text-muted);margin-left:auto;font-style:italic;}
+.schedule-today-badge{font-size:10px;font-weight:700;color:var(--green);background:rgba(64,208,144,0.1);
+  border:1px solid rgba(64,208,144,0.2);border-radius:8px;padding:2px 7px;margin-left:4px;}
 
-/* Videos y Clips */
-.media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-@media(max-width:600px){.media-grid{grid-template-columns:repeat(2,1fr);}}
-.media-card{background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);overflow:hidden;text-decoration:none;transition:all 0.15s;}
-.media-card:hover{border-color:var(--purple-border);transform:translateY(-2px);}
-.media-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;background:var(--bg4);}
+/* MEDIA */
+.media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:620px){.media-grid{grid-template-columns:repeat(2,1fr);}}
+.media-card{border-radius:var(--radius-sm);overflow:hidden;background:var(--bg3);
+  border:1px solid rgba(255,255,255,0.06);text-decoration:none;display:block;transition:all 0.2s;position:relative;}
+.media-card:hover{border-color:var(--accent-border);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.3);}
+.media-thumb-wrap{position:relative;aspect-ratio:16/9;overflow:hidden;}
+.media-thumb{width:100%;height:100%;object-fit:cover;background:var(--bg4);display:block;transition:transform 0.2s;}
+.media-card:hover .media-thumb{transform:scale(1.04);}
+.media-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.6) 0%,transparent 50%);
+  opacity:0;transition:opacity 0.2s;display:flex;align-items:center;justify-content:center;}
+.media-card:hover .media-overlay{opacity:1;}
+.media-play{width:40px;height:40px;background:rgba(255,255,255,0.9);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:16px;}
+.media-duration{position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.8);
+  border-radius:4px;padding:2px 6px;font-size:10px;color:white;font-weight:600;}
 .media-info{padding:10px 12px;}
-.media-title{font-size:12px;font-weight:500;color:var(--text);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
-.media-meta{font-size:10px;color:var(--text-muted);margin-top:4px;}
-.clip-duration{position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.75);border-radius:4px;padding:2px 6px;font-size:10px;color:white;font-weight:500;}
-.media-card-wrap{position:relative;}
+.media-title{font-size:12px;font-weight:500;color:var(--text);line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.media-meta{font-size:10px;color:var(--text-muted);margin-top:4px;display:flex;align-items:center;gap:6px;}
 
-/* Footer */
-.footer{position:relative;z-index:1;text-align:center;padding:0 24px 48px;max-width:780px;margin:0 auto;}
+/* EMPTY */
+.empty{text-align:center;padding:32px;color:var(--text-muted);font-size:13px;}
+
+/* SKELETON */
+.skeleton{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);
+  background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--radius-sm);}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ERROR */
+.error-card{max-width:380px;margin:80px auto;background:var(--bg2);border:1px solid rgba(224,90,122,0.2);
+  border-radius:var(--radius);padding:48px;text-align:center;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid rgba(64,208,144,0.3);
+  border-radius:var(--radius-sm);color:var(--green);font-size:13px;font-weight:500;padding:10px 18px;
+  transform:translateY(20px);opacity:0;transition:all 0.25s;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
+.toast.show{transform:translateY(0);opacity:1;}
+
+/* FOOTER */
+.footer{position:relative;z-index:1;text-align:center;padding:0 24px 48px;max-width:860px;margin:0 auto;}
 .footer-text{font-size:12px;color:var(--text-muted);margin-bottom:14px;}
 .footer-links{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
-.footer-link{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:20px;text-decoration:none;font-size:12px;font-weight:500;transition:all 0.15s;}
+.footer-link{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;
+  border-radius:20px;text-decoration:none;font-size:12px;font-weight:500;transition:all 0.15s;}
 .footer-link:hover{transform:translateY(-1px);}
 .footer-link-discord{background:rgba(88,101,242,0.1);border:1px solid rgba(88,101,242,0.2);color:#7289da;}
 .footer-link-kofi{background:rgba(255,94,91,0.1);border:1px solid rgba(255,94,91,0.2);color:#ff5e5b;}
 
-/* Loading / error */
-.loading-hero{display:flex;align-items:center;gap:24px;padding:48px 24px;max-width:780px;margin:0 auto;}
-.skeleton{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--radius-sm);}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-.error-card{max-width:400px;margin:80px auto;background:var(--bg2);border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius);padding:40px;text-align:center;}
-.error-icon{font-size:40px;margin-bottom:12px;}
-.error-title{font-size:18px;font-weight:600;margin-bottom:8px;}
-.error-desc{font-size:13px;color:var(--text-dim);}
-
-/* Toast */
-.toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid rgba(64,208,144,0.3);border-radius:var(--radius-sm);color:var(--green);font-size:13px;font-weight:500;padding:10px 16px;transform:translateY(20px);opacity:0;transition:all 0.25s;z-index:200;}
-.toast.show{transform:translateY(0);opacity:1;}
-
 @media(max-width:600px){
-  .hero{padding:32px 16px 0;}
-  .hero-inner{gap:18px;}
-  .channel-avatar{width:72px;height:72px;}
+  .hero-card{gap:14px;}
+  .channel-avatar{width:80px;height:80px;}
   .channel-name{font-size:22px;}
-  .main{padding:24px 16px 60px;}
+  .hero-content{margin-top:-60px;}
+  .main{padding:8px 16px 60px;}
+  .socials-row{padding:16px;}
+  .media-grid{grid-template-columns:repeat(2,1fr);}
 }
 </style>
 </head>
 <body>
-<div class="bg-mesh"></div>
+<div class="bg-glow"></div>
 
-<nav class="nav">
+<nav>
   <a href="/" class="nav-logo">
     <img src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
     <span class="nav-logo-text">MuffetBot</span>
   </a>
-  <a href="/" class="nav-btn">Iniciar sesión</a>
+  <a href="/login" class="nav-btn">Iniciar sesión</a>
 </nav>
 
 <div id="heroSection"></div>
+<div id="socialsSection"></div>
 <div id="mainContent" class="main" style="display:none;"></div>
 <div id="footerSection" class="footer" style="display:none;">
-  <div class="footer-text">Impulsado por <strong style="color:var(--purple-light);">MuffetBot</strong> — El bot de Twitch con personalidad 🕷️</div>
+  <div class="footer-text">Impulsado por <strong style="color:var(--accent-light);">MuffetBot</strong> — El bot de Twitch con personalidad 🕷️</div>
   <div class="footer-links">
     <a href="https://discord.gg/6DCDS3Sfet" target="_blank" class="footer-link footer-link-discord">💬 Servidor de MuffetBot</a>
     <a href="https://ko-fi.com/muffetbot" target="_blank" class="footer-link footer-link-kofi">☕ Apoya a MuffetBot</a>
   </div>
 </div>
 
-<div class="toast" id="toast">✓ Copiado</div>
+<div class="toast" id="toast">✓ Copiado al portapapeles</div>
 
 <script>
-const socialIcons  = { twitch:'🎮', youtube:'📺', tiktok:'🎵', twitter:'🐦', instagram:'📸', discord:'💬' };
-const socialLabels = { twitch:'Twitch', youtube:'YouTube', tiktok:'TikTok', twitter:'Twitter/X', instagram:'Instagram', discord:'Discord' };
+const socialIcons   = {twitch:'🎮',youtube:'📺',tiktok:'🎵',twitter:'🐦',instagram:'📸',discord:'💬'};
+const socialLabels  = {twitch:'Twitch',youtube:'YouTube',tiktok:'TikTok',twitter:'Twitter/X',instagram:'Instagram',discord:'Discord'};
+const socialClasses = {twitch:'social-twitch',youtube:'social-youtube',tiktok:'social-tiktok',twitter:'social-twitter',instagram:'social-instagram',discord:'social-discord'};
+
+function showToast(msg='✓ Copiado') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
 
 function copyCmd(trigger) {
-  navigator.clipboard.writeText(trigger).catch(() => {});
-  const t = document.getElementById('toast');
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2000);
+  navigator.clipboard.writeText(trigger).then(() => showToast(`✓ Copiado: ${trigger}`)).catch(()=>{});
 }
 
 function setAccent(hex) {
   const r = parseInt(hex.slice(1,3),16);
   const g = parseInt(hex.slice(3,5),16);
   const b = parseInt(hex.slice(5,7),16);
-  document.documentElement.style.setProperty('--purple', hex);
-  document.documentElement.style.setProperty('--purple-dim', `rgba(${r},${g},${b},0.12)`);
-  document.documentElement.style.setProperty('--purple-border', `rgba(${r},${g},${b},0.3)`);
-  document.documentElement.style.setProperty('--purple-light', `rgb(${Math.min(255,r+50)},${Math.min(255,g+50)},${Math.min(255,b+50)})`);
+  document.documentElement.style.setProperty('--accent', hex);
+  document.documentElement.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
+  document.documentElement.style.setProperty('--accent-border', `rgba(${r},${g},${b},0.28)`);
+  document.documentElement.style.setProperty('--accent-light', `rgb(${Math.min(255,r+55)},${Math.min(255,g+55)},${Math.min(255,b+55)})`);
+  document.documentElement.style.setProperty('--accent-glow', `rgba(${r},${g},${b},0.1)`);
+}
+
+function filterCmds(val) {
+  const q = val.toLowerCase();
+  document.querySelectorAll('.cmd-item').forEach(item => {
+    const t = item.dataset.trigger?.toLowerCase() || '';
+    const r = item.dataset.response?.toLowerCase() || '';
+    item.style.display = (!q || t.includes(q) || r.includes(q)) ? 'flex' : 'none';
+  });
 }
 
 async function loadCanal() {
   const username = window.location.pathname.split('/canal/')[1];
   if (!username) { showError('Canal no especificado'); return; }
 
-  // Skeleton loading
+  // Skeleton
   document.getElementById('heroSection').innerHTML = `
-    <div class="loading-hero">
-      <div class="skeleton" style="width:96px;height:96px;border-radius:50%;flex-shrink:0;"></div>
-      <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
-        <div class="skeleton" style="height:28px;width:200px;border-radius:6px;"></div>
-        <div class="skeleton" style="height:20px;width:140px;border-radius:20px;"></div>
-        <div class="skeleton" style="height:16px;width:160px;border-radius:4px;"></div>
+    <div style="max-width:860px;margin:0 auto;padding:32px 24px;">
+      <div style="display:flex;align-items:center;gap:20px;">
+        <div class="skeleton" style="width:110px;height:110px;border-radius:50%;flex-shrink:0;"></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:10px;">
+          <div class="skeleton" style="height:32px;width:220px;border-radius:8px;"></div>
+          <div class="skeleton" style="height:22px;width:160px;border-radius:20px;"></div>
+          <div class="skeleton" style="height:16px;width:140px;border-radius:4px;"></div>
+        </div>
       </div>
     </div>`;
 
   try {
     const res = await fetch(`/api/canal/${username}`);
-    if (!res.ok) { showError(`El canal "${username}" no existe o no está activo en MuffetBot`); return; }
+    if (!res.ok) { showError(`El canal "${username}" no existe o no está disponible`); return; }
     const data = await res.json();
 
-    // Aplicar color del streamer
     const accent = data.social_links?.accent_color || '#9147ff';
     setAccent(accent);
 
     const displayName = data.public_name || data.username;
-    document.title = `${displayName} — MuffetBot`;
+    document.title = `${displayName} — Canal`;
 
-    // Redes sociales
-    const socials = Object.entries(data.social_links || {})
-      .filter(([k,v]) => v && k !== 'accent_color')
-      .map(([k,v]) => `<a href="${v}" target="_blank" class="social-link">${socialIcons[k]||'🔗'} ${socialLabels[k]||k}</a>`)
-      .join('');
-
-    // Hero
+    // Hero con banner de color
     document.getElementById('heroSection').innerHTML = `
-      <div class="hero">
-        <div class="hero-inner">
+      <div class="hero-banner">
+        <div class="hero-bg-fallback" style="background:linear-gradient(135deg,var(--accent-dim),var(--bg2),var(--bg3));"></div>
+        <div class="hero-overlay"></div>
+      </div>
+      <div class="hero-content">
+        <div class="hero-card">
           <div class="avatar-wrap">
             <img class="channel-avatar" id="channelAvatar"
-              src="https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png">
+              src="https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png"
+              alt="${displayName}">
+            <div class="live-badge" id="liveBadge">● EN VIVO</div>
           </div>
           <div class="hero-info">
             <div class="channel-name">${displayName}</div>
-            <div class="channel-badges">
-              <span class="badge badge-bot">🕷️ MuffetBot</span>
+            <div class="channel-meta">
+              <span class="meta-badge bot">🕷️ MuffetBot</span>
+              <a href="https://twitch.tv/${data.username}" target="_blank" class="meta-badge twitch" style="text-decoration:none;">
+                🎮 twitch.tv/${data.username}
+              </a>
             </div>
-            <a href="https://twitch.tv/${data.username}" target="_blank" class="hero-twitch">
-              🎮 twitch.tv/${data.username}
-            </a>
           </div>
         </div>
-        ${socials ? `<div class="socials" style="margin-top:24px;">${socials}</div>` : '<div style="height:24px;"></div>'}
       </div>`;
 
-    // Cargar avatar
+    // Cargar avatar real
     fetch(`https://decapi.me/twitch/avatar/${data.username}`)
       .then(r => r.text())
-      .then(url => { if(url.startsWith('http')) document.getElementById('channelAvatar').src = url; })
-      .catch(() => {});
+      .then(url => { if(url?.startsWith('http')) document.getElementById('channelAvatar').src = url; })
+      .catch(()=>{});
 
-    // Main content
-    const commands = Object.entries(data.commands || {});
+    // Redes sociales con colores
+    const socials = Object.entries(data.social_links || {})
+      .filter(([k,v]) => v && k !== 'accent_color')
+      .map(([k,v]) => `<a href="${v}" target="_blank" class="social-btn ${socialClasses[k]||''}">
+        ${socialIcons[k]||'🔗'} ${socialLabels[k]||k}
+      </a>`).join('');
+
+    if (socials) {
+      document.getElementById('socialsSection').innerHTML = `<div class="socials-row">${socials}</div>`;
+    }
+
+    // MAIN
+    const commands = Object.entries(data.commands || {}).filter(([t,v]) => {
+      const r = typeof v === 'object' ? v.response : v;
+      return r && !r.includes('{') && t !== '!addcmd' && t !== '!delcmd';
+    });
     const topViewers = data.top_viewers || [];
     const pointsConfig = data.points_config || {};
+    const emoji = pointsConfig.emoji || '🏆';
+    const pName = pointsConfig.name || 'puntos';
 
     let mainHtml = '';
 
-    // Grid — Top viewers + comandos cortos
-    const hasTop = topViewers.length > 0;
-    if (hasTop) {
+    // Grid Top + primerin
+    const primerinRanking = Object.entries(data.primerin_config?.ranking || {}).sort(([,a],[,b])=>b-a).slice(0,5);
+
+    if (topViewers.length || primerinRanking.length) {
       const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
-      const emoji = pointsConfig.emoji || '🏆';
-      const pName = pointsConfig.name || 'puntos';
+      const maxPts = topViewers[0]?.xp || 1;
+
+      mainHtml += `<div class="grid-2">`;
+
+      if (topViewers.length) {
+        const levels = pointsConfig.levels || [];
+        mainHtml += `
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">${emoji} Top viewers</span>
+              <span class="panel-badge">${pName}</span>
+            </div>
+            <div class="panel-body">
+              <div class="top-list">
+                ${topViewers.slice(0,5).map((v,i) => {
+                  const level = levels.filter(l=>v.xp>=l.xp).pop();
+                  const pct = Math.round((v.xp/maxPts)*100);
+                  return `<div class="top-item${i===0?' first':''}">
+                    <span class="top-medal">${medals[i]||`#${i+1}`}</span>
+                    <div class="top-info">
+                      <div class="top-name">${v.username}</div>
+                      ${level?`<div class="top-level">${level.name}</div>`:''}
+                    </div>
+                    <div class="top-right">
+                      <div class="top-pts">${v.xp} ${emoji}</div>
+                      <div class="top-bar-wrap"><div class="top-bar" style="width:${pct}%;"></div></div>
+                    </div>
+                  </div>`;
+                }).join('')}
+              </div>
+            </div>
+          </div>`;
+      }
+
+      if (primerinRanking.length) {
+        const cmd = data.primerin_config?.command || 'primerin';
+        const maxWins = primerinRanking[0][1] || 1;
+        mainHtml += `
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">🥇 Ranking !${cmd}</span>
+              <span class="panel-badge">primeros</span>
+            </div>
+            <div class="panel-body">
+              <div class="top-list">
+                ${primerinRanking.map(([user,wins],i) => `
+                  <div class="top-item${i===0?' first':''}">
+                    <span class="top-medal">${medals[i]||`#${i+1}`}</span>
+                    <div class="top-info">
+                      <div class="top-name">${user}</div>
+                      <div class="top-level">llegó primero</div>
+                    </div>
+                    <div class="top-right">
+                      <div class="top-pts">${wins}x 🏆</div>
+                      <div class="top-bar-wrap">
+                        <div class="top-bar" style="width:${Math.round((wins/maxWins)*100)}%;background:linear-gradient(90deg,var(--accent-light),var(--accent-dim));"></div>
+                      </div>
+                    </div>
+                  </div>`).join('')}
+              </div>
+            </div>
+          </div>`;
+      }
+
+      mainHtml += `</div>`;
+    }
+
+    // Comandos
+    if (commands.length) {
       mainHtml += `
         <div class="panel">
           <div class="panel-header">
-            <span class="panel-title">${emoji} Top viewers</span>
-            <span class="panel-count">${pName}</span>
+            <span class="panel-title">⚡ Comandos</span>
+            <span class="panel-badge">${commands.length}</span>
           </div>
           <div class="panel-body">
-            <div class="top-list">
-              ${topViewers.map((v, i) => {
-                const levels = pointsConfig.levels || [];
-                const level = levels.filter(l => v.xp >= l.xp).pop();
-                return `<div class="top-item">
-                  <span class="top-medal">${medals[i]||`#${i+1}`}</span>
-                  <div style="flex:1;">
-                    <div class="top-name">${v.username}</div>
-                    ${level ? `<div class="top-level">${level.name}</div>` : ''}
-                  </div>
-                  <span class="top-points">${v.xp} ${emoji}</span>
+            <div class="cmd-search-wrap">
+              <span class="cmd-search-icon">🔍</span>
+              <input class="cmd-search" placeholder="Buscar comando..." oninput="filterCmds(this.value)">
+            </div>
+            <div class="cmd-list">
+              ${commands.map(([trigger, val]) => {
+                const resp = typeof val === 'object' ? val.response : val;
+                return `<div class="cmd-item" data-trigger="${trigger}" data-response="${(resp||'').replace(/"/g,'')}" onclick="copyCmd('${trigger}')">
+                  <span class="cmd-trigger">${trigger}</span>
+                  <span class="cmd-response">${resp||''}</span>
+                  <span class="cmd-copy">copiar</span>
                 </div>`;
               }).join('')}
             </div>
           </div>
         </div>`;
     }
-
-    // Comandos
-    mainHtml += `
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title">⚡ Comandos</span>
-          <span class="panel-count">${commands.length}</span>
-        </div>
-        <div class="panel-body">
-          ${commands.length ? `
-            <div class="commands-list">
-              ${commands.map(([trigger, response]) => {
-                const resp = typeof response === 'object' ? response.response : response;
-                return `<div class="cmd-item" onclick="copyCmd('${trigger}')">
-                  <span class="cmd-trigger">${trigger}</span>
-                  <span class="cmd-response">${resp}</span>
-                  <span class="cmd-copy">copiar</span>
-                </div>`;
-              }).join('')}
-            </div>` : `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No hay comandos configurados aún</div>`}
-        </div>
-      </div>`;
 
     document.getElementById('mainContent').innerHTML = mainHtml;
     document.getElementById('mainContent').style.display = 'block';
@@ -310,24 +453,24 @@ async function loadCanal() {
       const activeDays = days.filter(d => data.stream_schedule[d]?.active);
       if (activeDays.length) {
         const tz = data.stream_schedule.timezone || 'America/Santo_Domingo';
-        const scheduleHtml = days.map((day, i) => {
+        const scheduleHtml = days.map((day,i) => {
           const d = data.stream_schedule[day];
           if (!d?.active) return '';
           const isToday = i === todayIdx;
-          return `<div class="schedule-day${isToday?' today':''}">
-            <span class="schedule-day-name">${isToday?'🔴 ':''}<strong>${dayNames[i]}</strong></span>
+          return `<div class="schedule-item${isToday?' today':''}">
+            <div class="schedule-dot"></div>
+            <span class="schedule-day-name">${dayNames[i]}${isToday?`<span class="schedule-today-badge">hoy</span>`:''}</span>
             <span class="schedule-time">⏰ ${d.start} — ${d.end}</span>
-            ${d.note ? `<span class="schedule-note">${d.note}</span>` : ''}
+            ${d.note?`<span class="schedule-note">${d.note}</span>`:''}
           </div>`;
         }).filter(Boolean).join('');
-
         insertBefore(`
           <div class="panel">
             <div class="panel-header">
               <span class="panel-title">📅 Horario</span>
-              <span class="panel-count" style="font-size:11px;">${tz.split('/')[1]?.replace('_',' ')||tz}</span>
+              <span class="panel-badge">${tz.split('/')[1]?.replace(/_/g,' ')||tz}</span>
             </div>
-            <div class="panel-body"><div class="schedule-grid">${scheduleHtml}</div></div>
+            <div class="panel-body"><div class="schedule-list">${scheduleHtml}</div></div>
           </div>`);
       }
     }
@@ -343,16 +486,17 @@ async function loadCanal() {
             <div class="panel-body">
               <div class="media-grid">
                 ${clips.map(c => `
-                  <div class="media-card-wrap">
-                    <a href="${c.url}" target="_blank" class="media-card">
+                  <a href="${c.url}" target="_blank" class="media-card">
+                    <div class="media-thumb-wrap">
                       <img class="media-thumb" src="${c.thumbnail}" alt="${c.title}" loading="lazy">
-                      <div class="clip-duration">${c.duration}s</div>
-                      <div class="media-info">
-                        <div class="media-title">${c.title}</div>
-                        <div class="media-meta">👁️ ${c.views.toLocaleString()} vistas</div>
-                      </div>
-                    </a>
-                  </div>`).join('')}
+                      <div class="media-overlay"><div class="media-play">▶</div></div>
+                      <div class="media-duration">${c.duration}s</div>
+                    </div>
+                    <div class="media-info">
+                      <div class="media-title">${c.title}</div>
+                      <div class="media-meta"><span>👁️ ${c.views?.toLocaleString()||0}</span></div>
+                    </div>
+                  </a>`).join('')}
               </div>
             </div>
           </div>`);
@@ -372,7 +516,10 @@ async function loadCanal() {
                 <div class="media-grid">
                   ${videos.map(v => `
                     <a href="${v.url}" target="_blank" class="media-card">
-                      <img class="media-thumb" src="${v.thumb}" alt="${v.title}" loading="lazy">
+                      <div class="media-thumb-wrap">
+                        <img class="media-thumb" src="${v.thumb}" alt="${v.title}" loading="lazy">
+                        <div class="media-overlay"><div class="media-play">▶</div></div>
+                      </div>
                       <div class="media-info">
                         <div class="media-title">${v.title}</div>
                         <div class="media-meta">${v.date}</div>
@@ -393,6 +540,9 @@ async function loadCanal() {
 function insertBefore(html) {
   const footer = document.getElementById('footerSection');
   const div = document.createElement('div');
+  div.className = 'main';
+  div.style.paddingTop = '0';
+  div.style.paddingBottom = '0';
   div.innerHTML = html;
   footer.parentNode.insertBefore(div, footer);
 }
@@ -400,9 +550,9 @@ function insertBefore(html) {
 function showError(msg) {
   document.getElementById('heroSection').innerHTML = `
     <div class="error-card">
-      <div class="error-icon">🕷️</div>
-      <div class="error-title">Canal no encontrado</div>
-      <div class="error-desc">${msg}</div>
+      <div style="font-size:48px;margin-bottom:16px;">🕷️</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px;">Canal no encontrado</div>
+      <div style="font-size:13px;color:var(--text-dim);line-height:1.6;">${msg}</div>
     </div>`;
 }
 
