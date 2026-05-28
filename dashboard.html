@@ -3746,16 +3746,19 @@ function renderRewardsList() {
 function renderLevelsList() {
   const el = document.getElementById('levelsList');
   if (!el) return;
-  const levels = streamerData.points_config?.levels || [];
-  const emoji = streamerData.points_config?.emoji || '🏆';
+  const levels = streamerData.points_config?.levels || [
+    {level:1,name:'Súbdito',xp:0},
+    {level:2,name:'Caballero',xp:100},
+    {level:3,name:'Noble',xp:300},
+    {level:4,name:'Lord',xp:600},
+    {level:5,name:'Rey',xp:1000},
+  ];
   el.innerHTML = levels.map((l, i) => `
-    <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);">
-      <div style="font-size:18px;width:28px;text-align:center;">${emoji}</div>
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:500;">${l.name}</div>
-        <div style="font-size:11px;color:var(--text-muted);">Nivel ${l.level} — desde ${l.xp} XP</div>
-      </div>
-      ${i > 0 ? `<button onclick="removeLevel(${i})" class="btn btn-danger btn-sm">✕</button>` : ''}
+    <div style="display:grid;grid-template-columns:50px 1fr 90px 32px;gap:8px;align-items:center;">
+      <div style="font-size:13px;font-weight:700;color:var(--purple-light);text-align:center;background:var(--purple-dim);border-radius:6px;padding:4px 0;">Lv${l.level}</div>
+      <input class="form-input level-name" value="${l.name}" placeholder="Nombre" style="padding:6px 10px;font-size:12px;">
+      <input class="form-input level-xp" type="number" value="${l.xp}" min="0" placeholder="XP" style="padding:6px 8px;font-size:12px;text-align:center;" ${i===0?'disabled':''}>
+      <button onclick="removeLevel(this)" style="width:32px;height:32px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:6px;color:var(--pink);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;" ${i===0?'disabled':''}>✕</button>
     </div>`).join('');
 }
 
