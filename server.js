@@ -730,7 +730,6 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
     });
 
     const checkoutData = await checkoutRes.json();
-    console.log('[LS Checkout]', JSON.stringify(checkoutData).slice(0, 500));
     const url = checkoutData.data?.attributes?.url;
     if (!url) return res.status(500).json({ error: 'No se pudo crear el checkout' });
     res.json({ url });
@@ -1141,6 +1140,51 @@ app.post('/api/moderation', requireAuth, async (req, res) => {
     console.error('POST /api/moderation:', err.message);
     res.status(500).json({ error: 'Error al guardar' });
   }
+});
+
+// ── 404 ──
+app.use((req, res) => {
+  res.status(404).send(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuffetBot — Página no encontrada</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0a0c;font-family:'Inter',sans-serif;color:#eeeef5;min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  background-image:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(145,71,255,0.08),transparent);}
+.card{text-align:center;max-width:420px;padding:48px 32px;}
+.spider{font-size:80px;margin-bottom:24px;display:block;animation:swing 3s ease-in-out infinite;}
+@keyframes swing{0%,100%{transform:rotate(-8deg);}50%{transform:rotate(8deg);}}
+.code{font-size:80px;font-weight:900;letter-spacing:-3px;line-height:1;
+  background:linear-gradient(135deg,#fff,#b388ff,#9147ff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+h1{font-size:22px;font-weight:700;margin:12px 0 10px;}
+p{font-size:14px;color:#6b6b82;line-height:1.7;margin-bottom:32px;}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+a{padding:11px 24px;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.15s;}
+.btn-primary{background:#9147ff;color:white;box-shadow:0 0 20px rgba(145,71,255,0.3);}
+.btn-primary:hover{background:#7d2ff7;}
+.btn-ghost{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#6b6b82;}
+.btn-ghost:hover{color:#eeeef5;border-color:rgba(255,255,255,0.2);}
+</style>
+</head>
+<body>
+<div class="card">
+  <span class="spider">🕷️</span>
+  <div class="code">404</div>
+  <h1>¡Dearie, esta página no existe!</h1>
+  <p>Parece que Muffet no puede encontrar lo que buscas.<br>Quizás la URL está mal o la página fue movida.</p>
+  <div class="btns">
+    <a href="/" class="btn-primary">🏠 Ir al inicio</a>
+    <a href="/dashboard" class="btn-ghost">🎮 Dashboard</a>
+  </div>
+</div>
+</body>
+</html>`);
 });
 
 app.listen(PORT, () => console.log(`🐻🕷️ Dashboard en puerto ${PORT} | Producción: ${IS_PROD}`));
