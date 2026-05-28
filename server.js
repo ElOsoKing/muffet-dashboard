@@ -730,6 +730,7 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
     });
 
     const checkoutData = await checkoutRes.json();
+    console.log('[LS Checkout]', JSON.stringify(checkoutData).slice(0,500));
     const url = checkoutData.data?.attributes?.url;
     if (!url) return res.status(500).json({ error: 'No se pudo crear el checkout' });
     res.json({ url });
