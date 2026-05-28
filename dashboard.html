@@ -2015,8 +2015,8 @@ function renderMain() {
               return levels.map((l,i) => `
                 <div style="display:grid;grid-template-columns:50px 1fr 90px 32px;gap:8px;align-items:center;">
                   <div style="font-size:13px;font-weight:700;color:var(--purple-light);text-align:center;background:var(--purple-dim);border-radius:6px;padding:4px 0;">Lv${l.level}</div>
-                  <input class="form-input level-name" value="${l.name}" placeholder="Nombre" style="padding:6px 10px;font-size:12px;">
-                  <input class="form-input level-xp" type="number" value="${l.xp}" min="0" placeholder="XP" style="padding:6px 8px;font-size:12px;text-align:center;" ${i===0?'disabled':''}>
+                  <input class="form-input level-name" autocomplete="off" value="${l.name}" placeholder="Nombre" style="padding:6px 10px;font-size:12px;">
+                  <input class="form-input level-xp" autocomplete="off" type="number" value="${l.xp}" min="0" placeholder="XP" style="padding:6px 8px;font-size:12px;text-align:center;" ${i===0?'disabled':''}>
                   <button onclick="removeLevel(this)" style="width:32px;height:32px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:6px;color:var(--pink);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;" ${i===0?'disabled':''}>✕</button>
                 </div>`).join('');
             })()}
@@ -3756,8 +3756,8 @@ function renderLevelsList() {
   el.innerHTML = levels.map((l, i) => `
     <div style="display:grid;grid-template-columns:50px 1fr 90px 32px;gap:8px;align-items:center;">
       <div style="font-size:13px;font-weight:700;color:var(--purple-light);text-align:center;background:var(--purple-dim);border-radius:6px;padding:4px 0;">Lv${l.level}</div>
-      <input class="form-input level-name" value="${l.name}" placeholder="Nombre" style="padding:6px 10px;font-size:12px;">
-      <input class="form-input level-xp" type="number" value="${l.xp}" min="0" placeholder="XP" style="padding:6px 8px;font-size:12px;text-align:center;" ${i===0?'disabled':''}>
+      <input class="form-input level-name" autocomplete="off" value="${l.name}" placeholder="Nombre" style="padding:6px 10px;font-size:12px;">
+      <input class="form-input level-xp" autocomplete="off" type="number" value="${l.xp}" min="0" placeholder="XP" style="padding:6px 8px;font-size:12px;text-align:center;" ${i===0?'disabled':''}>
       <button onclick="removeLevel(this)" style="width:32px;height:32px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:6px;color:var(--pink);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;" ${i===0?'disabled':''}>✕</button>
     </div>`).join('');
 }
@@ -4046,8 +4046,8 @@ function addLevel() {
   div.style.cssText = 'display:grid;grid-template-columns:60px 1fr 120px 36px;gap:8px;align-items:center;';
   div.innerHTML = `
     <div style="font-size:14px;font-weight:600;color:var(--purple-light);text-align:center;">Lv.${count}</div>
-    <input class="form-input level-name" value="Nivel ${count}" placeholder="Nombre del nivel" style="padding:7px 12px;">
-    <input class="form-input level-xp" type="number" value="${count*200}" min="0" placeholder="XP" style="padding:7px 12px;">
+    <input class="form-input level-name" autocomplete="off" value="Nivel ${count}" placeholder="Nombre del nivel" style="padding:7px 12px;">
+    <input class="form-input level-xp" autocomplete="off" type="number" value="${count*200}" min="0" placeholder="XP" style="padding:7px 12px;">
     <button class="btn btn-danger btn-sm" onclick="removeLevel(this)" style="padding:6px 8px;width:36px;">✕</button>`;
   list.appendChild(div);
 }
