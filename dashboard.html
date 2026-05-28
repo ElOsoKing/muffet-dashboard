@@ -493,6 +493,22 @@ function renderMain() {
       <div class="page-subtitle">Tu bot está activo y listo para el chat 🕷️</div>
     </div>
 
+    <!-- Alerta plan por vencer -->
+    ${(()=>{
+      if (s.plan !== 'pro' || !s.plan_expires_at) return '';
+      const daysLeft = Math.ceil((new Date(s.plan_expires_at) - new Date()) / (1000*60*60*24));
+      if (daysLeft > 7) return '';
+      const isExpired = daysLeft <= 0;
+      return `<div style="background:${isExpired?'rgba(224,90,122,0.1)':'rgba(240,192,96,0.08)'};border:1px solid ${isExpired?'rgba(224,90,122,0.3)':'rgba(240,192,96,0.25)'};border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:22px;">${isExpired?'❌':'⚠️'}</span>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:700;color:${isExpired?'var(--pink)':'var(--yellow)'};">${isExpired?'Tu plan Pro ha expirado':'Tu plan Pro vence pronto'}</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">${isExpired?'Renueva para recuperar todas las funciones Pro':'Vence en '+daysLeft+' día'+(daysLeft===1?'':'s')+' — '+new Date(s.plan_expires_at).toLocaleDateString('es-DO',{day:'numeric',month:'long'})}</div>
+        </div>
+        <a href="/plans" style="padding:8px 18px;background:${isExpired?'var(--pink)':'var(--yellow)'};color:black;border-radius:20px;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">${isExpired?'Renovar':'Renovar ahora'}</a>
+      </div>`;
+    })()}
+
     <!-- Barra de estado -->
     <div style="background:linear-gradient(135deg,rgba(64,208,144,0.06),rgba(145,71,255,0.06));border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
       <div style="width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 10px rgba(64,208,144,0.7);animation:pulse 2s infinite;"></div>
