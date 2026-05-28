@@ -1516,8 +1516,9 @@ function renderMain() {
       <div class="page-title">📊 Estadísticas</div>
       <div class="page-subtitle">Resumen de actividad de tu canal</div>
     </div>
+
     ${s.plan!=='pro'?`
-    <div style="background:linear-gradient(135deg,rgba(240,192,96,0.08),rgba(240,192,96,0.02));border:1px solid rgba(240,192,96,0.2);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+    <div style="background:linear-gradient(135deg,rgba(240,192,96,0.08),rgba(240,192,96,0.02));border:1px solid rgba(240,192,96,0.2);border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
       <span style="font-size:20px;">⭐</span>
       <div style="flex:1;">
         <div style="font-size:13px;font-weight:600;color:var(--yellow);">Estadísticas básicas — Plan Free</div>
@@ -1525,116 +1526,127 @@ function renderMain() {
       </div>
       <a href="/plans" style="font-size:12px;padding:6px 14px;border-radius:16px;text-decoration:none;background:rgba(240,192,96,0.15);border:1px solid rgba(240,192,96,0.3);color:var(--yellow);font-weight:600;white-space:nowrap;">Ver Pro</a>
     </div>`:''}
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-      <button class="btn" onclick="cleanBroadcasterFromRanking()" style="background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.25);color:var(--pink);font-size:12px;padding:7px 14px;">🧹 Quitarme del ranking</button>
-      <button class="btn" onclick="resetCommandStats()" style="background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.25);color:var(--pink);font-size:12px;padding:7px 14px;">🔄 Resetear estadísticas de comandos</button>
-    </div>
 
-    <!-- Tarjetas rápidas -->
-    <div class="stats-grid" style="margin-bottom:16px;">
-      <div class="stat-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Comandos usados</span>
-          <div style="width:36px;height:36px;border-radius:10px;background:rgba(145,71,255,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">⚡</div>
-        </div>
-        <div style="font-size:32px;font-weight:700;letter-spacing:-1px;line-height:1;" id="statTotalCmds">—</div>
+    <!-- 4 stat cards -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+      <div style="background:linear-gradient(135deg,rgba(145,71,255,0.08),var(--bg2));border:1px solid rgba(145,71,255,0.2);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-10px;width:70px;height:70px;background:radial-gradient(circle,rgba(145,71,255,0.15),transparent);border-radius:50%;pointer-events:none;"></div>
+        <div style="width:38px;height:38px;background:rgba(145,71,255,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;">⚡</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Comandos usados</div>
+        <div style="font-size:32px;font-weight:800;letter-spacing:-1px;line-height:1;color:var(--purple-light);" id="statTotalCmds">—</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">total histórico</div>
       </div>
-      <div class="stat-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Viewers con puntos</span>
-          <div style="width:36px;height:36px;border-radius:10px;background:rgba(240,192,96,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">👥</div>
-        </div>
-        <div style="font-size:32px;font-weight:700;letter-spacing:-1px;line-height:1;" id="statTotalViewers">—</div>
+      <div style="background:linear-gradient(135deg,rgba(240,192,96,0.08),var(--bg2));border:1px solid rgba(240,192,96,0.2);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-10px;width:70px;height:70px;background:radial-gradient(circle,rgba(240,192,96,0.15),transparent);border-radius:50%;pointer-events:none;"></div>
+        <div style="width:38px;height:38px;background:rgba(240,192,96,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;">👥</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Viewers con puntos</div>
+        <div style="font-size:32px;font-weight:800;letter-spacing:-1px;line-height:1;color:var(--yellow);" id="statTotalViewers">—</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">en el ranking</div>
       </div>
-      <div class="stat-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Comando más usado</span>
-          <div style="width:36px;height:36px;border-radius:10px;background:rgba(64,208,144,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">🏆</div>
-        </div>
-        <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:var(--green);" id="statTopCmd">—</div>
+      <div style="background:linear-gradient(135deg,rgba(64,208,144,0.08),var(--bg2));border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-10px;width:70px;height:70px;background:radial-gradient(circle,rgba(64,208,144,0.15),transparent);border-radius:50%;pointer-events:none;"></div>
+        <div style="width:38px;height:38px;background:rgba(64,208,144,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;">🏆</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Comando top</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px;line-height:1;color:var(--green);" id="statTopCmd">—</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px;" id="statTopCmdCount">—</div>
       </div>
-      <div class="stat-card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-          <span style="font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Viewer más activo</span>
-          <div style="width:36px;height:36px;border-radius:10px;background:rgba(224,90,122,0.15);display:flex;align-items:center;justify-content:center;font-size:18px;">⭐</div>
-        </div>
-        <div style="font-size:20px;font-weight:700;letter-spacing:-0.5px;line-height:1;color:var(--pink);" id="statTopViewer">—</div>
+      <div style="background:linear-gradient(135deg,rgba(224,90,122,0.08),var(--bg2));border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-10px;width:70px;height:70px;background:radial-gradient(circle,rgba(224,90,122,0.15),transparent);border-radius:50%;pointer-events:none;"></div>
+        <div style="width:38px;height:38px;background:rgba(224,90,122,0.15);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;">⭐</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Viewer top</div>
+        <div style="font-size:20px;font-weight:800;letter-spacing:-0.5px;line-height:1;color:var(--pink);" id="statTopViewer">—</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px;" id="statTopViewerPts">—</div>
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <!-- Botones de acción -->
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+      <button onclick="loadStats()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:20px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(145,71,255,0.2)'" onmouseout="this.style.background='var(--purple-dim)'">↻ Actualizar</button>
+      <button onclick="cleanBroadcasterFromRanking()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:20px;color:var(--pink);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(224,90,122,0.15)'" onmouseout="this.style.background='rgba(224,90,122,0.08)'">🧹 Quitarme del ranking</button>
+      <button onclick="resetCommandStats()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:20px;color:var(--pink);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.background='rgba(224,90,122,0.15)'" onmouseout="this.style.background='rgba(224,90,122,0.08)'">🔄 Resetear estadísticas</button>
+    </div>
+
+    <!-- Panels -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
       <!-- Comandos más usados -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title-text">⚡ Comandos más usados</span>
-          <button class="btn btn-success btn-sm" onclick="loadStats()">↻</button>
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">⚡</div>
+            <span style="font-size:13px;font-weight:700;color:var(--text);">Comandos más usados</span>
+          </div>
         </div>
-        <div class="panel-body" id="statsCmdsPanel">
+        <div style="padding:16px 20px;" id="statsCmdsPanel">
           <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Cargando...</div>
         </div>
       </div>
 
       <!-- Top viewers -->
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title-text">👥 Top viewers</span>
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:10px;">
+          <div style="width:32px;height:32px;background:rgba(240,192,96,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">👑</div>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">Top viewers</span>
         </div>
-        <div class="panel-body" id="statsViewersPanel">
+        <div style="padding:16px 20px;" id="statsViewersPanel">
           <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Cargando...</div>
         </div>
       </div>
     </div>
 
-    <!-- Primerin -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:0;">
-      <div class="panel">
-        <div class="panel-header">
-          <span class="panel-title-text">🥇 Primerin</span>
-          <button class="btn btn-danger btn-sm" onclick="resetPrimerinRanking()" style="background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.3);color:var(--pink);">Reiniciar</button>
+    <!-- Primerin ranking -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:rgba(240,192,96,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">🥇</div>
+            <span style="font-size:13px;font-weight:700;color:var(--text);">Primerin</span>
+          </div>
+          <button onclick="resetPrimerinRanking()" style="padding:5px 12px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:16px;color:var(--pink);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);">Reiniciar</button>
         </div>
-        <div class="panel-body">
-          <div class="form-group" style="margin-bottom:12px;">
-            <label class="form-label">Comando</label>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <span style="font-size:14px;font-weight:600;color:var(--purple-light);">!</span>
-              <input class="form-input" id="priminCmdStats" value="${(s.primerin_config||{}).command||'primerin'}" placeholder="primerin" style="width:130px;">
-              <button class="btn btn-primary btn-sm" onclick="savePrimerinConfigFrom('priminCmdStats')">Guardar</button>
-            </div>
+        <div style="padding:16px 20px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <span style="font-size:12px;color:var(--text-dim);">Comando:</span>
+            <span style="font-size:13px;font-weight:700;color:var(--purple-light);">!</span>
+            <input class="form-input" id="priminCmdStats" value="${(s.primerin_config||{}).command||'primerin'}" placeholder="primerin" style="width:110px;padding:5px 10px;font-size:12px;">
+            <button onclick="savePrimerinConfigFrom('priminCmdStats')" style="padding:5px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:16px;color:var(--purple-light);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);">Guardar</button>
           </div>
           ${(()=>{
             const pc = s.primerin_config || {};
             const today = new Date().toISOString().split('T')[0];
             const usedToday = pc.used_today || {};
             if (usedToday.date === today) return `
-              <div style="padding:10px 12px;background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.2);border-radius:var(--radius-sm);display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-                <span style="font-size:20px;">🥇</span>
-                <div><div style="font-size:10px;color:var(--yellow);font-weight:600;text-transform:uppercase;">Primero hoy</div><div style="font-size:13px;font-weight:600;">@${usedToday.winner}</div></div>
+              <div style="padding:10px 14px;background:linear-gradient(135deg,rgba(240,192,96,0.1),var(--bg3));border:1px solid rgba(240,192,96,0.2);border-radius:var(--radius-sm);display:flex;align-items:center;gap:10px;">
+                <span style="font-size:24px;">🥇</span>
+                <div>
+                  <div style="font-size:10px;color:var(--yellow);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Primero hoy</div>
+                  <div style="font-size:14px;font-weight:700;color:var(--text);margin-top:2px;">@${usedToday.winner}</div>
+                </div>
               </div>`;
-            return `<div style="padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);margin-bottom:12px;">Nadie ha ganado hoy aún</div>`;
+            return `<div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-muted);text-align:center;">Nadie ha ganado hoy aún</div>`;
           })()}
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-header"><span class="panel-title-text">🏆 Ranking Primerin</span></div>
-        <div class="panel-body">
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:10px;">
+          <div style="width:32px;height:32px;background:rgba(240,192,96,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">🏆</div>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">Ranking Primerin</span>
+        </div>
+        <div style="padding:16px 20px;">
           ${(()=>{
             const pc = s.primerin_config || {};
             const ranking = Object.entries(pc.ranking || {}).sort(([,a],[,b]) => b-a);
-            if (!ranking.length) return `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Nadie ha ganado aún</div>`;
+            if (!ranking.length) return `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Nadie ha ganado aún 🥇</div>`;
             const medals = ['🥇','🥈','🥉'];
             const max = ranking[0][1];
             return ranking.map(([user, wins], i) => `
-              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<ranking.length-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
-                <div style="font-size:${i<3?'16px':'11px'};width:20px;text-align:center;${i>=3?'color:var(--text-muted);font-weight:700;':''}">${i<3?medals[i]:i+1}</div>
-                <div style="font-size:13px;font-weight:500;flex:1;">@${user}</div>
-                <div style="font-size:12px;font-weight:600;color:var(--yellow);">${wins}x</div>
-                <div style="width:60px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
-                  <div style="height:100%;width:${Math.round((wins/max)*100)}%;background:var(--yellow);border-radius:2px;"></div>
+              <div style="display:flex;align-items:center;gap:10px;padding:9px 0;${i<ranking.length-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
+                <div style="font-size:${i<3?'18px':'11px'};width:24px;text-align:center;${i>=3?'color:var(--text-muted);font-weight:700;':''}">${i<3?medals[i]:i+1}</div>
+                <div style="font-size:13px;font-weight:600;color:var(--text);flex:1;">@${user}</div>
+                <div style="font-size:12px;font-weight:700;color:var(--yellow);">${wins}x</div>
+                <div style="width:64px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
+                  <div style="height:100%;width:${Math.round((wins/max)*100)}%;background:linear-gradient(90deg,var(--yellow),rgba(240,192,96,0.4));border-radius:2px;"></div>
                 </div>
               </div>`).join('');
           })()}
