@@ -701,6 +701,7 @@ app.post('/api/checkout', requireAuth, async (req, res) => {
       process.env.LEMONSQUEEZY_VARIANT_BIANNUAL,
       process.env.LEMONSQUEEZY_VARIANT_ANNUAL,
     ];
+    console.log('[Checkout] variant_id recibido:', variant_id, '| válidos:', validVariants);
     if (!validVariants.includes(String(variant_id))) return res.status(400).json({ error: 'Plan inválido' });
 
     const checkoutRes = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
