@@ -1939,148 +1939,184 @@ function renderMain() {
       <div class="page-subtitle">Sistema de recompensas para tu comunidad</div>
     </div>
 
-    <!-- Configuración general -->
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
-      <div class="panel-body">
-        <div class="toggle-row">
-          <div><div class="toggle-label">Sistema activo</div><div class="toggle-desc">Los viewers ganan puntos y suben de nivel en el chat</div></div>
+    <!-- Config + Niveles en grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+
+      <!-- Configuración -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:rgba(240,192,96,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">⚙️</div>
+            <span style="font-size:13px;font-weight:700;color:var(--text);">Configuración</span>
+          </div>
           <label class="toggle"><input type="checkbox" id="pointsEnabled" ${(s.points_config?.enabled !== false)?'checked':''} onchange="savePointsConfig()"><span class="toggle-slider"></span></label>
         </div>
-        <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div class="form-group">
-            <label class="form-label">Nombre de la moneda</label>
-            <input class="form-input" id="pointsName" value="${s.points_config?.name||'puntos'}" placeholder="puntos, monedas, miel...">
+        <div style="padding:18px 20px;">
+          <!-- Moneda preview -->
+          <div style="background:linear-gradient(135deg,rgba(240,192,96,0.08),var(--bg3));border:1px solid rgba(240,192,96,0.15);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+            <div style="font-size:28px;" id="pointsEmojiPreview">${s.points_config?.emoji||'🏆'}</div>
+            <div>
+              <div style="font-size:16px;font-weight:800;color:var(--yellow);" id="pointsNamePreview">${s.points_config?.name||'puntos'}</div>
+              <div style="font-size:11px;color:var(--text-muted);">Vista previa de tu moneda</div>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Emoji de la moneda</label>
-            <input class="form-input" id="pointsEmoji" value="${s.points_config?.emoji||'🏆'}" placeholder="🏆 🍯 💎 ⭐">
+
+          <div style="display:grid;grid-template-columns:1fr 80px;gap:10px;margin-bottom:12px;">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Nombre de la moneda</div>
+              <input class="form-input" id="pointsName" value="${s.points_config?.name||'puntos'}" placeholder="puntos, monedas, miel..." oninput="document.getElementById('pointsNamePreview').textContent=this.value||'puntos'">
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Emoji</div>
+              <input class="form-input" id="pointsEmoji" value="${s.points_config?.emoji||'🏆'}" placeholder="🏆" style="text-align:center;font-size:18px;" oninput="document.getElementById('pointsEmojiPreview').textContent=this.value||'🏆'">
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">XP por mensaje</label>
-            <input class="form-input" type="number" id="xpPerMessage" value="${s.points_config?.xp_per_message||1}" min="0" max="100">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">XP por mensaje</div>
+              <input class="form-input" type="number" id="xpPerMessage" value="${s.points_config?.xp_per_message||1}" min="0" max="100" style="text-align:center;font-size:14px;font-weight:700;">
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Bonus subs/VIPs</div>
+              <input class="form-input" type="number" id="xpBonus" value="${s.points_config?.xp_bonus||2}" min="0" max="100" style="text-align:center;font-size:14px;font-weight:700;">
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">XP extra para subs/VIPs</label>
-            <input class="form-input" type="number" id="xpBonus" value="${s.points_config?.xp_bonus||2}" min="0" max="100">
-          </div>
+
+          <button onclick="savePointsConfig()" style="width:100%;padding:10px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">Guardar configuración</button>
         </div>
-        <button class="btn btn-primary" onclick="savePointsConfig()">Guardar configuración</button>
+      </div>
+
+      <!-- Niveles -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">📊</div>
+            <span style="font-size:13px;font-weight:700;color:var(--text);">Niveles</span>
+          </div>
+          <button onclick="addLevel()" style="padding:5px 14px;background:rgba(64,208,144,0.1);border:1px solid rgba(64,208,144,0.2);border-radius:16px;color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">+ Agregar</button>
+        </div>
+        <div style="padding:14px 20px;">
+          <div style="display:grid;grid-template-columns:50px 1fr 90px 32px;gap:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.04);margin-bottom:8px;">
+            <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;text-align:center;">Lv</span>
+            <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Nombre</span>
+            <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">XP mín</span>
+            <span></span>
+          </div>
+          <div id="levelsList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+            ${(()=>{
+              const levels = s.points_config?.levels || [
+                {level:1,name:'Súbdito',xp:0},
+                {level:2,name:'Caballero',xp:100},
+                {level:3,name:'Noble',xp:300},
+                {level:4,name:'Lord',xp:600},
+                {level:5,name:'Rey',xp:1000},
+              ];
+              return levels.map((l,i) => `
+                <div style="display:grid;grid-template-columns:50px 1fr 90px 32px;gap:8px;align-items:center;">
+                  <div style="font-size:13px;font-weight:700;color:var(--purple-light);text-align:center;background:var(--purple-dim);border-radius:6px;padding:4px 0;">Lv${l.level}</div>
+                  <input class="form-input level-name" value="${l.name}" placeholder="Nombre" style="padding:6px 10px;font-size:12px;">
+                  <input class="form-input level-xp" type="number" value="${l.xp}" min="0" placeholder="XP" style="padding:6px 8px;font-size:12px;text-align:center;" ${i===0?'disabled':''}>
+                  <button onclick="removeLevel(this)" style="width:32px;height:32px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:6px;color:var(--pink);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;" ${i===0?'disabled':''}>✕</button>
+                </div>`).join('');
+            })()}
+          </div>
+          <button onclick="saveLevels()" style="width:100%;padding:9px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">Guardar niveles</button>
+        </div>
       </div>
     </div>
 
-    <!-- Niveles personalizables -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">📊 Niveles</span>
-        <button class="btn btn-success btn-sm" onclick="addLevel()">+ Agregar nivel</button>
-      </div>
-      <div class="panel-body">
-        <div style="display:grid;grid-template-columns:60px 1fr 120px 36px;gap:8px;padding:0 0 8px;border-bottom:1px solid rgba(255,255,255,0.04);margin-bottom:10px;">
-          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Nivel</span>
-          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Nombre</span>
-          <span style="font-size:10px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">XP requerido</span>
-          <span></span>
-        </div>
-        <div id="levelsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-          ${(()=>{
-            const levels = s.points_config?.levels || [
-              {level:1, name:'Súbdito', xp:0},
-              {level:2, name:'Caballero', xp:100},
-              {level:3, name:'Noble', xp:300},
-              {level:4, name:'Lord', xp:600},
-              {level:5, name:'Rey', xp:1000},
-            ];
-            return levels.map((l,i) => `
-              <div style="display:grid;grid-template-columns:60px 1fr 120px 36px;gap:8px;align-items:center;">
-                <div style="font-size:14px;font-weight:600;color:var(--purple-light);text-align:center;">Lv.${l.level}</div>
-                <input class="form-input level-name" value="${l.name}" placeholder="Nombre del nivel" style="padding:7px 12px;">
-                <input class="form-input level-xp" type="number" value="${l.xp}" min="0" placeholder="XP" style="padding:7px 12px;" ${i===0?'disabled':''}>
-                <button class="btn btn-danger btn-sm" onclick="removeLevel(this)" style="padding:6px 8px;width:36px;" ${i===0?'disabled':''}}>✕</button>
-              </div>`).join('');
-          })()}
-        </div>
-        <button class="btn btn-primary" onclick="saveLevels()">Guardar niveles</button>
-      </div>
-    </div>
+    <!-- Premios + Apuestas en grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
 
-    <!-- Tutorial comandos -->
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">📋 Comandos disponibles</span></div>
-      <div class="panel-body">
-        <div style="display:flex;flex-direction:column;gap:8px;">
+      <!-- Premios canjeables -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:32px;height:32px;background:rgba(64,208,144,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">🎁</div>
+            <span style="font-size:13px;font-weight:700;color:var(--text);">Premios canjeables</span>
+          </div>
+          <button onclick="addReward()" style="padding:5px 14px;background:rgba(64,208,144,0.1);border:1px solid rgba(64,208,144,0.2);border-radius:16px;color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">+ Agregar</button>
+        </div>
+        <div style="padding:14px 20px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">Los viewers usan <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 5px;border-radius:3px;">!canjear</code> para ver y solicitar premios</div>
+          <div id="rewardsList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px;">
+            ${(()=>{
+              const rewards = s.points_config?.rewards || [];
+              if (!rewards.length) return `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;background:var(--bg3);border-radius:var(--radius-sm);">Sin premios aún. Agrega uno arriba.</div>`;
+              return rewards.map((r,i) => `
+                <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.04);">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.name}</div>
+                    ${r.description?`<div style="font-size:11px;color:var(--text-muted);margin-top:1px;">${r.description}</div>`:''}
+                  </div>
+                  <div style="font-size:13px;font-weight:700;color:var(--yellow);flex-shrink:0;">${r.cost} ${s.points_config?.emoji||'🏆'}</div>
+                  <button onclick="removeReward(${i})" style="width:26px;height:26px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);border-radius:6px;color:var(--pink);cursor:pointer;font-size:13px;flex-shrink:0;">✕</button>
+                </div>`).join('');
+            })()}
+          </div>
+
+          <!-- Límite apuesta -->
+          <div style="padding-top:12px;border-top:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Límite de apuesta</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <input class="form-input" type="number" id="maxBet" value="${s.points_config?.max_bet||500}" min="1" style="width:90px;text-align:center;font-size:14px;font-weight:700;">
+              <span style="font-size:12px;color:var(--text-dim);">${s.points_config?.emoji||'🏆'} máximo por !apostar</span>
+            </div>
+            <button onclick="saveRewards()" style="width:100%;padding:9px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">Guardar premios</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comandos -->
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:10px;">
+          <div style="width:32px;height:32px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">📋</div>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">Comandos del chat</span>
+        </div>
+        <div style="padding:12px 20px;display:flex;flex-direction:column;gap:5px;">
           ${[
-            ['!puntos','Ver tus puntos y nivel actual','Todos'],
-            ['!puntos @usuario','Ver los puntos de otro usuario','Todos'],
-            ['!top','Ver el top 5 del canal','Todos'],
-            ['!dar N @usuario','Dar puntos a un usuario','Mods'],
-            ['!apostar N','Apostar puntos — 50% ganar, 50% perder','Todos'],
-            ['!canjear','Ver la lista de premios disponibles','Todos'],
-            ['!canjear Premio','Solicitar canjear un premio','Todos'],
-          ].map(([cmd,desc,who])=>`
-            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
-              <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:180px;">${cmd}</code>
-              <span style="font-size:12px;color:var(--text-dim);flex:1;">${desc}</span>
+            ['!puntos','Ver tus puntos y nivel','Todos'],
+            ['!puntos @usuario','Ver puntos de otro viewer','Todos'],
+            ['!top','Top 5 del canal','Todos'],
+            ['!dar N @usuario','Dar puntos a un viewer','Mods'],
+            ['!apostar N','Apostar puntos 50/50','Todos'],
+            ['!canjear','Ver premios disponibles','Todos'],
+            ['!canjear Premio','Solicitar un premio','Todos'],
+          ].map(([cmd,desc,who]) => `
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <code style="font-size:11px;font-weight:700;color:var(--purple-light);font-family:monospace;min-width:140px;flex-shrink:0;">${cmd}</code>
+              <span style="font-size:11px;color:var(--text-dim);flex:1;">${desc}</span>
               ${permBadge(who)}
             </div>`).join('')}
         </div>
       </div>
     </div>
 
-    <!-- Premios canjeables -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">🎁 Premios canjeables</span>
-        <button class="btn btn-success btn-sm" onclick="addReward()">+ Agregar</button>
-      </div>
-      <div class="panel-body">
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Los viewers pueden canjear sus puntos por estos premios con <code style="color:var(--purple-light);">!canjear</code></div>
-        <div id="rewardsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-          ${(()=>{
-            const rewards = s.points_config?.rewards || [];
-            if (!rewards.length) return `<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">No hay premios. Agrega uno con el botón de arriba.</div>`;
-            return rewards.map((r,i) => `
-              <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);">
-                <div style="flex:1;">
-                  <div style="font-size:13px;font-weight:500;color:var(--text);">${r.name}</div>
-                  <div style="font-size:11px;color:var(--text-dim);">${r.description||''}</div>
-                </div>
-                <div style="font-size:13px;font-weight:600;color:var(--purple-light);">${r.cost} ${s.points_config?.emoji||'🏆'}</div>
-                <button class="btn btn-danger btn-sm" onclick="removeReward(${i})">✕</button>
-              </div>`).join('');
-          })()}
-        </div>
-
-        <!-- Límite de apuesta -->
-        <div class="form-group" style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">
-          <label class="form-label">Límite de apuesta (!apostar)</label>
-          <div style="display:flex;align-items:center;gap:10px;">
-            <input class="form-input" type="number" id="maxBet" value="${s.points_config?.max_bet||500}" min="1" style="width:120px;">
-            <span style="font-size:12px;color:var(--text-dim);">${s.points_config?.emoji||'🏆'} máximo por apuesta</span>
-          </div>
-        </div>
-        <button class="btn btn-primary" style="margin-top:12px;" onclick="saveRewards()">Guardar premios</button>
-      </div>
-    </div>
-
     <!-- Solicitudes de canje -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">📋 Solicitudes de canje</span>
-        <button class="btn btn-success btn-sm" onclick="loadRedeemRequests()">↻ Actualizar</button>
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:32px;height:32px;background:rgba(88,166,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">📬</div>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">Solicitudes de canje</span>
+        </div>
+        <button onclick="loadRedeemRequests()" style="padding:5px 14px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:16px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">↻ Actualizar</button>
       </div>
-      <div class="panel-body" id="redeemRequestsPanel">
+      <div style="padding:14px 20px;" id="redeemRequestsPanel">
         <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Click en actualizar para ver las solicitudes</div>
       </div>
     </div>
 
     <!-- Ranking -->
-    <div class="panel">
-      <div class="panel-header">
-        <span class="panel-title-text">👑 Ranking del canal</span>
-        <button class="btn btn-success btn-sm" onclick="loadRanking()">↻ Actualizar</button>
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:32px;height:32px;background:rgba(240,192,96,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">👑</div>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">Ranking del canal</span>
+        </div>
+        <button onclick="loadRanking()" style="padding:5px 14px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:16px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">↻ Actualizar</button>
       </div>
-      <div class="panel-body" id="rankingContent">
+      <div style="padding:14px 20px;" id="rankingContent">
         <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Click en actualizar para ver el ranking</div>
       </div>
     </div>
