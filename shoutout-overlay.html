@@ -100,7 +100,7 @@ function spawnConfetti() {
   }
 }
 
-function showShoutout(user, clip) {
+function showShoutout(user, clip, mp4Url) {
   const duration = clip ? Math.min((clip.duration * 1000) + 2000, 90000) : 10000;
 
   document.getElementById('badgeName').textContent = user.display_name || user.login;
@@ -110,13 +110,26 @@ function showShoutout(user, clip) {
     .catch(() => {});
 
   spawnConfetti();
-
-  // Hacer visible ANTES de cargar el clip
   document.getElementById('overlay').classList.add('show');
 
-  // Pequeño delay para que Twitch vea el iframe visible
   setTimeout(() => {
-    if (clip) {
+    if (mp4Url) {
+      // Video nativo — sin restricciones de Twitch embed
+      iframe.style.display = 'none';
+      const existing = document.getElementById('clipVideo');
+      if (existing) existing.remove();
+      const video = document.createElement('video');
+      video.id = 'clipVideo';
+      video.autoplay = true;
+      video.setAttribute('playsinline', '');
+      video.src = mp4Url;
+      video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:none;background:#000;z-index:2;';
+      document.getElementById('overlay').insertBefore(video, document.querySelector('.top-cover'));
+      video.play().catch(e => console.log('video error:', e));
+      video.onended = () => setTimeout(hideOverlay, 1500);
+    } else if (clip) {
+      // Fallback iframe
+      iframe.style.display = 'block';
       iframe.src = `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=true`;
     }
   }, 300);
@@ -134,8 +147,11 @@ function showShoutout(user, clip) {
 }
 
 function hideOverlay() {
-  // NO destruir el iframe — solo ocultar
   document.getElementById('overlay').classList.remove('show');
+  const video = document.getElementById('clipVideo');
+  if (video) { video.pause(); video.remove(); }
+  iframe.style.display = 'none';
+  iframe.src = `https://clips.twitch.tv/embed?clip=AwkwardHelplessSalamanderSwiftRage&parent=${DOMAIN}&autoplay=false&muted=true`;
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
   fill.style.width = '0%';
@@ -144,9 +160,34 @@ function hideOverlay() {
 
 async function handleSo(targetUser) {
   try {
+    // 1. Obtener info del clip del servidor
     const res = await fetch(`/api/shoutout-clips/${targetUser}`);
     const data = await res.json();
-    if (data?.user) showShoutout(data.user, data.clip);
+    if (!data?.user || !data?.clip) {
+      if (data?.user) showShoutout(data.user, null, null);
+      return;
+    }
+
+    // 2. Hacer GQL desde el BROWSER (mismo IP = nauth válida)
+    let mp4Url = null;
+    try {
+      const gqlRes = await fetch('https://gql.twitch.tv/gql', {
+        method: 'POST',
+        headers: { 'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' },
+        body: JSON.stringify([{
+          query: `{ clip(slug: "${data.clip.id}") { playbackAccessToken(params: {platform: "web", playerBackend: "mediaplayer", playerType: "site"}) { signature value } } }`
+        }])
+      });
+      const gqlData = await gqlRes.json();
+      const token = gqlData?.[0]?.data?.clip?.playbackAccessToken;
+      if (token) {
+        const tokenData = JSON.parse(token.value);
+        mp4Url = tokenData?.clip_uri || null;
+        console.log('[GQL browser] mp4Url obtenida:', mp4Url ? 'ok' : 'null');
+      }
+    } catch(e) { console.error('[GQL browser]', e); }
+
+    showShoutout(data.user, data.clip, mp4Url);
   } catch(e) { console.error('[!so]', e); }
 }
 
