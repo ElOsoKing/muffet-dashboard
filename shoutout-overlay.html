@@ -103,28 +103,32 @@ function showShoutout(user, clip) {
 
   if (clip) {
     if (player) {
-      // Reusar el player existente con el nuevo clip
-      player.setVideo('', 0); // limpiar
+      // Cambiar al nuevo clip
+      player.setClip(clip.id);
       setTimeout(() => {
-        player.setClip(clip.id);
         player.setVolume(1);
         player.setMuted(false);
         player.play();
-      }, 200);
+      }, 300);
     } else {
-      // Crear nuevo player de Twitch
+      // Crear player con channel primero (requerido por Twitch)
+      // luego cambiar a clip
       player = new Twitch.Player('twitch-player', {
-        clip: clip.id,
+        channel: channelName,
         width: '100%',
         height: '100%',
-        autoplay: true,
-        muted: false,
+        autoplay: false,
+        muted: true,
         parent: [DOMAIN],
       });
       player.addEventListener(Twitch.Player.READY, () => {
-        player.setVolume(1);
-        player.setMuted(false);
-        player.play();
+        // Ahora cambiar al clip
+        player.setClip(clip.id);
+        setTimeout(() => {
+          player.setVolume(1);
+          player.setMuted(false);
+          player.play();
+        }, 500);
       });
       player.addEventListener(Twitch.Player.ENDED, () => {
         setTimeout(hideOverlay, 1500);
