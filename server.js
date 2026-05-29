@@ -1220,6 +1220,7 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
         }])
       });
       const gqlData = await gqlRes.json();
+      console.log('[GQL respuesta]', JSON.stringify(gqlData).slice(0, 400));
       const clipData = gqlData?.[0]?.data?.clip;
       const token = clipData?.playbackAccessToken;
       const qualities = clipData?.videoQualities || [];
