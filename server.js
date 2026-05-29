@@ -1169,30 +1169,43 @@ app.post('/api/moderation', requireAuth, async (req, res) => {
 app.get('/api/shoutout-clips/:username', async (req, res) => {
   const target = req.params.username.toLowerCase();
   try {
-    // Obtener app token
     const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`, { method:'POST' });
     const tokenData = await tokenRes.json();
     const appToken = tokenData.access_token;
     if (!appToken) return res.status(500).json({ error: 'Sin token' });
 
-    // Obtener user_id
     const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${target}`,
       { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
     const userData = await userRes.json();
     const user = userData?.data?.[0];
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    // Obtener clips
     const clipsRes = await fetch(`https://api.twitch.tv/helix/clips?broadcaster_id=${user.id}&first=20`,
       { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
     const clipsData = await clipsRes.json();
     const clips = clipsData?.data || [];
+    if (!clips.length) return res.json({ user, clip: null, hlsUrl: null });
 
-    if (!clips.length) return res.json({ user, clip: null });
-
-    // Elegir clip aleatorio
     const clip = clips[Math.floor(Math.random() * clips.length)];
-    res.json({ user, clip });
+
+    // Obtener token de reproducción HLS via GQL
+    let hlsUrl = null;
+    try {
+      const gqlRes = await fetch('https://gql.twitch.tv/gql', {
+        method: 'POST',
+        headers: { 'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' },
+        body: JSON.stringify([{
+          query: `{ clip(slug: "${clip.id}") { playbackAccessToken(params: {platform: "web", playerBackend: "mediaplayer", playerType: "site"}) { signature value } } }`
+        }])
+      });
+      const gqlData = await gqlRes.json();
+      const token = gqlData?.[0]?.data?.clip?.playbackAccessToken;
+      if (token) {
+        hlsUrl = `https://clips.twitch.tv/api/v2/clips/${clip.id}/vod.m3u8?sig=${token.signature}&token=${encodeURIComponent(token.value)}`;
+      }
+    } catch(e) { console.error('[HLS token]', e.message); }
+
+    res.json({ user, clip, hlsUrl });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
