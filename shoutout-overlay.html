@@ -5,129 +5,100 @@
 <title>Shoutout Overlay</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:transparent;font-family:'Inter',sans-serif;overflow:hidden;width:560px;height:420px;}
+html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 
 .overlay{
-  position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(8,8,10,0.97),rgba(18,12,28,0.97));
-  border:1px solid rgba(145,71,255,0.45);
-  border-radius:18px;overflow:hidden;
-  transform:translateY(110%) scale(0.95);
-  transition:transform 0.65s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s;
-  opacity:0;
-  box-shadow:0 12px 48px rgba(0,0,0,0.85),0 0 40px rgba(145,71,255,0.15);
+  position:fixed;inset:0;
+  border-radius:16px;overflow:hidden;
+  transform:scale(0.9) translateY(20px);opacity:0;
+  transition:transform 0.55s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s;
+  box-shadow:0 0 0 2px rgba(145,71,255,0.6),0 16px 60px rgba(0,0,0,0.9);
 }
-.overlay.show{transform:translateY(0) scale(1);opacity:1;}
 .overlay::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:2px;z-index:10;
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;z-index:10;
   background:linear-gradient(90deg,transparent,#9147ff,#b388ff,#e05a7a,transparent);
 }
+.overlay.show{transform:scale(1) translateY(0);opacity:1;}
 
-/* PROGRESO */
-.progress-bar{height:3px;background:rgba(255,255,255,0.05);z-index:10;position:relative;}
-.progress-fill{height:100%;background:linear-gradient(90deg,#9147ff,#b388ff,#e05a7a);width:0%;transition:width linear;}
-
-/* VIDEO */
-.clip-section{
-  position:relative;width:100%;height:260px;
-  background:#000;overflow:hidden;
+/* Tapar barra de info de Twitch arriba */
+.top-cover{
+  position:absolute;top:0;left:0;right:0;height:50px;
+  background:#000;z-index:5;
 }
-/* Iframe más alto para ocultar la barra de info de Twitch arriba */
+/* Tapar controles de Twitch abajo */
+.bottom-cover{
+  position:absolute;bottom:0;left:0;right:0;height:50px;
+  background:#000;z-index:5;
+}
+
+/* Iframe del clip */
 .clip-iframe{
   position:absolute;
-  top:-42px;left:0;
-  width:100%;height:calc(100% + 42px);
-  border:none;display:block;
-}
-/* Capa negra encima para tapar la barra de info de Twitch */
-.clip-top-cover{
-  position:absolute;top:0;left:0;right:0;height:42px;
-  background:#000;z-index:3;
-}
-.clip-thumb{width:100%;height:100%;object-fit:cover;display:block;}
-.clip-gradient{
-  position:absolute;bottom:0;left:0;right:0;height:100px;
-  background:linear-gradient(to top,rgba(8,8,10,0.97) 0%,transparent 100%);
-  pointer-events:none;z-index:4;
+  top:-50px;left:0;
+  width:100%;height:calc(100% + 100px);
+  border:none;
 }
 
-/* INFO */
-.info{
-  padding:12px 18px 14px;
-  display:flex;align-items:center;gap:14px;
-  position:relative;z-index:5;
+/* Barra de progreso abajo */
+.progress-bar{
+  position:absolute;bottom:0;left:0;right:0;height:4px;
+  background:rgba(0,0,0,0.5);z-index:10;
 }
-.avatar-wrap{position:relative;flex-shrink:0;}
-.avatar{
-  width:58px;height:58px;border-radius:50%;border:3px solid #9147ff;
-  object-fit:cover;background:#1a1a1e;
-  box-shadow:0 0 20px rgba(145,71,255,0.5);
-}
-.avatar-ring{
-  position:absolute;inset:-5px;border-radius:50%;
-  border:2px solid rgba(145,71,255,0.5);
-  animation:spin 3s linear infinite;
-}
-@keyframes spin{to{transform:rotate(360deg);}}
-.text-info{flex:1;min-width:0;}
-.so-label{
-  font-size:10px;font-weight:800;color:#9147ff;text-transform:uppercase;
-  letter-spacing:2.5px;margin-bottom:4px;
-}
-.username{
-  font-size:22px;font-weight:900;color:#eeeef5;letter-spacing:-0.5px;line-height:1;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-.game-row{font-size:12px;color:#6b6b82;margin-top:4px;display:flex;align-items:center;gap:5px;}
-.clip-title-text{font-size:10px;color:rgba(238,238,245,0.35);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:italic;}
-.twitch-btn{
-  flex-shrink:0;padding:8px 16px;background:#9147ff;border-radius:20px;
-  color:white;font-size:11px;font-weight:700;text-decoration:none;
-  box-shadow:0 0 16px rgba(145,71,255,0.4);
+.progress-fill{
+  height:100%;
+  background:linear-gradient(90deg,#9147ff,#b388ff,#e05a7a);
+  width:0%;transition:width linear;
 }
 
-/* CONFETTI */
-.confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:6;}
+/* Username flotante abajo izq */
+.username-badge{
+  position:absolute;bottom:8px;left:12px;z-index:10;
+  display:flex;align-items:center;gap:8px;
+  background:rgba(0,0,0,0.75);border:1px solid rgba(145,71,255,0.4);
+  border-radius:20px;padding:5px 14px 5px 6px;
+  backdrop-filter:blur(8px);
+  transform:translateY(60px);opacity:0;
+  transition:transform 0.5s 0.3s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s 0.3s;
+}
+.overlay.show .username-badge{transform:translateY(0);opacity:1;}
+.user-avatar{width:28px;height:28px;border-radius:50%;border:2px solid #9147ff;object-fit:cover;background:#1a1a1e;}
+.user-name{font-size:13px;font-weight:700;color:#fff;font-family:'Inter',sans-serif;}
+.so-tag{font-size:9px;font-weight:600;color:#9147ff;text-transform:uppercase;letter-spacing:1px;display:block;}
+
+/* Confetti */
+.confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:8;}
 .c{position:absolute;width:7px;height:7px;border-radius:2px;animation:fall 2.5s ease-in forwards;top:-10px;}
-@keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(440px) rotate(600deg);}}
+@keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
 </style>
 </head>
 <body>
 <div class="overlay" id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
+  <div class="top-cover"></div>
+  <div id="clipContainer"></div>
+  <div class="bottom-cover"></div>
+  <div class="username-badge">
+    <img class="user-avatar" id="userAvatar" src="" alt="">
+    <div>
+      <span class="so-tag">🕷️ shoutout</span>
+      <span class="user-name" id="userName">—</span>
+    </div>
+  </div>
   <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-  <div class="clip-section" id="clipSection">
-    <img class="clip-thumb" id="clipThumb" src="" alt="">
-    <div class="clip-gradient"></div>
-  </div>
-  <div class="info">
-    <div class="avatar-wrap">
-      <img class="avatar" id="userAvatar" src="" alt="">
-      <div class="avatar-ring"></div>
-    </div>
-    <div class="text-info">
-      <div class="so-label">🕷️ Shoutout a</div>
-      <div class="username" id="userName">—</div>
-      <div class="game-row">🎮 <span id="userGame">—</span></div>
-      <div class="clip-title-text" id="clipTitle"></div>
-    </div>
-    <a id="twitchLink" href="#" target="_blank" class="twitch-btn">🎮 Ver canal</a>
-  </div>
 </div>
 
 <script>
 const DOMAIN = window.location.hostname;
-const pathParts = window.location.pathname.split('/');
-const username = pathParts[pathParts.length - 1];
+const username = window.location.pathname.split('/').pop();
 let lastTimestamp = 0;
 let hideTimeout = null;
-const SHOW_DURATION = 22000;
+const SHOW_DURATION = 25000;
 
 function spawnConfetti() {
-  const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff','#fff'];
+  const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff'];
   const wrap = document.getElementById('confetti');
   wrap.innerHTML = '';
-  for (let i = 0; i < 32; i++) {
+  for (let i = 0; i < 28; i++) {
     const el = document.createElement('div');
     el.className = 'c';
     el.style.left = Math.random() * 100 + '%';
@@ -140,34 +111,23 @@ function spawnConfetti() {
 
 function showShoutout(data) {
   document.getElementById('userName').textContent = data.display_name || data.username;
-  document.getElementById('userGame').textContent = data.game || 'Streaming';
-  document.getElementById('clipTitle').textContent = data.clip_title || '';
-  document.getElementById('twitchLink').href = `https://twitch.tv/${data.username}`;
 
   fetch(`https://decapi.me/twitch/avatar/${data.username}`)
     .then(r => r.text())
     .then(url => { if(url?.startsWith('http')) document.getElementById('userAvatar').src = url; })
     .catch(() => {});
 
-  const clipSection = document.getElementById('clipSection');
+  const container = document.getElementById('clipContainer');
   if (data.clip_id) {
-    // muted=true es necesario para autoplay en navegadores
-    clipSection.innerHTML = `
-      <div class="clip-top-cover"></div>
-      <iframe class="clip-iframe"
-        src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=true"
-        allowfullscreen allow="autoplay" frameborder="0">
-      </iframe>
-      <div class="clip-gradient"></div>`;
+    container.innerHTML = `<iframe class="clip-iframe"
+      src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false"
+      allowfullscreen allow="autoplay; fullscreen" frameborder="0"></iframe>`;
   } else if (data.clip_thumbnail) {
-    clipSection.innerHTML = `
-      <img class="clip-thumb" src="${data.clip_thumbnail}" alt="">
-      <div class="clip-gradient"></div>`;
+    container.innerHTML = `<img style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" src="${data.clip_thumbnail}">`;
   }
 
   spawnConfetti();
-  const overlay = document.getElementById('overlay');
-  overlay.classList.add('show');
+  document.getElementById('overlay').classList.add('show');
 
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
@@ -179,12 +139,10 @@ function showShoutout(data) {
 
   if (hideTimeout) clearTimeout(hideTimeout);
   hideTimeout = setTimeout(() => {
-    overlay.classList.remove('show');
+    document.getElementById('overlay').classList.remove('show');
     fill.style.transition = 'none';
     fill.style.width = '0%';
-    setTimeout(() => {
-      clipSection.innerHTML = '<img class="clip-thumb" id="clipThumb" src="" alt=""><div class="clip-gradient"></div>';
-    }, 700);
+    setTimeout(() => { container.innerHTML = ''; }, 700);
   }, SHOW_DURATION);
 }
 
@@ -192,7 +150,7 @@ async function poll() {
   try {
     const res = await fetch(`/api/shoutout/${username}`);
     const data = await res.json();
-    if (data && data.timestamp && data.timestamp !== lastTimestamp) {
+    if (data?.timestamp && data.timestamp !== lastTimestamp) {
       lastTimestamp = data.timestamp;
       showShoutout(data);
     }
