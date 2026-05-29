@@ -7,43 +7,30 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 
-/* El overlay SIEMPRE existe con dimensiones reales — nunca display:none */
 #overlay{
-  position:fixed;
-  top:0;left:0;
-  width:100%;height:100%;
-  background:#000;
+  position:fixed;inset:0;background:#000;
   border-radius:16px;overflow:hidden;
   opacity:0.001;
   pointer-events:none;
   box-shadow:0 0 0 2px rgba(145,71,255,0.6),0 16px 60px rgba(0,0,0,0.9);
   transition:opacity 0.3s ease;
 }
-#overlay.show{
-  opacity:1;
-  pointer-events:auto;
-}
+#overlay.show{opacity:1;pointer-events:auto;}
 #overlay::before{
   content:'';position:absolute;top:0;left:0;right:0;height:3px;z-index:10;
   background:linear-gradient(90deg,transparent,#9147ff,#b388ff,#e05a7a,transparent);
 }
 
-/* El iframe SIEMPRE visible con dimensiones reales — mínimo 400x300 según Twitch */
+/* iframe ocupa TODO el espacio — sin obstrucción ni recorte negativo */
 #clipIframe{
   position:absolute;
-  top:-50px;left:0;
+  inset:0;
   width:100%;
-  height:calc(100% + 100px);
+  height:100%;
   border:none;
-  min-width:400px;
-  min-height:300px;
 }
 
-/* Cubrir UI de Twitch */
-.top-cover{position:absolute;top:0;left:0;right:0;height:50px;background:#000;z-index:5;}
-.bottom-cover{position:absolute;bottom:0;left:0;right:0;height:50px;background:#000;z-index:5;}
-
-/* Badge */
+/* Badge encima del iframe — no lo tapa porque es solo UI pequeña */
 #badge{
   position:absolute;bottom:8px;left:12px;z-index:10;
   display:flex;align-items:center;gap:8px;
@@ -55,7 +42,7 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 #badgeName{font-size:13px;font-weight:700;color:#fff;font-family:'Inter',sans-serif;}
 
 /* Barra progreso */
-#progressBar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,0.5);z-index:10;}
+#progressBar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,0.3);z-index:10;}
 #progressFill{height:100%;background:linear-gradient(90deg,#9147ff,#b388ff,#e05a7a);width:0%;transition:width linear;}
 
 /* Confetti */
@@ -68,11 +55,9 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
+  <!-- Sin top-cover ni bottom-cover — Twitch los detecta como obstrucción -->
   <iframe id="clipIframe" frameborder="0"
-    width="100%" height="100%"
     allowfullscreen allow="autoplay; fullscreen"></iframe>
-  <div class="top-cover"></div>
-  <div class="bottom-cover"></div>
   <div id="badge">
     <img id="badgeAvatar" src="" alt="">
     <div>
@@ -89,8 +74,8 @@ const channelName = window.location.pathname.split('/').pop().toLowerCase();
 let hideTimeout = null;
 const iframe = document.getElementById('clipIframe');
 
-// Precargar iframe con clip dummy — inicializa Twitch player con dimensiones reales
-// Twitch registra el iframe como válido para autoplay desde el inicio
+// Precargar con clip dummy — inicializa Twitch player desde el arranque
+// El iframe ya tiene dimensiones reales y está visible (opacity:0.001)
 iframe.src = `https://clips.twitch.tv/embed?clip=AwkwardHelplessSalamanderSwiftRage&parent=${DOMAIN}&autoplay=false&muted=true`;
 
 function spawnConfetti() {
@@ -117,16 +102,14 @@ function showShoutout(user, clip) {
     .then(url => { if (url?.startsWith('http')) document.getElementById('badgeAvatar').src = url; })
     .catch(() => {});
 
-  // Mostrar overlay — el iframe ya está visible con dimensiones reales
+  // Mostrar overlay primero
   document.getElementById('overlay').classList.add('show');
-
-  // Forzar reflow para que el navegador registre el cambio
   void document.getElementById('overlay').offsetWidth;
 
-  // Cambiar src del clip con delay — el iframe ya está "warm"
+  // Cambiar al clip real con muted=true (más estable para autoplay)
   setTimeout(() => {
     if (clip) {
-      iframe.src = `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=false`;
+      iframe.src = `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=true`;
     }
   }, 200);
 
@@ -146,7 +129,6 @@ function showShoutout(user, clip) {
 
 function hideOverlay() {
   document.getElementById('overlay').classList.remove('show');
-  // Volver al clip dummy — NO destruir el iframe
   setTimeout(() => {
     iframe.src = `https://clips.twitch.tv/embed?clip=AwkwardHelplessSalamanderSwiftRage&parent=${DOMAIN}&autoplay=false&muted=true`;
   }, 300);
@@ -166,13 +148,11 @@ async function handleSo(targetUser) {
 
 function connectIRC() {
   const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
-
   ws.onopen = () => {
     ws.send('CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands');
     ws.send(`NICK justinfan${Math.floor(Math.random() * 99999)}`);
     ws.send(`JOIN #${channelName}`);
   };
-
   ws.onmessage = (e) => {
     const msg = e.data;
     if (msg.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
@@ -189,7 +169,6 @@ function connectIRC() {
       if (target) handleSo(target);
     }
   };
-
   ws.onclose = () => setTimeout(connectIRC, 5000);
   ws.onerror = () => ws.close();
 }
