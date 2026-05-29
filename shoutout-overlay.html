@@ -7,70 +7,101 @@
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 
-.overlay{
-  position:fixed;inset:0;border-radius:16px;overflow:hidden;
-  /* Siempre visible para Twitch — z-index bajo cuando inactivo */
-  z-index:-1;opacity:0;
-  transition:opacity 0.5s,z-index 0s 0.5s;
-  box-shadow:0 0 0 2px rgba(145,71,255,0.6),0 16px 60px rgba(0,0,0,0.9);
+/* El iframe SIEMPRE visible — nunca se oculta */
+#clipWrap{
+  position:fixed;inset:0;
+  background:#000;
+  z-index:1;
 }
-.overlay::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:3px;z-index:10;
+/* Cubrir barra info de Twitch */
+.top-cover{position:absolute;top:0;left:0;right:0;height:50px;background:#000;z-index:3;}
+.bottom-cover{position:absolute;bottom:0;left:0;right:0;height:50px;background:#000;z-index:3;}
+#clipIframe{
+  position:absolute;
+  top:-50px;left:0;
+  width:100%;height:calc(100% + 100px);
+  border:none;
+}
+
+/* Overlay de info — encima del clip cuando hay shoutout */
+#infoOverlay{
+  position:fixed;inset:0;
+  z-index:10;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity 0.4s;
+}
+#infoOverlay.show{opacity:1;}
+
+/* Borde morado cuando activo */
+#border{
+  position:absolute;inset:0;
+  border:2px solid rgba(145,71,255,0.6);
+  border-radius:16px;
+  box-shadow:0 0 40px rgba(145,71,255,0.15);
+  pointer-events:none;
+}
+#border::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
   background:linear-gradient(90deg,transparent,#9147ff,#b388ff,#e05a7a,transparent);
-}
-.overlay.show{opacity:1;z-index:9999;transition:opacity 0.5s,z-index 0s 0s;}
-
-/* Cubrir barra de info de Twitch */
-.top-cover{position:absolute;top:0;left:0;right:0;height:50px;background:#000;z-index:5;}
-.bottom-cover{position:absolute;bottom:0;left:0;right:0;height:50px;background:#000;z-index:5;}
-
-.clip-iframe{
-  position:absolute;top:-50px;left:0;
-  width:100%;height:calc(100% + 100px);border:none;
+  border-radius:16px 16px 0 0;
 }
 
-/* Barra de progreso */
-.progress-bar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,0.5);z-index:10;}
-.progress-fill{height:100%;background:linear-gradient(90deg,#9147ff,#b388ff,#e05a7a);width:0%;transition:width linear;}
-
-/* Badge del streamer */
-.so-badge{
-  position:absolute;bottom:8px;left:12px;z-index:10;
+/* Badge streamer */
+#badge{
+  position:absolute;bottom:8px;left:12px;
   display:flex;align-items:center;gap:8px;
-  background:rgba(0,0,0,0.8);border:1px solid rgba(145,71,255,0.5);
+  background:rgba(0,0,0,0.85);border:1px solid rgba(145,71,255,0.5);
   border-radius:20px;padding:5px 14px 5px 6px;
   backdrop-filter:blur(8px);
 }
-.badge-avatar{width:28px;height:28px;border-radius:50%;border:2px solid #9147ff;object-fit:cover;background:#1a1a1e;}
-.badge-tag{font-size:9px;font-weight:700;color:#9147ff;text-transform:uppercase;letter-spacing:1px;display:block;font-family:'Inter',sans-serif;}
-.badge-name{font-size:13px;font-weight:700;color:#fff;font-family:'Inter',sans-serif;}
+#badgeAvatar{width:28px;height:28px;border-radius:50%;border:2px solid #9147ff;object-fit:cover;background:#1a1a1e;}
+#badgeTag{font-size:9px;font-weight:700;color:#9147ff;text-transform:uppercase;letter-spacing:1px;display:block;font-family:'Inter',sans-serif;}
+#badgeName{font-size:13px;font-weight:700;color:#fff;font-family:'Inter',sans-serif;}
+
+/* Barra de progreso */
+#progressBar{
+  position:absolute;bottom:0;left:0;right:0;height:4px;
+  background:rgba(0,0,0,0.5);
+}
+#progressFill{height:100%;background:linear-gradient(90deg,#9147ff,#b388ff,#e05a7a);width:0%;transition:width linear;}
 
 /* Confetti */
-.confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:8;}
+.confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
 .c{position:absolute;width:7px;height:7px;border-radius:2px;animation:fall 2.5s ease-in forwards;top:-10px;}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
 
-/* Estado de conexión (invisible en producción) */
-#status{position:fixed;top:4px;right:4px;font-size:9px;color:rgba(255,255,255,0.2);font-family:monospace;z-index:100;}
+/* Placeholder cuando no hay shoutout */
+#placeholder{
+  position:fixed;inset:0;z-index:5;
+  display:flex;align-items:center;justify-content:center;
+  background:transparent;
+  pointer-events:none;
+}
+#placeholder.hidden{display:none;}
 </style>
 </head>
 <body>
 
-<div id="status">⬤ conectando...</div>
-
-<div class="overlay" id="overlay">
-  <div class="confetti-wrap" id="confetti"></div>
-  <div id="clipContainer"></div>
+<!-- iframe SIEMPRE visible y cargado -->
+<div id="clipWrap">
   <div class="top-cover"></div>
+  <iframe id="clipIframe" src="" frameborder="0" allowfullscreen allow="autoplay; fullscreen"></iframe>
   <div class="bottom-cover"></div>
-  <div class="so-badge" id="soBadge">
-    <img class="badge-avatar" id="badgeAvatar" src="" alt="">
+</div>
+
+<!-- Overlay de info encima -->
+<div id="infoOverlay">
+  <div class="confetti-wrap" id="confetti"></div>
+  <div id="border"></div>
+  <div id="badge">
+    <img id="badgeAvatar" src="" alt="">
     <div>
-      <span class="badge-tag">🕷️ shoutout</span>
-      <span class="badge-name" id="badgeName">—</span>
+      <span id="badgeTag">🕷️ shoutout</span>
+      <span id="badgeName">—</span>
     </div>
   </div>
-  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div id="progressBar"><div id="progressFill"></div></div>
 </div>
 
 <script>
@@ -79,7 +110,6 @@ const channelName = window.location.pathname.split('/').pop().toLowerCase();
 let hideTimeout = null;
 let currentClipId = null;
 
-// ── CONFETTI ──
 function spawnConfetti() {
   const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff'];
   const wrap = document.getElementById('confetti');
@@ -95,56 +125,55 @@ function spawnConfetti() {
   }
 }
 
-// ── MOSTRAR SHOUTOUT ──
+function loadClip(clipId) {
+  const iframe = document.getElementById('clipIframe');
+  const newSrc = `https://clips.twitch.tv/embed?clip=${clipId}&parent=${DOMAIN}&autoplay=true&muted=false`;
+  // Solo recargar si es un clip diferente
+  if (iframe.src !== newSrc) {
+    iframe.src = newSrc;
+  }
+}
+
 function showShoutout(user, clip) {
   const duration = clip ? Math.min((clip.duration * 1000) + 2000, 90000) : 10000;
 
-  // Badge
+  // Cargar clip en iframe
+  if (clip) loadClip(clip.id);
+
+  // Info del badge
   document.getElementById('badgeName').textContent = user.display_name || user.login;
   fetch(`https://decapi.me/twitch/avatar/${user.login}`)
     .then(r => r.text())
     .then(url => { if (url?.startsWith('http')) document.getElementById('badgeAvatar').src = url; })
     .catch(() => {});
 
-  // Insertar iframe PRIMERO (mientras el overlay está invisible)
-  // Twitch necesita verlo en el DOM con dimensiones reales
-  const container = document.getElementById('clipContainer');
-  if (clip) {
-    container.innerHTML = `<iframe class="clip-iframe"
-      src="https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=false"
-      allowfullscreen frameborder="0"></iframe>`;
-  } else if (user.profile_image_url) {
-    container.innerHTML = `<img style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" src="${user.profile_image_url}">`;
-  }
+  // Mostrar overlay de info
+  spawnConfetti();
+  document.getElementById('infoOverlay').classList.add('show');
 
-  // Esperar un tick para que el iframe se registre en el DOM
-  // luego mostrar el overlay
-  setTimeout(() => {
-    spawnConfetti();
-    document.getElementById('overlay').classList.add('show');
-
-    const fill = document.getElementById('progressFill');
-    fill.style.transition = 'none';
-    fill.style.width = '0%';
-    setTimeout(() => {
-      fill.style.transition = `width ${duration}ms linear`;
-      fill.style.width = '100%';
-    }, 100);
-
-    if (hideTimeout) clearTimeout(hideTimeout);
-    hideTimeout = setTimeout(hideOverlay, duration);
-  }, 50);
-}
-
-function hideOverlay() {
-  document.getElementById('overlay').classList.remove('show');
+  // Barra de progreso
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
   fill.style.width = '0%';
-  setTimeout(() => { document.getElementById('clipContainer').innerHTML = ''; }, 700);
+  setTimeout(() => {
+    fill.style.transition = `width ${duration}ms linear`;
+    fill.style.width = '100%';
+  }, 100);
+
+  if (hideTimeout) clearTimeout(hideTimeout);
+  hideTimeout = setTimeout(hideOverlay, duration);
 }
 
-// ── PROCESAR COMANDO !so ──
+function hideOverlay() {
+  document.getElementById('infoOverlay').classList.remove('show');
+  // Limpiar iframe después de la transición
+  setTimeout(() => {
+    document.getElementById('clipIframe').src = '';
+    document.getElementById('progressFill').style.width = '0%';
+  }, 500);
+  if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+}
+
 async function handleSo(targetUser) {
   try {
     const res = await fetch(`/api/shoutout-clips/${targetUser}`);
@@ -153,56 +182,37 @@ async function handleSo(targetUser) {
   } catch(e) { console.error('[!so]', e); }
 }
 
-// ── TWITCH IRC WebSocket ──
+// IRC WebSocket
 function connectIRC() {
   const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
-  const status = document.getElementById('status');
 
   ws.onopen = () => {
     ws.send('CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands');
     ws.send(`NICK justinfan${Math.floor(Math.random() * 99999)}`);
     ws.send(`JOIN #${channelName}`);
-    status.textContent = '⬤ conectado';
-    status.style.color = 'rgba(64,208,144,0.4)';
   };
 
   ws.onmessage = (e) => {
     const msg = e.data;
-
-    // Responder PING para mantener la conexión
-    if (msg.startsWith('PING')) {
-      ws.send('PONG :tmi.twitch.tv');
-      return;
-    }
-
-    // Detectar mensaje de chat
+    if (msg.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
     if (!msg.includes('PRIVMSG')) return;
 
-    // Extraer badges para verificar que es mod/broadcaster
     const badgesMatch = msg.match(/badges=([^;]*)/);
     const badges = badgesMatch ? badgesMatch[1] : '';
     const isMod = badges.includes('moderator') || badges.includes('broadcaster');
     if (!isMod) return;
 
-    // Extraer contenido del mensaje
     const msgMatch = msg.match(/PRIVMSG #\w+ :(.+)/);
     if (!msgMatch) return;
     const text = msgMatch[1].trim().toLowerCase();
 
-    // Detectar !so @usuario o !so usuario
     if (text.startsWith('!so ')) {
       const target = text.slice(4).replace('@', '').trim();
       if (target) handleSo(target);
     }
   };
 
-  ws.onclose = () => {
-    status.textContent = '⬤ desconectado';
-    status.style.color = 'rgba(224,90,122,0.4)';
-    // Reconectar después de 5 segundos
-    setTimeout(connectIRC, 5000);
-  };
-
+  ws.onclose = () => setTimeout(connectIRC, 5000);
   ws.onerror = () => ws.close();
 }
 
