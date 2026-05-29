@@ -1186,6 +1186,7 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
       { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
     const clipsData = await clipsRes.json();
     const clips = clipsData?.data || [];
+    console.log(`[shoutout-clips] clips: ${clips.length}`);
     if (!clips.length) return res.json({ user, clip: null, hlsUrl: null });
 
     const clip = clips[Math.floor(Math.random() * clips.length)];
