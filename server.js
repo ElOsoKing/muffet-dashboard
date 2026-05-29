@@ -1165,6 +1165,23 @@ app.post('/api/moderation', requireAuth, async (req, res) => {
   }
 });
 
+// ── PROXY VIDEO CLIP ──
+app.get('/api/clip-video', async (req, res) => {
+  const { url } = req.query;
+  if (!url || !url.includes('cloudfront.net')) return res.status(400).end();
+  try {
+    const videoRes = await fetch(url, {
+      headers: { 'Referer': 'https://clips.twitch.tv/', 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (!videoRes.ok) return res.status(videoRes.status).end();
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    const range = req.headers.range;
+    if (range) res.setHeader('Content-Range', videoRes.headers.get('content-range') || '');
+    videoRes.body.pipe(res);
+  } catch(e) { res.status(500).end(); }
+});
+
 // ── SHOUTOUT OVERLAY ──
 app.get('/overlay/shoutout/:username', async (req, res) => {
   const username = req.params.username.toLowerCase();
