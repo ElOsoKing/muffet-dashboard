@@ -119,14 +119,14 @@ function showShoutout(data) {
 
   const container = document.getElementById('clipContainer');
   if (data.clip_mp4) {
-    // Video MP4 directo — autoplay con audio garantizado
+    const proxyUrl = `/api/clip-video?url=${encodeURIComponent(data.clip_mp4)}`;
     container.innerHTML = `<video id="clipVideo" class="clip-iframe"
-      src="${data.clip_mp4}" autoplay playsinline
+      src="${proxyUrl}" autoplay playsinline
       style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border:none;">
     </video>`;
     const video = document.getElementById('clipVideo');
     video.addEventListener('ended', () => setTimeout(hideOverlay, 1500));
-    video.play().catch(() => {});
+    video.play().catch(e => console.log('autoplay blocked', e));
   } else if (data.clip_id) {
     container.innerHTML = `<iframe id="clipIframe" class="clip-iframe"
       src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false"
