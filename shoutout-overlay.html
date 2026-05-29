@@ -118,23 +118,22 @@ function showShoutout(data) {
     .catch(() => {});
 
   const container = document.getElementById('clipContainer');
-  if (data.clip_id) {
+  if (data.clip_mp4) {
+    // Video MP4 directo — autoplay con audio garantizado
+    container.innerHTML = `<video id="clipVideo" class="clip-iframe"
+      src="${data.clip_mp4}" autoplay playsinline
+      style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border:none;">
+    </video>`;
+    const video = document.getElementById('clipVideo');
+    video.addEventListener('ended', () => setTimeout(hideOverlay, 1500));
+    video.play().catch(() => {});
+  } else if (data.clip_id) {
     container.innerHTML = `<iframe id="clipIframe" class="clip-iframe"
       src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false"
-      allowfullscreen allow="autoplay; fullscreen; picture-in-picture" frameborder="0"></iframe>`;
-
-    // Simular click en el iframe para forzar autoplay en OBS
+      allowfullscreen allow="autoplay; fullscreen" frameborder="0"></iframe>`;
     const iframe = document.getElementById('clipIframe');
     iframe.addEventListener('load', () => {
-      setTimeout(() => {
-        iframe.focus();
-        iframe.contentWindow?.postMessage('{"event":"trigger-play"}','*');
-        // Click simulado en el centro del iframe
-        const rect = iframe.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2;
-        iframe.dispatchEvent(new MouseEvent('click', { bubbles:true, clientX:cx, clientY:cy }));
-      }, 800);
+      setTimeout(() => { iframe.focus(); iframe.dispatchEvent(new MouseEvent('click',{bubbles:true})); }, 800);
     });
   } else if (data.clip_thumbnail) {
     container.innerHTML = `<img style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" src="${data.clip_thumbnail}">`;
