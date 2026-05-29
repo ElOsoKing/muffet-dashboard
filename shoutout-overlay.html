@@ -118,16 +118,20 @@ function showShoutout(data) {
     .catch(() => {});
 
   const container = document.getElementById('clipContainer');
-  if (data.clip_mp4) {
-    const proxyUrl = `/api/clip-video?url=${encodeURIComponent(data.clip_mp4)}`;
-    container.innerHTML = `<video id="clipVideo" class="clip-iframe"
-      src="${proxyUrl}" autoplay playsinline
-      style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border:none;">
-    </video>`;
-    const video = document.getElementById('clipVideo');
-    video.addEventListener('ended', () => setTimeout(hideOverlay, 1500));
-    video.play().catch(e => console.log('autoplay blocked', e));
-  } else if (data.clip_id) {
+  if (data.clip_id) {
+    // Arrancar silenciado para que el autoplay funcione, luego desmutar
+    container.innerHTML = `<iframe id="clipIframe" class="clip-iframe"
+      src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=true"
+      allowfullscreen allow="autoplay; fullscreen" frameborder="0"></iframe>`;
+
+    // Después de 1.5s cambiar a muted=false para activar el audio
+    setTimeout(() => {
+      const iframe = document.getElementById('clipIframe');
+      if (iframe) {
+        iframe.src = `https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false`;
+      }
+    }, 1500);
+  } else if (data.clip_thumbnail) {
     container.innerHTML = `<iframe id="clipIframe" class="clip-iframe"
       src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false"
       allowfullscreen allow="autoplay; fullscreen" frameborder="0"></iframe>`;
