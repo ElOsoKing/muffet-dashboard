@@ -160,34 +160,11 @@ function hideOverlay() {
 
 async function handleSo(targetUser) {
   try {
-    // 1. Obtener info del clip del servidor
     const res = await fetch(`/api/shoutout-clips/${targetUser}`);
     const data = await res.json();
-    if (!data?.user || !data?.clip) {
-      if (data?.user) showShoutout(data.user, null, null);
-      return;
-    }
-
-    // 2. Hacer GQL desde el BROWSER (mismo IP = nauth válida)
-    let mp4Url = null;
-    try {
-      const gqlRes = await fetch('https://gql.twitch.tv/gql', {
-        method: 'POST',
-        headers: { 'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' },
-        body: JSON.stringify([{
-          query: `{ clip(slug: "${data.clip.id}") { playbackAccessToken(params: {platform: "web", playerBackend: "mediaplayer", playerType: "site"}) { signature value } } }`
-        }])
-      });
-      const gqlData = await gqlRes.json();
-      const token = gqlData?.[0]?.data?.clip?.playbackAccessToken;
-      if (token) {
-        const tokenData = JSON.parse(token.value);
-        mp4Url = tokenData?.clip_uri || null;
-        console.log('[GQL browser] mp4Url obtenida:', mp4Url ? 'ok' : 'null');
-      }
-    } catch(e) { console.error('[GQL browser]', e); }
-
-    showShoutout(data.user, data.clip, mp4Url);
+    if (!data?.user) return;
+    console.log('[!so] mp4Url:', data.mp4Url ? 'ok' : 'null');
+    showShoutout(data.user, data.clip, data.mp4Url);
   } catch(e) { console.error('[!so]', e); }
 }
 
