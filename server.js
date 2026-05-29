@@ -1203,7 +1203,7 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
         'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
         'Content-Type': 'application/json'
       };
-      if (userToken) gqlHeaders['Authorization'] = `OAuth ${userToken}`;
+      // Sin autenticación primero — el token del usuario puede estar expirado
 
       const gqlRes = await fetch('https://gql.twitch.tv/gql', {
         method: 'POST',
