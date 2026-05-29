@@ -50,7 +50,10 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <iframe id="clipIframe" frameborder="0" allowfullscreen allow="autoplay; fullscreen"></iframe>
+  <div id="clipContainer">
+    <iframe id="clipIframe" frameborder="0" allowfullscreen allow="autoplay; fullscreen"
+      style="position:absolute;top:-50px;left:0;width:100%;height:calc(100% + 100px);border:none;"></iframe>
+  </div>
   <div class="top-cover"></div>
   <div class="bottom-cover"></div>
   <div id="badge">
@@ -83,7 +86,7 @@ function spawnConfetti() {
   }
 }
 
-function showShoutout(user, clip) {
+function showShoutout(user, clip, useCachedVideo) {
   const duration = clip ? Math.min((clip.duration * 1000) + 2000, 90000) : 10000;
 
   document.getElementById('badgeName').textContent = user.display_name || user.login;
@@ -92,22 +95,30 @@ function showShoutout(user, clip) {
     .then(url => { if (url?.startsWith('http')) document.getElementById('badgeAvatar').src = url; })
     .catch(() => {});
 
-  // 1. Hacer visible el overlay PRIMERO
   const overlay = document.getElementById('overlay');
   overlay.style.display = 'block';
-
-  // 2. Forzar reflow — obliga al navegador a registrar que el overlay ya es visible
   void overlay.offsetWidth;
 
-  // 3. Inyectar iframe DESPUÉS del reflow con pequeño delay
   setTimeout(() => {
-    if (clip) {
+    if (useCachedVideo) {
+      // Video nativo — autoplay garantizado sin restricciones
+      const videoHtml = `<video id="clipVideo" autoplay playsinline
+        src="/api/clip-cached/${channelName}"
+        style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:none;background:#000;">
+      </video>`;
+      document.getElementById('clipContainer').innerHTML = videoHtml;
+      const vid = document.getElementById('clipVideo');
+      if (vid) {
+        vid.play().catch(e => console.log('video play error:', e));
+        vid.onended = () => setTimeout(hideOverlay, 1500);
+      }
+    } else {
+      // Fallback iframe
       document.getElementById('clipIframe').src =
         `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=false`;
     }
 
     spawnConfetti();
-
     const fill = document.getElementById('progressFill');
     fill.style.transition = 'none';
     fill.style.width = '0%';
@@ -115,7 +126,6 @@ function showShoutout(user, clip) {
       fill.style.transition = `width ${duration}ms linear`;
       fill.style.width = '100%';
     }, 50);
-
   }, 100);
 
   if (hideTimeout) clearTimeout(hideTimeout);
@@ -125,6 +135,9 @@ function showShoutout(user, clip) {
 function hideOverlay() {
   document.getElementById('overlay').style.display = 'none';
   document.getElementById('clipIframe').src = '';
+  document.getElementById('clipContainer').innerHTML = `
+    <iframe id="clipIframe" frameborder="0" allowfullscreen allow="autoplay; fullscreen"
+      style="position:absolute;top:-50px;left:0;width:100%;height:calc(100% + 100px);border:none;"></iframe>`;
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
   fill.style.width = '0%';
@@ -133,9 +146,26 @@ function hideOverlay() {
 
 async function handleSo(targetUser) {
   try {
+    // 1. Obtener info del clip + MP4 URL fresca del servidor
     const res = await fetch(`/api/shoutout-clips/${targetUser}`);
     const data = await res.json();
-    if (data?.user) showShoutout(data.user, data.clip);
+    if (!data?.user) return;
+
+    const user = data.user;
+    const clip = data.clip;
+    const mp4Url = data.mp4Url;
+
+    // 2. Si hay MP4, pedir al servidor que lo descargue inmediatamente (URL aún fresca)
+    if (mp4Url) {
+      await fetch('/api/cache-clip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: channelName, url: mp4Url })
+      });
+      showShoutout(user, clip, true); // usar video cacheado
+    } else {
+      showShoutout(user, clip, false); // fallback a iframe
+    }
   } catch(e) { console.error('[!so]', e); }
 }
 
