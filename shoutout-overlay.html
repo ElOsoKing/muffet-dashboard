@@ -92,24 +92,34 @@ function showShoutout(user, clip) {
     .then(url => { if (url?.startsWith('http')) document.getElementById('badgeAvatar').src = url; })
     .catch(() => {});
 
-  if (clip) {
-    document.getElementById('clipIframe').src =
-      `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=false`;
-  }
+  // 1. Hacer visible el overlay PRIMERO
+  const overlay = document.getElementById('overlay');
+  overlay.style.display = 'block';
 
-  spawnConfetti();
-  document.getElementById('overlay').style.display = 'block';
+  // 2. Forzar reflow — obliga al navegador a registrar que el overlay ya es visible
+  void overlay.offsetWidth;
 
-  const fill = document.getElementById('progressFill');
-  fill.style.transition = 'none';
-  fill.style.width = '0%';
+  // 3. Inyectar iframe DESPUÉS del reflow con pequeño delay
   setTimeout(() => {
-    fill.style.transition = `width ${duration}ms linear`;
-    fill.style.width = '100%';
+    if (clip) {
+      document.getElementById('clipIframe').src =
+        `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=false`;
+    }
+
+    spawnConfetti();
+
+    const fill = document.getElementById('progressFill');
+    fill.style.transition = 'none';
+    fill.style.width = '0%';
+    setTimeout(() => {
+      fill.style.transition = `width ${duration}ms linear`;
+      fill.style.width = '100%';
+    }, 50);
+
   }, 100);
 
   if (hideTimeout) clearTimeout(hideTimeout);
-  hideTimeout = setTimeout(hideOverlay, duration);
+  hideTimeout = setTimeout(hideOverlay, duration + 100);
 }
 
 function hideOverlay() {
