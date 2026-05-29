@@ -1188,10 +1188,9 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
 
     const clip = clips[Math.floor(Math.random() * clips.length)];
 
-    // Obtener access_token del streamer para GQL autenticado
+    // Obtener URL autenticada del clip via GQL (método yt-dlp)
     let mp4Url = null;
     try {
-      // Buscar el token del streamer en Supabase
       const streamerRes = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${target}&select=access_token&limit=1`, { headers: sbHeaders });
       const streamerData = await streamerRes.json();
       const userToken = streamerData?.[0]?.access_token;
@@ -1200,25 +1199,36 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
         'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
         'Content-Type': 'application/json'
       };
-      // Usar token del usuario si está disponible
       if (userToken) gqlHeaders['Authorization'] = `OAuth ${userToken}`;
 
       const gqlRes = await fetch('https://gql.twitch.tv/gql', {
         method: 'POST',
         headers: gqlHeaders,
         body: JSON.stringify([{
-          query: `{ clip(slug: "${clip.id}") { playbackAccessToken(params: {platform: "web", playerBackend: "mediaplayer", playerType: "site"}) { signature value } } }`
+          query: `{
+            clip(slug: "${clip.id}") {
+              videoQualities { quality frameRate sourceURL }
+              playbackAccessToken(params: {platform: "web", playerBackend: "mediaplayer", playerType: "site"}) {
+                signature value
+              }
+            }
+          }`
         }])
       });
       const gqlData = await gqlRes.json();
-      const token = gqlData?.[0]?.data?.clip?.playbackAccessToken;
-      if (token) {
-        const tokenData = JSON.parse(token.value);
-        console.log('[GQL token]', JSON.stringify(tokenData).slice(0, 300));
-        mp4Url = tokenData?.clip_uri || null;
-        console.log(`[GQL authed] mp4Url: ${mp4Url ? 'ok' : 'null'} | userToken: ${userToken ? 'sí' : 'no'}`);
+      const clipData = gqlData?.[0]?.data?.clip;
+      const token = clipData?.playbackAccessToken;
+      const qualities = clipData?.videoQualities || [];
+
+      if (token && qualities.length) {
+        // Construir URL autenticada: sourceURL + sig + token (método yt-dlp)
+        const best = qualities.find(q => q.quality === '1080') || qualities.find(q => q.quality === '720') || qualities[0];
+        if (best?.sourceURL) {
+          mp4Url = `${best.sourceURL}?sig=${token.signature}&token=${encodeURIComponent(token.value)}`;
+          console.log(`[GQL] mp4Url construida: ${mp4Url.slice(0, 80)}...`);
+        }
       }
-    } catch(e) { console.error('[GQL authed]', e.message); }
+    } catch(e) { console.error('[GQL]', e.message); }
 
     res.json({ user, clip, mp4Url });
   } catch(e) { res.status(500).json({ error: e.message }); }
