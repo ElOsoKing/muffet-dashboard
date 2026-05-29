@@ -1165,6 +1165,26 @@ app.post('/api/moderation', requireAuth, async (req, res) => {
   }
 });
 
+// ── SHOUTOUT OVERLAY ──
+app.get('/overlay/shoutout/:username', async (req, res) => {
+  const username = req.params.username.toLowerCase();
+  try {
+    const data = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=plan&limit=1`, { headers: sbHeaders });
+    const streamer = (await data.json())?.[0];
+    if (!streamer || streamer.plan !== 'pro') return proOnlyPage(res);
+    res.sendFile(path.join(__dirname, 'public', 'shoutout-overlay.html'));
+  } catch(e) { res.status(500).send('Error'); }
+});
+
+app.get('/api/shoutout/:username', async (req, res) => {
+  const username = req.params.username.toLowerCase();
+  try {
+    const data = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=last_shoutout&limit=1`, { headers: sbHeaders });
+    const streamer = (await data.json())?.[0];
+    res.json(streamer?.last_shoutout || null);
+  } catch(e) { res.status(500).json(null); }
+});
+
 // ── 404 ──
 app.use((req, res) => {
   res.status(404).send(`<!DOCTYPE html>
