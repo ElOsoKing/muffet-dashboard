@@ -86,7 +86,6 @@ function showShoutout(user, clip, mp4Url) {
     .catch(() => {});
 
   const video = document.getElementById('clipVideo');
-  if (hls) { hls.destroy(); hls = null; }
 
   if (mp4Url) {
     // Video elements NO aplican CORS — la URL nauth funciona directo
