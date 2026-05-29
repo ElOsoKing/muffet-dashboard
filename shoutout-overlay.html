@@ -78,7 +78,7 @@ function spawnConfetti() {
   }
 }
 
-function showShoutout(user, clip, hlsUrl) {
+function showShoutout(user, clip, mp4Url) {
   const duration = clip ? Math.min((clip.duration * 1000) + 2000, 90000) : 10000;
 
   document.getElementById('badgeName').textContent = user.display_name || user.login;
@@ -88,25 +88,15 @@ function showShoutout(user, clip, hlsUrl) {
     .catch(() => {});
 
   const video = document.getElementById('clipVideo');
-
-  // Limpiar HLS anterior
   if (hls) { hls.destroy(); hls = null; }
 
-  if (hlsUrl) {
-    if (Hls.isSupported()) {
-      hls = new Hls({ enableWorker: false });
-      hls.loadSource(hlsUrl);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(e => console.log('play error:', e));
-      });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = hlsUrl;
-      video.play().catch(e => console.log('play error:', e));
-    }
+  if (mp4Url) {
+    // Usar proxy del servidor para evitar CORS
+    video.src = `/api/clip-proxy?url=${encodeURIComponent(mp4Url)}`;
+    video.load();
+    video.play().catch(e => console.log('play error:', e));
     video.onended = () => setTimeout(hideOverlay, 1500);
   } else if (clip?.thumbnail_url) {
-    // Fallback: thumbnail si no hay HLS
     document.getElementById('overlay').style.background = `url(${clip.thumbnail_url}) center/cover`;
   }
 
@@ -142,7 +132,7 @@ async function handleSo(targetUser) {
   try {
     const res = await fetch(`/api/shoutout-clips/${targetUser}`);
     const data = await res.json();
-    if (data?.user) showShoutout(data.user, data.clip, data.hlsUrl);
+    if (data?.user) showShoutout(data.user, data.clip, data.mp4Url);
   } catch(e) { console.error('[!so]', e); }
 }
 
