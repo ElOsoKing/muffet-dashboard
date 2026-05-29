@@ -230,9 +230,31 @@ app.get('/auth/twitch/callback', async (req, res) => {
         ai_enabled: true, mod_enabled: false, banned_words: [],
         warn_message: '⚠️ Cuidado, dearie~ 🕷️',
         access_token: tokenData.access_token,
-        role: isAdmin ? 'admin' : 'pending',
-        approved: isAdmin ? true : false,
+        role: isAdmin ? 'admin' : 'streamer',
+        approved: true,
       });
+
+      // Notificar nuevo registro en Discord
+      if (!isAdmin && process.env.DISCORD_WEBHOOK_URL) {
+        fetch(process.env.DISCORD_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            embeds: [{
+              title: '🕷️ Nuevo streamer registrado',
+              description: `**${twitchUser.display_name}** acaba de unirse a MuffetBot`,
+              color: 0x9147ff,
+              fields: [
+                { name: 'Canal', value: `[twitch.tv/${twitchUser.login}](https://twitch.tv/${twitchUser.login})`, inline: true },
+                { name: 'Plan', value: '🆓 Free', inline: true },
+              ],
+              thumbnail: { url: twitchUser.profile_image_url },
+              timestamp: new Date().toISOString(),
+              footer: { text: 'MuffetBot Dashboard' }
+            }]
+          })
+        }).catch(e => console.error('[Discord webhook]', e.message));
+      }
     } else {
       await sbUpdate('streamers', { access_token: tokenData.access_token }, { twitch_id: twitchUser.id });
     }
@@ -245,8 +267,8 @@ app.get('/auth/twitch/callback', async (req, res) => {
       display_name: twitchUser.display_name,
       avatar: twitchUser.profile_image_url,
       streamerId: streamer.id,
-      role: streamer.role || 'pending',
-      approved: streamer.approved || false,
+      role: streamer.role || 'streamer',
+      approved: streamer.approved !== false,
     };
 
     // Redirigir según rol
