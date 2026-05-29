@@ -92,7 +92,6 @@ const DOMAIN = window.location.hostname;
 const username = window.location.pathname.split('/').pop();
 let lastTimestamp = 0;
 let hideTimeout = null;
-const SHOW_DURATION = 90000;
 
 function spawnConfetti() {
   const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff'];
@@ -110,6 +109,9 @@ function spawnConfetti() {
 }
 
 function showShoutout(data) {
+  // Duración real del clip + 2s de margen, máximo 90s
+  const duration = Math.min(((data.clip_duration || 30) * 1000) + 2000, 90000);
+
   document.getElementById('userName').textContent = data.display_name || data.username;
 
   fetch(`https://decapi.me/twitch/avatar/${data.username}`)
@@ -119,26 +121,18 @@ function showShoutout(data) {
 
   const container = document.getElementById('clipContainer');
   if (data.clip_id) {
-    // Arrancar silenciado para que el autoplay funcione, luego desmutar
     container.innerHTML = `<iframe id="clipIframe" class="clip-iframe"
       src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=true"
       allowfullscreen allow="autoplay; fullscreen" frameborder="0"></iframe>`;
 
-    // Después de 1.5s cambiar a muted=false para activar el audio
+    // Simular click para forzar reproducción
     setTimeout(() => {
       const iframe = document.getElementById('clipIframe');
-      if (iframe) {
-        iframe.src = `https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false`;
-      }
-    }, 1500);
-  } else if (data.clip_thumbnail) {
-    container.innerHTML = `<iframe id="clipIframe" class="clip-iframe"
-      src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false"
-      allowfullscreen allow="autoplay; fullscreen" frameborder="0"></iframe>`;
-    const iframe = document.getElementById('clipIframe');
-    iframe.addEventListener('load', () => {
-      setTimeout(() => { iframe.focus(); iframe.dispatchEvent(new MouseEvent('click',{bubbles:true})); }, 800);
-    });
+      if (!iframe) return;
+      iframe.focus();
+      const rect = iframe.getBoundingClientRect();
+      iframe.dispatchEvent(new MouseEvent('click', { bubbles:true, clientX: rect.left + rect.width/2, clientY: rect.top + rect.height/2 }));
+    }, 1000);
   } else if (data.clip_thumbnail) {
     container.innerHTML = `<img style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" src="${data.clip_thumbnail}">`;
   }
@@ -150,13 +144,12 @@ function showShoutout(data) {
   fill.style.transition = 'none';
   fill.style.width = '0%';
   setTimeout(() => {
-    fill.style.transition = `width ${SHOW_DURATION}ms linear`;
+    fill.style.transition = `width ${duration}ms linear`;
     fill.style.width = '100%';
   }, 100);
 
   if (hideTimeout) clearTimeout(hideTimeout);
-  // Ocultar cuando el clip termine o máximo 90 segundos
-  hideTimeout = setTimeout(hideOverlay, 90000);
+  hideTimeout = setTimeout(hideOverlay, duration);
 }
 
 function hideOverlay() {
