@@ -1214,6 +1214,7 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
       const token = gqlData?.[0]?.data?.clip?.playbackAccessToken;
       if (token) {
         const tokenData = JSON.parse(token.value);
+        console.log('[GQL token]', JSON.stringify(tokenData).slice(0, 300));
         mp4Url = tokenData?.clip_uri || null;
         console.log(`[GQL authed] mp4Url: ${mp4Url ? 'ok' : 'null'} | userToken: ${userToken ? 'sí' : 'no'}`);
       }
