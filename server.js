@@ -1188,8 +1188,8 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
 
     const clip = clips[Math.floor(Math.random() * clips.length)];
 
-    // Obtener token de reproducción HLS via GQL
-    let hlsUrl = null;
+    // Obtener URL directa del MP4 via GQL token
+    let mp4Url = null;
     try {
       const gqlRes = await fetch('https://gql.twitch.tv/gql', {
         method: 'POST',
@@ -1201,12 +1201,37 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
       const gqlData = await gqlRes.json();
       const token = gqlData?.[0]?.data?.clip?.playbackAccessToken;
       if (token) {
-        hlsUrl = `https://clips.twitch.tv/api/v2/clips/${clip.id}/vod.m3u8?sig=${token.signature}&token=${encodeURIComponent(token.value)}`;
+        // El token contiene clip_uri con la URL directa del MP4
+        const tokenData = JSON.parse(token.value);
+        mp4Url = tokenData?.clip_uri || null;
       }
-    } catch(e) { console.error('[HLS token]', e.message); }
+    } catch(e) { console.error('[MP4 token]', e.message); }
 
-    res.json({ user, clip, hlsUrl });
+    res.json({ user, clip, mp4Url });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── PROXY MP4 CLIP ──
+app.get('/api/clip-proxy', async (req, res) => {
+  const { url } = req.query;
+  if (!url || !url.includes('cloudfront.net')) return res.status(400).end();
+  try {
+    const range = req.headers.range;
+    const headers = {
+      'Referer': 'https://clips.twitch.tv/',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Origin': 'https://clips.twitch.tv'
+    };
+    if (range) headers['Range'] = range;
+    const videoRes = await fetch(url, { headers });
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-cache');
+    if (videoRes.headers.get('content-length')) res.setHeader('Content-Length', videoRes.headers.get('content-length'));
+    if (videoRes.headers.get('content-range')) res.setHeader('Content-Range', videoRes.headers.get('content-range'));
+    res.status(videoRes.status);
+    videoRes.body.pipe(res);
+  } catch(e) { res.status(500).end(); }
 });
 
 // ── CACHE DE CLIPS EN MEMORIA ──
