@@ -1188,12 +1188,24 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
 
     const clip = clips[Math.floor(Math.random() * clips.length)];
 
-    // Obtener URL directa del MP4 via GQL token
+    // Obtener access_token del streamer para GQL autenticado
     let mp4Url = null;
     try {
+      // Buscar el token del streamer en Supabase
+      const streamerRes = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${target}&select=access_token&limit=1`, { headers: sbHeaders });
+      const streamerData = await streamerRes.json();
+      const userToken = streamerData?.[0]?.access_token;
+
+      const gqlHeaders = {
+        'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+        'Content-Type': 'application/json'
+      };
+      // Usar token del usuario si está disponible
+      if (userToken) gqlHeaders['Authorization'] = `OAuth ${userToken}`;
+
       const gqlRes = await fetch('https://gql.twitch.tv/gql', {
         method: 'POST',
-        headers: { 'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' },
+        headers: gqlHeaders,
         body: JSON.stringify([{
           query: `{ clip(slug: "${clip.id}") { playbackAccessToken(params: {platform: "web", playerBackend: "mediaplayer", playerType: "site"}) { signature value } } }`
         }])
@@ -1201,11 +1213,11 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
       const gqlData = await gqlRes.json();
       const token = gqlData?.[0]?.data?.clip?.playbackAccessToken;
       if (token) {
-        // El token contiene clip_uri con la URL directa del MP4
         const tokenData = JSON.parse(token.value);
         mp4Url = tokenData?.clip_uri || null;
+        console.log(`[GQL authed] mp4Url: ${mp4Url ? 'ok' : 'null'} | userToken: ${userToken ? 'sí' : 'no'}`);
       }
-    } catch(e) { console.error('[MP4 token]', e.message); }
+    } catch(e) { console.error('[GQL authed]', e.message); }
 
     res.json({ user, clip, mp4Url });
   } catch(e) { res.status(500).json({ error: e.message }); }
