@@ -1038,6 +1038,7 @@ function renderMain() {
           { id:'chiste',   icon:'😂', name:'!chiste',   desc:'Muffet cuenta un chiste',                   who:'Todos' },
           { id:'bola8',    icon:'🎱', name:'!8ball',    desc:'La bola mágica responde tu pregunta',        who:'Todos' },
           { id:'poll',     icon:'📋', name:'!poll',     desc:'Crear una encuesta en el chat',             who:'Mods'  },
+          { id:'so',       icon:'📣', name:'!so',       desc:'Shoutout con clip aleatorio + overlay OBS',  who:'Mods'  },
           { id:'cancion',  icon:'🎵', name:'!cancion',  desc:'Pedir canción en Spotify',                  who:'Según config' },
           { id:'social',   icon:'🤗', name:'Sociales',  desc:'!hug, !pat, !kiss, !slap, !bite, !highfive',who:'Todos' },
           { id:'dados',    icon:'🎲', name:'Dados',     desc:'!d6, !d20, !2d6',                           who:'Todos' },
@@ -2276,6 +2277,39 @@ function renderMain() {
 
     <!-- TAB REDES -->
     <div id="profileContent-socials">
+
+      <!-- Overlays OBS — solo Pro -->
+      ${s.plan==='pro'||s.plan==='admin'?`
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;">🎬 Overlays para OBS</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg3);border-radius:var(--radius-sm);">
+            <div style="width:32px;height:32px;background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">🎵</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:600;color:var(--text);">Spotify</div>
+              <code style="font-size:10px;color:var(--text-dim);">${window.location.origin}/overlay/spotify/${userData.username}</code>
+            </div>
+            <button onclick="navigator.clipboard.writeText('${window.location.origin}/overlay/spotify/${userData.username}').then(()=>showToast('Link copiado ✓'))" style="padding:5px 12px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:14px;color:var(--text-dim);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);flex-shrink:0;">Copiar</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg3);border-radius:var(--radius-sm);">
+            <div style="width:32px;height:32px;background:rgba(145,71,255,0.1);border:1px solid rgba(145,71,255,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">🎉</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:600;color:var(--text);">Sorteos</div>
+              <code style="font-size:10px;color:var(--text-dim);">${window.location.origin}/overlay/sorteo/${userData.username}</code>
+            </div>
+            <button onclick="navigator.clipboard.writeText('${window.location.origin}/overlay/sorteo/${userData.username}').then(()=>showToast('Link copiado ✓'))" style="padding:5px 12px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:14px;color:var(--text-dim);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);flex-shrink:0;">Copiar</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--bg3);border-radius:var(--radius-sm);">
+            <div style="width:32px;height:32px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">📣</div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:12px;font-weight:600;color:var(--text);">Shoutout (!so)</div>
+              <code style="font-size:10px;color:var(--text-dim);">${window.location.origin}/overlay/shoutout/${userData.username}</code>
+            </div>
+            <button onclick="navigator.clipboard.writeText('${window.location.origin}/overlay/shoutout/${userData.username}').then(()=>showToast('Link copiado ✓'))" style="padding:5px 12px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:14px;color:var(--text-dim);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);flex-shrink:0;">Copiar</button>
+          </div>
+        </div>
+      </div>`:''}
+
       <!-- Nombre y color -->
       <div style="display:grid;grid-template-columns:1fr auto;gap:16px;margin-bottom:16px;align-items:start;">
         <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;">
