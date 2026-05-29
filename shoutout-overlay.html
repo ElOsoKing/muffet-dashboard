@@ -120,23 +120,27 @@ function showShoutout(data) {
     .catch(() => {});
 
   const container = document.getElementById('clipContainer');
-  // Mostrar overlay primero con thumbnail
-  if (data.clip_thumbnail) {
-    container.innerHTML = `<img style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" src="${data.clip_thumbnail}">`;
-  }
-
-  spawnConfetti();
-  document.getElementById('overlay').classList.add('show');
-
-  // Esperar a que el overlay sea visible ANTES de cargar el iframe
-  // Twitch requiere que el elemento sea visible para permitir autoplay
-  setTimeout(() => {
-    if (data.clip_id) {
+  // Usar video cacheado del servidor — autoplay garantizado sin restricciones
+  const videoSrc = `/api/clip-cached/${username}`;
+  if (data.clip_id) {
+    container.innerHTML = `
+      <video id="clipVideo"
+        src="${videoSrc}"
+        autoplay playsinline
+        style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:none;background:#000;">
+      </video>`;
+    const video = document.getElementById('clipVideo');
+    video.addEventListener('ended', () => setTimeout(hideOverlay, 1500));
+    video.addEventListener('error', () => {
+      // Fallback al iframe si el video cacheado falla
       container.innerHTML = `<iframe id="clipIframe" class="clip-iframe"
         src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false"
         allowfullscreen frameborder="0"></iframe>`;
-    }
-  }, 100); // mínimo delay para que el DOM procese el show
+    });
+    video.play().catch(() => {});
+  } else if (data.clip_thumbnail) {
+    container.innerHTML = `<img style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" src="${data.clip_thumbnail}">`;
+  }
 
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
