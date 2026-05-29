@@ -92,7 +92,7 @@ const DOMAIN = window.location.hostname;
 const username = window.location.pathname.split('/').pop();
 let lastTimestamp = 0;
 let hideTimeout = null;
-const SHOW_DURATION = 25000;
+const SHOW_DURATION = 90000;
 
 function spawnConfetti() {
   const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff'];
@@ -119,9 +119,23 @@ function showShoutout(data) {
 
   const container = document.getElementById('clipContainer');
   if (data.clip_id) {
-    container.innerHTML = `<iframe class="clip-iframe"
+    container.innerHTML = `<iframe id="clipIframe" class="clip-iframe"
       src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false"
-      allowfullscreen allow="autoplay; fullscreen" frameborder="0"></iframe>`;
+      allowfullscreen allow="autoplay; fullscreen; picture-in-picture" frameborder="0"></iframe>`;
+
+    // Simular click en el iframe para forzar autoplay en OBS
+    const iframe = document.getElementById('clipIframe');
+    iframe.addEventListener('load', () => {
+      setTimeout(() => {
+        iframe.focus();
+        iframe.contentWindow?.postMessage('{"event":"trigger-play"}','*');
+        // Click simulado en el centro del iframe
+        const rect = iframe.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        iframe.dispatchEvent(new MouseEvent('click', { bubbles:true, clientX:cx, clientY:cy }));
+      }, 800);
+    });
   } else if (data.clip_thumbnail) {
     container.innerHTML = `<img style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" src="${data.clip_thumbnail}">`;
   }
@@ -138,13 +152,28 @@ function showShoutout(data) {
   }, 100);
 
   if (hideTimeout) clearTimeout(hideTimeout);
-  hideTimeout = setTimeout(() => {
-    document.getElementById('overlay').classList.remove('show');
-    fill.style.transition = 'none';
-    fill.style.width = '0%';
-    setTimeout(() => { container.innerHTML = ''; }, 700);
-  }, SHOW_DURATION);
+  // Ocultar cuando el clip termine o máximo 90 segundos
+  hideTimeout = setTimeout(hideOverlay, 90000);
 }
+
+function hideOverlay() {
+  document.getElementById('overlay').classList.remove('show');
+  const fill = document.getElementById('progressFill');
+  fill.style.transition = 'none';
+  fill.style.width = '0%';
+  setTimeout(() => { document.getElementById('clipContainer').innerHTML = ''; }, 700);
+  if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+}
+
+// Detectar cuando el clip de Twitch termina via postMessage
+window.addEventListener('message', (e) => {
+  try {
+    const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+    if (data?.event === 'ended' || data?.type === 'ended') {
+      setTimeout(hideOverlay, 1500); // pequeña pausa antes de ocultar
+    }
+  } catch(e) {}
+});
 
 async function poll() {
   try {
