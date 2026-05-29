@@ -1193,6 +1193,7 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
 
     // Obtener URL autenticada del clip via GQL (método yt-dlp)
     let mp4Url = null;
+    console.log(`[shoutout-clips] iniciando GQL para clip: ${clip.id}`);
     try {
       const streamerRes = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${target}&select=access_token&limit=1`, { headers: sbHeaders });
       const streamerData = await streamerRes.json();
