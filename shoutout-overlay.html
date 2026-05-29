@@ -9,8 +9,19 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 
 #overlay{
   position:fixed;inset:0;background:#000;
-  border-radius:16px;overflow:hidden;display:none;
+  border-radius:16px;overflow:hidden;
+
+  /* NUNCA display:none — mata autoplay en Twitch */
+  opacity:0.001;
+  pointer-events:none;
+  visibility:visible;
+
   box-shadow:0 0 0 2px rgba(145,71,255,0.6),0 16px 60px rgba(0,0,0,0.9);
+  transition:opacity 0.25s ease;
+}
+#overlay.show{
+  opacity:1;
+  pointer-events:auto;
 }
 #overlay::before{
   content:'';position:absolute;top:0;left:0;right:0;height:3px;z-index:10;
@@ -20,6 +31,7 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 /* Cubrir UI de Twitch */
 .top-cover{position:absolute;top:0;left:0;right:0;height:50px;background:#000;z-index:5;}
 .bottom-cover{position:absolute;bottom:0;left:0;right:0;height:50px;background:#000;z-index:5;}
+
 #clipIframe{
   position:absolute;top:-50px;left:0;
   width:100%;height:calc(100% + 100px);border:none;
@@ -50,10 +62,7 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <div id="clipContainer">
-    <iframe id="clipIframe" frameborder="0" allowfullscreen allow="autoplay; fullscreen"
-      style="position:absolute;top:-50px;left:0;width:100%;height:calc(100% + 100px);border:none;"></iframe>
-  </div>
+  <iframe id="clipIframe" frameborder="0" allowfullscreen allow="autoplay; fullscreen"></iframe>
   <div class="top-cover"></div>
   <div class="bottom-cover"></div>
   <div id="badge">
@@ -71,6 +80,11 @@ const DOMAIN = window.location.hostname;
 const channelName = window.location.pathname.split('/').pop().toLowerCase();
 let hideTimeout = null;
 
+// Precargar iframe con clip dummy para inicializar Twitch player
+// Esto hace que OBS registre el iframe como válido para autoplay
+const iframe = document.getElementById('clipIframe');
+iframe.src = `https://clips.twitch.tv/embed?clip=AwkwardHelplessSalamanderSwiftRage&parent=${DOMAIN}&autoplay=false&muted=true`;
+
 function spawnConfetti() {
   const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff'];
   const wrap = document.getElementById('confetti');
@@ -86,7 +100,7 @@ function spawnConfetti() {
   }
 }
 
-function showShoutout(user, clip, useCachedVideo) {
+function showShoutout(user, clip) {
   const duration = clip ? Math.min((clip.duration * 1000) + 2000, 90000) : 10000;
 
   document.getElementById('badgeName').textContent = user.display_name || user.login;
@@ -95,49 +109,33 @@ function showShoutout(user, clip, useCachedVideo) {
     .then(url => { if (url?.startsWith('http')) document.getElementById('badgeAvatar').src = url; })
     .catch(() => {});
 
-  const overlay = document.getElementById('overlay');
-  overlay.style.display = 'block';
-  void overlay.offsetWidth;
+  spawnConfetti();
 
+  // Hacer visible ANTES de cargar el clip
+  document.getElementById('overlay').classList.add('show');
+
+  // Pequeño delay para que Twitch vea el iframe visible
   setTimeout(() => {
-    if (useCachedVideo) {
-      // Video nativo — autoplay garantizado sin restricciones
-      const videoHtml = `<video id="clipVideo" autoplay playsinline
-        src="/api/clip-cached/${channelName}"
-        style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border:none;background:#000;">
-      </video>`;
-      document.getElementById('clipContainer').innerHTML = videoHtml;
-      const vid = document.getElementById('clipVideo');
-      if (vid) {
-        vid.play().catch(e => console.log('video play error:', e));
-        vid.onended = () => setTimeout(hideOverlay, 1500);
-      }
-    } else {
-      // Fallback iframe
-      document.getElementById('clipIframe').src =
-        `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=false`;
+    if (clip) {
+      iframe.src = `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=true`;
     }
+  }, 300);
 
-    spawnConfetti();
-    const fill = document.getElementById('progressFill');
-    fill.style.transition = 'none';
-    fill.style.width = '0%';
-    setTimeout(() => {
-      fill.style.transition = `width ${duration}ms linear`;
-      fill.style.width = '100%';
-    }, 50);
-  }, 100);
+  const fill = document.getElementById('progressFill');
+  fill.style.transition = 'none';
+  fill.style.width = '0%';
+  setTimeout(() => {
+    fill.style.transition = `width ${duration}ms linear`;
+    fill.style.width = '100%';
+  }, 400);
 
   if (hideTimeout) clearTimeout(hideTimeout);
-  hideTimeout = setTimeout(hideOverlay, duration + 100);
+  hideTimeout = setTimeout(hideOverlay, duration);
 }
 
 function hideOverlay() {
-  document.getElementById('overlay').style.display = 'none';
-  document.getElementById('clipIframe').src = '';
-  document.getElementById('clipContainer').innerHTML = `
-    <iframe id="clipIframe" frameborder="0" allowfullscreen allow="autoplay; fullscreen"
-      style="position:absolute;top:-50px;left:0;width:100%;height:calc(100% + 100px);border:none;"></iframe>`;
+  // NO destruir el iframe — solo ocultar
+  document.getElementById('overlay').classList.remove('show');
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
   fill.style.width = '0%';
@@ -146,26 +144,9 @@ function hideOverlay() {
 
 async function handleSo(targetUser) {
   try {
-    // 1. Obtener info del clip + MP4 URL fresca del servidor
     const res = await fetch(`/api/shoutout-clips/${targetUser}`);
     const data = await res.json();
-    if (!data?.user) return;
-
-    const user = data.user;
-    const clip = data.clip;
-    const mp4Url = data.mp4Url;
-
-    // 2. Si hay MP4, pedir al servidor que lo descargue inmediatamente (URL aún fresca)
-    if (mp4Url) {
-      await fetch('/api/cache-clip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: channelName, url: mp4Url })
-      });
-      showShoutout(user, clip, true); // usar video cacheado
-    } else {
-      showShoutout(user, clip, false); // fallback a iframe
-    }
+    if (data?.user) showShoutout(data.user, data.clip);
   } catch(e) { console.error('[!so]', e); }
 }
 
