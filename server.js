@@ -1168,12 +1168,10 @@ app.post('/api/moderation', requireAuth, async (req, res) => {
 // ── CLIPS PARA SHOUTOUT OVERLAY ──
 app.get('/api/shoutout-clips/:username', async (req, res) => {
   const target = req.params.username.toLowerCase();
-  console.log(`[shoutout-clips] target: ${target}`);
   try {
     const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`, { method:'POST' });
     const tokenData = await tokenRes.json();
     const appToken = tokenData.access_token;
-    console.log(`[shoutout-clips] appToken: ${appToken ? 'ok' : 'null'}`);
     if (!appToken) return res.status(500).json({ error: 'Sin token' });
 
     const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${target}`,
@@ -1186,14 +1184,12 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
       { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
     const clipsData = await clipsRes.json();
     const clips = clipsData?.data || [];
-    console.log(`[shoutout-clips] clips: ${clips.length}`);
     if (!clips.length) return res.json({ user, clip: null, hlsUrl: null });
 
     const clip = clips[Math.floor(Math.random() * clips.length)];
 
     // Obtener URL autenticada del clip via GQL (método yt-dlp)
     let mp4Url = null;
-    console.log(`[shoutout-clips] iniciando GQL para clip: ${clip.id}`);
     try {
       const streamerRes = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${target}&select=access_token&limit=1`, { headers: sbHeaders });
       const streamerData = await streamerRes.json();
@@ -1220,7 +1216,6 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
         }])
       });
       const gqlData = await gqlRes.json();
-      console.log('[GQL respuesta]', JSON.stringify(gqlData).slice(0, 400));
       const clipData = gqlData?.[0]?.data?.clip;
       const token = clipData?.playbackAccessToken;
       const qualities = clipData?.videoQualities || [];
@@ -1230,7 +1225,6 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
         const best = qualities.find(q => q.quality === '1080') || qualities.find(q => q.quality === '720') || qualities[0];
         if (best?.sourceURL) {
           mp4Url = `${best.sourceURL}?sig=${token.signature}&token=${encodeURIComponent(token.value)}`;
-          console.log(`[GQL] mp4Url construida: ${mp4Url.slice(0, 80)}...`);
         }
       }
     } catch(e) { console.error('[GQL]', e.message); }
