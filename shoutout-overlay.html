@@ -2,154 +2,139 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Shoutout Overlay</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:transparent;font-family:'Inter',sans-serif;overflow:hidden;width:420px;height:320px;}
+body{background:transparent;font-family:'Inter',sans-serif;overflow:hidden;width:560px;height:400px;}
 
 .overlay{
-  position:absolute;bottom:0;left:0;right:0;
-  background:linear-gradient(135deg,rgba(10,10,12,0.95),rgba(20,16,30,0.95));
-  border:1px solid rgba(145,71,255,0.4);
-  border-radius:16px;
-  overflow:hidden;
-  transform:translateY(120%);
-  transition:transform 0.6s cubic-bezier(0.34,1.56,0.64,1);
-  box-shadow:0 8px 40px rgba(0,0,0,0.8),0 0 30px rgba(145,71,255,0.2);
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(8,8,10,0.97),rgba(18,12,28,0.97));
+  border:1px solid rgba(145,71,255,0.45);
+  border-radius:18px;overflow:hidden;
+  transform:translateY(110%) scale(0.95);
+  transition:transform 0.65s cubic-bezier(0.34,1.56,0.64,1),opacity 0.4s;
+  opacity:0;
+  box-shadow:0 12px 48px rgba(0,0,0,0.85),0 0 40px rgba(145,71,255,0.15);
 }
-.overlay.show{transform:translateY(0);}
+.overlay.show{transform:translateY(0) scale(1);opacity:1;}
 .overlay::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:linear-gradient(90deg,transparent,#9147ff,#b388ff,transparent);
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;z-index:10;
+  background:linear-gradient(90deg,transparent,#9147ff,#b388ff,#e05a7a,transparent);
 }
 
-/* CLIP */
-.clip-wrap{position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;}
-.clip-video{width:100%;height:100%;object-fit:cover;display:block;}
-.clip-thumb{width:100%;height:100%;object-fit:cover;display:block;}
-.clip-play{
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  background:rgba(0,0,0,0.3);cursor:pointer;
-}
-.play-btn{
-  width:56px;height:56px;background:rgba(145,71,255,0.9);border-radius:50%;
-  display:flex;align-items:center;justify-content:center;font-size:22px;
-  box-shadow:0 0 24px rgba(145,71,255,0.6);
-  animation:pulse-play 2s infinite;
-}
-@keyframes pulse-play{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+/* PROGRESO */
+.progress-bar{height:3px;background:rgba(255,255,255,0.05);position:relative;overflow:hidden;z-index:10;}
+.progress-fill{height:100%;background:linear-gradient(90deg,#9147ff,#b388ff,#e05a7a);width:0%;transition:width linear;}
 
-/* INFO */
-.info{padding:14px 16px;display:flex;align-items:center;gap:12px;}
+/* VIDEO CLIP */
+.clip-section{position:relative;width:100%;height:240px;background:#000;overflow:hidden;}
+.clip-iframe{width:100%;height:100%;border:none;display:block;}
+.clip-thumb{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0;}
+.clip-overlay-gradient{
+  position:absolute;bottom:0;left:0;right:0;height:80px;
+  background:linear-gradient(to top,rgba(8,8,10,0.97),transparent);
+  pointer-events:none;z-index:2;
+}
+
+/* INFO BOTTOM */
+.info{
+  padding:14px 18px 16px;
+  display:flex;align-items:center;gap:14px;
+  background:transparent;position:relative;
+}
 .avatar-wrap{position:relative;flex-shrink:0;}
 .avatar{
-  width:52px;height:52px;border-radius:50%;border:3px solid #9147ff;
+  width:60px;height:60px;border-radius:50%;border:3px solid #9147ff;
   object-fit:cover;background:#1a1a1e;
-  box-shadow:0 0 16px rgba(145,71,255,0.4);
+  box-shadow:0 0 20px rgba(145,71,255,0.5);
 }
 .avatar-ring{
-  position:absolute;inset:-4px;border-radius:50%;
-  border:2px solid transparent;
-  background:linear-gradient(135deg,#9147ff,#b388ff,#9147ff) border-box;
-  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
-  -webkit-mask-composite:destination-out;
-  mask-composite:exclude;
+  position:absolute;inset:-5px;border-radius:50%;
+  border:2px solid #9147ff;
   animation:spin 3s linear infinite;
+  opacity:0.5;
 }
 @keyframes spin{to{transform:rotate(360deg);}}
-.text{flex:1;min-width:0;}
-.shoutout-label{
-  font-size:10px;font-weight:700;color:#9147ff;text-transform:uppercase;
-  letter-spacing:2px;margin-bottom:4px;display:flex;align-items:center;gap:6px;
+.text-info{flex:1;min-width:0;}
+.so-label{
+  font-size:10px;font-weight:800;color:#9147ff;text-transform:uppercase;
+  letter-spacing:2.5px;margin-bottom:5px;display:flex;align-items:center;gap:6px;
 }
-.shoutout-label::before{content:'🕷️';}
 .username{
-  font-size:20px;font-weight:800;color:#eeeef5;letter-spacing:-0.5px;
+  font-size:24px;font-weight:900;color:#eeeef5;letter-spacing:-0.8px;line-height:1;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.game{font-size:12px;color:#6b6b82;margin-top:3px;display:flex;align-items:center;gap:5px;}
-.game::before{content:'🎮';}
-.clip-title{
-  font-size:11px;color:rgba(238,238,245,0.5);margin-top:4px;
+.game-row{font-size:12px;color:#6b6b82;margin-top:5px;display:flex;align-items:center;gap:5px;}
+.clip-title-text{
+  font-size:11px;color:rgba(238,238,245,0.4);margin-top:3px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-style:italic;
 }
-
-/* BARRA DE PROGRESO */
-.progress-bar{
-  height:3px;background:rgba(255,255,255,0.06);
-  position:relative;overflow:hidden;
-}
-.progress-fill{
-  height:100%;background:linear-gradient(90deg,#9147ff,#b388ff);
-  width:0%;transition:width linear;
+.twitch-btn{
+  flex-shrink:0;padding:8px 16px;background:#9147ff;border-radius:20px;
+  color:white;font-size:11px;font-weight:700;text-decoration:none;
+  box-shadow:0 0 16px rgba(145,71,255,0.4);
+  display:flex;align-items:center;gap:5px;
 }
 
 /* CONFETTI */
-.confetti-container{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
-.confetti-piece{
-  position:absolute;width:7px;height:7px;border-radius:2px;
-  animation:fall 2s ease-in forwards;top:-10px;
-}
-@keyframes fall{
-  0%{opacity:1;transform:translateY(0) rotate(0deg);}
-  100%{opacity:0;transform:translateY(330px) rotate(540deg);}
-}
+.confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5;}
+.c{position:absolute;width:7px;height:7px;border-radius:2px;animation:fall 2.5s ease-in forwards;top:-10px;}
+@keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(420px) rotate(600deg);}}
 </style>
 </head>
 <body>
-
 <div class="overlay" id="overlay">
-  <div class="confetti-container" id="confetti"></div>
+  <div class="confetti-wrap" id="confetti"></div>
   <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-  <div class="clip-wrap" id="clipWrap">
+  <div class="clip-section" id="clipSection">
     <img class="clip-thumb" id="clipThumb" src="" alt="">
-    <div class="clip-play" id="clipPlay">
-      <div class="play-btn">▶</div>
-    </div>
+    <div class="clip-overlay-gradient"></div>
   </div>
   <div class="info">
     <div class="avatar-wrap">
       <img class="avatar" id="userAvatar" src="" alt="">
       <div class="avatar-ring"></div>
     </div>
-    <div class="text">
-      <div class="shoutout-label">Shoutout a</div>
+    <div class="text-info">
+      <div class="so-label">🕷️ Shoutout a</div>
       <div class="username" id="userName">—</div>
-      <div class="game" id="userGame">—</div>
-      <div class="clip-title" id="clipTitle">—</div>
+      <div class="game-row">🎮 <span id="userGame">—</span></div>
+      <div class="clip-title-text" id="clipTitle"></div>
     </div>
+    <a id="twitchLink" href="#" target="_blank" class="twitch-btn">🎮 Ver canal</a>
   </div>
 </div>
 
 <script>
-const username = window.location.pathname.split('/overlay/shoutout/')[1];
+const DOMAIN = window.location.hostname;
+const pathParts = window.location.pathname.split('/');
+const username = pathParts[pathParts.length - 1];
 let lastTimestamp = 0;
 let hideTimeout = null;
-let progressInterval = null;
-const SHOW_DURATION = 18000; // 18 segundos visible
+const SHOW_DURATION = 20000;
 
 function spawnConfetti() {
-  const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff'];
-  const container = document.getElementById('confetti');
-  container.innerHTML = '';
-  for (let i = 0; i < 28; i++) {
+  const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff','#fff'];
+  const wrap = document.getElementById('confetti');
+  wrap.innerHTML = '';
+  for (let i = 0; i < 32; i++) {
     const el = document.createElement('div');
-    el.className = 'confetti-piece';
+    el.className = 'c';
     el.style.left = Math.random() * 100 + '%';
     el.style.background = colors[Math.floor(Math.random() * colors.length)];
-    el.style.animationDelay = Math.random() * 1.2 + 's';
-    el.style.animationDuration = (1.5 + Math.random()) + 's';
-    container.appendChild(el);
+    el.style.animationDelay = Math.random() * 1.5 + 's';
+    el.style.animationDuration = (1.8 + Math.random() * 1.2) + 's';
+    wrap.appendChild(el);
   }
 }
 
 function showShoutout(data) {
-  // Actualizar UI
-  document.getElementById('clipThumb').src = data.clip_thumbnail || '';
+  // Info
   document.getElementById('userName').textContent = data.display_name || data.username;
   document.getElementById('userGame').textContent = data.game || 'Streaming';
   document.getElementById('clipTitle').textContent = data.clip_title || '';
+  document.getElementById('twitchLink').href = `https://twitch.tv/${data.username}`;
 
   // Avatar
   fetch(`https://decapi.me/twitch/avatar/${data.username}`)
@@ -157,8 +142,25 @@ function showShoutout(data) {
     .then(url => { if(url?.startsWith('http')) document.getElementById('userAvatar').src = url; })
     .catch(() => {});
 
-  // Confetti y mostrar
+  // Clip — usar iframe embed de Twitch
+  const clipSection = document.getElementById('clipSection');
+  if (data.clip_id) {
+    clipSection.innerHTML = `
+      <div class="clip-overlay-gradient"></div>
+      <iframe class="clip-iframe"
+        src="https://clips.twitch.tv/embed?clip=${data.clip_id}&parent=${DOMAIN}&autoplay=true&muted=false"
+        allowfullscreen frameborder="0">
+      </iframe>`;
+  } else if (data.clip_thumbnail) {
+    clipSection.innerHTML = `
+      <img class="clip-thumb" src="${data.clip_thumbnail}" alt="">
+      <div class="clip-overlay-gradient"></div>`;
+  }
+
+  // Confetti
   spawnConfetti();
+
+  // Mostrar
   const overlay = document.getElementById('overlay');
   overlay.classList.add('show');
 
@@ -171,12 +173,13 @@ function showShoutout(data) {
     fill.style.width = '100%';
   }, 100);
 
-  // Ocultar después del tiempo
+  // Ocultar
   if (hideTimeout) clearTimeout(hideTimeout);
   hideTimeout = setTimeout(() => {
     overlay.classList.remove('show');
     fill.style.transition = 'none';
     fill.style.width = '0%';
+    setTimeout(() => { clipSection.innerHTML = '<img class="clip-thumb" id="clipThumb" src="" alt=""><div class="clip-overlay-gradient"></div>'; }, 700);
   }, SHOW_DURATION);
 }
 
@@ -191,7 +194,6 @@ async function poll() {
   } catch(e) {}
 }
 
-// Polling cada 2 segundos
 setInterval(poll, 2000);
 poll();
 </script>
