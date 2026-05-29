@@ -1165,6 +1165,37 @@ app.post('/api/moderation', requireAuth, async (req, res) => {
   }
 });
 
+// ── CLIPS PARA SHOUTOUT OVERLAY ──
+app.get('/api/shoutout-clips/:username', async (req, res) => {
+  const target = req.params.username.toLowerCase();
+  try {
+    // Obtener app token
+    const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`, { method:'POST' });
+    const tokenData = await tokenRes.json();
+    const appToken = tokenData.access_token;
+    if (!appToken) return res.status(500).json({ error: 'Sin token' });
+
+    // Obtener user_id
+    const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${target}`,
+      { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
+    const userData = await userRes.json();
+    const user = userData?.data?.[0];
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Obtener clips
+    const clipsRes = await fetch(`https://api.twitch.tv/helix/clips?broadcaster_id=${user.id}&first=20`,
+      { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
+    const clipsData = await clipsRes.json();
+    const clips = clipsData?.data || [];
+
+    if (!clips.length) return res.json({ user, clip: null });
+
+    // Elegir clip aleatorio
+    const clip = clips[Math.floor(Math.random() * clips.length)];
+    res.json({ user, clip });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── CACHE DE CLIPS EN MEMORIA ──
 const clipCache = new Map(); // username -> { buffer, contentType, expires }
 
