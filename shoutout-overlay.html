@@ -3,15 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <title>Shoutout Overlay</title>
-<script src="https://player.twitch.tv/js/embed/v1.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.10/hls.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 
-/* Overlay — oculto por defecto */
 #overlay{
-  position:fixed;inset:0;
-  background:#000;
+  position:fixed;inset:0;background:#000;
   border-radius:16px;overflow:hidden;
   display:none;
   box-shadow:0 0 0 2px rgba(145,71,255,0.6),0 16px 60px rgba(0,0,0,0.9);
@@ -21,14 +19,11 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
   background:linear-gradient(90deg,transparent,#9147ff,#b388ff,#e05a7a,transparent);
 }
 
-/* Player de Twitch */
-#twitch-player{position:absolute;inset:0;width:100%;height:100%;}
+#clipVideo{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;background:#000;
+}
 
-/* Cubrir UI de Twitch */
-.top-cover{position:absolute;top:0;left:0;right:0;height:50px;background:#000;z-index:5;}
-.bottom-cover{position:absolute;bottom:0;left:0;right:0;height:50px;background:#000;z-index:5;}
-
-/* Badge */
 #badge{
   position:absolute;bottom:8px;left:12px;z-index:10;
   display:flex;align-items:center;gap:8px;
@@ -40,11 +35,9 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 #badgeTag{font-size:9px;font-weight:700;color:#9147ff;text-transform:uppercase;letter-spacing:1px;display:block;font-family:'Inter',sans-serif;}
 #badgeName{font-size:13px;font-weight:700;color:#fff;font-family:'Inter',sans-serif;}
 
-/* Barra progreso */
 #progressBar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,0.5);z-index:10;}
 #progressFill{height:100%;background:linear-gradient(90deg,#9147ff,#b388ff,#e05a7a);width:0%;transition:width linear;}
 
-/* Confetti */
 .confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:8;}
 .c{position:absolute;width:7px;height:7px;border-radius:2px;animation:fall 2.5s ease-in forwards;top:-10px;}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
@@ -54,9 +47,7 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <div id="twitch-player"></div>
-  <div class="top-cover"></div>
-  <div class="bottom-cover"></div>
+  <video id="clipVideo" autoplay playsinline></video>
   <div id="badge">
     <img id="badgeAvatar" src="" alt="">
     <div>
@@ -68,10 +59,9 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 </div>
 
 <script>
-const DOMAIN = window.location.hostname;
 const channelName = window.location.pathname.split('/').pop().toLowerCase();
 let hideTimeout = null;
-let player = null;
+let hls = null;
 
 function spawnConfetti() {
   const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff'];
@@ -88,57 +78,41 @@ function spawnConfetti() {
   }
 }
 
-function showShoutout(user, clip) {
+function showShoutout(user, clip, hlsUrl) {
   const duration = clip ? Math.min((clip.duration * 1000) + 2000, 90000) : 10000;
 
-  // Badge info
   document.getElementById('badgeName').textContent = user.display_name || user.login;
   fetch(`https://decapi.me/twitch/avatar/${user.login}`)
     .then(r => r.text())
     .then(url => { if (url?.startsWith('http')) document.getElementById('badgeAvatar').src = url; })
     .catch(() => {});
 
-  // Mostrar overlay
-  document.getElementById('overlay').style.display = 'block';
+  const video = document.getElementById('clipVideo');
 
-  if (clip) {
-    if (player) {
-      // Cambiar al nuevo clip
-      player.setClip(clip.id);
-      setTimeout(() => {
-        player.setVolume(1);
-        player.setMuted(false);
-        player.play();
-      }, 300);
-    } else {
-      // Crear player con channel primero (requerido por Twitch)
-      // luego cambiar a clip
-      player = new Twitch.Player('twitch-player', {
-        channel: channelName,
-        width: '100%',
-        height: '100%',
-        autoplay: false,
-        muted: true,
-        parent: [DOMAIN],
+  // Limpiar HLS anterior
+  if (hls) { hls.destroy(); hls = null; }
+
+  if (hlsUrl) {
+    if (Hls.isSupported()) {
+      hls = new Hls({ enableWorker: false });
+      hls.loadSource(hlsUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play().catch(e => console.log('play error:', e));
       });
-      player.addEventListener(Twitch.Player.READY, () => {
-        // Ahora cambiar al clip
-        player.setClip(clip.id);
-        setTimeout(() => {
-          player.setVolume(1);
-          player.setMuted(false);
-          player.play();
-        }, 500);
-      });
-      player.addEventListener(Twitch.Player.ENDED, () => {
-        setTimeout(hideOverlay, 1500);
-      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = hlsUrl;
+      video.play().catch(e => console.log('play error:', e));
     }
+    video.onended = () => setTimeout(hideOverlay, 1500);
+  } else if (clip?.thumbnail_url) {
+    // Fallback: thumbnail si no hay HLS
+    document.getElementById('overlay').style.background = `url(${clip.thumbnail_url}) center/cover`;
   }
 
   spawnConfetti();
+  document.getElementById('overlay').style.display = 'block';
 
-  // Barra de progreso
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
   fill.style.width = '0%';
@@ -152,8 +126,12 @@ function showShoutout(user, clip) {
 }
 
 function hideOverlay() {
+  const video = document.getElementById('clipVideo');
+  video.pause();
+  if (hls) { hls.destroy(); hls = null; }
+  video.src = '';
   document.getElementById('overlay').style.display = 'none';
-  if (player) { try { player.pause(); } catch(e) {} }
+  document.getElementById('overlay').style.background = '#000';
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
   fill.style.width = '0%';
@@ -164,7 +142,7 @@ async function handleSo(targetUser) {
   try {
     const res = await fetch(`/api/shoutout-clips/${targetUser}`);
     const data = await res.json();
-    if (data?.user) showShoutout(data.user, data.clip);
+    if (data?.user) showShoutout(data.user, data.clip, data.hlsUrl);
   } catch(e) { console.error('[!so]', e); }
 }
 
