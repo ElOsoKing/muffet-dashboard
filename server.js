@@ -1260,7 +1260,7 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
       }
     } catch(e) { console.error('[GQL]', e.message); }
 
-    res.json({ user, clip, mp4Url });
+    res.json({ user, clip, mp4Url, config: sConfig });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -1337,6 +1337,34 @@ app.post('/api/shoutout-config', requireAuth, async (req, res) => {
   if (!isValidObject(shoutout_config)) return res.status(400).json({ error: 'Inválido' });
   await sbUpdate('streamers', { shoutout_config }, { twitch_id: req.session.user.id });
   res.json({ ok: true });
+});
+
+// ── SHOUTOUT CONFIG PÚBLICA (para el overlay) ──
+app.get('/api/shoutout-config-public/:username', async (req, res) => {
+  const username = req.params.username.toLowerCase();
+  try {
+    const data = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=shoutout_config&limit=1`, { headers: sbHeaders });
+    const rows = await data.json();
+    res.json({ config: rows?.[0]?.shoutout_config || {} });
+  } catch(e) { res.json({ config: {} }); }
+});
+
+// ── FOLLOWERS PARA OVERLAY ──
+app.get('/api/shoutout-followers/:username', async (req, res) => {
+  try {
+    const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`, { method:'POST' });
+    const tokenData = await tokenRes.json();
+    const appToken = tokenData.access_token;
+    const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${req.params.username}`,
+      { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
+    const userData = await userRes.json();
+    const userId = userData?.data?.[0]?.id;
+    if (!userId) return res.json({ followers: null });
+    const followRes = await fetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${userId}`,
+      { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
+    const followData = await followRes.json();
+    res.json({ followers: followData?.total ?? null });
+  } catch(e) { res.json({ followers: null }); }
 });
 
 // ── SHOUTOUT OVERLAY ──
