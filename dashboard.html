@@ -2344,6 +2344,111 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- ESTILO DEL OVERLAY — PRO -->
+    ${s.plan==='pro'||s.plan==='admin'?`
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:32px;height:32px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">🎨</div>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">Estilo del Overlay</span>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:var(--purple-light);background:var(--purple-dim);border:1px solid var(--purple-border);padding:3px 10px;border-radius:10px;">⭐ PRO</span>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Elementos visibles -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">👁️ Elementos visibles</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${[
+              ['show_avatar','🖼️ Avatar del canal','Muestra la foto de perfil del streamer'],
+              ['show_game','🎮 Imagen del juego','Muestra el juego que estaba jugando en el clip'],
+              ['show_followers','👥 Seguidores','Muestra el número de seguidores del canal'],
+              ['show_timer','⏱️ Timer del clip','Muestra cuánto tiempo queda del clip'],
+            ].map(([key,label,desc]) => `
+              <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);padding:12px 16px;display:flex;align-items:center;gap:12px;">
+                <label class="toggle"><input type="checkbox" id="style_${key}" ${(s.shoutout_config?.style?.[key]!==false)?'checked':''}><span class="toggle-slider"></span></label>
+                <div>
+                  <div style="font-size:13px;font-weight:600;color:var(--text);">${label}</div>
+                  <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${desc}</div>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>
+
+        <!-- Título personalizable -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">📝 Título del shoutout</div>
+          <input class="form-input" id="style_title" value="${s.shoutout_config?.style?.title||'¡Sigan a {user}!'}" placeholder="¡Sigan a {user}!">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Usa <code style="color:var(--purple-light);background:var(--purple-dim);padding:1px 5px;border-radius:3px;">{user}</code> para insertar el nombre del streamer</div>
+        </div>
+
+        <!-- Estilo de bordes -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🔲 Estilo de borde</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${[
+              ['none','Sin borde','transparent','transparent'],
+              ['solid','Sólido','var(--purple)','rgba(145,71,255,0.15)'],
+              ['glow','Glow','rgba(145,71,255,0.5)','rgba(145,71,255,0.1)'],
+              ['neon','Neon','#e05a7a','rgba(224,90,122,0.1)'],
+              ['gold','Dorado','#f0c060','rgba(240,192,96,0.1)'],
+            ].map(([val,label,borderColor,bg]) => {
+              const active = (s.shoutout_config?.style?.border_style||'glow')===val;
+              return `<button onclick="selectBorderStyle('${val}',this)" data-border="${val}"
+                style="padding:8px 16px;border:2px solid ${active?borderColor:'rgba(255,255,255,0.08)'};border-radius:var(--radius-sm);background:${active?bg:'transparent'};color:${active?'var(--text)':'var(--text-dim)'};font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;">
+                ${label}
+              </button>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Fuente y colores -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">🔤 Fuente</div>
+            <select class="form-input" id="style_font" style="font-size:12px;">
+              ${['Inter','Roboto','Poppins','Montserrat','Oswald','Bebas Neue'].map(f =>
+                `<option value="${f}" ${(s.shoutout_config?.style?.font||'Inter')===f?'selected':''}>${f}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">🎨 Color texto</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="color" id="style_text_color" value="${s.shoutout_config?.style?.text_color||'#ffffff'}"
+                style="width:40px;height:40px;border:2px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;background:none;padding:0;">
+              <span id="textColorVal" style="font-size:11px;color:var(--text-dim);">${s.shoutout_config?.style?.text_color||'#ffffff'}</span>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">✨ Color acento</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="color" id="style_accent_color" value="${s.shoutout_config?.style?.accent_color||'#9147ff'}"
+                style="width:40px;height:40px;border:2px solid rgba(255,255,255,0.1);border-radius:8px;cursor:pointer;background:none;padding:0;">
+              <span id="accentColorVal" style="font-size:11px;color:var(--text-dim);">${s.shoutout_config?.style?.accent_color||'#9147ff'}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Animación -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">✨ Animación de entrada</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${[['fade','🌫️ Fade'],['slide','⬆️ Slide'],['zoom','🔍 Zoom'],['bounce','🏀 Bounce']].map(([val,label]) => {
+              const active = (s.shoutout_config?.style?.animation||'fade')===val;
+              return `<button onclick="selectAnimation('${val}',this)" data-anim="${val}"
+                style="padding:8px 18px;border:1px solid ${active?'var(--purple-border)':'rgba(255,255,255,0.08)'};border-radius:20px;background:${active?'var(--purple-dim)':'transparent'};color:${active?'var(--text)':'var(--text-dim)'};font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;">
+                ${label}
+              </button>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <button onclick="saveShoutoutStyle()" style="padding:11px 28px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);width:fit-content;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">💾 Guardar estilo</button>
+      </div>
+    </div>`:''}
+
     <!-- OVERLAY LINK -->
     <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),rgba(145,71,255,0.03));border:1px solid var(--purple-border);border-radius:var(--radius);padding:20px 24px;">
       <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;">🎬 URL del Overlay para OBS</div>
@@ -3480,6 +3585,49 @@ function updateDayActive(key) {
   if(card) card.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.06)';
 }
 
+function selectBorderStyle(val, el) {
+  document.querySelectorAll('[data-border]').forEach(b => {
+    const active = b.dataset.border === val;
+    const colors = {none:['transparent','transparent'],solid:['var(--purple)','rgba(145,71,255,0.15)'],glow:['rgba(145,71,255,0.5)','rgba(145,71,255,0.1)'],neon:['#e05a7a','rgba(224,90,122,0.1)'],gold:['#f0c060','rgba(240,192,96,0.1)']};
+    const [border,bg] = colors[b.dataset.border] || ['rgba(255,255,255,0.08)','transparent'];
+    b.style.borderColor = active ? border : 'rgba(255,255,255,0.08)';
+    b.style.background = active ? bg : 'transparent';
+    b.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+  });
+}
+
+function selectAnimation(val, el) {
+  document.querySelectorAll('[data-anim]').forEach(b => {
+    const active = b.dataset.anim === val;
+    b.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.08)';
+    b.style.background = active ? 'var(--purple-dim)' : 'transparent';
+    b.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+  });
+}
+
+async function saveShoutoutStyle() {
+  const style = {
+    show_avatar: document.getElementById('style_show_avatar')?.checked !== false,
+    show_game: document.getElementById('style_show_game')?.checked !== false,
+    show_followers: document.getElementById('style_show_followers')?.checked !== false,
+    show_timer: document.getElementById('style_show_timer')?.checked !== false,
+    title: document.getElementById('style_title')?.value || '¡Sigan a {user}!',
+    border_style: document.querySelector('[data-border][style*="var(--purple"]')?.dataset?.border || document.querySelector('[data-border][style*="#"]')?.dataset?.border || 'glow',
+    font: document.getElementById('style_font')?.value || 'Inter',
+    text_color: document.getElementById('style_text_color')?.value || '#ffffff',
+    accent_color: document.getElementById('style_accent_color')?.value || '#9147ff',
+    animation: document.querySelector('[data-anim][style*="var(--purple"]')?.dataset?.anim || 'fade',
+  };
+  const current = streamerData.shoutout_config || {};
+  const config = { ...current, style };
+  const res = await fetch('/api/shoutout-config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shoutout_config: config })
+  });
+  if (res.ok) { streamerData.shoutout_config = config; showToast('Estilo guardado ✓'); }
+  else showToast('Error al guardar ✗', true);
+}
+
 function updateVolume(val) {
   document.getElementById('volumeLabel').textContent = val + '%';
   document.getElementById('volumeTrack').style.width = val + '%';
@@ -3490,6 +3638,14 @@ function setVolume(val) {
   input.value = val;
   updateVolume(val);
 }
+
+// Color pickers listeners
+document.getElementById('style_text_color')?.addEventListener('input', function() {
+  document.getElementById('textColorVal').textContent = this.value;
+});
+document.getElementById('style_accent_color')?.addEventListener('input', function() {
+  document.getElementById('accentColorVal').textContent = this.value;
+});
 
 function selectQuality(val, el) {
   document.querySelectorAll('input[name="clipQuality"]').forEach(i => {
