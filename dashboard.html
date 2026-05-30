@@ -3522,6 +3522,7 @@ async function saveShoutoutConfig() {
 }
 
 
+async function saveSchedule() {
   const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
   const schedule = { timezone: document.getElementById('scheduleTimezone')?.value || 'America/Santo_Domingo' };
   days.forEach(key => {
