@@ -2449,6 +2449,72 @@ function renderMain() {
       </div>
     </div>`:''}
 
+    <!-- DISPARADOR — PRO -->
+    ${s.plan==='pro'||s.plan==='admin'?`
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:32px;height:32px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">⚡</div>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">Disparador</span>
+        </div>
+        <span style="font-size:10px;font-weight:700;color:var(--purple-light);background:var(--purple-dim);border:1px solid var(--purple-border);padding:3px 10px;border-radius:10px;">⭐ PRO</span>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Comando -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">💬 Comando</div>
+          <div style="display:flex;align-items:center;gap:8px;max-width:280px;">
+            <span style="font-size:16px;font-weight:800;color:var(--purple-light);">!</span>
+            <input class="form-input" id="trigger_command" value="${(s.shoutout_config?.trigger?.command||'so').replace('!','')}" placeholder="so" style="font-size:14px;font-weight:700;letter-spacing:0.5px;">
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">El comando que activa el shoutout en el chat</div>
+        </div>
+
+        <!-- Permisos -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🛡️ Permisos — ¿Quién puede activarlo?</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${[['mods','🛡️ Mods'],['broadcaster','👑 Broadcaster'],['vips','💎 VIPs'],['subs','⭐ Subs']].map(([val,label]) => {
+              const active = (s.shoutout_config?.trigger?.perms||['mods','broadcaster']).includes(val);
+              return `<label style="display:flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid ${active?'var(--purple-border)':'rgba(255,255,255,0.08)'};border-radius:20px;cursor:pointer;font-size:12px;font-weight:600;color:${active?'var(--text)':'var(--text-dim)'};background:${active?'var(--purple-dim)':'transparent'};transition:all 0.15s;" onclick="toggleTriggerPerm('${val}',this)">
+                <input type="checkbox" data-perm="${val}" ${active?'checked':''} style="display:none;">
+                ${label}
+              </label>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Automatización — Raids -->
+        <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;">⚔️</span>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:var(--text);">Shoutout automático en Raid</div>
+                <div style="font-size:11px;color:var(--text-muted);">Activa el shoutout automáticamente cuando alguien hace raid</div>
+              </div>
+            </div>
+            <label class="toggle"><input type="checkbox" id="trigger_raid_enabled" ${s.shoutout_config?.trigger?.raid_enabled?'checked':''}><span class="toggle-slider"></span></label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">👥 Viewers mínimos</div>
+              <input class="form-input" type="number" id="trigger_raid_min_viewers" min="0" max="9999" value="${s.shoutout_config?.trigger?.raid_min_viewers||0}" style="text-align:center;font-size:14px;font-weight:700;">
+              <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">0 = cualquier cantidad</div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px;">⏱️ Delay (segundos)</div>
+              <input class="form-input" type="number" id="trigger_raid_delay" min="0" max="60" value="${s.shoutout_config?.trigger?.raid_delay||5}" style="text-align:center;font-size:14px;font-weight:700;">
+              <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Espera antes de mostrar</div>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="saveShoutoutTrigger()" style="padding:11px 28px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);width:fit-content;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">💾 Guardar disparador</button>
+      </div>
+    </div>`:''}
+
     <!-- OVERLAY LINK -->
     <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),rgba(145,71,255,0.03));border:1px solid var(--purple-border);border-radius:var(--radius);padding:20px 24px;">
       <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;">🎬 URL del Overlay para OBS</div>
@@ -3583,6 +3649,35 @@ function updateDayActive(key) {
   if(controls) controls.style.opacity = active ? '1' : '0.4';
   if(label) label.style.color = active ? 'var(--text)' : 'var(--text-dim)';
   if(card) card.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.06)';
+}
+
+function toggleTriggerPerm(val, el) {
+  const input = el.querySelector('input[data-perm]');
+  input.checked = !input.checked;
+  const active = input.checked;
+  el.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.08)';
+  el.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+  el.style.background = active ? 'var(--purple-dim)' : 'transparent';
+}
+
+async function saveShoutoutTrigger() {
+  const perms = [];
+  document.querySelectorAll('input[data-perm]:checked').forEach(i => perms.push(i.dataset.perm));
+  const trigger = {
+    command: '!' + (document.getElementById('trigger_command')?.value.replace('!','').trim() || 'so'),
+    perms: perms.length ? perms : ['mods','broadcaster'],
+    raid_enabled: document.getElementById('trigger_raid_enabled')?.checked || false,
+    raid_min_viewers: parseInt(document.getElementById('trigger_raid_min_viewers')?.value) || 0,
+    raid_delay: parseInt(document.getElementById('trigger_raid_delay')?.value) || 5,
+  };
+  const current = streamerData.shoutout_config || {};
+  const config = { ...current, trigger };
+  const res = await fetch('/api/shoutout-config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shoutout_config: config })
+  });
+  if (res.ok) { streamerData.shoutout_config = config; showToast('Disparador guardado ✓'); }
+  else showToast('Error al guardar ✗', true);
 }
 
 function selectBorderStyle(val, el) {
