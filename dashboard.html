@@ -367,6 +367,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
       <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin <span class="pro-badge" id="badge-primerin" style="display:none;">PRO</span></div>
+      <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout <span class="pro-badge" id="badge-shoutout" style="display:none;">PRO</span></div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Análisis <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
@@ -2246,6 +2247,106 @@ function renderMain() {
     </div>
   </div>
 
+  <!-- SHOUTOUT -->
+  <div id="sec-shoutout" class="section">
+    <div class="page-header">
+      <div class="page-title">📣 Shoutout</div>
+      <div class="page-subtitle">Configura el overlay de shoutout para OBS</div>
+    </div>
+
+    <!-- CLIP SETTINGS -->
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">🎬</div>
+        <span style="font-size:13px;font-weight:700;color:var(--text);">Clip Settings</span>
+      </div>
+      <div style="padding:20px;display:flex;flex-direction:column;gap:18px;">
+
+        <!-- Calidad -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🎥 Calidad del video</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${[['1080','1080p Alta'],['720','720p Media'],['480','480p Baja'],['360','360p Mínima']].map(([val,label]) => `
+              <label style="display:flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid ${(s.shoutout_config?.quality||'1080')===val?'var(--purple-border)':'rgba(255,255,255,0.08)'};border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;color:${(s.shoutout_config?.quality||'1080')===val?'var(--text)':'var(--text-dim)'};background:${(s.shoutout_config?.quality||'1080')===val?'var(--purple-dim)':'transparent'};transition:all 0.15s;" onclick="selectQuality('${val}',this)">
+                <input type="radio" name="clipQuality" value="${val}" ${(s.shoutout_config?.quality||'1080')===val?'checked':''} style="display:none;">
+                ${label}
+              </label>`).join('')}
+          </div>
+        </div>
+
+        <!-- Volumen -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🔊 Volumen <span id="volumeLabel" style="color:var(--purple-light);">${s.shoutout_config?.volume ?? 100}%</span></div>
+          <input type="range" id="clipVolume" min="0" max="100" value="${s.shoutout_config?.volume ?? 100}"
+            oninput="document.getElementById('volumeLabel').textContent=this.value+'%'"
+            style="width:100%;max-width:400px;accent-color:var(--purple);cursor:pointer;">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Nivel de sonido del clip al reproducirse</div>
+        </div>
+
+        <!-- Duración -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⏱️ Duración máxima (seg)</div>
+            <input class="form-input" type="number" id="clipMaxDuration" min="5" max="300" value="${s.shoutout_config?.max_duration ?? 60}" style="text-align:center;font-size:14px;font-weight:700;">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">El clip se corta a los X segundos</div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⏱️ Duración mínima (seg)</div>
+            <input class="form-input" type="number" id="clipMinDuration" min="0" max="300" value="${s.shoutout_config?.min_duration ?? 10}" style="text-align:center;font-size:14px;font-weight:700;">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Solo clips de al menos X segundos</div>
+          </div>
+        </div>
+
+        <!-- Modo de selección -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🎲 Modo de selección</div>
+          <div style="display:flex;gap:8px;">
+            ${[['random','🎲 Aleatorio'],['popular','⭐ Más popular']].map(([val,label]) => `
+              <label style="display:flex;align-items:center;gap:6px;padding:9px 20px;border:1px solid ${(s.shoutout_config?.selection_mode||'random')===val?'var(--purple-border)':'rgba(255,255,255,0.08)'};border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;color:${(s.shoutout_config?.selection_mode||'random')===val?'var(--text)':'var(--text-dim)'};background:${(s.shoutout_config?.selection_mode||'random')===val?'var(--purple-dim)':'transparent'};transition:all 0.15s;" onclick="selectSelectionMode('${val}',this)">
+                <input type="radio" name="selectionMode" value="${val}" ${(s.shoutout_config?.selection_mode||'random')===val?'checked':''} style="display:none;">
+                ${label}
+              </label>`).join('')}
+          </div>
+        </div>
+
+        <!-- Marco de tiempo -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">📅 Marco de tiempo</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${[['week','📅 Última semana'],['month','🗓️ Último mes'],['year','📆 Último año'],['all','🌐 Todo el tiempo']].map(([val,label]) => `
+              <label style="display:flex;align-items:center;gap:6px;padding:8px 16px;border:1px solid ${(s.shoutout_config?.time_frame||'all')===val?'var(--purple-border)':'rgba(255,255,255,0.08)'};border-radius:20px;cursor:pointer;font-size:12px;font-weight:500;color:${(s.shoutout_config?.time_frame||'all')===val?'var(--text)':'var(--text-dim)'};background:${(s.shoutout_config?.time_frame||'all')===val?'var(--purple-dim)':'transparent'};transition:all 0.15s;" onclick="selectTimeFrame('${val}',this)">
+                <input type="radio" name="timeFrame" value="${val}" ${(s.shoutout_config?.time_frame||'all')===val?'checked':''} style="display:none;">
+                ${label}
+              </label>`).join('')}
+          </div>
+        </div>
+
+        <!-- Fallback -->
+        <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:14px;">
+          <label class="toggle"><input type="checkbox" id="clipFallback" ${s.shoutout_config?.fallback_profile?'checked':''}><span class="toggle-slider"></span></label>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--text);">🖼️ Fallback — Foto de perfil</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:2px;">Si el streamer no tiene clips, muestra su foto de perfil por 10 segundos</div>
+          </div>
+        </div>
+
+        <button onclick="saveShoutoutConfig()" style="padding:11px 28px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);width:fit-content;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">💾 Guardar configuración</button>
+      </div>
+    </div>
+
+    <!-- OVERLAY LINK -->
+    <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),rgba(145,71,255,0.03));border:1px solid var(--purple-border);border-radius:var(--radius);padding:20px 24px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:14px;">🎬 URL del Overlay para OBS</div>
+      <code style="font-size:12px;color:var(--purple-light);display:block;margin-bottom:12px;">${window.location.origin}/overlay/shoutout/${userData.username}</code>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+        Agrega una fuente de navegador en OBS con esta URL.<br>
+        📐 Tamaño recomendado: <strong style="color:var(--text);">1920×1080</strong> — ajusta la escala y posición según tus necesidades.<br>
+        🔊 Activa <strong style="color:var(--text);">"Control audio via OBS"</strong> en las propiedades de la fuente.
+      </div>
+      <button onclick="navigator.clipboard.writeText('${window.location.origin}/overlay/shoutout/${userData.username}').then(()=>showToast('Link copiado ✓'))" style="padding:9px 20px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">📋 Copiar link</button>
+    </div>
+  </div>
+
   <!-- HORARIO -->
   <!-- PERFIL PÚBLICO -->
   <div id="sec-profile" class="section">
@@ -3369,7 +3470,58 @@ function updateDayActive(key) {
   if(card) card.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.06)';
 }
 
-async function saveSchedule() {
+function selectQuality(val, el) {
+  document.querySelectorAll('input[name="clipQuality"]').forEach(i => {
+    const label = i.closest('label');
+    const active = i.value === val;
+    label.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.08)';
+    label.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+    label.style.background = active ? 'var(--purple-dim)' : 'transparent';
+    i.checked = active;
+  });
+}
+
+function selectSelectionMode(val, el) {
+  document.querySelectorAll('input[name="selectionMode"]').forEach(i => {
+    const label = i.closest('label');
+    const active = i.value === val;
+    label.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.08)';
+    label.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+    label.style.background = active ? 'var(--purple-dim)' : 'transparent';
+    i.checked = active;
+  });
+}
+
+function selectTimeFrame(val, el) {
+  document.querySelectorAll('input[name="timeFrame"]').forEach(i => {
+    const label = i.closest('label');
+    const active = i.value === val;
+    label.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.08)';
+    label.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+    label.style.background = active ? 'var(--purple-dim)' : 'transparent';
+    i.checked = active;
+  });
+}
+
+async function saveShoutoutConfig() {
+  const config = {
+    quality: document.querySelector('input[name="clipQuality"]:checked')?.value || '1080',
+    volume: parseInt(document.getElementById('clipVolume')?.value) ?? 100,
+    max_duration: parseInt(document.getElementById('clipMaxDuration')?.value) || 60,
+    min_duration: parseInt(document.getElementById('clipMinDuration')?.value) || 0,
+    selection_mode: document.querySelector('input[name="selectionMode"]:checked')?.value || 'random',
+    time_frame: document.querySelector('input[name="timeFrame"]:checked')?.value || 'all',
+    fallback_profile: document.getElementById('clipFallback')?.checked || false,
+  };
+  const res = await fetch('/api/shoutout-config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shoutout_config: config })
+  });
+  if (res.ok) { streamerData.shoutout_config = config; showToast('Configuración guardada ✓'); }
+  else showToast('Error al guardar ✗', true);
+}
+
+
   const days = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
   const schedule = { timezone: document.getElementById('scheduleTimezone')?.value || 'America/Santo_Domingo' };
   days.forEach(key => {
