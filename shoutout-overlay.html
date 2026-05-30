@@ -10,73 +10,156 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 #overlay{
   position:fixed;inset:0;background:#000;
   border-radius:16px;overflow:hidden;
-  opacity:0.001;
-  pointer-events:none;
-  box-shadow:0 0 0 2px rgba(145,71,255,0.6),0 16px 60px rgba(0,0,0,0.9);
+  opacity:0.001;pointer-events:none;
   transition:opacity 0.3s ease;
 }
 #overlay.show{opacity:1;pointer-events:auto;}
-#overlay::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:3px;z-index:10;
-  background:linear-gradient(90deg,transparent,#9147ff,#b388ff,#e05a7a,transparent);
-}
 
-/* iframe ocupa TODO el espacio — sin obstrucción ni recorte negativo */
+#clipVideo{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;background:#000;border:none;z-index:1;
+}
 #clipIframe{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  border:none;
+  position:absolute;inset:0;width:100%;height:100%;border:none;z-index:1;
 }
 
-/* Badge encima del iframe — no lo tapa porque es solo UI pequeña */
-#badge{
-  position:absolute;bottom:8px;left:12px;z-index:10;
-  display:flex;align-items:center;gap:8px;
-  background:rgba(0,0,0,0.85);border:1px solid rgba(145,71,255,0.5);
-  border-radius:20px;padding:5px 14px 5px 6px;backdrop-filter:blur(8px);
+/* Info panel */
+#infoPanel{
+  position:absolute;bottom:0;left:0;right:0;z-index:5;
+  padding:16px;
+  background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,transparent 100%);
 }
-#badgeAvatar{width:28px;height:28px;border-radius:50%;border:2px solid #9147ff;object-fit:cover;background:#1a1a1e;}
-#badgeTag{font-size:9px;font-weight:700;color:#9147ff;text-transform:uppercase;letter-spacing:1px;display:block;font-family:'Inter',sans-serif;}
-#badgeName{font-size:13px;font-weight:700;color:#fff;font-family:'Inter',sans-serif;}
+#soTitle{
+  font-size:16px;font-weight:800;margin-bottom:8px;
+  text-shadow:0 2px 8px rgba(0,0,0,0.8);
+  font-family:var(--overlay-font,'Inter'),sans-serif;
+  color:var(--overlay-text,'#fff');
+  display:none;
+}
+#badgeRow{display:flex;align-items:center;gap:10px;}
+#badgeAvatar{
+  width:42px;height:42px;border-radius:50%;object-fit:cover;
+  border:2px solid var(--overlay-accent,#9147ff);
+  box-shadow:0 0 12px rgba(145,71,255,0.4);
+  display:none;
+}
+#badgeInfo{display:flex;flex-direction:column;gap:2px;}
+#badgeName{
+  font-size:15px;font-weight:800;color:var(--overlay-text,'#fff');
+  font-family:var(--overlay-font,'Inter'),sans-serif;
+  text-shadow:0 2px 8px rgba(0,0,0,0.8);
+}
+#badgeMeta{display:flex;align-items:center;gap:10px;}
+#badgeGame{font-size:11px;color:rgba(255,255,255,0.7);display:none;}
+#badgeFollowers{font-size:11px;color:rgba(255,255,255,0.7);display:none;}
+#badgeTimer{font-size:11px;font-weight:700;color:var(--overlay-accent,#9147ff);display:none;}
 
 /* Barra progreso */
 #progressBar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,0.3);z-index:10;}
-#progressFill{height:100%;background:linear-gradient(90deg,#9147ff,#b388ff,#e05a7a);width:0%;transition:width linear;}
+#progressFill{height:100%;width:0%;transition:width linear;}
 
 /* Confetti */
 .confetti-wrap{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:8;}
 .c{position:absolute;width:7px;height:7px;border-radius:2px;animation:fall 2.5s ease-in forwards;top:-10px;}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
+
+/* Animaciones */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideIn{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes zoomIn{from{transform:scale(0.85);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes bounceIn{0%{transform:scale(0.3);opacity:0}60%{transform:scale(1.05)}80%{transform:scale(0.95)}100%{transform:scale(1);opacity:1}}
 </style>
 </head>
 <body>
 
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <!-- Sin top-cover ni bottom-cover — Twitch los detecta como obstrucción -->
-  <iframe id="clipIframe" frameborder="0"
-    allowfullscreen allow="autoplay; fullscreen"></iframe>
-  <div id="badge">
-    <img id="badgeAvatar" src="" alt="">
-    <div>
-      <span id="badgeTag">🕷️ shoutout</span>
-      <span id="badgeName">—</span>
+  <video id="clipVideo" autoplay playsinline style="display:none;"></video>
+  <iframe id="clipIframe" frameborder="0" allowfullscreen allow="autoplay; fullscreen" style="display:none;"></iframe>
+  <div id="infoPanel">
+    <div id="soTitle"></div>
+    <div id="badgeRow">
+      <img id="badgeAvatar" src="" alt="">
+      <div id="badgeInfo">
+        <div id="badgeName"></div>
+        <div id="badgeMeta">
+          <span id="badgeGame"></span>
+          <span id="badgeFollowers"></span>
+          <span id="badgeTimer"></span>
+        </div>
+      </div>
     </div>
   </div>
   <div id="progressBar"><div id="progressFill"></div></div>
 </div>
 
+<!-- Iframe dummy para warm-up -->
+<iframe id="dummyIframe" src="" style="position:fixed;width:1px;height:1px;opacity:0.001;pointer-events:none;z-index:-1;" frameborder="0" allow="autoplay"></iframe>
+
 <script>
 const DOMAIN = window.location.hostname;
 const channelName = window.location.pathname.split('/').pop().toLowerCase();
 let hideTimeout = null;
-const iframe = document.getElementById('clipIframe');
+let timerInterval = null;
+let currentConfig = {};
 
-// Precargar con clip dummy — inicializa Twitch player desde el arranque
-// El iframe ya tiene dimensiones reales y está visible (opacity:0.001)
-iframe.src = `https://clips.twitch.tv/embed?clip=AwkwardHelplessSalamanderSwiftRage&parent=${DOMAIN}&autoplay=false&muted=true`;
+// Warm-up dummy iframe
+document.getElementById('dummyIframe').src =
+  `https://clips.twitch.tv/embed?clip=AwkwardHelplessSalamanderSwiftRage&parent=${DOMAIN}&autoplay=false&muted=true`;
+
+function applyStyle(config) {
+  const style = config.style || {};
+  const accent = style.accent_color || '#9147ff';
+  const textColor = style.text_color || '#ffffff';
+  const font = style.font || 'Inter';
+
+  document.documentElement.style.setProperty('--overlay-accent', accent);
+  document.documentElement.style.setProperty('--overlay-text', textColor);
+  document.documentElement.style.setProperty('--overlay-font', font);
+
+  // Borde
+  const overlay = document.getElementById('overlay');
+  const borderStyles = {
+    none: 'none',
+    solid: `2px solid ${accent}`,
+    glow: `2px solid ${accent}`,
+    neon: '2px solid #e05a7a',
+    gold: '2px solid #f0c060',
+  };
+  const glowStyles = {
+    glow: `0 0 0 2px ${accent}, 0 0 24px ${accent}55`,
+    neon: '0 0 0 2px #e05a7a, 0 0 24px #e05a7a55',
+    gold: '0 0 0 2px #f0c060, 0 0 24px #f0c06055',
+    solid: `0 0 0 2px ${accent}`,
+    none: 'none',
+  };
+  const bs = style.border_style || 'glow';
+  overlay.style.border = borderStyles[bs] || 'none';
+  overlay.style.boxShadow = glowStyles[bs] || 'none';
+
+  // Barra progreso
+  document.getElementById('progressFill').style.background =
+    `linear-gradient(90deg,${accent},${accent}99)`;
+
+  // Cargar fuente si no es Inter
+  if (font !== 'Inter') {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;700;800&display=swap`;
+    document.head.appendChild(link);
+  }
+}
+
+function applyAnimation(animType) {
+  const overlay = document.getElementById('overlay');
+  const anims = {
+    fade: 'fadeIn 0.4s ease forwards',
+    slide: 'slideIn 0.4s ease forwards',
+    zoom: 'zoomIn 0.4s ease forwards',
+    bounce: 'bounceIn 0.6s ease forwards',
+  };
+  overlay.style.animation = anims[animType] || anims.fade;
+}
 
 function spawnConfetti() {
   const colors = ['#9147ff','#b388ff','#f0c060','#40d090','#e05a7a','#58a6ff'];
@@ -93,61 +176,124 @@ function spawnConfetti() {
   }
 }
 
-function showShoutout(user, clip, mp4Url) {
+async function fetchFollowers(username, appToken) {
+  try {
+    const res = await fetch(`/api/shoutout-followers/${username}`);
+    const data = await res.json();
+    return data.followers || null;
+  } catch(e) { return null; }
+}
+
+function startTimer(duration) {
+  if (timerInterval) clearInterval(timerInterval);
+  let remaining = Math.floor(duration / 1000);
+  const timerEl = document.getElementById('badgeTimer');
+  timerEl.textContent = `${remaining}s`;
+  timerInterval = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) { clearInterval(timerInterval); timerEl.textContent = '0s'; }
+    else timerEl.textContent = `${remaining}s`;
+  }, 1000);
+}
+
+async function showShoutout(user, clip, mp4Url, config) {
+  currentConfig = config || {};
+  const style = currentConfig.style || {};
   const duration = clip ? Math.min((clip.duration * 1000) + 2000, 90000) : 10000;
 
+  applyStyle(currentConfig);
+
+  // Título
+  const titleEl = document.getElementById('soTitle');
+  if (style.title) {
+    titleEl.textContent = style.title.replace('{user}', user.display_name || user.login);
+    titleEl.style.display = 'block';
+  } else {
+    titleEl.style.display = 'none';
+  }
+
+  // Avatar
+  const avatarEl = document.getElementById('badgeAvatar');
+  if (style.show_avatar !== false) {
+    avatarEl.style.display = 'block';
+    fetch(`https://decapi.me/twitch/avatar/${user.login}`)
+      .then(r => r.text())
+      .then(url => { if (url?.startsWith('http')) avatarEl.src = url; })
+      .catch(() => {});
+  } else { avatarEl.style.display = 'none'; }
+
+  // Nombre
   document.getElementById('badgeName').textContent = user.display_name || user.login;
-  fetch(`https://decapi.me/twitch/avatar/${user.login}`)
-    .then(r => r.text())
-    .then(url => { if (url?.startsWith('http')) document.getElementById('badgeAvatar').src = url; })
-    .catch(() => {});
 
-  document.getElementById('overlay').classList.add('show');
-  void document.getElementById('overlay').offsetWidth;
+  // Juego
+  const gameEl = document.getElementById('badgeGame');
+  if (style.show_game !== false && clip?.game_name) {
+    gameEl.textContent = `🎮 ${clip.game_name}`;
+    gameEl.style.display = 'inline';
+  } else { gameEl.style.display = 'none'; }
 
-  const oldVideo = document.getElementById('clipVideo');
-  if (oldVideo) oldVideo.remove();
+  // Followers
+  const followEl = document.getElementById('badgeFollowers');
+  if (style.show_followers !== false) {
+    followEl.style.display = 'inline';
+    followEl.textContent = '👥 ...';
+    fetch(`/api/shoutout-followers/${user.login}`)
+      .then(r => r.json())
+      .then(d => { if (d.followers !== null) followEl.textContent = `👥 ${d.followers?.toLocaleString()}`; })
+      .catch(() => { followEl.style.display = 'none'; });
+  } else { followEl.style.display = 'none'; }
 
-  setTimeout(() => {
-    if (mp4Url) {
-      iframe.style.display = 'none';
-      const video = document.createElement('video');
-      video.id = 'clipVideo';
-      video.autoplay = true;
-      video.setAttribute('playsinline', '');
-      video.src = mp4Url;
-      video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;background:#000;';
-      document.getElementById('overlay').appendChild(video);
-      video.play().catch(e => console.log('video error:', e));
-      video.onended = () => setTimeout(hideOverlay, 1500);
-    } else {
-      iframe.style.display = 'block';
-      iframe.src = `https://clips.twitch.tv/embed?clip=${clip?.id}&parent=${DOMAIN}&autoplay=true&muted=true`;
-    }
-  }, 200);
+  // Timer
+  const timerEl = document.getElementById('badgeTimer');
+  if (style.show_timer !== false) {
+    timerEl.style.display = 'inline';
+    startTimer(duration);
+  } else { timerEl.style.display = 'none'; }
+
+  // Clip
+  const video = document.getElementById('clipVideo');
+  const iframe = document.getElementById('clipIframe');
+  if (mp4Url) {
+    video.style.display = 'block';
+    iframe.style.display = 'none';
+    video.src = mp4Url;
+    video.volume = (currentConfig.volume ?? 100) / 100;
+    video.play().catch(e => console.log('video error:', e));
+    video.onended = () => setTimeout(hideOverlay, 1500);
+  } else if (clip) {
+    iframe.style.display = 'block';
+    video.style.display = 'none';
+    iframe.src = `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=true`;
+  }
+
+  // Mostrar overlay con animación
+  const overlay = document.getElementById('overlay');
+  overlay.classList.add('show');
+  applyAnimation(style.animation || 'fade');
 
   spawnConfetti();
 
+  // Barra progreso
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
   fill.style.width = '0%';
   setTimeout(() => {
     fill.style.transition = `width ${duration}ms linear`;
     fill.style.width = '100%';
-  }, 300);
+  }, 100);
 
   if (hideTimeout) clearTimeout(hideTimeout);
   hideTimeout = setTimeout(hideOverlay, duration);
 }
 
 function hideOverlay() {
-  document.getElementById('overlay').classList.remove('show');
+  const overlay = document.getElementById('overlay');
+  overlay.classList.remove('show');
+  overlay.style.animation = '';
   const video = document.getElementById('clipVideo');
-  if (video) { video.pause(); video.remove(); }
-  iframe.style.display = 'block';
-  setTimeout(() => {
-    iframe.src = `https://clips.twitch.tv/embed?clip=AwkwardHelplessSalamanderSwiftRage&parent=${DOMAIN}&autoplay=false&muted=true`;
-  }, 300);
+  video.pause(); video.src = '';
+  document.getElementById('clipIframe').src = '';
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
   fill.style.width = '0%';
@@ -158,10 +304,11 @@ async function handleSo(targetUser) {
   try {
     const res = await fetch(`/api/shoutout-clips/${targetUser}`);
     const data = await res.json();
-    if (data?.user) showShoutout(data.user, data.clip, data.mp4Url);
+    if (data?.user) showShoutout(data.user, data.clip, data.mp4Url, data.config);
   } catch(e) { console.error('[!so]', e); }
 }
 
+// IRC WebSocket — usa el comando configurado
 function connectIRC() {
   const ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
   ws.onopen = () => {
@@ -172,16 +319,43 @@ function connectIRC() {
   ws.onmessage = (e) => {
     const msg = e.data;
     if (msg.startsWith('PING')) { ws.send('PONG :tmi.twitch.tv'); return; }
+
+    // Detectar raid automático
+    if (msg.includes('USERNOTICE') && msg.includes('msg-id=raid')) {
+      const viewersMatch = msg.match(/msg-param-viewerCount=(\d+)/);
+      const raidUser = msg.match(/msg-param-login=(\w+)/);
+      const config = currentConfig?.trigger || {};
+      if (config.raid_enabled && raidUser) {
+        const viewers = parseInt(viewersMatch?.[1] || 0);
+        if (viewers >= (config.raid_min_viewers || 0)) {
+          setTimeout(() => handleSo(raidUser[1]), (config.raid_delay || 5) * 1000);
+        }
+      }
+      return;
+    }
+
     if (!msg.includes('PRIVMSG')) return;
     const badgesMatch = msg.match(/badges=([^;]*)/);
     const badges = badgesMatch ? badgesMatch[1] : '';
-    const isMod = badges.includes('moderator') || badges.includes('broadcaster');
-    if (!isMod) return;
+
+    // Verificar permisos configurados
+    const perms = currentConfig?.trigger?.perms || ['mods','broadcaster'];
+    const isMod = badges.includes('moderator');
+    const isBroadcaster = badges.includes('broadcaster');
+    const isVip = badges.includes('vip');
+    const isSub = badges.includes('subscriber');
+    const allowed = (perms.includes('mods') && isMod) || (perms.includes('broadcaster') && isBroadcaster) ||
+      (perms.includes('vips') && isVip) || (perms.includes('subs') && isSub);
+    if (!allowed) return;
+
     const msgMatch = msg.match(/PRIVMSG #\w+ :(.+)/);
     if (!msgMatch) return;
     const text = msgMatch[1].trim().toLowerCase();
-    if (text.startsWith('!so ')) {
-      const target = text.slice(4).replace('@', '').trim();
+
+    // Usar comando configurado
+    const cmd = (currentConfig?.trigger?.command || '!so').toLowerCase();
+    if (text.startsWith(cmd + ' ') || text === cmd) {
+      const target = text.slice(cmd.length).replace('@','').trim();
       if (target) handleSo(target);
     }
   };
@@ -189,7 +363,20 @@ function connectIRC() {
   ws.onerror = () => ws.close();
 }
 
-connectIRC();
+// Cargar config inicial
+async function init() {
+  try {
+    const res = await fetch(`/api/shoutout-config-public/${channelName}`);
+    if (res.ok) {
+      const data = await res.json();
+      currentConfig = data.config || {};
+      applyStyle(currentConfig);
+    }
+  } catch(e) {}
+  connectIRC();
+}
+
+init();
 </script>
 </body>
 </html>
