@@ -1180,13 +1180,44 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
     const user = userData?.data?.[0];
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    const clipsRes = await fetch(`https://api.twitch.tv/helix/clips?broadcaster_id=${user.id}&first=20`,
+    // Obtener config de shoutout del streamer del canal
+    const configRes = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${req.params.username?.toLowerCase() || target}&select=shoutout_config&limit=1`, { headers: sbHeaders });
+    const configData = await configRes.json();
+    const sConfig = configData?.[0]?.shoutout_config || {};
+    const selectionMode = sConfig.selection_mode || 'random';
+    const timeFrame = sConfig.time_frame || 'all';
+    const minDuration = sConfig.min_duration || 0;
+    const maxDuration = sConfig.max_duration || 60;
+    const quality = sConfig.quality || '1080';
+
+    // Parámetros de búsqueda según marco de tiempo
+    let clipsUrl = `https://api.twitch.tv/helix/clips?broadcaster_id=${user.id}&first=50`;
+    if (timeFrame === 'week') {
+      const d = new Date(); d.setDate(d.getDate() - 7);
+      clipsUrl += `&started_at=${d.toISOString()}`;
+    } else if (timeFrame === 'month') {
+      const d = new Date(); d.setMonth(d.getMonth() - 1);
+      clipsUrl += `&started_at=${d.toISOString()}`;
+    } else if (timeFrame === 'year') {
+      const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+      clipsUrl += `&started_at=${d.toISOString()}`;
+    }
+    // Más popular = ordenar por views (API ya los devuelve así por defecto)
+
+    const clipsRes = await fetch(clipsUrl,
       { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
     const clipsData = await clipsRes.json();
-    const clips = clipsData?.data || [];
-    if (!clips.length) return res.json({ user, clip: null, hlsUrl: null });
+    let clips = clipsData?.data || [];
 
-    const clip = clips[Math.floor(Math.random() * clips.length)];
+    // Filtrar por duración mínima
+    if (minDuration > 0) clips = clips.filter(c => c.duration >= minDuration);
+
+    if (!clips.length) return res.json({ user, clip: null, mp4Url: null, fallback: sConfig.fallback_profile || false });
+
+    // Selección: aleatorio o más popular (ya viene ordenado por views)
+    const clip = selectionMode === 'random'
+      ? clips[Math.floor(Math.random() * clips.length)]
+      : clips[0];
 
     // Obtener URL autenticada del clip via GQL (método yt-dlp)
     let mp4Url = null;
@@ -1222,7 +1253,7 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
 
       if (token && qualities.length) {
         // Construir URL autenticada: sourceURL + sig + token (método yt-dlp)
-        const best = qualities.find(q => q.quality === '1080') || qualities.find(q => q.quality === '720') || qualities[0];
+        const best = qualities.find(q => q.quality === quality) || qualities.find(q => q.quality === '720') || qualities[0];
         if (best?.sourceURL) {
           mp4Url = `${best.sourceURL}?sig=${token.signature}&token=${encodeURIComponent(token.value)}`;
         }
@@ -1298,6 +1329,14 @@ app.get('/api/clip-video', async (req, res) => {
     if (range) res.setHeader('Content-Range', videoRes.headers.get('content-range') || '');
     videoRes.body.pipe(res);
   } catch(e) { res.status(500).end(); }
+});
+
+// ── SHOUTOUT CONFIG ──
+app.post('/api/shoutout-config', requireAuth, async (req, res) => {
+  const { shoutout_config } = req.body;
+  if (!isValidObject(shoutout_config)) return res.status(400).json({ error: 'Inválido' });
+  await sbUpdate('streamers', { shoutout_config }, { twitch_id: req.session.user.id });
+  res.json({ ok: true });
 });
 
 // ── SHOUTOUT OVERLAY ──
