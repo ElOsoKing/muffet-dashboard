@@ -696,7 +696,8 @@ app.get('/api/overlay/spotify/:username', async (req, res) => {
       image: data.item.album.images?.[1]?.url || data.item.album.images?.[0]?.url || '',
       progress_ms: data.progress_ms,
       duration_ms: data.item.duration_ms,
-      is_playing: data.is_playing
+      is_playing: data.is_playing,
+      overlay_opacity: streamer.spotify_config?.overlay_opacity ?? 100
     });
   } catch(err) { res.json({ playing: false }); }
 });
@@ -1055,7 +1056,7 @@ app.get('/api/raffle/overlay/:username', async (req, res) => {
     if (!streamer) return res.status(404).json({ error: 'Canal no encontrado' });
     const raffle = streamer.raffle_active || {};
     const join_cmd = streamer.raffle_settings?.join_cmd || '!entrar';
-    res.json({ active: !!raffle.active, prize: raffle.prize || '', participants: raffle.participants || [], winner: raffle.winner || null, join_cmd });
+    res.json({ active: !!raffle.active, prize: raffle.prize || '', participants: raffle.participants || [], winner: raffle.winner || null, join_cmd, overlay_opacity: streamer.raffle_settings?.overlay_opacity ?? 100 });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 app.post('/api/raffle/add-participant', requireAuth, async (req, res) => {
@@ -1275,7 +1276,7 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
       }
     } catch(e) { console.error('[GQL]', e.message); }
 
-    res.json({ user, clip, mp4Url, config: sConfig });
+    res.json({ user, clip, mp4Url, config: sConfig, overlay_opacity: sConfig.overlay_opacity ?? 100 });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
