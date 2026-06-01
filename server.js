@@ -449,12 +449,15 @@ app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirnam
 app.post('/api/admin/plan/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { plan } = req.body;
+    const { plan, expires_at } = req.body;
     if (!['free','pro'].includes(plan)) return res.status(400).json({ error: 'Plan inválido' });
+    const update = { plan };
+    if (plan === 'pro' && expires_at) update.plan_expires_at = expires_at;
+    if (plan === 'free') { update.plan_expires_at = null; update.lemon_subscription_id = null; }
     await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${id}`, {
       method: 'PATCH',
       headers: { ...sbHeaders, 'Prefer': 'return=representation' },
-      body: JSON.stringify({ plan })
+      body: JSON.stringify(update)
     });
     res.json({ success: true });
   } catch (err) {
