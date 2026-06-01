@@ -184,6 +184,10 @@ async function pollRaffle() {
 
     if (!data.active) { activeEl.style.display = 'none'; return; }
 
+    // Aplicar opacidad configurada
+    const opacity = (data.overlay_opacity ?? 100) / 100;
+    activeEl.style.opacity = opacity;
+
     winnerEl.classList.remove('show');
     activeEl.style.display = 'block';
     document.getElementById('overlayPrize').textContent   = '🏆 ' + (data.prize || '');
