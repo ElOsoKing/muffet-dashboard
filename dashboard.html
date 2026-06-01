@@ -4738,7 +4738,54 @@ async function loadRaffleStatus() {
         <button class="btn btn-primary" onclick="endRaffle()" ${unique.length===0?'disabled':''} style="flex:1;padding:10px;">🏆 Elegir ganador</button>
         <button class="btn btn-danger" onclick="cancelRaffle()" style="padding:10px 16px;">✕ Cancelar</button>
       </div>
-    </div>`;
+
+      <!-- Agregar participantes manualmente -->
+      <div style="margin-top:12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:12px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">➕ Agregar participantes manualmente</div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input class="form-input" id="manualParticipantInput" placeholder="Nombre del participante..." style="flex:1;padding:8px 12px;font-size:13px;"
+            onkeydown="if(event.key==='Enter')addManualParticipant()">
+          <button onclick="addManualParticipant()" style="padding:8px 16px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);white-space:nowrap;">+ Agregar</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <textarea id="bulkParticipantsInput" placeholder="Agregar varios a la vez (uno por línea)..." rows="3"
+            style="flex:1;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:8px 12px;resize:vertical;outline:none;"></textarea>
+          <button onclick="addBulkParticipants()" style="padding:8px 14px;background:rgba(64,208,144,0.1);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);color:var(--green);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);white-space:nowrap;height:fit-content;">📋 Agregar<br>todos</button>
+        </div>
+      </div>
+    </div>\`;
+}
+
+async function addManualParticipant() {
+  const input = document.getElementById('manualParticipantInput');
+  const name = input?.value?.trim();
+  if (!name) return;
+  const res = await fetch('/api/raffle/add-participant', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: name })
+  });
+  if (res.ok) {
+    input.value = '';
+    loadRaffleStatus();
+    showToast(`@${name} agregado ✓`);
+  }
+}
+
+async function addBulkParticipants() {
+  const textarea = document.getElementById('bulkParticipantsInput');
+  const names = textarea?.value?.split('\n').map(n => n.trim()).filter(Boolean);
+  if (!names?.length) return;
+  let added = 0;
+  for (const name of names) {
+    const res = await fetch('/api/raffle/add-participant', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: name })
+    });
+    if (res.ok) added++;
+  }
+  textarea.value = '';
+  loadRaffleStatus();
+  showToast(`${added} participantes agregados ✓`);
 }
 
 function startRafflePolling() {
