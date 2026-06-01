@@ -22,7 +22,7 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, var(--bg-opacity, 0.75));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -250,6 +250,8 @@ function updateWidget(data) {
   const opacityVal = (data.overlay_opacity ?? 100) / 100;
   widget.style.setProperty('--widget-opacity', opacityVal);
   widget.style.opacity = '';
+  const bgOpacity = (data.bg_opacity ?? 75) / 100;
+  widget.style.setProperty('--bg-opacity', bgOpacity);
 
   if (data.is_playing) {
     widget.classList.remove('paused');
