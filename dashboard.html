@@ -3786,6 +3786,7 @@ function selectCardSize(val, el) {
     b.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.08)';
     b.style.background = active ? 'var(--purple-dim)' : 'transparent';
     b.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+    b.dataset.selected = active ? 'true' : '';
   });
 }
 
@@ -3795,6 +3796,7 @@ function selectCardPosition(val, el) {
     b.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.08)';
     b.style.background = active ? 'var(--purple-dim)' : 'rgba(255,255,255,0.02)';
     b.style.color = active ? 'var(--purple-light)' : 'var(--text-dim)';
+    b.dataset.selected = active ? 'true' : '';
   });
 }
 
@@ -3806,6 +3808,7 @@ function selectBorderStyle(val, el) {
     b.style.borderColor = active ? border : 'rgba(255,255,255,0.08)';
     b.style.background = active ? bg : 'transparent';
     b.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+    b.dataset.selected = active ? 'true' : '';
   });
 }
 
@@ -3815,6 +3818,7 @@ function selectAnimation(val, el) {
     b.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.08)';
     b.style.background = active ? 'var(--purple-dim)' : 'transparent';
     b.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+    b.dataset.selected = active ? 'true' : '';
   });
 }
 
@@ -3825,13 +3829,13 @@ async function saveShoutoutStyle() {
     show_followers: document.getElementById('style_show_followers')?.checked !== false,
     show_timer: document.getElementById('style_show_timer')?.checked !== false,
     title: document.getElementById('style_title')?.value || '¡Sigan a {user}!',
-    border_style: document.querySelector('[data-border][style*="var(--purple"]')?.dataset?.border || document.querySelector('[data-border][style*="#"]')?.dataset?.border || 'glow',
+    border_style: document.querySelector('[data-border][data-selected="true"]')?.dataset?.border || 'glow',
     font: document.getElementById('style_font')?.value || 'Inter',
     text_color: document.getElementById('style_text_color')?.value || '#ffffff',
     accent_color: document.getElementById('style_accent_color')?.value || '#9147ff',
-    animation: document.querySelector('[data-anim][style*="var(--purple"]')?.dataset?.anim || 'fade',
-    card_size: document.querySelector('[data-size][style*="var(--purple"]')?.dataset?.size || 'medium',
-    card_position: document.querySelector('[data-pos][style*="var(--purple"]')?.dataset?.pos || 'bottom-left',
+    animation: document.querySelector('[data-anim][data-selected="true"]')?.dataset?.anim || 'fade',
+    card_size: document.querySelector('[data-size][data-selected="true"]')?.dataset?.size || 'medium',
+    card_position: document.querySelector('[data-pos][data-selected="true"]')?.dataset?.pos || 'bottom-left',
   };
   const current = streamerData.shoutout_config || {};
   const config = { ...current, style };
