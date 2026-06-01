@@ -1762,7 +1762,24 @@ function renderMain() {
           <a href="/auth/spotify" style="font-size:12px;padding:6px 14px;border-radius:20px;text-decoration:none;background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.3);color:#1ed760;font-weight:500;transition:all 0.15s;">↻ Reconectar</a>
           <button onclick="disconnectSpotify()" style="font-size:12px;padding:6px 14px;border-radius:20px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);color:var(--pink);cursor:pointer;font-weight:500;">Desconectar</button>
           <button onclick="navigator.clipboard.writeText(window.location.origin+'/overlay/spotify/${userData.username}').then(()=>showToast('Link del overlay copiado ✓'))" style="font-size:12px;padding:6px 14px;border-radius:20px;background:rgba(145,71,255,0.1);border:1px solid rgba(145,71,255,0.2);color:var(--purple-light);cursor:pointer;font-weight:500;">🎬 Overlay OBS</button>
-        </div>` : `
+        </div>
+        <div style="margin-top:14px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🌫️ Opacidad del overlay</div>
+          <div style="display:flex;align-items:center;gap:12px;max-width:380px;">
+            <span style="font-size:16px;cursor:pointer;" onclick="setSpotifyOpacity(Math.max(10,parseInt(document.getElementById('spotifyOpacity').value)-10))">🔅</span>
+            <div style="flex:1;position:relative;height:32px;display:flex;align-items:center;">
+              <div style="position:absolute;width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+                <div id="spotifyOpacityTrack" style="height:100%;background:linear-gradient(90deg,#1ed760,#17a34a);border-radius:3px;width:${s.spotify_config?.overlay_opacity ?? 100}%;transition:width 0.1s;"></div>
+              </div>
+              <input type="range" id="spotifyOpacity" min="10" max="100" value="${s.spotify_config?.overlay_opacity ?? 100}"
+                oninput="updateSpotifyOpacity(this.value)"
+                style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;">
+            </div>
+            <span style="font-size:16px;cursor:pointer;" onclick="setSpotifyOpacity(Math.min(100,parseInt(document.getElementById('spotifyOpacity').value)+10))">🔆</span>
+            <div style="min-width:44px;text-align:center;font-size:14px;font-weight:800;color:#1ed760;" id="spotifyOpacityLabel">${s.spotify_config?.overlay_opacity ?? 100}%</div>
+            <button onclick="saveSpotifyOpacity()" style="padding:6px 14px;background:#1ed760;border:none;border-radius:16px;color:#000;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);">💾</button>
+          </div>
+        </div> : `
         <a href="/auth/spotify" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:#1ed760;color:black;font-weight:700;font-size:13px;padding:10px 22px;border-radius:24px;transition:all 0.15s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
           🎵 Conectar
         </a>`}
@@ -2199,6 +2216,29 @@ function renderMain() {
           <span style="font-size:13px;font-weight:700;color:var(--text);">Overlay para OBS</span>
         </div>
         <div style="padding:18px 20px;">
+
+          <!-- Opacidad -->
+          <div style="margin-bottom:18px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">🌫️ Opacidad del overlay</div>
+            <div style="display:flex;align-items:center;gap:14px;max-width:420px;">
+              <span style="font-size:16px;cursor:pointer;" onclick="setRaffleOpacity(Math.max(10,parseInt(document.getElementById('raffleOpacity').value)-10))">🔅</span>
+              <div style="flex:1;position:relative;height:36px;display:flex;align-items:center;">
+                <div style="position:absolute;width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+                  <div id="raffleOpacityTrack" style="height:100%;background:linear-gradient(90deg,var(--purple),var(--purple-light));border-radius:3px;width:${s.raffle_settings?.overlay_opacity ?? 100}%;transition:width 0.1s;"></div>
+                </div>
+                <input type="range" id="raffleOpacity" min="10" max="100" value="${s.raffle_settings?.overlay_opacity ?? 100}"
+                  oninput="updateRaffleOpacity(this.value)"
+                  style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;">
+              </div>
+              <span style="font-size:16px;cursor:pointer;" onclick="setRaffleOpacity(Math.min(100,parseInt(document.getElementById('raffleOpacity').value)+10))">🔆</span>
+              <div style="min-width:44px;text-align:center;font-size:15px;font-weight:800;color:var(--purple-light);" id="raffleOpacityLabel">${s.raffle_settings?.overlay_opacity ?? 100}%</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Ajusta la transparencia del overlay según tu fondo de stream</div>
+            <button onclick="saveRaffleOpacity()" style="margin-top:12px;padding:8px 20px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">💾 Guardar opacidad</button>
+          </div>
+          <span style="font-size:13px;font-weight:700;color:var(--text);">Overlay para OBS</span>
+        </div>
+        <div style="padding:18px 20px;">
           <!-- Link del overlay -->
           <div style="background:linear-gradient(135deg,var(--purple-dim),var(--bg3));border:1px solid var(--purple-border);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
             <div style="font-size:11px;font-weight:600;color:var(--purple-light);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Tu link de overlay</div>
@@ -2564,6 +2604,26 @@ function renderMain() {
         📐 Tamaño recomendado: <strong style="color:var(--text);">1920×1080</strong> — ajusta la escala y posición según tus necesidades.<br>
         🔊 Activa <strong style="color:var(--text);">"Control audio via OBS"</strong> en las propiedades de la fuente.
       </div>
+
+      <!-- Opacidad Shoutout -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🌫️ Opacidad del overlay</div>
+        <div style="display:flex;align-items:center;gap:12px;max-width:380px;">
+          <span style="font-size:16px;cursor:pointer;" onclick="setShoutoutOpacity(Math.max(10,parseInt(document.getElementById('shoutoutOpacity').value)-10))">🔅</span>
+          <div style="flex:1;position:relative;height:32px;display:flex;align-items:center;">
+            <div style="position:absolute;width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+              <div id="shoutoutOpacityTrack" style="height:100%;background:linear-gradient(90deg,var(--purple),var(--purple-light));border-radius:3px;width:${s.shoutout_config?.overlay_opacity ?? 100}%;transition:width 0.1s;"></div>
+            </div>
+            <input type="range" id="shoutoutOpacity" min="10" max="100" value="${s.shoutout_config?.overlay_opacity ?? 100}"
+              oninput="updateShoutoutOpacity(this.value)"
+              style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;">
+          </div>
+          <span style="font-size:16px;cursor:pointer;" onclick="setShoutoutOpacity(Math.min(100,parseInt(document.getElementById('shoutoutOpacity').value)+10))">🔆</span>
+          <div style="min-width:44px;text-align:center;font-size:14px;font-weight:800;color:var(--purple-light);" id="shoutoutOpacityLabel">${s.shoutout_config?.overlay_opacity ?? 100}%</div>
+          <button onclick="saveShoutoutOpacity()" style="padding:6px 14px;background:var(--purple);border:none;border-radius:16px;color:white;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);">💾</button>
+        </div>
+      </div>
+
       <button onclick="navigator.clipboard.writeText('${window.location.origin}/overlay/shoutout/${userData.username}').then(()=>showToast('Link copiado ✓'))" style="padding:9px 20px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">📋 Copiar link</button>
     </div>
   </div>
@@ -4639,6 +4699,69 @@ function toggleRafflePerm(label, perm) {
   label.style.borderColor = cb.checked ? 'var(--purple)' : 'rgba(255,255,255,0.08)';
   label.style.color = cb.checked ? 'var(--purple-light)' : 'var(--text-dim)';
   label.style.background = cb.checked ? 'var(--purple-dim)' : 'transparent';
+}
+
+function updateSpotifyOpacity(val) {
+  document.getElementById('spotifyOpacityLabel').textContent = val + '%';
+  document.getElementById('spotifyOpacityTrack').style.width = val + '%';
+}
+function setSpotifyOpacity(val) {
+  const input = document.getElementById('spotifyOpacity');
+  if (!input) return;
+  input.value = val;
+  updateSpotifyOpacity(val);
+}
+async function saveSpotifyOpacity() {
+  const opacity = parseInt(document.getElementById('spotifyOpacity')?.value) || 100;
+  const current = streamerData.spotify_config || {};
+  const config = { ...current, overlay_opacity: opacity };
+  const res = await fetch('/api/spotify-config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spotify_config: config })
+  });
+  if (res.ok) { streamerData.spotify_config = config; showToast('Opacidad guardada ✓'); }
+}
+
+function updateShoutoutOpacity(val) {
+  document.getElementById('shoutoutOpacityLabel').textContent = val + '%';
+  document.getElementById('shoutoutOpacityTrack').style.width = val + '%';
+}
+function setShoutoutOpacity(val) {
+  const input = document.getElementById('shoutoutOpacity');
+  if (!input) return;
+  input.value = val;
+  updateShoutoutOpacity(val);
+}
+async function saveShoutoutOpacity() {
+  const opacity = parseInt(document.getElementById('shoutoutOpacity')?.value) || 100;
+  const current = streamerData.shoutout_config || {};
+  const config = { ...current, overlay_opacity: opacity };
+  const res = await fetch('/api/shoutout-config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shoutout_config: config })
+  });
+  if (res.ok) { streamerData.shoutout_config = config; showToast('Opacidad guardada ✓'); }
+}
+
+function updateRaffleOpacity(val) {
+  document.getElementById('raffleOpacityLabel').textContent = val + '%';
+  document.getElementById('raffleOpacityTrack').style.width = val + '%';
+}
+function setRaffleOpacity(val) {
+  const input = document.getElementById('raffleOpacity');
+  if (!input) return;
+  input.value = val;
+  updateRaffleOpacity(val);
+}
+async function saveRaffleOpacity() {
+  const opacity = parseInt(document.getElementById('raffleOpacity')?.value) || 100;
+  const current = streamerData.raffle_settings || {};
+  const settings = { ...current, overlay_opacity: opacity };
+  const res = await fetch('/api/raffle/settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raffle_settings: settings })
+  });
+  if (res.ok) { streamerData.raffle_settings = settings; showToast('Opacidad guardada ✓'); }
 }
 
 async function saveRaffleSettings() {
