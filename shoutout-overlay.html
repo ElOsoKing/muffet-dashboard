@@ -413,7 +413,7 @@ function hideOverlay() {
 
 async function handleSo(targetUser) {
   try {
-    const res = await fetch(`/api/shoutout-clips/${targetUser}`);
+    const res = await fetch(`/api/shoutout-clips/${targetUser}?channel=${channelName}`);
     const data = await res.json();
     if (data?.user) showShoutout(data.user, data.clip, data.mp4Url, { ...(data.config || {}), overlay_opacity: data.overlay_opacity ?? 100 });
   } catch(e) { console.error('[!so]', e); }
