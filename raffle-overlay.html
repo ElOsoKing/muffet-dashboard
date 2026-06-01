@@ -191,6 +191,11 @@ async function pollRaffle() {
     activeEl.style.opacity = opacity;
     const bgOpacity = (data.bg_opacity ?? 75) / 100;
     document.documentElement.style.setProperty('--bg-opacity', bgOpacity);
+    // Quitar backdrop-filter cuando el fondo es casi sólido
+    const cards = document.querySelectorAll('.raffle-card, .winner-screen');
+    cards.forEach(el => {
+      el.style.backdropFilter = bgOpacity >= 0.9 ? 'none' : 'blur(12px)';
+    });
 
     winnerEl.classList.remove('show');
     activeEl.style.display = 'block';
