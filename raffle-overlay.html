@@ -176,6 +176,8 @@ async function pollRaffle() {
       setTimeout(() => {
         winnerEl.classList.remove('show');
         winnerShown = false;
+        // Ocultar overlay completo — sorteo terminado
+        activeEl.style.display = 'none';
       }, 12000);
       return;
     }
