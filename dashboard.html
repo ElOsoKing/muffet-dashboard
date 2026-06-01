@@ -4743,7 +4743,7 @@ async function loadRaffleStatus() {
       <div style="margin-top:12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:12px;">
         <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">➕ Agregar participantes manualmente</div>
         <div style="display:flex;gap:8px;margin-bottom:8px;">
-          <input class="form-input" id="manualParticipantInput" placeholder="Nombre del participante..." style="flex:1;padding:8px 12px;font-size:13px;"
+          <input class="form-input" id="manualParticipantInput" autocomplete="off" name="raffle-participant" placeholder="Nombre del participante..." style="flex:1;padding:8px 12px;font-size:13px;"
             onkeydown="if(event.key==='Enter')addManualParticipant()">
           <button onclick="addManualParticipant()" style="padding:8px 16px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);white-space:nowrap;">+ Agregar</button>
         </div>
