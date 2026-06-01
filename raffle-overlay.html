@@ -10,7 +10,7 @@
 :root{
   --purple:#9147ff;--purple-light:#b388ff;--purple-dim:rgba(145,71,255,0.15);
   --green:#40d090;--yellow:#f0c060;--pink:#e05a7a;
-  --bg:rgba(0,0,0,0.75);--bg2:rgba(20,20,25,0.85);
+  --bg-opacity:0.75;--bg:rgba(0,0,0,var(--bg-opacity));--bg2:rgba(20,20,25,var(--bg-opacity));
   --text:#e8e8f0;--text-dim:#8a8aaa;
   --sans:'Inter',sans-serif;--display:'VT323',monospace;
   --radius:12px;
@@ -184,9 +184,11 @@ async function pollRaffle() {
 
     if (!data.active) { activeEl.style.opacity = ''; activeEl.style.display = 'none'; return; }
 
-    // Aplicar opacidad configurada
+    // Aplicar opacidad y fondo configurados
     const opacity = (data.overlay_opacity ?? 100) / 100;
     activeEl.style.opacity = opacity;
+    const bgOpacity = (data.bg_opacity ?? 75) / 100;
+    document.documentElement.style.setProperty('--bg-opacity', bgOpacity);
 
     winnerEl.classList.remove('show');
     activeEl.style.display = 'block';
