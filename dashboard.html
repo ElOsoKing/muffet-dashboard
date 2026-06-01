@@ -4719,7 +4719,7 @@ async function saveSpotifyOpacity() {
   const opacity = parseInt(document.getElementById('spotifyOpacity')?.value) || 100;
   const current = streamerData.spotify_config || {};
   const config = { ...current, overlay_opacity: opacity };
-  const res = await fetch('/api/spotify-config', {
+  const res = await fetch('/api/spotify/config', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ spotify_config: config })
   });
