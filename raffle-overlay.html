@@ -142,7 +142,7 @@ html,body{
 <script>
 const username = window.location.pathname.split('/overlay/sorteo/')[1];
 let lastParticipants = [];
-let winnerShown = false;
+let winnerShown = null; // null = no mostrado, string = ya mostrado
 
 function spawnConfetti() {
   const colors = ['#9147ff','#f0c060','#40d090','#e05a7a','#60a0f0','#ffffff'];
@@ -167,7 +167,7 @@ async function pollRaffle() {
     const winnerEl  = document.getElementById('winnerState');
 
     if (data.winner && !winnerShown) {
-      winnerShown = true;
+      winnerShown = data.winner; // guardar el nombre para no repetirlo
       activeEl.style.display = 'none';
       document.getElementById('winnerName').textContent  = data.winner;
       document.getElementById('winnerPrize').textContent = '🎁 ' + (data.prize || '');
@@ -175,12 +175,14 @@ async function pollRaffle() {
       spawnConfetti();
       setTimeout(() => {
         winnerEl.classList.remove('show');
-        winnerShown = false;
         // Ocultar overlay completo — sorteo terminado
         activeEl.style.display = 'none';
       }, 12000);
       return;
     }
+
+    // Si ya se mostró el ganador, no hacer nada más aunque siga en Supabase
+    if (winnerShown) return;
 
     if (!data.active) { activeEl.style.opacity = ''; activeEl.style.display = 'none'; return; }
 
