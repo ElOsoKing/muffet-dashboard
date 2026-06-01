@@ -246,6 +246,7 @@ function updateWidget(data) {
 
   widget.classList.remove('hidden');
   widget.classList.add('visible');
+  widget.style.opacity = (data.overlay_opacity ?? 100) / 100;
 
   if (data.is_playing) {
     widget.classList.remove('paused');
