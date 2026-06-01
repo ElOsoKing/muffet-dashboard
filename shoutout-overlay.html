@@ -5,11 +5,15 @@
 <title>Shoutout Overlay</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
+html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 
+/* Contenedor 1920x1080 */
+#scene{position:fixed;inset:0;pointer-events:none;}
+
+/* Tarjeta posicionable */
 #overlay{
-  position:fixed;inset:0;background:#000;
-  border-radius:16px;overflow:hidden;
+  position:absolute;
+  background:#000;border-radius:16px;overflow:hidden;
   opacity:0.001;pointer-events:none;
   transition:opacity 0.3s ease;
 }
@@ -110,6 +114,7 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
 </head>
 <body>
 
+<div id="scene">
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
   <video id="clipVideo" autoplay playsinline style="display:none;"></video>
@@ -135,6 +140,7 @@ html,body{width:100%;height:100%;background:transparent;overflow:hidden;}
   </div>
   <div id="progressBar"><div id="progressFill"></div></div>
 </div>
+</div>
 
 <!-- Iframe dummy para warm-up -->
 <iframe id="dummyIframe" src="" style="position:fixed;width:1px;height:1px;opacity:0.001;pointer-events:none;z-index:-1;" frameborder="0" allow="autoplay"></iframe>
@@ -150,7 +156,49 @@ let currentConfig = {};
 document.getElementById('dummyIframe').src =
   `https://clips.twitch.tv/embed?clip=AwkwardHelplessSalamanderSwiftRage&parent=${DOMAIN}&autoplay=false&muted=true`;
 
+function applyCardLayout(config) {
+  const style = config.style || {};
+  const overlay = document.getElementById('overlay');
+  const pad = 40; // padding desde los bordes
+
+  // Tamaños
+  const sizes = {
+    small:  { w: 400, h: 280 },
+    medium: { w: 600, h: 400 },
+    large:  { w: 800, h: 520 },
+  };
+  const { w, h } = sizes[style.card_size || 'medium'];
+  overlay.style.width = w + 'px';
+  overlay.style.height = h + 'px';
+
+  // Escalar textos según tamaño
+  const scale = w / 600;
+  document.getElementById('badgeName').style.fontSize = Math.round(20 * scale) + 'px';
+  document.getElementById('soTitle').style.fontSize = Math.round(13 * scale) + 'px';
+  document.getElementById('badgeAvatar').style.width = Math.round(52 * scale) + 'px';
+  document.getElementById('badgeAvatar').style.height = Math.round(52 * scale) + 'px';
+
+  // Posiciones
+  const posMap = {
+    'top-left':      { top: pad,            left: pad },
+    'top-center':    { top: pad,            left: (1920 - w) / 2 },
+    'top-right':     { top: pad,            left: 1920 - w - pad },
+    'middle-left':   { top: (1080 - h) / 2, left: pad },
+    'center':        { top: (1080 - h) / 2, left: (1920 - w) / 2 },
+    'middle-right':  { top: (1080 - h) / 2, left: 1920 - w - pad },
+    'bottom-left':   { top: 1080 - h - pad, left: pad },
+    'bottom-center': { top: 1080 - h - pad, left: (1920 - w) / 2 },
+    'bottom-right':  { top: 1080 - h - pad, left: 1920 - w - pad },
+  };
+  const pos = posMap[style.card_position || 'bottom-left'];
+  overlay.style.top = pos.top + 'px';
+  overlay.style.left = pos.left + 'px';
+  overlay.style.right = 'auto';
+  overlay.style.bottom = 'auto';
+}
+
 function applyStyle(config) {
+  applyCardLayout(config);
   const style = config.style || {};
   const accent = style.accent_color || '#9147ff';
   const textColor = style.text_color || '#ffffff';
