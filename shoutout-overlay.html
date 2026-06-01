@@ -144,6 +144,8 @@ const channelName = window.location.pathname.split('/').pop().toLowerCase();
 let hideTimeout = null;
 let timerInterval = null;
 let currentConfig = {};
+let soQueue = []; // Cola de shoutouts pendientes
+let soActive = false; // Si hay un shoutout en curso
 
 // Warm-up dummy iframe
 document.getElementById('dummyIframe').src =
@@ -409,13 +411,33 @@ function hideOverlay() {
   fill.style.transition = 'none';
   fill.style.width = '0%';
   if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+  soActive = false;
+  // Procesar siguiente en la cola
+  setTimeout(processQueue, 800);
+}
+
+function processQueue() {
+  if (soActive || soQueue.length === 0) return;
+  const next = soQueue.shift();
+  soActive = true;
+  showShoutout(next.user, next.clip, next.mp4Url, next.config);
 }
 
 async function handleSo(targetUser) {
   try {
     const res = await fetch(`/api/shoutout-clips/${targetUser}?channel=${channelName}`);
     const data = await res.json();
-    if (data?.user) showShoutout(data.user, data.clip, data.mp4Url, { ...(data.config || {}), overlay_opacity: data.overlay_opacity ?? 100 });
+    if (!data?.user) return;
+    const config = { ...(data.config || {}), overlay_opacity: data.overlay_opacity ?? 100 };
+    if (!soActive) {
+      // No hay nada activo — mostrar directo
+      soActive = true;
+      showShoutout(data.user, data.clip, data.mp4Url, config);
+    } else {
+      // Hay uno activo — agregar a la cola
+      soQueue.push({ user: data.user, clip: data.clip, mp4Url: data.mp4Url, config });
+      console.log(`[so] En cola: ${data.user.display_name || data.user.login} (posición ${soQueue.length})`);
+    }
   } catch(e) { console.error('[!so]', e); }
 }
 
