@@ -38,12 +38,12 @@ body {
 }
 
 .widget.visible {
-  opacity: 1;
+  opacity: var(--widget-opacity, 1);
   transform: translateY(0);
 }
 
 .widget.hidden {
-  opacity: 0;
+  opacity: 0 !important;
   transform: translateY(20px);
 }
 
@@ -247,7 +247,9 @@ function updateWidget(data) {
 
   widget.classList.remove('hidden');
   widget.classList.add('visible');
-  widget.style.opacity = (data.overlay_opacity ?? 100) / 100;
+  const opacityVal = (data.overlay_opacity ?? 100) / 100;
+  widget.style.setProperty('--widget-opacity', opacityVal);
+  widget.style.opacity = '';
 
   if (data.is_playing) {
     widget.classList.remove('paused');
