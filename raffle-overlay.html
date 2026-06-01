@@ -182,7 +182,7 @@ async function pollRaffle() {
       return;
     }
 
-    if (!data.active) { activeEl.style.display = 'none'; return; }
+    if (!data.active) { activeEl.style.opacity = ''; activeEl.style.display = 'none'; return; }
 
     // Aplicar opacidad configurada
     const opacity = (data.overlay_opacity ?? 100) / 100;
