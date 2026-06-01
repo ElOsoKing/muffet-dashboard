@@ -1196,8 +1196,9 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
     const user = userData?.data?.[0];
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
 
-    // Obtener config de shoutout del streamer del canal
-    const configRes = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${req.params.username?.toLowerCase() || target}&select=shoutout_config&limit=1`, { headers: sbHeaders });
+    // Obtener config del canal que hace el shoutout (no del target)
+    const configChannel = (req.query.channel || target).toLowerCase();
+    const configRes = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${configChannel}&select=shoutout_config&limit=1`, { headers: sbHeaders });
     const configData = await configRes.json();
     const sConfig = configData?.[0]?.shoutout_config || {};
     const selectionMode = sConfig.selection_mode || 'random';
