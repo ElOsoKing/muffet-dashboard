@@ -17,7 +17,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
   opacity:0.001;pointer-events:none;
   transition:opacity 0.3s ease;
 }
-#overlay.show{opacity:1;pointer-events:auto;}
+#overlay.show{opacity:var(--overlay-opacity,1);pointer-events:auto;}
 
 #clipVideo{
   position:absolute;inset:0;width:100%;height:100%;
@@ -378,7 +378,7 @@ async function showShoutout(user, clip, mp4Url, config) {
 
   // Mostrar overlay con animación
   const overlay = document.getElementById('overlay');
-  overlay.style.opacity = (currentConfig.overlay_opacity ?? 100) / 100;
+  overlay.style.setProperty('--overlay-opacity', (currentConfig.overlay_opacity ?? 100) / 100);
   overlay.classList.add('show');
   applyAnimation(style.animation || 'fade');
 
@@ -401,7 +401,7 @@ function hideOverlay() {
   const overlay = document.getElementById('overlay');
   overlay.classList.remove('show');
   overlay.style.animation = '';
-  overlay.style.opacity = '';
+  overlay.style.removeProperty('--overlay-opacity');
   const clipZone = document.getElementById('clipZone');
   clipZone.innerHTML = '';
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
@@ -415,7 +415,7 @@ async function handleSo(targetUser) {
   try {
     const res = await fetch(`/api/shoutout-clips/${targetUser}`);
     const data = await res.json();
-    if (data?.user) showShoutout(data.user, data.clip, data.mp4Url, data.config);
+    if (data?.user) showShoutout(data.user, data.clip, data.mp4Url, { ...(data.config || {}), overlay_opacity: data.overlay_opacity ?? 100 });
   } catch(e) { console.error('[!so]', e); }
 }
 
