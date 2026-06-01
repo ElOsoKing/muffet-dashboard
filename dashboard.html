@@ -4688,6 +4688,19 @@ async function loadRaffleStatus() {
   const panel = document.getElementById('rafflePanel');
   if (!panel) return;
 
+  // No recargar si el usuario está escribiendo
+  const manualInput = document.getElementById('manualParticipantInput');
+  const bulkInput = document.getElementById('bulkParticipantsInput');
+  if (manualInput?.value?.trim() || bulkInput?.value?.trim()) {
+    // Solo actualizar el contador sin regenerar el panel
+    const countEl = panel.querySelector('.raffle-count');
+    if (countEl && data.participants) {
+      const unique = [...new Set(data.participants)];
+      countEl.textContent = unique.length;
+    }
+    return;
+  }
+
   if (!data.active) {
     panel.innerHTML = `
       <div class="raffle-inactive">
