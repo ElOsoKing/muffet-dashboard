@@ -440,7 +440,9 @@ async function loadData() {
     });
   }
 
-  showSection('overview');
+  // Restaurar sección activa guardada
+  const savedSection = localStorage.getItem('muffet_section') || 'overview';
+  showSection(savedSection);
 }
 
 function showSection(name) {
@@ -448,8 +450,12 @@ function showSection(name) {
   document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
   const clicked = event?.target?.closest('.nav-item');
   if(clicked) clicked.classList.add('active');
+  else document.querySelectorAll('.nav-item').forEach(el => {
+    if(el.getAttribute('onclick')?.includes(`'${name}'`)) el.classList.add('active');
+  });
   const sec = document.getElementById('sec-' + name);
   if(sec) sec.classList.add('active');
+  localStorage.setItem('muffet_section', name);
   if(name === 'stats') loadStats();
   if(name === 'profile') setTimeout(() => switchProfileTab('socials'), 100);
   if(name === 'commands') renderCommandsList();
