@@ -27,74 +27,65 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
   position:absolute;inset:0;width:100%;height:100%;border:none;z-index:1;
 }
 
-/* Info panel */
-#infoPanel{
-  position:absolute;bottom:0;left:0;right:0;z-index:5;
-  padding:0 20px 20px;
-  background:linear-gradient(to top,rgba(0,0,0,0.92) 0%,rgba(0,0,0,0.6) 60%,transparent 100%);
-}
+/* Layout de la tarjeta: título arriba, clip en medio, info abajo */
+#overlay{display:flex;flex-direction:column;}
 
-/* Título */
-#soTitle{
+/* Barra superior — título */
+#titleBar{
+  flex-shrink:0;
+  background:rgba(0,0,0,0.92);
+  backdrop-filter:blur(12px);
+  padding:10px 16px;
+  border-bottom:2px solid var(--overlay-accent,#9147ff);
   display:none;
+}
+#soTitle{
   font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
   color:var(--overlay-accent,#9147ff);
   font-family:var(--overlay-font,'Inter'),sans-serif;
-  margin-bottom:10px;padding-top:16px;
   text-shadow:0 0 12px var(--overlay-accent,#9147ff);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 
-/* Badge card */
-#badgeCard{
-  display:flex;align-items:center;gap:14px;
-  background:rgba(0,0,0,0.5);
-  backdrop-filter:blur(12px);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:14px;padding:12px 16px;
-  border-left:3px solid var(--overlay-accent,#9147ff);
+/* Clip — ocupa todo el espacio disponible */
+#clipZone{
+  flex:1;position:relative;overflow:hidden;background:#000;
 }
-#badgeRow{display:flex;align-items:center;gap:14px;flex:1;}
+
+/* Barra inferior — info del streamer */
+#infoPanel{
+  flex-shrink:0;
+  background:rgba(0,0,0,0.92);
+  backdrop-filter:blur(12px);
+  padding:10px 16px;
+  border-top:1px solid rgba(255,255,255,0.08);
+}
+#badgeCard{display:flex;align-items:center;gap:12px;}
+#badgeRow{display:flex;align-items:center;gap:12px;flex:1;}
 #avatarWrap{position:relative;flex-shrink:0;}
 #badgeAvatar{
-  width:52px;height:52px;border-radius:50%;object-fit:cover;
+  width:40px;height:40px;border-radius:50%;object-fit:cover;
   border:2px solid var(--overlay-accent,#9147ff);
-  box-shadow:0 0 16px color-mix(in srgb,var(--overlay-accent,#9147ff) 50%,transparent);
+  box-shadow:0 0 12px rgba(145,71,255,0.4);
   display:none;
 }
 #avatarRing{
-  position:absolute;inset:-4px;border-radius:50%;
+  position:absolute;inset:-3px;border-radius:50%;
   border:2px solid var(--overlay-accent,#9147ff);
-  opacity:0.4;animation:spin 3s linear infinite;
-  display:none;
+  opacity:0.4;animation:spin 3s linear infinite;display:none;
 }
 @keyframes spin{to{transform:rotate(360deg);}}
-#badgeInfo{display:flex;flex-direction:column;gap:4px;flex:1;}
+#badgeInfo{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
 #badgeName{
-  font-size:20px;font-weight:900;letter-spacing:-0.5px;
+  font-size:16px;font-weight:900;letter-spacing:-0.5px;
   color:var(--overlay-text,#fff);
   font-family:var(--overlay-font,'Inter'),sans-serif;
-  text-shadow:0 2px 8px rgba(0,0,0,0.8);
-  line-height:1;
+  line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-#badgeMeta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
-#badgeGame{
-  font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);
-  background:rgba(255,255,255,0.08);border-radius:20px;
-  padding:3px 10px;display:none;
-}
-#badgeFollowers{
-  font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);
-  background:rgba(255,255,255,0.08);border-radius:20px;
-  padding:3px 10px;display:none;
-}
-#badgeTimer{
-  font-size:12px;font-weight:800;
-  color:var(--overlay-accent,#9147ff);
-  background:color-mix(in srgb,var(--overlay-accent,#9147ff) 15%,transparent);
-  border:1px solid color-mix(in srgb,var(--overlay-accent,#9147ff) 30%,transparent);
-  border-radius:20px;padding:3px 10px;
-  display:none;
-}
+#badgeMeta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+#badgeGame{font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.08);border-radius:20px;padding:2px 8px;display:none;}
+#badgeFollowers{font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.08);border-radius:20px;padding:2px 8px;display:none;}
+#badgeTimer{font-size:12px;font-weight:800;color:var(--overlay-accent,#9147ff);background:rgba(145,71,255,0.12);border:1px solid rgba(145,71,255,0.3);border-radius:20px;padding:2px 8px;display:none;}
 
 /* Barra progreso */
 #progressBar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,0.3);z-index:10;}
@@ -117,10 +108,12 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 <div id="scene">
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <video id="clipVideo" autoplay playsinline style="display:none;"></video>
-  <iframe id="clipIframe" frameborder="0" allowfullscreen allow="autoplay; fullscreen" style="display:none;"></iframe>
+  <!-- Título arriba -->
+  <div id="titleBar"><div id="soTitle"></div></div>
+  <!-- Clip en el medio -->
+  <div id="clipZone"></div>
+  <!-- Info abajo -->
   <div id="infoPanel">
-    <div id="soTitle"></div>
     <div id="badgeCard">
       <div id="badgeRow">
         <div id="avatarWrap">
@@ -159,26 +152,29 @@ document.getElementById('dummyIframe').src =
 function applyCardLayout(config) {
   const style = config.style || {};
   const overlay = document.getElementById('overlay');
-  const pad = 40; // padding desde los bordes
+  const pad = 40;
 
-  // Tamaños
   const sizes = {
-    small:  { w: 400, h: 280 },
-    medium: { w: 600, h: 400 },
-    large:  { w: 800, h: 520 },
+    small:  { w: 420, h: 320 },
+    medium: { w: 620, h: 430 },
+    large:  { w: 820, h: 540 },
   };
   const { w, h } = sizes[style.card_size || 'medium'];
   overlay.style.width = w + 'px';
   overlay.style.height = h + 'px';
 
-  // Escalar textos según tamaño
-  const scale = w / 600;
-  document.getElementById('badgeName').style.fontSize = Math.round(20 * scale) + 'px';
-  document.getElementById('soTitle').style.fontSize = Math.round(13 * scale) + 'px';
-  document.getElementById('badgeAvatar').style.width = Math.round(52 * scale) + 'px';
-  document.getElementById('badgeAvatar').style.height = Math.round(52 * scale) + 'px';
+  // Escalar textos
+  const scale = w / 620;
+  const nameEl = document.getElementById('badgeName');
+  const titleEl = document.getElementById('soTitle');
+  const avatarEl = document.getElementById('badgeAvatar');
+  if (nameEl) nameEl.style.fontSize = Math.round(16 * scale) + 'px';
+  if (titleEl) titleEl.style.fontSize = Math.round(13 * scale) + 'px';
+  if (avatarEl) {
+    avatarEl.style.width = Math.round(40 * scale) + 'px';
+    avatarEl.style.height = Math.round(40 * scale) + 'px';
+  }
 
-  // Posiciones
   const posMap = {
     'top-left':      { top: pad,            left: pad },
     'top-center':    { top: pad,            left: (1920 - w) / 2 },
@@ -295,12 +291,13 @@ async function showShoutout(user, clip, mp4Url, config) {
   applyStyle(currentConfig);
 
   // Título
+  const titleBar = document.getElementById('titleBar');
   const titleEl = document.getElementById('soTitle');
   if (style.title) {
     titleEl.textContent = style.title.replace('{user}', user.display_name || user.login);
-    titleEl.style.display = 'block';
+    titleBar.style.display = 'block';
   } else {
-    titleEl.style.display = 'none';
+    titleBar.style.display = 'none';
   }
 
   // Avatar
@@ -342,20 +339,29 @@ async function showShoutout(user, clip, mp4Url, config) {
     startTimer(duration);
   } else { timerEl.style.display = 'none'; }
 
-  // Clip
-  const video = document.getElementById('clipVideo');
-  const iframe = document.getElementById('clipIframe');
+  // Clip dentro del clipZone
+  const clipZone = document.getElementById('clipZone');
+  clipZone.innerHTML = '';
   if (mp4Url) {
-    video.style.display = 'block';
-    iframe.style.display = 'none';
+    const video = document.createElement('video');
+    video.id = 'clipVideo';
+    video.autoplay = true;
+    video.setAttribute('playsinline','');
     video.src = mp4Url;
     video.volume = (currentConfig.volume ?? 100) / 100;
+    video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
+    clipZone.appendChild(video);
     video.play().catch(e => console.log('video error:', e));
     video.onended = () => setTimeout(hideOverlay, 1500);
   } else if (clip) {
-    iframe.style.display = 'block';
-    video.style.display = 'none';
+    const iframe = document.createElement('iframe');
+    iframe.id = 'clipIframe';
+    iframe.frameBorder = '0';
+    iframe.setAttribute('allowfullscreen','');
+    iframe.setAttribute('allow','autoplay; fullscreen');
     iframe.src = `https://clips.twitch.tv/embed?clip=${clip.id}&parent=${DOMAIN}&autoplay=true&muted=true`;
+    iframe.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:none;';
+    clipZone.appendChild(iframe);
   }
 
   // Mostrar overlay con animación
@@ -382,9 +388,8 @@ function hideOverlay() {
   const overlay = document.getElementById('overlay');
   overlay.classList.remove('show');
   overlay.style.animation = '';
-  const video = document.getElementById('clipVideo');
-  video.pause(); video.src = '';
-  document.getElementById('clipIframe').src = '';
+  const clipZone = document.getElementById('clipZone');
+  clipZone.innerHTML = '';
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
   const fill = document.getElementById('progressFill');
   fill.style.transition = 'none';
