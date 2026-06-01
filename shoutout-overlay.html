@@ -206,23 +206,38 @@ function applyStyle(config) {
 
   // Borde
   const overlay = document.getElementById('overlay');
-  const borderStyles = {
-    none: 'none',
-    solid: `2px solid ${accent}`,
-    glow: `2px solid ${accent}`,
-    neon: '2px solid #e05a7a',
-    gold: '2px solid #f0c060',
-  };
-  const glowStyles = {
-    glow: `0 0 0 2px ${accent}, 0 0 24px ${accent}55`,
-    neon: '0 0 0 2px #e05a7a, 0 0 24px #e05a7a55',
-    gold: '0 0 0 2px #f0c060, 0 0 24px #f0c06055',
-    solid: `0 0 0 2px ${accent}`,
-    none: 'none',
-  };
+  overlay.style.outline = 'none';
+  overlay.style.borderImage = 'none';
   const bs = style.border_style || 'glow';
-  overlay.style.border = borderStyles[bs] || 'none';
-  overlay.style.boxShadow = glowStyles[bs] || 'none';
+
+  // Resetear estilos especiales
+  overlay.style.animation = overlay.classList.contains('show') ? overlay.style.animation : '';
+
+  if (bs === 'none') {
+    overlay.style.border = 'none';
+    overlay.style.boxShadow = 'none';
+    overlay.style.borderRadius = '16px';
+  } else if (bs === 'solid') {
+    // Borde grueso sólido sin glow
+    overlay.style.border = `4px solid ${accent}`;
+    overlay.style.boxShadow = 'none';
+    overlay.style.borderRadius = '16px';
+  } else if (bs === 'glow') {
+    // Borde fino con glow exterior fuerte
+    overlay.style.border = `2px solid ${accent}`;
+    overlay.style.boxShadow = `0 0 8px ${accent}, 0 0 24px ${accent}88, 0 0 48px ${accent}44`;
+    overlay.style.borderRadius = '16px';
+  } else if (bs === 'neon') {
+    // Neon: borde doble parpadeante con color fijo rosa
+    overlay.style.border = '3px solid #e05a7a';
+    overlay.style.boxShadow = '0 0 6px #e05a7a, 0 0 20px #e05a7aaa, inset 0 0 12px #e05a7a22';
+    overlay.style.borderRadius = '4px';
+  } else if (bs === 'gold') {
+    // Gold: borde grueso dorado con brillo interior
+    overlay.style.border = '3px solid #f0c060';
+    overlay.style.boxShadow = '0 0 12px #f0c06088, 0 0 30px #f0c06044, inset 0 0 16px #f0c06022';
+    overlay.style.borderRadius = '12px';
+  }
 
   // Barra progreso
   document.getElementById('progressFill').style.background =
