@@ -238,6 +238,7 @@ function updateWidget(data) {
   const progressEl = document.getElementById('progressBar');
 
   if (!data.playing) {
+    widget.style.opacity = '';
     widget.classList.remove('visible');
     widget.classList.add('hidden');
     clearInterval(progressInterval);
