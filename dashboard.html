@@ -1779,6 +1779,21 @@ function renderMain() {
             <div style="min-width:44px;text-align:center;font-size:14px;font-weight:800;color:#1ed760;" id="spotifyOpacityLabel">${s.spotify_config?.overlay_opacity ?? 100}%</div>
             <button onclick="saveSpotifyOpacity()" style="padding:6px 14px;background:#1ed760;border:none;border-radius:16px;color:#000;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);">💾</button>
           </div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-top:14px;margin-bottom:10px;">🌑 Oscuridad del fondo</div>
+          <div style="display:flex;align-items:center;gap:12px;max-width:380px;">
+            <span style="font-size:16px;cursor:pointer;" onclick="setSpotifyBgOpacity(Math.max(0,parseInt(document.getElementById('spotifyBgOpacity').value)-10))">☀️</span>
+            <div style="flex:1;position:relative;height:32px;display:flex;align-items:center;">
+              <div style="position:absolute;width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+                <div id="spotifyBgOpacityTrack" style="height:100%;background:linear-gradient(90deg,#333,#000);border-radius:3px;width:${s.spotify_config?.bg_opacity ?? 75}%;transition:width 0.1s;"></div>
+              </div>
+              <input type="range" id="spotifyBgOpacity" min="0" max="100" value="${s.spotify_config?.bg_opacity ?? 75}"
+                oninput="updateSpotifyBgOpacity(this.value)"
+                style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;">
+            </div>
+            <span style="font-size:16px;cursor:pointer;" onclick="setSpotifyBgOpacity(Math.min(100,parseInt(document.getElementById('spotifyBgOpacity').value)+10))">🌑</span>
+            <div style="min-width:44px;text-align:center;font-size:14px;font-weight:800;color:#1ed760;" id="spotifyBgOpacityLabel">${s.spotify_config?.bg_opacity ?? 75}%</div>
+            <button onclick="saveSpotifyBgOpacity()" style="padding:6px 14px;background:#1ed760;border:none;border-radius:16px;color:#000;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);">💾</button>
+          </div>
         </div>` : `
         <a href="/auth/spotify" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:#1ed760;color:black;font-weight:700;font-size:13px;padding:10px 22px;border-radius:24px;transition:all 0.15s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
           🎵 Conectar
@@ -2234,6 +2249,21 @@ function renderMain() {
               <div style="min-width:44px;text-align:center;font-size:15px;font-weight:800;color:var(--purple-light);" id="raffleOpacityLabel">${s.raffle_settings?.overlay_opacity ?? 100}%</div>
             </div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Ajusta la transparencia del overlay según tu fondo de stream</div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-top:16px;margin-bottom:12px;">🌑 Oscuridad del fondo</div>
+            <div style="display:flex;align-items:center;gap:14px;max-width:420px;">
+              <span style="font-size:16px;cursor:pointer;" onclick="setRaffleBgOpacity(Math.max(0,parseInt(document.getElementById('raffleBgOpacity').value)-10))">☀️</span>
+              <div style="flex:1;position:relative;height:36px;display:flex;align-items:center;">
+                <div style="position:absolute;width:100%;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;">
+                  <div id="raffleBgOpacityTrack" style="height:100%;background:linear-gradient(90deg,#333,#000);border-radius:3px;width:${s.raffle_settings?.bg_opacity ?? 75}%;transition:width 0.1s;"></div>
+                </div>
+                <input type="range" id="raffleBgOpacity" min="0" max="100" value="${s.raffle_settings?.bg_opacity ?? 75}"
+                  oninput="updateRaffleBgOpacity(this.value)"
+                  style="position:absolute;width:100%;height:100%;opacity:0;cursor:pointer;margin:0;">
+              </div>
+              <span style="font-size:16px;cursor:pointer;" onclick="setRaffleBgOpacity(Math.min(100,parseInt(document.getElementById('raffleBgOpacity').value)+10))">🌑</span>
+              <div style="min-width:44px;text-align:center;font-size:15px;font-weight:800;color:var(--purple-light);" id="raffleBgOpacityLabel">${s.raffle_settings?.bg_opacity ?? 75}%</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Qué tan negro/oscuro es el fondo del widget</div>
             <button onclick="saveRaffleOpacity()" style="margin-top:12px;padding:8px 20px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">💾 Guardar opacidad</button>
           </div>
           <span style="font-size:13px;font-weight:700;color:var(--text);">Overlay para OBS</span>
@@ -4726,6 +4756,27 @@ async function saveSpotifyOpacity() {
   if (res.ok) { streamerData.spotify_config = config; showToast('Opacidad guardada ✓'); }
 }
 
+function updateSpotifyBgOpacity(val) {
+  document.getElementById('spotifyBgOpacityLabel').textContent = val + '%';
+  document.getElementById('spotifyBgOpacityTrack').style.width = val + '%';
+}
+function setSpotifyBgOpacity(val) {
+  const input = document.getElementById('spotifyBgOpacity');
+  if (!input) return;
+  input.value = val;
+  updateSpotifyBgOpacity(val);
+}
+async function saveSpotifyBgOpacity() {
+  const bgOpacity = parseInt(document.getElementById('spotifyBgOpacity')?.value) ?? 75;
+  const current = streamerData.spotify_config || {};
+  const config = { ...current, bg_opacity: bgOpacity };
+  const res = await fetch('/api/spotify/config', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ spotify_config: config })
+  });
+  if (res.ok) { streamerData.spotify_config = config; showToast('Fondo guardado ✓'); }
+}
+
 function updateShoutoutOpacity(val) {
   document.getElementById('shoutoutOpacityLabel').textContent = val + '%';
   document.getElementById('shoutoutOpacityTrack').style.width = val + '%';
@@ -4759,13 +4810,25 @@ function setRaffleOpacity(val) {
 }
 async function saveRaffleOpacity() {
   const opacity = parseInt(document.getElementById('raffleOpacity')?.value) || 100;
+  const bgOpacity = parseInt(document.getElementById('raffleBgOpacity')?.value) ?? 75;
   const current = streamerData.raffle_settings || {};
-  const settings = { ...current, overlay_opacity: opacity };
+  const settings = { ...current, overlay_opacity: opacity, bg_opacity: bgOpacity };
   const res = await fetch('/api/raffle/settings', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ raffle_settings: settings })
   });
   if (res.ok) { streamerData.raffle_settings = settings; showToast('Opacidad guardada ✓'); }
+}
+
+function updateRaffleBgOpacity(val) {
+  document.getElementById('raffleBgOpacityLabel').textContent = val + '%';
+  document.getElementById('raffleBgOpacityTrack').style.width = val + '%';
+}
+function setRaffleBgOpacity(val) {
+  const input = document.getElementById('raffleBgOpacity');
+  if (!input) return;
+  input.value = val;
+  updateRaffleBgOpacity(val);
 }
 
 async function saveRaffleSettings() {
