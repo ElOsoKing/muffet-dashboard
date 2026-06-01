@@ -1058,6 +1058,19 @@ app.get('/api/raffle/overlay/:username', async (req, res) => {
     res.json({ active: !!raffle.active, prize: raffle.prize || '', participants: raffle.participants || [], winner: raffle.winner || null, join_cmd });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
+app.post('/api/raffle/add-participant', requireAuth, async (req, res) => {
+  const { username } = req.body;
+  if (!username?.trim()) return res.status(400).json({ error: 'Nombre inválido' });
+  const streamer = await sbGet('streamers', { twitch_id: req.session.user.id });
+  if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+  const raffle = streamer.raffle_active || {};
+  if (!raffle.active) return res.status(400).json({ error: 'No hay sorteo activo' });
+  const participants = raffle.participants || [];
+  participants.push(username.trim());
+  await sbUpdate('streamers', { raffle_active: { ...raffle, participants } }, { twitch_id: req.session.user.id });
+  res.json({ ok: true, count: participants.length });
+});
+
 app.post('/api/raffle/settings', requireAuth, async (req, res) => {
   try {
     const { raffle_settings } = req.body;
