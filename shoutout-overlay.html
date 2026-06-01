@@ -40,7 +40,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
   display:none;
 }
 #soTitle{
-  font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  font-size:17px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
   color:var(--overlay-accent,#9147ff);
   font-family:var(--overlay-font,'Inter'),sans-serif;
   text-shadow:0 0 12px var(--overlay-accent,#9147ff);
@@ -57,14 +57,14 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
   flex-shrink:0;
   background:rgba(0,0,0,0.92);
   backdrop-filter:blur(12px);
-  padding:10px 16px;
+  padding:12px 18px;
   border-top:1px solid rgba(255,255,255,0.08);
 }
 #badgeCard{display:flex;align-items:center;gap:12px;}
 #badgeRow{display:flex;align-items:center;gap:12px;flex:1;}
 #avatarWrap{position:relative;flex-shrink:0;}
 #badgeAvatar{
-  width:40px;height:40px;border-radius:50%;object-fit:cover;
+  width:52px;height:52px;border-radius:50%;object-fit:cover;
   border:2px solid var(--overlay-accent,#9147ff);
   box-shadow:0 0 12px rgba(145,71,255,0.4);
   display:none;
@@ -77,15 +77,15 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 @keyframes spin{to{transform:rotate(360deg);}}
 #badgeInfo{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
 #badgeName{
-  font-size:16px;font-weight:900;letter-spacing:-0.5px;
+  font-size:22px;font-weight:900;letter-spacing:-0.5px;
   color:var(--overlay-text,#fff);
   font-family:var(--overlay-font,'Inter'),sans-serif;
   line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-#badgeMeta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-#badgeGame{font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.08);border-radius:20px;padding:2px 8px;display:none;}
-#badgeFollowers{font-size:11px;font-weight:600;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.08);border-radius:20px;padding:2px 8px;display:none;}
-#badgeTimer{font-size:12px;font-weight:800;color:var(--overlay-accent,#9147ff);background:rgba(145,71,255,0.12);border:1px solid rgba(145,71,255,0.3);border-radius:20px;padding:2px 8px;display:none;}
+#badgeMeta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:5px;}
+#badgeGame{font-size:13px;font-weight:600;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.08);border-radius:20px;padding:3px 10px;display:none;}
+#badgeFollowers{font-size:13px;font-weight:600;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.08);border-radius:20px;padding:3px 10px;display:none;}
+#badgeTimer{font-size:16px;font-weight:800;color:var(--overlay-accent,#9147ff);background:rgba(145,71,255,0.12);border:1px solid rgba(145,71,255,0.3);border-radius:20px;padding:3px 12px;display:none;}
 
 /* Barra progreso */
 #progressBar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(0,0,0,0.3);z-index:10;}
@@ -168,11 +168,11 @@ function applyCardLayout(config) {
   const nameEl = document.getElementById('badgeName');
   const titleEl = document.getElementById('soTitle');
   const avatarEl = document.getElementById('badgeAvatar');
-  if (nameEl) nameEl.style.fontSize = Math.round(16 * scale) + 'px';
-  if (titleEl) titleEl.style.fontSize = Math.round(13 * scale) + 'px';
+  if (nameEl) nameEl.style.fontSize = Math.round(22 * scale) + 'px';
+  if (titleEl) titleEl.style.fontSize = Math.round(17 * scale) + 'px';
   if (avatarEl) {
-    avatarEl.style.width = Math.round(40 * scale) + 'px';
-    avatarEl.style.height = Math.round(40 * scale) + 'px';
+    avatarEl.style.width = Math.round(52 * scale) + 'px';
+    avatarEl.style.height = Math.round(52 * scale) + 'px';
   }
 
   const posMap = {
@@ -293,12 +293,9 @@ async function showShoutout(user, clip, mp4Url, config) {
   // Título
   const titleBar = document.getElementById('titleBar');
   const titleEl = document.getElementById('soTitle');
-  if (style.title) {
-    titleEl.textContent = style.title.replace('{user}', user.display_name || user.login);
-    titleBar.style.display = 'block';
-  } else {
-    titleBar.style.display = 'none';
-  }
+  const titleText = style.title || '¡Sigan a {user}!';
+  titleEl.textContent = titleText.replace('{user}', user.display_name || user.login);
+  titleBar.style.display = 'block';
 
   // Avatar
   const avatarEl = document.getElementById('badgeAvatar');
@@ -389,6 +386,7 @@ function hideOverlay() {
   const overlay = document.getElementById('overlay');
   overlay.classList.remove('show');
   overlay.style.animation = '';
+  overlay.style.opacity = '';
   const clipZone = document.getElementById('clipZone');
   clipZone.innerHTML = '';
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
