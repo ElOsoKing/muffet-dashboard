@@ -4825,7 +4825,7 @@ function showWinner(winner, prize) {
       <div class="winner-label">¡Ganador del sorteo!</div>
       <div class="winner-name">${winner}</div>
       <div class="winner-prize">🎁 ${prize}</div>
-      <button class="btn btn-primary" onclick="this.closest('.winner-overlay').remove()">Cerrar</button>
+      <button class="btn btn-primary" onclick="this.closest('.winner-overlay').remove(); loadRaffleStatus();">Cerrar</button>
     </div>`;
   document.body.appendChild(overlay);
   setTimeout(() => overlay.classList.add('show'), 10);
