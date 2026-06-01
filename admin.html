@@ -280,6 +280,35 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   </div>
 </div><!-- main-inner -->
 </div><!-- main -->
+
+<!-- Modal duración Pro -->
+<div id="proModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:420px;">
+    <div class="modal-head">
+      <div style="font-size:24px;">⭐</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;">Activar Plan Pro</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="proModalInfo"></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('proModal').style.display='none'">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">Duración</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+        <button onclick="confirmPro(1)" style="padding:12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.borderColor='rgba(240,192,96,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">1 mes</button>
+        <button onclick="confirmPro(3)" style="padding:12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.borderColor='rgba(240,192,96,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">3 meses</button>
+        <button onclick="confirmPro(6)" style="padding:12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.borderColor='rgba(240,192,96,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">6 meses</button>
+        <button onclick="confirmPro(12)" style="padding:12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:all 0.15s;" onmouseover="this.style.borderColor='rgba(240,192,96,0.4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.08)'">1 año</button>
+      </div>
+      <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Fecha personalizada</div>
+      <div style="display:flex;gap:8px;">
+        <input type="date" id="customDate" style="flex:1;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:9px 12px;outline:none;">
+        <button onclick="confirmPro('custom')" style="padding:9px 16px;background:rgba(240,192,96,0.1);border:1px solid rgba(240,192,96,0.3);border-radius:var(--radius-sm);color:var(--yellow);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);">Aplicar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="detailModal" class="modal-overlay">
   <div class="modal-box">
     <div class="modal-head">
@@ -417,8 +446,8 @@ function renderTable(){
                     ${!s.approved||s.role==='pending' ? `<button class="btn-action btn-approve" onclick="approve(${s.id})">✓ Aprobar</button>` : ''}
                     ${s.approved&&s.role!=='blocked' ? `<button class="btn-action btn-revoke" onclick="revoke(${s.id})">Revocar</button>` : ''}
                     ${s.role==='blocked' ? `<button class="btn-action btn-restore" onclick="approve(${s.id})">Restaurar</button>` : ''}
-                    ${s.approved&&s.plan!=='pro'&&s.plan!=='admin' ? `<button class="btn-action btn-pro" onclick="setPlan(${s.id},'pro')">⭐ Pro</button>` : ''}
-                    ${s.plan==='pro' ? `<button class="btn-action btn-free" onclick="setPlan(${s.id},'free')">↓ Free</button>` : ''}
+                    ${s.approved&&s.plan!=='pro'&&s.plan!=='admin' ? `<button class="btn-action btn-pro" onclick="openProModal(${s.id}, ${s.plan_expires_at ? `'${s.plan_expires_at}'` : 'null'})">⭐ Pro</button>` : ''}
+                    ${s.plan==='pro' ? `<button class="btn-action btn-pro" onclick="openProModal(${s.id}, s.plan_expires_at||null)">↻ Renovar</button><button class="btn-action btn-free" onclick="setPlan(${s.id},'free')">↓ Free</button>` : ''}
                   `}
               </div>
             </td>
@@ -479,8 +508,8 @@ function showDetails(id){
     ${s.role!=='admin'?`
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       ${!s.approved||s.role==='pending'?`<button class="btn-action btn-approve" style="flex:1;padding:9px;" onclick="approve(${s.id});document.getElementById('detailModal').style.display='none'">✓ Aprobar acceso</button>`:''}
-      ${s.approved&&s.plan!=='pro'?`<button class="btn-action btn-pro" style="flex:1;padding:9px;" onclick="setPlan(${s.id},'pro');document.getElementById('detailModal').style.display='none'">⭐ Activar Pro</button>`:''}
-      ${s.plan==='pro'?`<button class="btn-action btn-free" style="flex:1;padding:9px;" onclick="setPlan(${s.id},'free');document.getElementById('detailModal').style.display='none'">↓ Bajar a Free</button>`:''}
+      ${s.approved&&s.plan!=='pro'?`<button class="btn-action btn-pro" style="flex:1;padding:9px;" onclick="openProModal(${s.id}, s.plan_expires_at||null)">⭐ Activar Pro</button>`:''}
+      ${s.plan==='pro'?`<button class="btn-action btn-pro" style="flex:1;padding:9px;" onclick="openProModal(${s.id}, s.plan_expires_at||null)">↻ Renovar Pro</button><button class="btn-action btn-free" style="padding:9px 14px;" onclick="setPlan(${s.id},'free');document.getElementById('detailModal').style.display='none'">↓ Free</button>`:''}
       ${s.approved&&s.role!=='blocked'?`<button class="btn-action btn-revoke" style="padding:9px 14px;" onclick="revoke(${s.id});document.getElementById('detailModal').style.display='none'">Revocar</button>`:''}
     </div>`:''}
   `;
@@ -519,6 +548,64 @@ async function setPlan(id,plan){
 }
 
 document.getElementById('detailModal').addEventListener('click', function(e){
+  if(e.target===this) this.style.display='none';
+});
+
+// ── Modal de duración Pro ──
+let pendingProId = null;
+let pendingProCurrent = null;
+
+function openProModal(id, currentExpiry) {
+  pendingProId = id;
+  pendingProCurrent = currentExpiry;
+  const modal = document.getElementById('proModal');
+  const info = document.getElementById('proModalInfo');
+  if (currentExpiry) {
+    const exp = new Date(currentExpiry);
+    const daysLeft = Math.ceil((exp - new Date()) / (1000*60*60*24));
+    info.textContent = daysLeft > 0
+      ? `Plan Pro activo — vence en ${daysLeft} días (${exp.toLocaleDateString('es-DO')})`
+      : `Plan Pro vencido el ${exp.toLocaleDateString('es-DO')}`;
+    info.style.color = daysLeft <= 7 ? 'var(--pink)' : 'var(--green)';
+  } else {
+    info.textContent = 'Sin plan Pro activo actualmente';
+    info.style.color = 'var(--text-dim)';
+  }
+  document.getElementById('customDate').value = '';
+  modal.style.display = 'flex';
+}
+
+async function confirmPro(months) {
+  let expiresAt;
+  if (months === 'custom') {
+    const val = document.getElementById('customDate').value;
+    if (!val) { showToast('Selecciona una fecha', 'error'); return; }
+    expiresAt = new Date(val).toISOString();
+  } else {
+    const d = new Date();
+    // Si ya tiene Pro activo, extender desde la fecha actual de expiración
+    if (pendingProCurrent && new Date(pendingProCurrent) > new Date()) {
+      d.setTime(new Date(pendingProCurrent).getTime());
+    }
+    d.setMonth(d.getMonth() + months);
+    expiresAt = d.toISOString();
+  }
+  const res = await fetch(`/api/admin/plan/${pendingProId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan: 'pro', expires_at: expiresAt })
+  });
+  if (res.ok) {
+    showToast('Plan Pro activado ⭐');
+    document.getElementById('proModal').style.display = 'none';
+    document.getElementById('detailModal').style.display = 'none';
+    loadStreamers();
+  } else {
+    showToast('Error al activar Pro', 'error');
+  }
+}
+
+document.getElementById('proModal').addEventListener('click', function(e){
   if(e.target===this) this.style.display='none';
 });
 
