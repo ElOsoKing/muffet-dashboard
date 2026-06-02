@@ -461,7 +461,12 @@ function showDetails(id){
   if(!s) return;
   document.getElementById('modalTitle').textContent = `@${s.twitch_username}`;
   document.getElementById('modalSubtitle').textContent = `Registrado el ${new Date(s.created_at).toLocaleDateString('es-DO')}`;
-  document.getElementById('modalAvatar').src = `https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png`;
+  const avatarEl = document.getElementById('modalAvatar');
+  avatarEl.src = `https://static-cdn.jtvnw.net/user-default-pictures-uv/75305d54-c7cc-40d1-bb9c-91fbe85943c7-profile_image-70x70.png`;
+  fetch(`https://decapi.me/twitch/avatar/${s.twitch_username}`)
+    .then(r => r.text())
+    .then(url => { if (url?.startsWith('http')) avatarEl.src = url; })
+    .catch(() => {});
 
   const cmds = Object.keys(s.commands||{}).length;
   const autoMsgs = (s.auto_messages||[]).length;
