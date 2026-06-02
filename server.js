@@ -1390,11 +1390,7 @@ app.get('/api/shoutout-followers/:username', async (req, res) => {
 
 // ── SHOUTOUT OVERLAY ──
 app.get('/overlay/shoutout/:username', async (req, res) => {
-  const username = req.params.username.toLowerCase();
   try {
-    const data = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=plan&limit=1`, { headers: sbHeaders });
-    const streamer = (await data.json())?.[0];
-    if (!streamer || streamer.plan !== 'pro') return proOnlyPage(res);
     res.sendFile(path.join(__dirname, 'shoutout-overlay.html'));
   } catch(e) { res.status(500).send('Error'); }
 });
