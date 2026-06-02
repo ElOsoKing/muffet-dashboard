@@ -2421,10 +2421,8 @@ function renderMain() {
     </div>
 
     <!-- ESTILO DEL OVERLAY — PRO -->
-    <div style="position:relative;">
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;position:relative;">
     ${s.plan!=='pro'&&s.plan!=='admin'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">Personaliza colores, bordes, fuentes, animaciones y posición del overlay.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
-    <div style="${s.plan!=='pro'&&s.plan!=='admin'?'filter:blur(3px);pointer-events:none;':''}">
-    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
       <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="width:32px;height:32px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">🎨</div>
@@ -2562,10 +2560,8 @@ function renderMain() {
     </div></div>
 
     <!-- DISPARADOR — PRO -->
-    <div style="position:relative;">
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;position:relative;">
     ${s.plan!=='pro'&&s.plan!=='admin'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">Configura el comando !so, permisos y raid automático.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
-    <div style="${s.plan!=='pro'&&s.plan!=='admin'?'filter:blur(3px);pointer-events:none;':''}">
-    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
       <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
           <div style="width:32px;height:32px;background:rgba(145,71,255,0.12);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;">⚡</div>
