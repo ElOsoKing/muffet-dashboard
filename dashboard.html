@@ -367,7 +367,7 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
       <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin <span class="pro-badge" id="badge-primerin" style="display:none;">PRO</span></div>
-      <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout <span class="pro-badge" id="badge-shoutout" style="display:none;">PRO</span></div>
+      <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Análisis <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
@@ -2421,7 +2421,9 @@ function renderMain() {
     </div>
 
     <!-- ESTILO DEL OVERLAY — PRO -->
-    ${s.plan==='pro'||s.plan==='admin'?`
+    <div style="position:relative;">
+    ${s.plan!=='pro'&&s.plan!=='admin'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">Personaliza colores, bordes, fuentes, animaciones y posición del overlay.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
+    <div style="${s.plan!=='pro'&&s.plan!=='admin'?'filter:blur(3px);pointer-events:none;':''}">
     <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
       <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -2557,10 +2559,12 @@ function renderMain() {
 
         <button onclick="saveShoutoutStyle()" style="padding:11px 28px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);width:fit-content;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">💾 Guardar estilo</button>
       </div>
-    </div>`:''}
+    </div></div>
 
     <!-- DISPARADOR — PRO -->
-    ${s.plan==='pro'||s.plan==='admin'?`
+    <div style="position:relative;">
+    ${s.plan!=='pro'&&s.plan!=='admin'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">Configura el comando !so, permisos y raid automático.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
+    <div style="${s.plan!=='pro'&&s.plan!=='admin'?'filter:blur(3px);pointer-events:none;':''}">
     <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;">
       <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:space-between;">
         <div style="display:flex;align-items:center;gap:10px;">
@@ -2623,7 +2627,7 @@ function renderMain() {
 
         <button onclick="saveShoutoutTrigger()" style="padding:11px 28px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);width:fit-content;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">💾 Guardar disparador</button>
       </div>
-    </div>`:''}
+    </div></div>
 
     <!-- OVERLAY LINK -->
     <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),rgba(145,71,255,0.03));border:1px solid var(--purple-border);border-radius:var(--radius);padding:20px 24px;">
