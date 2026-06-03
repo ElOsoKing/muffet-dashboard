@@ -1497,7 +1497,7 @@ function renderMain() {
 
     <!-- IA Pro -->
     <div style="position:relative;">
-      ${s.plan!=='pro'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">La moderación con IA analiza cada mensaje y detecta contenido inapropiado sin palabras clave.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
+      ${s.plan!=='pro'&&s.plan!=='admin'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">La moderación con IA analiza cada mensaje y detecta contenido inapropiado sin palabras clave.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
       <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),var(--bg2));border:1px solid rgba(145,71,255,0.25);border-radius:var(--radius);padding:20px;${s.plan!=='pro'?'filter:blur(2px);':''  }">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <div style="display:flex;align-items:center;gap:12px;">
@@ -1525,7 +1525,7 @@ function renderMain() {
       <div class="page-subtitle">Resumen de actividad de tu canal</div>
     </div>
 
-    ${s.plan!=='pro'?`
+    ${s.plan!=='pro'&&s.plan!=='admin'?`
     <div style="background:linear-gradient(135deg,rgba(240,192,96,0.08),rgba(240,192,96,0.02));border:1px solid rgba(240,192,96,0.2);border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;display:flex;align-items:center;gap:12px;">
       <span style="font-size:20px;">⭐</span>
       <div style="flex:1;">
@@ -1666,7 +1666,7 @@ function renderMain() {
   <!-- PRIMERIN -->
   <!-- PRIMERIN -->
   <div id="sec-primerin" class="section ${s.plan!=='pro'?'pro-lock':''}">
-    ${s.plan!=='pro'?`
+    ${s.plan!=='pro'&&s.plan!=='admin'?`
     <div class="pro-lock-overlay">
       <div class="pro-lock-badge">⭐ Función Pro</div>
       <div class="pro-lock-text">El sistema Primerin y el ranking histórico son exclusivos del plan Pro.</div>
@@ -1731,7 +1731,7 @@ function renderMain() {
 
   <!-- MÚSICA -->
   <div id="sec-music" class="section ${s.plan!=='pro'?'pro-lock':''}">
-    ${s.plan!=='pro'?`
+    ${s.plan!=='pro'&&s.plan!=='admin'?`
     <div class="pro-lock-overlay">
       <div class="pro-lock-badge">⭐ Función Pro</div>
       <div class="pro-lock-text">Spotify, overlay para OBS, historial, lista negra y votos para saltar son exclusivos del plan Pro.</div>
@@ -2985,7 +2985,7 @@ function renderMain() {
 
     <div class="panel ${s.plan!=='pro'?'pro-lock':''}">
       <div class="panel-header"><span class="panel-title-text">📢 Anuncio cuando vas en vivo</span></div>
-      ${s.plan!=='pro'?`
+      ${s.plan!=='pro'&&s.plan!=='admin'?`
       <div class="pro-lock-overlay" style="border-radius:var(--radius);">
         <div class="pro-lock-badge">⭐ Función Pro</div>
         <div class="pro-lock-text">El anuncio automático cuando vas en vivo es exclusivo del plan Pro.</div>
