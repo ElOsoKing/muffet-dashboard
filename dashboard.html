@@ -3183,8 +3183,6 @@ function openAutoMsgModal(idx) {
   const hoursEl = document.getElementById('autoMsgHours');
   const minsEl = document.getElementById('autoMsgMinutes');
 
-  setAutoMsgType('fixed');
-
   if (autoMsgEditingIdx !== null) {
     title.textContent = 'Editar auto mensaje';
     const msg = streamerData.auto_messages?.[idx];
@@ -3195,7 +3193,6 @@ function openAutoMsgModal(idx) {
     textEl.value = text || '';
     hoursEl.value = Math.floor(interval / 60);
     minsEl.value = interval % 60;
-    setAutoMsgType(type);
   } else {
     title.textContent = 'Nuevo auto mensaje';
     textEl.value = '';
@@ -3212,38 +3209,7 @@ function closeAutoMsgModal() {
   autoMsgEditingIdx = null;
 }
 
-function setAutoMsgType(type) {
-  const fixedLabel = document.getElementById('autoMsgTypeFixed');
-  const aiLabel = document.getElementById('autoMsgTypeAI');
-  const textLabel = document.getElementById('autoMsgTextLabel');
-  const hint = document.getElementById('autoMsgHint');
-  const textEl = document.getElementById('autoMsgText');
-  if (!fixedLabel) return;
 
-  if (type === 'ai') {
-    aiLabel.style.borderColor = 'var(--purple-border)';
-    aiLabel.style.background = 'var(--purple-dim)';
-    aiLabel.querySelector('div > div:first-child').style.color = 'var(--text)';
-    fixedLabel.style.borderColor = 'rgba(255,255,255,0.08)';
-    fixedLabel.style.background = 'transparent';
-    fixedLabel.querySelector('div > div:first-child').style.color = 'var(--text-dim)';
-    aiLabel.querySelector('input').checked = true;
-    if (textLabel) textLabel.textContent = 'Tema para Muffet';
-    if (hint) hint.textContent = 'Muffet improvisará un mensaje relacionado con este tema';
-    if (textEl) textEl.placeholder = 'Ej: recuerda seguir el canal, habla sobre el juego de hoy...';
-  } else {
-    fixedLabel.style.borderColor = 'var(--purple-border)';
-    fixedLabel.style.background = 'var(--purple-dim)';
-    fixedLabel.querySelector('div > div:first-child').style.color = 'var(--text)';
-    aiLabel.style.borderColor = 'rgba(255,255,255,0.08)';
-    aiLabel.style.background = 'transparent';
-    aiLabel.querySelector('div > div:first-child').style.color = 'var(--text-dim)';
-    fixedLabel.querySelector('input').checked = true;
-    if (textLabel) textLabel.textContent = 'Mensaje';
-    if (hint) hint.textContent = 'El bot enviará este mensaje exactamente como está escrito';
-    if (textEl) textEl.placeholder = 'Escribe el mensaje que enviará Muffet...';
-  }
-}
 
 async function saveAutoMsgModal() {
   const text = document.getElementById('autoMsgText')?.value.trim();
@@ -3254,7 +3220,7 @@ async function saveAutoMsgModal() {
   if (!text) { showToast('Escribe un mensaje','error'); return; }
 
   const msgs = [...(streamerData.auto_messages || [])];
-  const newMsg = { text, type: 'fixed', interval };
+  const newMsg = { text, interval };
 
   if (autoMsgEditingIdx !== null) {
     msgs[autoMsgEditingIdx] = newMsg;
