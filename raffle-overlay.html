@@ -142,7 +142,8 @@ html,body{
 <script>
 const username = window.location.pathname.split('/overlay/sorteo/')[1];
 let lastParticipants = [];
-let winnerShown = null; // null = no mostrado, string = ya mostrado
+// Persistir ganador mostrado en sessionStorage para sobrevivir recargas de OBS
+let winnerShown = sessionStorage.getItem('raffle_winner_shown') || null;
 
 function spawnConfetti() {
   const colors = ['#9147ff','#f0c060','#40d090','#e05a7a','#60a0f0','#ffffff'];
@@ -168,6 +169,7 @@ async function pollRaffle() {
 
     if (data.winner && !winnerShown) {
       winnerShown = data.winner; // guardar el nombre para no repetirlo
+      sessionStorage.setItem('raffle_winner_shown', data.winner);
       activeEl.style.display = 'none';
       document.getElementById('winnerName').textContent  = data.winner;
       document.getElementById('winnerPrize').textContent = '🎁 ' + (data.prize || '');
@@ -185,6 +187,8 @@ async function pollRaffle() {
     if (winnerShown) return;
 
     if (!data.active) { activeEl.style.opacity = ''; activeEl.style.display = 'none'; return; }
+    // Nuevo sorteo activo — limpiar ganador anterior
+    if (data.active && winnerShown) { winnerShown = null; sessionStorage.removeItem('raffle_winner_shown'); }
 
     // Aplicar opacidad y fondo configurados
     const opacity = (data.overlay_opacity ?? 100) / 100;
