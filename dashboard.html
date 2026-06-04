@@ -3321,6 +3321,9 @@ function toggleModalPerm(p) {
     label.style.color = 'var(--text-dim)';
     label.style.background = 'transparent';
   }
+  // Si no queda ninguno activo, activar 'everyone' automáticamente
+  const anyChecked = Array.from(document.querySelectorAll('#modalPerms input:checked')).length > 0;
+  if (!anyChecked) activateModalPerm('everyone');
 }
 
 function updateModalPreview() {
@@ -3498,15 +3501,6 @@ function removeWhitelist(domain) {
 }
 
 // ── BÚSQUEDA Y PREVIEW DE COMANDOS ──
-function filterCommands(query) {
-  const items = document.querySelectorAll('#commandList .command-item');
-  const q = query.toLowerCase().trim();
-  items.forEach(item => {
-    const trigger = item.querySelector('.command-trigger')?.value?.toLowerCase() || '';
-    const response = item.querySelector('.command-response')?.value?.toLowerCase() || '';
-    item.style.display = (!q || trigger.includes(q) || response.includes(q)) ? 'block' : 'none';
-  });
-}
 
 function updatePreview(input) {
   const item = input.closest('.command-item');
