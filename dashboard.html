@@ -1498,7 +1498,7 @@ function renderMain() {
     <!-- IA Pro -->
     <div style="position:relative;">
       ${s.plan!=='pro'&&s.plan!=='admin'?`<div class="pro-lock-overlay" style="border-radius:var(--radius);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">La moderación con IA analiza cada mensaje y detecta contenido inapropiado sin palabras clave.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
-      <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),var(--bg2));border:1px solid rgba(145,71,255,0.25);border-radius:var(--radius);padding:20px;${s.plan!=='pro'?'filter:blur(2px);':''  }">
+      <div style="background:linear-gradient(135deg,rgba(145,71,255,0.1),var(--bg2));border:1px solid rgba(145,71,255,0.25);border-radius:var(--radius);padding:20px;${s.plan!=='pro'&&s.plan!=='admin'?'filter:blur(2px);':''  }">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
           <div style="display:flex;align-items:center;gap:12px;">
             <div style="width:42px;height:42px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 14px rgba(145,71,255,0.2);">🤖</div>
@@ -1507,12 +1507,12 @@ function renderMain() {
               <div style="font-size:11px;color:var(--purple-light);opacity:0.7;margin-top:2px;">Analiza mensajes sin lista de palabras</div>
             </div>
           </div>
-          <label class="toggle"><input type="checkbox" id="aiMod" ${s.mod_config?.ai_mod?'checked':''} ${s.plan!=='pro'?'disabled':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+          <label class="toggle"><input type="checkbox" id="aiMod" ${s.mod_config?.ai_mod?'checked':''} ${s.plan!=='pro'&&s.plan!=='admin'?'disabled':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
         </div>
         <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:14px;padding:10px 12px;background:rgba(145,71,255,0.05);border-radius:var(--radius-sm);">Muffet analiza cada mensaje con IA para detectar insultos, acoso y contenido dañino. Aprende del contexto sin necesidad de palabras clave.</div>
         <div style="display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid rgba(145,71,255,0.1);">
           <span style="font-size:12px;color:var(--text-dim);">⏱️ Timeout al detectar con IA</span>
-          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutAI" ${s.mod_config?.timeout_ai?'checked':''} ${s.plan!=='pro'?'disabled':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
+          <label class="toggle" style="transform:scale(0.85);transform-origin:right;"><input type="checkbox" id="timeoutAI" ${s.mod_config?.timeout_ai?'checked':''} ${s.plan!=='pro'&&s.plan!=='admin'?'disabled':''} onchange="saveModConfig()"><span class="toggle-slider"></span></label>
         </div>
       </div>
     </div>
@@ -3460,7 +3460,7 @@ async function saveModConfig() {
     timeout_duration: parseInt(document.getElementById('timeoutDuration')?.value) || 60,
     ai_mod: document.getElementById('aiMod')?.checked || false,
     timeout_ai: document.getElementById('timeoutAI')?.checked || false,
-    link_whitelist: streamerData.mod_config?.link_whitelist || [],
+    link_whitelist: Array.from(document.querySelectorAll('#whitelistContainer span')).map(s => s.childNodes[0]?.textContent?.trim()).filter(Boolean).length > 0 ? Array.from(document.querySelectorAll('#whitelistContainer span')).map(s => s.childNodes[0]?.textContent?.trim()).filter(Boolean) : (streamerData.mod_config?.link_whitelist || []),
   };
   const warnMsg = document.getElementById('warnInput')?.value || '⚠️ Cuidado, dearie~ 🕷️';
   const bannedWords = Array.from(document.querySelectorAll('#wordsContainer .word-tag')).map(t => t.textContent.replace('×','').trim()).filter(Boolean);
