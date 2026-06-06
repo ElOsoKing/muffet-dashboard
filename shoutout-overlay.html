@@ -188,22 +188,25 @@ function applyCardLayout(config) {
     avatarEl.style.height = Math.round(52 * scale) + 'px';
   }
 
+  // Usar % del viewport para que funcione en cualquier resolución de OBS
+  const padPct = 2.5; // ~40px en 1920 = 2.08%
   const posMap = {
-    'top-left':      { top: pad,            left: pad },
-    'top-center':    { top: pad,            left: (1920 - w) / 2 },
-    'top-right':     { top: pad,            left: 1920 - w - pad },
-    'middle-left':   { top: (1080 - h) / 2, left: pad },
-    'center':        { top: (1080 - h) / 2, left: (1920 - w) / 2 },
-    'middle-right':  { top: (1080 - h) / 2, left: 1920 - w - pad },
-    'bottom-left':   { top: 1080 - h - pad, left: pad },
-    'bottom-center': { top: 1080 - h - pad, left: (1920 - w) / 2 },
-    'bottom-right':  { top: 1080 - h - pad, left: 1920 - w - pad },
+    'top-left':      { top: padPct+'%',      left: padPct+'%',     right:'auto', bottom:'auto', transform:'' },
+    'top-center':    { top: padPct+'%',      left: '50%',          right:'auto', bottom:'auto', transform:'translateX(-50%)' },
+    'top-right':     { top: padPct+'%',      right: padPct+'%',    left:'auto',  bottom:'auto', transform:'' },
+    'middle-left':   { top: '50%',           left: padPct+'%',     right:'auto', bottom:'auto', transform:'translateY(-50%)' },
+    'center':        { top: '50%',           left: '50%',          right:'auto', bottom:'auto', transform:'translate(-50%,-50%)' },
+    'middle-right':  { top: '50%',           right: padPct+'%',    left:'auto',  bottom:'auto', transform:'translateY(-50%)' },
+    'bottom-left':   { bottom: padPct+'%',   left: padPct+'%',     right:'auto', top:'auto',    transform:'' },
+    'bottom-center': { bottom: padPct+'%',   left: '50%',          right:'auto', top:'auto',    transform:'translateX(-50%)' },
+    'bottom-right':  { bottom: padPct+'%',   right: padPct+'%',    left:'auto',  top:'auto',    transform:'' },
   };
   const pos = posMap[style.card_position || 'bottom-left'];
-  overlay.style.top = pos.top + 'px';
-  overlay.style.left = pos.left + 'px';
-  overlay.style.right = 'auto';
-  overlay.style.bottom = 'auto';
+  overlay.style.top = pos.top || 'auto';
+  overlay.style.left = pos.left || 'auto';
+  overlay.style.right = pos.right || 'auto';
+  overlay.style.bottom = pos.bottom || 'auto';
+  overlay.style.transform = pos.transform || '';
 }
 
 function applyStyle(config) {
