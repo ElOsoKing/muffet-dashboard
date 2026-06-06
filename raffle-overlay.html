@@ -276,10 +276,9 @@ function animSlots3(participants, winner, onDone) {
     const finalPos = -(winIdx * ITEM_H) + ITEM_H;
     return { reel, finalPos, list };
   });
-
-  // Animar cada columna con RAF — velocidades de parada distintas para efecto casino
-  const maxVels = [55, 50, 45];
-  const minCruiseFrames = [80, 110, 140]; // mínimo frames en crucero antes de poder frenar
+  // Animar cada columna con RAF — la primera frena primero, luego la segunda, luego la tercera
+  const maxVels = [58, 54, 50];
+  const minCruiseFrames = [80, 110, 140];
   let doneCount = 0;
 
   colReels.forEach(({reel, finalPos}, colIdx) => {
@@ -287,30 +286,24 @@ function animSlots3(participants, winner, onDone) {
     let velocity = 0;
     const maxVel = maxVels[colIdx];
     const totalDist = Math.abs(finalPos - pos);
-    const decelDist = totalDist * 0.4;
+    const decelDist = totalDist * 0.35;
     let phase = 'accel';
-    let frameCount = 0;
-    let started = false;
+    let cruiseFrames = 0;
     let rafId;
 
     function tick() {
-      frameCount++;
-      // Delay de arranque para col 1 y 2
-      }
-
       const distLeft = Math.abs(finalPos - pos);
 
       if (phase === 'accel') {
-        velocity = Math.min(maxVel, velocity + maxVel / 25);
+        velocity = Math.min(maxVel, velocity + maxVel / 20);
         if (velocity >= maxVel) phase = 'cruise';
       } else if (phase === 'cruise') {
-        // Frenar después del delay correspondiente
-        cruiseFrames = (cruiseFrames||0) + 1;
+        cruiseFrames++;
         if (cruiseFrames >= minCruiseFrames[colIdx] && distLeft <= decelDist) phase = 'decel';
       } else if (phase === 'decel') {
         const progress = 1 - (distLeft / decelDist);
-        velocity = maxVel * Math.pow(1 - progress, 2);
-        velocity = Math.max(velocity, 0.4);
+        velocity = maxVel * Math.pow(1 - progress, 2.2);
+        velocity = Math.max(velocity, 0.3);
       }
 
       pos -= velocity;
@@ -320,16 +313,16 @@ function animSlots3(participants, winner, onDone) {
         cancelAnimationFrame(rafId);
         doneCount++;
         if (doneCount === 1) statusEl.textContent = 'Frenando...';
+        if (doneCount === 2) statusEl.textContent = '¡Ya casi!';
         if (doneCount === 3) {
           statusEl.textContent = '🎊 ¡Tenemos ganador!';
-          setTimeout(onDone, 500);
+          setTimeout(onDone, 600);
         }
         return;
       }
 
       if (colIdx === 0) {
-        if (distLeft < decelDist * 0.5) statusEl.textContent = '¡Ya casi!';
-        else if (phase === 'decel') statusEl.textContent = 'Frenando...';
+        if (phase === 'decel') statusEl.textContent = distLeft < decelDist*0.4 ? '¡Ya casi!' : 'Frenando...';
         else statusEl.textContent = 'Girando...';
       }
 
@@ -340,6 +333,7 @@ function animSlots3(participants, winner, onDone) {
     rafId = requestAnimationFrame(tick);
   });
 }
+
 
 // ══ ESTILO 3: CARTAS ══
 function buildCartas(container) {
