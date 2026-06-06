@@ -2203,18 +2203,19 @@ function renderMain() {
             </div>
 
             <!-- Recompensa seleccionada actualmente -->
-            ${s.raffle_settings?.reward_id ? `
-            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(145,71,255,0.08);border:1px solid rgba(145,71,255,0.25);border-radius:var(--radius-sm);margin-bottom:10px;">
-              <span style="font-size:18px;">${s.raffle_settings?.reward_image?`<img src="${s.raffle_settings.reward_image}" style="width:24px;height:24px;border-radius:4px;">`:'🎁'}</span>
-              <div style="flex:1;">
-                <div style="font-size:13px;font-weight:700;color:var(--text);">${s.raffle_settings?.reward_name||'Recompensa'}</div>
-                <div style="font-size:10px;color:var(--purple-light);margin-top:1px;">✅ Seleccionada</div>
+            <div id="selectedRewardBlock" style="margin-bottom:10px;display:${s.raffle_settings?.reward_id?'block':'none'};">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(145,71,255,0.08);border:1px solid rgba(145,71,255,0.25);border-radius:var(--radius-sm);">
+                <span style="font-size:20px;">${s.raffle_settings?.reward_image?`<img src="${s.raffle_settings.reward_image}" style="width:24px;height:24px;border-radius:4px;">`:'🎁'}</span>
+                <div style="flex:1;">
+                  <div style="font-size:13px;font-weight:700;color:var(--text);">${s.raffle_settings?.reward_name||'Recompensa'}</div>
+                  <div style="font-size:10px;color:var(--purple-light);margin-top:1px;">✅ Seleccionada</div>
+                </div>
+                <button onclick="clearRaffleReward()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;">×</button>
               </div>
-              <button onclick="clearRaffleReward()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;" title="Quitar">×</button>
-            </div>` : `
-            <div id="noRewardMsg" style="font-size:12px;color:var(--text-muted);font-style:italic;padding:8px 0;">
+            </div>
+            <div id="noRewardMsg" style="font-size:12px;color:var(--text-muted);font-style:italic;padding:8px 0;display:${s.raffle_settings?.reward_id?'none':'block'};">
               Sin recompensa configurada — haz clic en "Cargar recompensas"
-            </div>`}
+            </div>
 
             <!-- Lista de recompensas (se muestra al cargar) -->
             <div id="twitchRewardsList" style="display:none;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);background:var(--bg3);padding:8px;"></div>
@@ -4950,11 +4951,26 @@ async function selectRaffleReward(id, name, image) {
   });
   if (res.ok) {
     streamerData.raffle_settings = settings;
-    showToast(`Recompensa "${name}" guardada ✓`);
-    // Cerrar lista y re-renderizar
-    document.getElementById('twitchRewardsList').style.display = 'none';
-    renderMain();
-    showSection('sorteo');
+    showToast(`Recompensa guardada ✓`);
+    // Cerrar lista sin re-renderizar toda la página
+    const list = document.getElementById('twitchRewardsList');
+    if (list) list.style.display = 'none';
+    // Actualizar el bloque de recompensa seleccionada en el DOM
+    const noMsg = document.getElementById('noRewardMsg');
+    if (noMsg) noMsg.style.display = 'none';
+    const selectedBlock = document.getElementById('selectedRewardBlock');
+    if (selectedBlock) {
+      selectedBlock.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(145,71,255,0.08);border:1px solid rgba(145,71,255,0.25);border-radius:var(--radius-sm);">
+          <span style="font-size:20px;">${image ? `<img src="${image}" style="width:24px;height:24px;border-radius:4px;">` : '🎁'}</span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
+            <div style="font-size:10px;color:var(--purple-light);margin-top:1px;">✅ Seleccionada</div>
+          </div>
+          <button onclick="clearRaffleReward()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;">×</button>
+        </div>`;
+      selectedBlock.style.display = 'block';
+    }
   } else {
     showToast('Error al guardar', 'error');
   }
