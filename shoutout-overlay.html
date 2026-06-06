@@ -115,10 +115,10 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 <body>
 
 <div id="scene">
+  <!-- Marco decorativo — sobre todo el overlay -->
+  <div class="frame-overlay" id="frameOverlay"></div>
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <!-- Marco decorativo -->
-  <div class="frame-overlay" id="frameOverlay"></div>
   <!-- Título arriba -->
   <div id="titleBar"><div id="soTitle"></div></div>
   <!-- Clip en el medio -->
@@ -277,6 +277,19 @@ function applyFrame(frameStyle, accent) {
   frameEl.innerHTML = '';
   frameEl.style.animation = '';
 
+  // Sincronizar posición y tamaño con el overlay
+  const overlay = document.getElementById('overlay');
+  if (overlay) {
+    frameEl.style.position = 'absolute';
+    frameEl.style.left = overlay.style.left;
+    frameEl.style.top = overlay.style.top;
+    frameEl.style.right = overlay.style.right;
+    frameEl.style.bottom = overlay.style.bottom;
+    frameEl.style.width = overlay.offsetWidth + 'px';
+    frameEl.style.height = overlay.offsetHeight + 'px';
+    frameEl.style.transform = overlay.style.transform;
+  }
+
   const c = accent || '#9147ff'; // color acento
 
   if (frameStyle === 'corners') {
@@ -351,10 +364,10 @@ function applyFrame(frameStyle, accent) {
         <rect x="2" y="2" width="96" height="96" stroke-width="2.5"/>
         <rect x="4.5" y="4.5" width="91" height="91" stroke-width="0.8" opacity="0.5"/>
         <!-- Torres en esquinas -->
-        <rect x="1" y="1" width="8" height="8" stroke-width="1.5" fill="#8B691422"/>
-        <rect x="91" y="1" width="8" height="8" stroke-width="1.5" fill="#8B691422"/>
-        <rect x="1" y="91" width="8" height="8" stroke-width="1.5" fill="#8B691422"/>
-        <rect x="91" y="91" width="8" height="8" stroke-width="1.5" fill="#8B691422"/>
+        <rect x="1" y="1" width="8" height="8" stroke-width="1.5" fill="none"/>
+        <rect x="91" y="1" width="8" height="8" stroke-width="1.5" fill="none"/>
+        <rect x="1" y="91" width="8" height="8" stroke-width="1.5" fill="none"/>
+        <rect x="91" y="91" width="8" height="8" stroke-width="1.5" fill="none"/>
         <!-- Almenas -->
         <rect x="2" y="1" width="3" height="3" fill="#8B6914"/>
         <rect x="6" y="1" width="3" height="3" fill="#8B6914"/>
@@ -365,8 +378,8 @@ function applyFrame(frameStyle, accent) {
         <rect x="91" y="96" width="3" height="3" fill="#8B6914"/>
         <rect x="95" y="96" width="3" height="3" fill="#8B6914"/>
         <!-- Ornamento central superior -->
-        <path d="M47,2 L50,5 L53,2" stroke-width="1.5" fill="#8B691433"/>
-        <path d="M47,98 L50,95 L53,98" stroke-width="1.5" fill="#8B691433"/>
+        <path d="M47,2 L50,5 L53,2" stroke-width="1.5" fill="none"/>
+        <path d="M47,98 L50,95 L53,98" stroke-width="1.5" fill="none"/>
       </g>
     </svg>`;
   } else if (frameStyle === 'spider') {
