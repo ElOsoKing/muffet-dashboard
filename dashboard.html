@@ -2268,7 +2268,9 @@ function renderMain() {
           </div>
 
           <!-- Animación del ganador -->
-          <div style="margin-bottom:18px;">
+          <div style="margin-bottom:18px;position:relative;">
+            ${s.plan!=='pro'&&s.plan!=='admin'?`<div class="pro-lock-overlay" style="border-radius:var(--radius-sm);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">El overlay de sorteo y sus animaciones son exclusivos del plan Pro.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
+            <div style="${s.plan!=='pro'&&s.plan!=='admin'?'filter:blur(3px);pointer-events:none;':''}">
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">🎰 Animación del ganador</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
               ${['ruleta','tragamonedas','cartas','bolas'].map(val => {
@@ -2283,6 +2285,7 @@ function renderMain() {
               }).join('')}
             </div>
             <button onclick="saveSpinStyle()" style="padding:8px 20px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">💾 Guardar animación</button>
+            </div>
           </div>
 
           <span style="font-size:13px;font-weight:700;color:var(--text);">Overlay para OBS</span>
