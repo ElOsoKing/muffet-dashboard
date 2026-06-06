@@ -116,7 +116,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 
 <div id="scene">
   <!-- Marco decorativo — sobre todo el overlay -->
-  <div class="frame-overlay" id="frameOverlay"></div>
+  <div class="frame-overlay" id="frameOverlay" style="display:none;"></div>
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
   <!-- Título arriba -->
@@ -558,6 +558,9 @@ async function showShoutout(user, clip, mp4Url, config) {
   const overlay = document.getElementById('overlay');
   overlay.style.setProperty('--overlay-opacity', (currentConfig.overlay_opacity ?? 100) / 100);
   overlay.classList.add('show');
+  // Mostrar el marco
+  const frameEl2 = document.getElementById('frameOverlay');
+  if (frameEl2) frameEl2.style.display = 'block';
   applyAnimation(style.animation || 'fade');
 
   spawnConfetti();
@@ -580,6 +583,9 @@ function hideOverlay() {
   overlay.classList.remove('show');
   overlay.style.animation = '';
   overlay.style.removeProperty('--overlay-opacity');
+  // Ocultar el marco también
+  const frameEl = document.getElementById('frameOverlay');
+  if (frameEl) frameEl.style.display = 'none';
   const clipZone = document.getElementById('clipZone');
   clipZone.innerHTML = '';
   if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
