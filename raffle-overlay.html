@@ -16,7 +16,7 @@
 html,body{background:transparent !important;width:100%;height:100%;font-family:var(--sans);color:var(--text);overflow:hidden;}
 .overlay{position:fixed;bottom:20px;left:20px;width:320px;}
 
-/* ── CARD ACTIVA ── */
+/* CARD ACTIVA */
 .raffle-card{background:var(--bg);backdrop-filter:blur(12px);border:1px solid rgba(145,71,255,0.4);border-radius:var(--radius);overflow:hidden;animation:slideIn 0.4s cubic-bezier(0.34,1.56,0.64,1);}
 @keyframes slideIn{from{transform:translateX(-30px);opacity:0;}to{transform:translateX(0);opacity:1;}}
 .card-header{background:linear-gradient(135deg,rgba(145,71,255,0.3),rgba(145,71,255,0.1));padding:12px 16px;border-bottom:1px solid rgba(145,71,255,0.2);display:flex;align-items:center;justify-content:space-between;}
@@ -36,7 +36,7 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 .dot-live{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1s ease infinite;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
 
-/* ── PANTALLAS DE ANIMACIÓN ── */
+/* PANTALLA ANIMACIÓN */
 .anim-screen{display:none;background:var(--bg);backdrop-filter:blur(16px);border:2px solid var(--purple);border-radius:var(--radius);overflow:hidden;box-shadow:0 0 30px rgba(145,71,255,0.4);}
 .anim-screen.show{display:block;}
 .anim-header{background:linear-gradient(135deg,rgba(145,71,255,0.35),rgba(145,71,255,0.1));padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:8px;border-bottom:1px solid rgba(145,71,255,0.3);}
@@ -45,49 +45,43 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 .anim-footer{padding:8px 12px;text-align:center;font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;background:rgba(0,0,0,0.3);}
 .anim-counter{display:inline-block;background:var(--purple-dim);border:1px solid var(--purple);border-radius:20px;padding:2px 10px;color:var(--purple-light);font-size:11px;font-weight:700;margin-left:6px;}
 
-/* ESTILO 1 — RULETA (columna) */
+/* RULETA */
 .slot-window{height:130px;overflow:hidden;position:relative;background:rgba(0,0,0,0.5);}
-.slot-window::before{content:'';position:absolute;top:0;left:0;right:0;height:40px;background:linear-gradient(to bottom,rgba(0,0,0,0.8),transparent);z-index:2;pointer-events:none;}
-.slot-window::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);z-index:2;pointer-events:none;}
+.slot-window::before{content:'';position:absolute;top:0;left:0;right:0;height:40px;background:linear-gradient(to bottom,rgba(0,0,0,0.85),transparent);z-index:2;pointer-events:none;}
+.slot-window::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top,rgba(0,0,0,0.85),transparent);z-index:2;pointer-events:none;}
 .slot-center-line{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:44px;background:rgba(145,71,255,0.12);border-top:1px solid rgba(145,71,255,0.5);border-bottom:1px solid rgba(145,71,255,0.5);z-index:1;pointer-events:none;}
 .slot-arrows{position:absolute;top:50%;transform:translateY(-50%);width:100%;display:flex;justify-content:space-between;padding:0 8px;z-index:3;pointer-events:none;}
 .slot-arrow{font-size:20px;color:var(--yellow);text-shadow:0 0 8px rgba(240,192,96,0.8);animation:arrowPulse 0.4s ease infinite alternate;}
-@keyframes arrowPulse{from{opacity:0.5;transform:scale(0.9);}to{opacity:1;transform:scale(1.1);}}
+@keyframes arrowPulse{from{opacity:0.5;}to{opacity:1;}}
 .slot-reel{display:flex;flex-direction:column;align-items:center;will-change:transform;}
-.slot-item{height:44px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:28px;color:white;width:100%;text-align:center;text-shadow:0 0 10px rgba(145,71,255,0.6);flex-shrink:0;}
-.slot-item.highlight{color:var(--yellow);text-shadow:0 0 16px rgba(240,192,96,0.8);}
+.slot-item{height:44px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:28px;color:white;width:100%;text-align:center;text-shadow:0 0 10px rgba(145,71,255,0.5);flex-shrink:0;}
+.slot-item.highlight{color:var(--yellow);text-shadow:0 0 16px rgba(240,192,96,0.9);}
 
-/* ESTILO 2 — TRAGAMONEDAS (3 columnas) */
+/* TRAGAMONEDAS */
 .slots-3col{display:flex;gap:4px;padding:8px;background:rgba(0,0,0,0.5);height:130px;}
 .slots-3col .slot-col{flex:1;overflow:hidden;position:relative;border-radius:6px;border:1px solid rgba(145,71,255,0.3);}
 .slots-3col .slot-col::before{content:'';position:absolute;top:0;left:0;right:0;height:30px;background:linear-gradient(to bottom,rgba(0,0,0,0.9),transparent);z-index:2;}
 .slots-3col .slot-col::after{content:'';position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(to top,rgba(0,0,0,0.9),transparent);z-index:2;}
 .slots-3col .col-reel{display:flex;flex-direction:column;align-items:center;will-change:transform;}
-.slots-3col .col-item{height:43px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;color:white;width:100%;flex-shrink:0;text-align:center;}
+.slots-3col .col-item{height:43px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:20px;color:white;width:100%;flex-shrink:0;text-align:center;}
 .slots-3col .col-item.match{color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.9);}
 .slots-3col .col-highlight{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:43px;background:rgba(145,71,255,0.1);border-top:1px solid rgba(145,71,255,0.4);border-bottom:1px solid rgba(145,71,255,0.4);z-index:1;}
 
-/* ESTILO 3 — CARTAS */
+/* CARTAS */
 .cards-area{height:130px;display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,0.4);position:relative;overflow:hidden;}
-.card-deck{position:relative;width:80px;height:110px;}
-.playing-card{position:absolute;width:80px;height:110px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid rgba(145,71,255,0.5);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--display);font-size:16px;color:white;text-align:center;padding:4px;cursor:default;backface-visibility:hidden;transform-style:preserve-3d;box-shadow:0 4px 12px rgba(0,0,0,0.5);}
-.playing-card .card-name{font-size:14px;line-height:1.1;word-break:break-all;}
-.playing-card .card-suit{font-size:20px;margin-top:4px;}
-.card-name-display{flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:28px;color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.8);padding:0 12px;text-align:center;}
+.card-name-display{flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:30px;color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.8);text-align:center;display:none;line-height:1.2;}
 
-/* ESTILO 4 — BOLAS */
+/* BOLAS */
 .balls-area{height:130px;position:relative;overflow:hidden;background:rgba(0,0,0,0.4);}
-.lottery-ball{position:absolute;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;color:white;text-align:center;font-weight:700;cursor:default;line-height:1.1;word-break:break-all;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 -3px 6px rgba(0,0,0,0.3),inset 0 3px 6px rgba(255,255,255,0.2);}
-.ball-selected{transform:scale(1.2);z-index:10;box-shadow:0 0 20px rgba(240,192,96,0.8),0 4px 12px rgba(0,0,0,0.4)!important;}
+.lottery-ball{position:absolute;width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;color:white;text-align:center;font-weight:700;cursor:default;line-height:1.1;word-break:break-all;padding:4px;will-change:transform;box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 -3px 6px rgba(0,0,0,0.3),inset 0 3px 6px rgba(255,255,255,0.2);}
 
-/* ── RUEDA DE LA FORTUNA ── */
-.wheel-wrap{display:flex;align-items:center;justify-content:center;height:130px;gap:12px;padding:8px;background:rgba(0,0,0,0.4);}
-.wheel-container{position:relative;width:110px;height:110px;flex-shrink:0;}
-.wheel-canvas{border-radius:50%;box-shadow:0 0 20px rgba(145,71,255,0.5);}
-.wheel-pointer{position:absolute;right:-8px;top:50%;transform:translateY(-50%);font-size:20px;filter:drop-shadow(0 0 4px rgba(240,192,96,0.8));z-index:5;}
-.wheel-winner-text{flex:1;font-family:var(--display);font-size:26px;color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.8);text-align:center;display:none;line-height:1.2;}
+/* RUEDA */
+.wheel-wrap{display:flex;align-items:center;justify-content:space-between;height:130px;padding:6px 10px;background:rgba(0,0,0,0.4);gap:10px;}
+.wheel-container{position:relative;width:128px;height:128px;flex-shrink:0;}
+.wheel-pointer{position:absolute;right:-10px;top:50%;transform:translateY(-50%);font-size:22px;filter:drop-shadow(0 0 6px rgba(240,192,96,0.9));z-index:5;}
+.wheel-winner-text{flex:1;font-family:var(--display);font-size:28px;color:var(--yellow);text-shadow:0 0 14px rgba(240,192,96,0.8);text-align:center;display:none;line-height:1.2;word-break:break-all;}
 
-/* ── GANADOR ── */
+/* GANADOR */
 .winner-screen{display:none;background:var(--bg);backdrop-filter:blur(16px);border:2px solid var(--yellow);border-radius:var(--radius);padding:24px 20px;text-align:center;animation:winnerIn 0.6s cubic-bezier(0.34,1.56,0.64,1);position:relative;overflow:hidden;}
 .winner-screen.show{display:block;}
 @keyframes winnerIn{from{transform:scale(0.5);opacity:0;}to{transform:scale(1);opacity:1;}}
@@ -103,8 +97,6 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 <body>
 <div class="overlay" id="overlay">
   <div class="raffle-idle" id="idleState"></div>
-
-  <!-- CARD ACTIVA -->
   <div class="raffle-card" id="activeState" style="display:none;">
     <div class="card-header">
       <div class="header-left">
@@ -127,22 +119,17 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
       En vivo — escribe <strong id="overlayJoinCmd" style="color:var(--purple-light)">!entrar</strong> para participar
     </div>
   </div>
-
-  <!-- PANTALLA ANIMACIÓN -->
   <div class="anim-screen" id="animState">
     <div class="anim-header">
       <span class="anim-icon" id="animIcon">🎰</span>
       <span class="anim-title" id="animTitle">Eligiendo ganador...</span>
     </div>
-    <!-- contenido dinámico según estilo -->
     <div id="animContent"></div>
     <div class="anim-footer">
       <span id="animStatus">Girando...</span>
       <span class="anim-counter" id="animCounter"></span>
     </div>
   </div>
-
-  <!-- GANADOR -->
   <div class="winner-screen" id="winnerState">
     <span class="winner-trophy">🏆</span>
     <div class="winner-label">¡Ganador!</div>
@@ -157,6 +144,21 @@ let lastParticipants = [];
 let winnerShown = sessionStorage.getItem('raffle_winner_shown') || null;
 let slotAnimating = false;
 let currentSpinStyle = 'ruleta';
+const WINNER_REVEAL_TIME = 1500;
+
+// ── Fisher-Yates shuffle ──
+function shuffle(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ── Easing functions ──
+function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
 
 // ══ ESTILO 1: RULETA ══
 function buildRuleta(container) {
@@ -172,70 +174,48 @@ function animRuleta(participants, winner, onDone) {
   const reel = document.getElementById('slotReel');
   const statusEl = document.getElementById('animStatus');
   const ITEM_H = 44;
+  const TOTAL = 300;
+  // Ganador en posición aleatoria entre 220 y 270
+  const winnerIdx = 220 + Math.floor(Math.random() * 50);
 
-  // Ganador en posición aleatoria — entre 70% y 90% del reel
-  const shuffled = [...participants].sort(() => Math.random() - 0.5);
-  const BIG = 120;
-  const winnerIdx = Math.floor(BIG * (0.7 + Math.random() * 0.2)); // posición aleatoria
+  const pool = shuffle(participants);
   const spinList = [];
-  for (let i = 0; i < BIG + 10; i++) {
-    if (i === winnerIdx) spinList.push(winner);
-    else spinList.push(shuffled[i % shuffled.length]);
+  for (let i = 0; i < TOTAL; i++) {
+    spinList.push(i === winnerIdx ? winner : pool[i % pool.length]);
   }
 
-  reel.innerHTML = spinList.map((n,i) =>
-    `<div class="slot-item${i===winnerIdx?' highlight':''}">${n}</div>`
+  reel.innerHTML = spinList.map((n, i) =>
+    `<div class="slot-item${i === winnerIdx ? ' highlight' : ''}">${n}</div>`
   ).join('');
-  reel.style.transition = 'none';
-  reel.style.transform = `translateY(${ITEM_H}px)`;
-  reel.getBoundingClientRect(); // force reflow
 
-  let pos = ITEM_H;
+  const startPos = ITEM_H;
   const finalPos = -(winnerIdx * ITEM_H) + ITEM_H;
-  const totalDist = Math.abs(finalPos - pos);
-
-  let velocity = 0;
-  const maxVel = 60;       // velocidad pico en px/frame
-  const accelFrames = 30;  // frames para llegar a velocidad máxima
-  let frameCount = 0;
-  let phase = 'accel';     // accel → cruise → decel → done
+  const duration = 6500;
+  let startTime = null;
   let rafId;
 
-  // Cuándo empezar a frenar — cuando queda X px para el final
-  const decelDist = totalDist * 0.35;
+  reel.style.transition = 'none';
+  reel.style.transform = `translate3d(0,${startPos}px,0)`;
+  reel.getBoundingClientRect();
 
-  function tick() {
-    frameCount++;
-    const distLeft = Math.abs(finalPos - pos);
+  function tick(now) {
+    if (!startTime) startTime = now;
+    const t = Math.min((now - startTime) / duration, 1);
+    const eased = easeOutCubic(t);
+    const pos = startPos + (finalPos - startPos) * eased;
 
-    if (phase === 'accel') {
-      velocity = Math.min(maxVel, velocity + maxVel / accelFrames);
-      if (velocity >= maxVel) phase = 'cruise';
-      statusEl.textContent = 'Girando...';
-    } else if (phase === 'cruise') {
-      if (distLeft <= decelDist) phase = 'decel';
-      statusEl.textContent = 'Girando...';
-    } else if (phase === 'decel') {
-      // Frenar progresivamente — más lento conforme se acerca
-      const progress = 1 - (distLeft / decelDist);
-      velocity = maxVel * Math.pow(1 - progress, 1.8);
-      velocity = Math.max(velocity, 0.5); // mínimo para no parar antes
-      statusEl.textContent = distLeft < decelDist * 0.3 ? '¡Ya casi!' : 'Frenando...';
-    }
+    reel.style.transform = `translate3d(0,${pos}px,0)`;
 
-    pos -= velocity;
+    if (t < 0.3) statusEl.textContent = 'Girando...';
+    else if (t < 0.7) statusEl.textContent = 'Girando...';
+    else if (t < 0.9) statusEl.textContent = 'Frenando...';
+    else statusEl.textContent = '¡Ya casi!';
 
-    if (pos <= finalPos) {
-      // Llegamos — snap exacto al ganador
-      reel.style.transform = `translateY(${finalPos}px)`;
-      statusEl.textContent = '🎊 ¡Tenemos ganador!';
-      cancelAnimationFrame(rafId);
-      setTimeout(onDone, 600);
-      return;
-    }
+    if (t < 1) { rafId = requestAnimationFrame(tick); return; }
 
-    reel.style.transform = `translateY(${pos}px)`;
-    rafId = requestAnimationFrame(tick);
+    statusEl.textContent = '🎊 ¡Tenemos ganador!';
+    cancelAnimationFrame(rafId);
+    setTimeout(onDone, WINNER_REVEAL_TIME);
   }
 
   rafId = requestAnimationFrame(tick);
@@ -254,93 +234,71 @@ function buildSlots3(container) {
 function animSlots3(participants, winner, onDone) {
   const ITEM_H = 43;
   const statusEl = document.getElementById('animStatus');
-  const shuffled = [...participants].sort(() => Math.random() - 0.5);
-  const BIG = 90;
-
-  // Ganador en posición aleatoria de cada columna
-  const colReels = [0,1,2].map(i => {
-    const reel = document.getElementById(`col${i}`);
-    const total = BIG + i*10 + 10;
-    const winIdx = Math.floor(total * (0.65 + Math.random() * 0.2));
-    const list = [];
-    for (let j = 0; j < total; j++) {
-      if (j === winIdx) list.push(winner);
-      else list.push(shuffled[j % shuffled.length]);
-    }
-    reel.innerHTML = list.map((n,idx) =>
-      `<div class="col-item${idx===winIdx?' match':''}">${n.slice(0,6)}</div>`
-    ).join('');
-    reel.style.transition = 'none';
-    reel.style.transform = `translateY(${ITEM_H}px)`;
-    reel.getBoundingClientRect();
-    const finalPos = -(winIdx * ITEM_H) + ITEM_H;
-    return { reel, finalPos, list };
-  });
-  // Animar cada columna con RAF — la primera frena primero, luego la segunda, luego la tercera
-  const maxVels = [58, 54, 50];
-  const minCruiseFrames = [80, 110, 140];
+  const durations = [4500, 5500, 6500];
   let doneCount = 0;
 
-  colReels.forEach(({reel, finalPos}, colIdx) => {
-    let pos = ITEM_H;
-    let velocity = 0;
-    const maxVel = maxVels[colIdx];
-    const totalDist = Math.abs(finalPos - pos);
-    const decelDist = totalDist * 0.35;
-    let phase = 'accel';
-    let cruiseFrames = 0;
+  [0, 1, 2].forEach(colIdx => {
+    const reel = document.getElementById(`col${colIdx}`);
+    // Distancia mínima garantizada + aleatoriedad
+    const MIN_SPINS = 180;
+    const winIdx = MIN_SPINS + Math.floor(Math.random() * 50);
+    const total = winIdx + 30;
+    const pool = shuffle(participants);
+
+    const items = [];
+    for (let i = 0; i < total; i++) {
+      items.push(i === winIdx ? winner : pool[i % pool.length]);
+    }
+
+    reel.innerHTML = items.map((n, i) =>
+      `<div class="col-item${i === winIdx ? ' match' : ''}">${n.slice(0, 6)}</div>`
+    ).join('');
+
+    const startPos = ITEM_H;
+    const finalPos = -(winIdx * ITEM_H) + ITEM_H;
+    const duration = durations[colIdx];
+    let startTime = null;
     let rafId;
 
-    function tick() {
-      const distLeft = Math.abs(finalPos - pos);
+    reel.style.transition = 'none';
+    reel.style.transform = `translate3d(0,${startPos}px,0)`;
+    reel.getBoundingClientRect();
 
-      if (phase === 'accel') {
-        velocity = Math.min(maxVel, velocity + maxVel / 20);
-        if (velocity >= maxVel) phase = 'cruise';
-      } else if (phase === 'cruise') {
-        cruiseFrames++;
-        if (cruiseFrames >= minCruiseFrames[colIdx] && distLeft <= decelDist) phase = 'decel';
-      } else if (phase === 'decel') {
-        const progress = 1 - (distLeft / decelDist);
-        velocity = maxVel * Math.pow(1 - progress, 2.2);
-        velocity = Math.max(velocity, 0.3);
-      }
-
-      pos -= velocity;
-
-      if (pos <= finalPos) {
-        reel.style.transform = `translateY(${finalPos}px)`;
-        cancelAnimationFrame(rafId);
-        doneCount++;
-        if (doneCount === 1) statusEl.textContent = 'Frenando...';
-        if (doneCount === 2) statusEl.textContent = '¡Ya casi!';
-        if (doneCount === 3) {
-          statusEl.textContent = '🎊 ¡Tenemos ganador!';
-          setTimeout(onDone, 600);
-        }
-        return;
-      }
+    function tick(now) {
+      if (!startTime) startTime = now;
+      const t = Math.min((now - startTime) / duration, 1);
+      const eased = easeOutQuart(t);
+      const pos = startPos + (finalPos - startPos) * eased;
+      reel.style.transform = `translate3d(0,${pos}px,0)`;
 
       if (colIdx === 0) {
-        if (phase === 'decel') statusEl.textContent = distLeft < decelDist*0.4 ? '¡Ya casi!' : 'Frenando...';
-        else statusEl.textContent = 'Girando...';
+        if (t < 0.6) statusEl.textContent = 'Girando...';
+        else if (t < 0.85) statusEl.textContent = 'Frenando...';
+        else statusEl.textContent = '¡Ya casi!';
       }
 
-      reel.style.transform = `translateY(${pos}px)`;
-      rafId = requestAnimationFrame(tick);
+      if (t < 1) { rafId = requestAnimationFrame(tick); return; }
+
+      cancelAnimationFrame(rafId);
+      doneCount++;
+      if (doneCount === 1) statusEl.textContent = 'Frenando...';
+      if (doneCount === 2) statusEl.textContent = '¡Ya casi!';
+      if (doneCount === 3) {
+        statusEl.textContent = '🎊 ¡Tenemos ganador!';
+        setTimeout(onDone, WINNER_REVEAL_TIME);
+      }
     }
 
     rafId = requestAnimationFrame(tick);
   });
 }
 
-
 // ══ ESTILO 3: CARTAS ══
 function buildCartas(container) {
   container.innerHTML = `
     <div class="cards-area">
       <div id="cardShuffleArea" style="position:relative;width:200px;height:110px;perspective:600px;"></div>
-      <div class="card-name-display" id="cardNameDisplay" style="display:none;"></div>
+      <div class="card-name-display" id="cardNameDisplay" style="display:none;font-family:var(--display);font-size:30px;color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.8);text-align:center;flex:1;display:none;align-items:center;justify-content:center;"></div>
     </div>`;
 }
 
@@ -349,114 +307,94 @@ function animCartas(participants, winner, onDone) {
   const nameDisplay = document.getElementById('cardNameDisplay');
   const statusEl = document.getElementById('animStatus');
 
-  // Agregar estilos de carta si no existen
   if (!document.getElementById('cardStyles')) {
     const s = document.createElement('style');
     s.id = 'cardStyles';
     s.textContent = `
-      .card-back{position:absolute;width:70px;height:100px;border-radius:8px;
-        background:linear-gradient(135deg,#1a0a2e,#0d0620);
-        border:2px solid rgba(145,71,255,0.5);
-        display:flex;align-items:center;justify-content:center;font-size:24px;
-        box-shadow:0 4px 12px rgba(0,0,0,0.5);cursor:default;
-        transform-style:preserve-3d;transition:transform 0.6s cubic-bezier(0.4,0,0.2,1);}
-      .card-back.flipped{transform:rotateY(180deg) !important;}
-      .card-front{position:absolute;width:70px;height:100px;border-radius:8px;
-        background:linear-gradient(135deg,#1a0a2e,#2a1050);
-        border:2px solid var(--yellow);
-        display:flex;flex-direction:column;align-items:center;justify-content:center;
-        backface-visibility:hidden;transform:rotateY(180deg);
-        font-family:var(--display);font-size:20px;color:var(--yellow);
-        text-align:center;padding:6px;line-height:1.1;}
+      .c-wrapper{position:absolute;width:68px;height:100px;transform-style:preserve-3d;}
+      .c-back,.c-front{position:absolute;width:68px;height:100px;border-radius:8px;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.5);}
+      .c-back{background:linear-gradient(135deg,#1a0a2e,#0d0620);border:2px solid rgba(145,71,255,0.5);font-size:24px;}
+      .c-front{background:linear-gradient(135deg,#1a0a2e,#2a1050);border:2px solid var(--yellow);transform:rotateY(180deg);font-family:var(--display);font-size:20px;color:var(--yellow);text-align:center;padding:6px;line-height:1.1;}
+      .c-wrapper.flipped{animation:flipCard 0.6s cubic-bezier(0.4,0,0.2,1) forwards;}
+      @keyframes flipCard{from{transform:rotateY(0)}to{transform:rotateY(180deg)}}
     `;
     document.head.appendChild(s);
   }
 
-  // Crear mazo de cartas boca abajo en posiciones escalonadas
   const numCards = 5 + Math.floor(Math.random() * 4);
+  const winnerCardIdx = Math.floor(Math.random() * numCards);
   const cards = [];
+
   for (let i = 0; i < numCards; i++) {
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = `position:absolute;width:70px;height:100px;transform-style:preserve-3d;transition:all 0.3s ease;`;
-    wrapper.style.left = (i * 22) + 'px';
+    wrapper.className = 'c-wrapper';
+    wrapper.style.left = (i * 20) + 'px';
     wrapper.style.top = (Math.random() * 8 - 4) + 'px';
-    wrapper.style.transform = `rotate(${Math.random()*8-4}deg)`;
+    wrapper.style.transform = `rotate(${Math.random() * 8 - 4}deg)`;
     wrapper.style.zIndex = i;
 
     const back = document.createElement('div');
-    back.className = 'card-back';
-    back.style.position = 'absolute';
+    back.className = 'c-back';
     back.textContent = '🕷️';
 
     const front = document.createElement('div');
-    front.className = 'card-front';
+    front.className = 'c-front';
     front.textContent = winner;
 
     wrapper.appendChild(back);
     wrapper.appendChild(front);
     area.appendChild(wrapper);
-    cards.push({ wrapper, back });
+    cards.push(wrapper);
   }
 
-  // Fase 1: barajar animado (mover cartas rápido)
   statusEl.textContent = 'Barajando...';
   let shuffleCount = 0;
-  const totalShuffles = 12 + Math.floor(Math.random() * 8);
+  const totalShuffles = 10 + Math.floor(Math.random() * 8);
 
   function doShuffle() {
     if (shuffleCount >= totalShuffles) {
-      // Fase 2: resaltar la carta ganadora (última) y voltearla
+      // Mover ganador al centro y voltear
+      const winCard = cards[winnerCardIdx];
       setTimeout(() => {
         statusEl.textContent = '¡Ya casi!';
-        // Mover la carta ganadora al centro
-        const winCard = cards[cards.length - 1];
-        winCard.wrapper.style.transition = 'all 0.5s cubic-bezier(0.34,1.56,0.64,1)';
-        winCard.wrapper.style.left = '65px';
-        winCard.wrapper.style.top = '5px';
-        winCard.wrapper.style.transform = 'rotate(0deg) scale(1.1)';
-        winCard.wrapper.style.zIndex = '20';
         // Atenuar las demás
-        cards.slice(0,-1).forEach(c => {
-          c.wrapper.style.opacity = '0.3';
-          c.wrapper.style.transition = 'opacity 0.4s ease';
+        cards.forEach((c, i) => {
+          if (i !== winnerCardIdx) {
+            c.style.transition = 'opacity 0.4s, filter 0.4s';
+            c.style.opacity = '0.2';
+            c.style.filter = 'blur(1px)';
+          }
         });
-        // Voltear después de 600ms
+        winCard.style.transition = 'all 0.5s cubic-bezier(0.34,1.56,0.64,1)';
+        winCard.style.left = '66px';
+        winCard.style.top = '5px';
+        winCard.style.transform = 'rotate(0deg) scale(1.1)';
+        winCard.style.zIndex = '20';
         setTimeout(() => {
-          winCard.back.style.transition = 'transform 0.6s cubic-bezier(0.4,0,0.2,1)';
-          winCard.back.style.transform = 'rotateY(180deg)';
-          winCard.wrapper.querySelector('.card-front').style.transform = 'rotateY(0deg)';
+          winCard.classList.add('flipped');
           statusEl.textContent = '🎊 ¡Tenemos ganador!';
-          setTimeout(onDone, 900);
+          setTimeout(onDone, WINNER_REVEAL_TIME);
         }, 600);
-      }, 400);
+      }, 300);
       return;
     }
-
-    // Animar una carta aleatoria moviéndola
     const cardIdx = Math.floor(Math.random() * cards.length);
     const card = cards[cardIdx];
-    const jumpX = (Math.random() - 0.5) * 30;
-    const jumpY = (Math.random() - 0.5) * 20;
-    const origLeft = parseFloat(card.wrapper.style.left);
-    const origTop = parseFloat(card.wrapper.style.top);
-
-    card.wrapper.style.transition = 'all 0.08s ease';
-    card.wrapper.style.left = (origLeft + jumpX) + 'px';
-    card.wrapper.style.top = (origTop + jumpY) + 'px';
-    card.wrapper.style.transform = `rotate(${Math.random()*20-10}deg) scale(1.05)`;
-
+    const origLeft = parseFloat(card.style.left);
+    const origTop = parseFloat(card.style.top);
+    card.style.transition = 'all 0.07s ease';
+    card.style.left = (origLeft + (Math.random() - 0.5) * 28) + 'px';
+    card.style.top = (origTop + (Math.random() - 0.5) * 18) + 'px';
+    card.style.transform = `rotate(${Math.random() * 20 - 10}deg) scale(1.05)`;
     setTimeout(() => {
-      card.wrapper.style.left = origLeft + 'px';
-      card.wrapper.style.top = origTop + 'px';
-      card.wrapper.style.transform = `rotate(${Math.random()*8-4}deg)`;
-    }, 90);
-
+      card.style.left = origLeft + 'px';
+      card.style.top = origTop + 'px';
+      card.style.transform = `rotate(${Math.random() * 8 - 4}deg)`;
+    }, 80);
     shuffleCount++;
-    const delay = Math.max(60, 200 - shuffleCount * 10);
-    setTimeout(doShuffle, delay);
+    setTimeout(doShuffle, Math.max(55, 180 - shuffleCount * 12));
   }
-
-  setTimeout(doShuffle, 300);
+  setTimeout(doShuffle, 200);
 }
 
 // ══ ESTILO 4: BOLAS ══
@@ -466,86 +404,88 @@ function buildBolas(container) {
 
 function animBolas(participants, winner, onDone) {
   const area = document.getElementById('ballsArea');
+  const statusEl = document.getElementById('animStatus');
   const colors = ['#9147ff','#e05a7a','#40d090','#f0c060','#58a6ff','#ff6b35','#a8e063'];
-  const W = 320, H = 130, BALL = 52;
-  const shown = [...participants].sort(() => Math.random() - 0.5).slice(0, 8);
-  if (!shown.includes(winner)) { shown[shown.length-1] = winner; }
+  const W = 318, H = 130, BALL = 54;
+  const shown = shuffle(participants).slice(0, 8);
+  if (!shown.includes(winner)) shown[shown.length - 1] = winner;
 
+  // Usar translate3d para GPU
   const balls = shown.map((name, i) => {
     const el = document.createElement('div');
     el.className = 'lottery-ball';
     const color = colors[i % colors.length];
-    el.style.cssText = `background:radial-gradient(circle at 35% 35%, ${color}dd, ${color}88);left:${Math.random()*(W-BALL)}px;top:${Math.random()*(H-BALL)}px;`;
+    el.style.background = `radial-gradient(circle at 35% 35%, ${color}dd, ${color}88)`;
     el.style.fontSize = name.length > 8 ? '9px' : name.length > 5 ? '11px' : '13px';
     el.textContent = name;
-    const speed = 4 + Math.random() * 6; // velocidad aleatoria por bola
-    const angle = Math.random() * Math.PI * 2;
-    el.dataset.vx = Math.cos(angle) * speed;
-    el.dataset.vy = Math.sin(angle) * speed;
+    const startX = Math.random() * (W - BALL);
+    const startY = Math.random() * (H - BALL);
+    el.style.left = '0px';
+    el.style.top = '0px';
+    el.style.transform = `translate3d(${startX}px,${startY}px,0)`;
     area.appendChild(el);
-    return el;
+
+    const speed = 5 + Math.random() * 5;
+    const angle = Math.random() * Math.PI * 2;
+    return { el, x: startX, y: startY, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color };
   });
 
-  let frame = 0;
-  let animId;
-  const totalFrames = 180; // ~3 segundos a 60fps
+  let rafId;
+  const duration = 3500;
+  let startTime = null;
 
-  function bounce() {
-    frame++;
-    const speed = Math.max(0.1, 1 - frame / totalFrames);
-    balls.forEach(ball => {
-      let x = parseFloat(ball.style.left);
-      let y = parseFloat(ball.style.top);
-      let vx = parseFloat(ball.dataset.vx) * speed;
-      let vy = parseFloat(ball.dataset.vy) * speed;
-      x += vx; y += vy;
-      if (x < 0) { x = 0; ball.dataset.vx = Math.abs(vx); }
-      if (x > W-BALL) { x = W-BALL; ball.dataset.vx = -Math.abs(vx); }
-      if (y < 0) { y = 0; ball.dataset.vy = Math.abs(vy); }
-      if (y > H-BALL) { y = H-BALL; ball.dataset.vy = -Math.abs(vy); }
-      ball.style.left = x + 'px';
-      ball.style.top = y + 'px';
+  function bounce(now) {
+    if (!startTime) startTime = now;
+    const t = Math.min((now - startTime) / duration, 1);
+    // Desaceleración suave con friction
+    const friction = 0.998;
+
+    balls.forEach(b => {
+      b.vx *= friction;
+      b.vy *= friction;
+      b.x += b.vx;
+      b.y += b.vy;
+      if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); }
+      if (b.x > W - BALL) { b.x = W - BALL; b.vx = -Math.abs(b.vx); }
+      if (b.y < 0) { b.y = 0; b.vy = Math.abs(b.vy); }
+      if (b.y > H - BALL) { b.y = H - BALL; b.vy = -Math.abs(b.vy); }
+      b.el.style.transform = `translate3d(${b.x}px,${b.y}px,0)`;
     });
 
-    if (frame < totalFrames) {
-      animId = requestAnimationFrame(bounce);
-    } else {
-      // Resaltar la bola ganadora
-      cancelAnimationFrame(animId);
-      balls.forEach(ball => {
-        if (ball.textContent === winner) {
-          ball.classList.add('ball-selected');
-          ball.style.background = `radial-gradient(circle at 35% 35%, ${colors[0]}ff, ${colors[0]}aa)`;
-          ball.style.left = (W/2 - BALL/2) + 'px';
-          ball.style.top = (H/2 - BALL/2) + 'px';
-          ball.style.transition = 'all 0.4s cubic-bezier(0.34,1.56,0.64,1)';
-        } else {
-          ball.style.opacity = '0.25';
-          ball.style.transition = 'opacity 0.4s ease';
-        }
-      });
-      document.getElementById('animStatus').textContent = '🎊 ¡Tenemos ganador!';
-      setTimeout(onDone, 800);
-    }
-  }
-  animId = requestAnimationFrame(bounce);
-}
+    if (t < 0.5) statusEl.textContent = 'Mezclando...';
+    else if (t < 0.8) statusEl.textContent = 'Eligiendo...';
+    else statusEl.textContent = '¡Ya casi!';
 
-// ══ ORQUESTADOR ══
-const STYLES = {
-  ruleta:       { icon:'🎰', title:'Eligiendo ganador...', build:buildRuleta,  anim:animRuleta  },
-  tragamonedas: { icon:'🎲', title:'¡Girando los rodillos!', build:buildSlots3, anim:animSlots3  },
-  cartas:       { icon:'🃏', title:'Barajando las cartas...', build:buildCartas, anim:animCartas  },
-  bolas:        { icon:'🎱', title:'Mezclando las bolas...', build:buildBolas,  anim:animBolas   },
-  rueda:        { icon:'🎡', title:'¡Girando la rueda!',     build:buildRueda,  anim:animRueda   },
-};
+    if (t < 1) { rafId = requestAnimationFrame(bounce); return; }
+
+    cancelAnimationFrame(rafId);
+
+    // Resaltar ganador
+    balls.forEach(b => {
+      if (b.el.textContent === winner) {
+        b.el.style.transition = 'transform 0.5s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.4s ease';
+        b.el.style.transform = `translate3d(${W/2 - BALL/2}px,${H/2 - BALL/2}px,0) scale(1.25)`;
+        b.el.style.boxShadow = `0 0 24px ${b.color}, 0 0 8px rgba(0,0,0,0.5)`;
+      } else {
+        b.el.style.transition = 'opacity 0.4s ease, filter 0.4s ease';
+        b.el.style.opacity = '0.2';
+        b.el.style.filter = 'blur(1px)';
+      }
+    });
+
+    statusEl.textContent = '🎊 ¡Tenemos ganador!';
+    setTimeout(onDone, WINNER_REVEAL_TIME);
+  }
+
+  rafId = requestAnimationFrame(bounce);
+}
 
 // ══ ESTILO 5: RUEDA DE LA FORTUNA ══
 function buildRueda(container) {
   container.innerHTML = `
     <div class="wheel-wrap">
       <div class="wheel-container">
-        <canvas id="wheelCanvas" class="wheel-canvas" width="110" height="110"></canvas>
+        <canvas id="wheelCanvas" width="128" height="128"></canvas>
         <span class="wheel-pointer">▶</span>
       </div>
       <div class="wheel-winner-text" id="wheelWinnerText"></div>
@@ -557,149 +497,129 @@ function animRueda(participants, winner, onDone) {
   const ctx = canvas.getContext('2d');
   const statusEl = document.getElementById('animStatus');
   const winnerText = document.getElementById('wheelWinnerText');
-  const W = 110, CX = W/2, CY = W/2, R = 50;
+  const W = 128, CX = W/2, CY = W/2, R = 60;
 
-  // Tomar hasta 8 participantes para la rueda (incluyendo ganador)
-  const pool = [...new Set([winner, ...[...participants].sort(()=>Math.random()-0.5)])].slice(0,8);
-  if (!pool.includes(winner)) pool[pool.length-1] = winner;
+  const pool = [...new Set([winner, ...shuffle(participants)])].slice(0, 8);
+  if (!pool.includes(winner)) pool[pool.length - 1] = winner;
   const N = pool.length;
-  const slice = (Math.PI * 2) / N;
-
+  const sliceAngle = (Math.PI * 2) / N;
   const colors = ['#9147ff','#e05a7a','#40d090','#f0c060','#58a6ff','#ff6b35','#b388ff','#a8e063'];
 
   function drawWheel(angle) {
-    ctx.clearRect(0,0,W,W);
+    ctx.clearRect(0, 0, W, W);
     for (let i = 0; i < N; i++) {
-      const start = angle + i * slice;
-      const end = start + slice;
-      // Sector
+      const start = angle + i * sliceAngle;
+      const end = start + sliceAngle;
       ctx.beginPath();
-      ctx.moveTo(CX,CY);
-      ctx.arc(CX,CY,R,start,end);
+      ctx.moveTo(CX, CY);
+      ctx.arc(CX, CY, R, start, end);
       ctx.closePath();
       ctx.fillStyle = colors[i % colors.length];
       ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.strokeStyle = 'rgba(0,0,0,0.5)';
       ctx.lineWidth = 1.5;
       ctx.stroke();
-      // Texto
       ctx.save();
-      ctx.translate(CX,CY);
-      ctx.rotate(start + slice/2);
+      ctx.translate(CX, CY);
+      ctx.rotate(start + sliceAngle / 2);
       ctx.textAlign = 'right';
       ctx.fillStyle = 'white';
       ctx.font = 'bold 8px Inter';
-      ctx.shadowColor = 'rgba(0,0,0,0.8)';
-      ctx.shadowBlur = 3;
-      const label = pool[i].length > 7 ? pool[i].slice(0,7)+'…' : pool[i];
+      ctx.shadowColor = 'rgba(0,0,0,0.9)';
+      ctx.shadowBlur = 4;
+      const label = pool[i].length > 8 ? pool[i].slice(0, 7) + '…' : pool[i];
       ctx.fillText(label, R - 4, 3);
       ctx.restore();
     }
     // Centro
     ctx.beginPath();
-    ctx.arc(CX,CY,10,0,Math.PI*2);
+    ctx.arc(CX, CY, 10, 0, Math.PI * 2);
     ctx.fillStyle = '#0d0620';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(145,71,255,0.8)';
+    ctx.strokeStyle = 'rgba(145,71,255,0.9)';
     ctx.lineWidth = 2;
     ctx.stroke();
-    // Spider emoji centro
     ctx.font = '10px serif';
     ctx.textAlign = 'center';
-    ctx.fillText('🕷️',CX,CY+4);
+    ctx.fillText('🕷️', CX, CY + 4);
   }
 
-  // Calcular ángulo final para que el ganador quede apuntado por el puntero (derecha = 0°)
   const winnerIdx = pool.indexOf(winner);
-  const targetAngle = -(winnerIdx * slice + slice/2); // sector del ganador centrado en 0°
-  // Agregar vueltas aleatorias para que se vea aleatorio
+  // Ángulo para que el ganador quede centrado en el puntero (apunta a 0° = derecha)
+  const targetAngle = -(winnerIdx * sliceAngle + sliceAngle / 2);
   const extraSpins = (4 + Math.floor(Math.random() * 4)) * Math.PI * 2;
+  const startAngle = 0;
   const finalAngle = targetAngle - extraSpins;
-
-  let currentAngle = 0;
-  let velocity = 0;
-  const maxVel = 0.35;
-  let phase = 'accel';
-  let cruiseFrames = 0;
-  const minCruise = 60;
-  const totalDist = Math.abs(finalAngle - currentAngle);
-  const decelDist = totalDist * 0.4;
+  const duration = 7000;
+  let startTime = null;
   let rafId;
 
-  function tick() {
-    const distLeft = Math.abs(finalAngle - currentAngle);
+  drawWheel(startAngle);
 
-    if (phase === 'accel') {
-      velocity = Math.min(maxVel, velocity + maxVel/20);
-      if (velocity >= maxVel) phase = 'cruise';
-      statusEl.textContent = 'Girando...';
-    } else if (phase === 'cruise') {
-      cruiseFrames++;
-      if (cruiseFrames >= minCruise && distLeft <= decelDist) phase = 'decel';
-      statusEl.textContent = 'Girando...';
-    } else if (phase === 'decel') {
-      const progress = 1 - (distLeft / decelDist);
-      velocity = maxVel * Math.pow(1 - progress, 2);
-      velocity = Math.max(velocity, 0.003);
-      statusEl.textContent = distLeft < decelDist*0.3 ? '¡Ya casi!' : 'Frenando...';
-    }
+  function tick(now) {
+    if (!startTime) startTime = now;
+    const t = Math.min((now - startTime) / duration, 1);
+    const eased = easeOutQuart(t);
+    const angle = startAngle + (finalAngle - startAngle) * eased;
 
-    currentAngle -= velocity;
+    drawWheel(angle);
 
-    if (currentAngle <= finalAngle) {
-      drawWheel(finalAngle);
-      statusEl.textContent = '🎊 ¡Tenemos ganador!';
-      cancelAnimationFrame(rafId);
-      // Mostrar nombre del ganador
-      setTimeout(() => {
-        winnerText.textContent = winner;
-        winnerText.style.display = 'block';
-        winnerText.style.animation = 'tagIn 0.4s cubic-bezier(0.34,1.56,0.64,1)';
-        setTimeout(onDone, 700);
-      }, 300);
-      return;
-    }
+    if (t < 0.4) statusEl.textContent = 'Girando...';
+    else if (t < 0.75) statusEl.textContent = 'Girando...';
+    else if (t < 0.92) statusEl.textContent = 'Frenando...';
+    else statusEl.textContent = '¡Ya casi!';
 
-    drawWheel(currentAngle);
-    rafId = requestAnimationFrame(tick);
+    if (t < 1) { rafId = requestAnimationFrame(tick); return; }
+
+    cancelAnimationFrame(rafId);
+    statusEl.textContent = '🎊 ¡Tenemos ganador!';
+    winnerText.textContent = winner;
+    winnerText.style.display = 'flex';
+    winnerText.style.animation = 'tagIn 0.5s cubic-bezier(0.34,1.56,0.64,1)';
+    setTimeout(onDone, WINNER_REVEAL_TIME);
   }
 
-  drawWheel(0);
   rafId = requestAnimationFrame(tick);
 }
+
+// ══ ORQUESTADOR ══
+const STYLES = {
+  ruleta:       { icon:'🎰', title:'Eligiendo ganador...', build:buildRuleta,  anim:animRuleta  },
+  tragamonedas: { icon:'🎲', title:'¡Girando los rodillos!', build:buildSlots3, anim:animSlots3  },
+  cartas:       { icon:'🃏', title:'Barajando las cartas...', build:buildCartas, anim:animCartas  },
+  bolas:        { icon:'🎱', title:'Mezclando las bolas...', build:buildBolas,  anim:animBolas   },
+  rueda:        { icon:'🎡', title:'¡Girando la rueda!',     build:buildRueda,  anim:animRueda   },
+};
 
 function spawnConfetti() {
   const colors = ['#9147ff','#f0c060','#40d090','#e05a7a','#60a0f0','#ffffff'];
   const screen = document.getElementById('winnerState');
-  for(let i=0;i<25;i++){
+  for (let i = 0; i < 25; i++) {
     const el = document.createElement('div');
     el.className = 'confetti-piece';
     el.style.cssText = `left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};animation-delay:${Math.random()*1.5}s;animation-duration:${2+Math.random()}s;`;
     screen.appendChild(el);
-    setTimeout(()=>el.remove(), 4000);
+    setTimeout(() => el.remove(), 4000);
   }
 }
 
 function showAnimation(winner, prize, participants) {
   if (slotAnimating) return;
   slotAnimating = true;
-
   const activeEl = document.getElementById('activeState');
   const animEl   = document.getElementById('animState');
   const winnerEl = document.getElementById('winnerState');
   const style = STYLES[currentSpinStyle] || STYLES.ruleta;
 
-  // Setup
   document.getElementById('animIcon').textContent = style.icon;
   document.getElementById('animTitle').textContent = style.title;
   document.getElementById('animCounter').textContent = `${participants.length} participantes`;
-
   style.build(document.getElementById('animContent'));
 
   activeEl.style.display = 'none';
   animEl.classList.add('show');
 
-  const pool = participants.length > 1 ? participants : [winner, winner, winner, winner];
+  const pool = participants.length > 1 ? participants : [winner, winner, winner, winner, winner];
 
   style.anim(pool, winner, () => {
     setTimeout(() => {
@@ -722,13 +642,18 @@ async function pollRaffle() {
     const res = await fetch(`/api/raffle/overlay/${username}`);
     if (!res.ok) return;
     const data = await res.json();
-
     const activeEl = document.getElementById('activeState');
     const winnerEl = document.getElementById('winnerState');
     const animEl   = document.getElementById('animState');
 
-    // Actualizar estilo si cambió
     if (data.spin_style) currentSpinStyle = data.spin_style;
+
+    // Limpiar si hay nuevo sorteo activo sin ganador
+    if (winnerShown && data.active && !data.winner) {
+      winnerShown = null;
+      sessionStorage.removeItem('raffle_winner_shown');
+      slotAnimating = false;
+    }
 
     if (data.winner && !winnerShown) {
       winnerShown = data.winner;
@@ -736,13 +661,6 @@ async function pollRaffle() {
       const parts = lastParticipants.length > 0 ? lastParticipants : (data.participants || [data.winner]);
       showAnimation(data.winner, data.prize, parts);
       return;
-    }
-
-    // Si hay un nuevo sorteo activo, limpiar el ganador anterior
-    if (winnerShown && data.active && !data.winner) {
-      winnerShown = null;
-      sessionStorage.removeItem('raffle_winner_shown');
-      slotAnimating = false;
     }
 
     if (winnerShown) return;
