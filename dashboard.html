@@ -2217,7 +2217,7 @@ function renderMain() {
             </div>`}
 
             <!-- Lista de recompensas (se muestra al cargar) -->
-            <div id="rewardsList" style="display:none;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);background:var(--bg3);padding:8px;"></div>
+            <div id="twitchRewardsList" style="display:none;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);background:var(--bg3);padding:8px;"></div>
           </div>
 
           <div style="margin-bottom:16px;">
@@ -4859,7 +4859,7 @@ async function saveRaffleOpacity() {
 // ── Recompensas de puntos del canal ──
 async function loadRaffleRewards() {
   const btn = document.getElementById('loadRewardsBtn');
-  const list = document.getElementById('rewardsList');
+  const list = document.getElementById('twitchRewardsList');
   if (!list) return;
 
   btn.textContent = '↺ Cargando...';
@@ -4885,6 +4885,7 @@ async function loadRaffleRewards() {
     }
 
     list.style.display = 'flex';
+    list.style.flexDirection = 'column';
     list.innerHTML = '';
     rewards.forEach(r => {
       const cost = (r.cost || 0).toLocaleString();
@@ -4951,7 +4952,7 @@ async function selectRaffleReward(id, name, image) {
     streamerData.raffle_settings = settings;
     showToast(`Recompensa "${name}" guardada ✓`);
     // Cerrar lista y re-renderizar
-    document.getElementById('rewardsList').style.display = 'none';
+    document.getElementById('twitchRewardsList').style.display = 'none';
     renderMain();
     showSection('sorteo');
   } else {
