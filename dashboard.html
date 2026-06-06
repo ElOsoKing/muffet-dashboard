@@ -2288,6 +2288,27 @@ function renderMain() {
             </div>
           </div>
 
+          <!-- Tamaño del overlay -->
+          <div style="margin-bottom:18px;position:relative;">
+            ${s.plan!=='pro'&&s.plan!=='admin'?`<div class="pro-lock-overlay" style="border-radius:var(--radius-sm);"><div class="pro-lock-badge">⭐ Función Pro</div><div class="pro-lock-text">El overlay de sorteo es exclusivo del plan Pro.</div><a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a></div>`:''}
+            <div style="${s.plan!=='pro'&&s.plan!=='admin'?'filter:blur(3px);pointer-events:none;':''}">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">📐 Tamaño del overlay</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px;">
+              ${['small','medium','large'].map(val => {
+                const active = (s.raffle_settings?.card_size||'medium') === val;
+                const labels = {small:'🔹 Pequeño',medium:'🔷 Mediano',large:'🔶 Grande'};
+                const descs = {small:'240px',medium:'320px',large:'420px'};
+                return `<button onclick="selectCardSizeRaffle('${val}',this)" data-raffle-size="${val}" data-selected="${active?'true':''}"
+                  style="padding:10px 8px;background:${active?'var(--purple-dim)':'transparent'};border:1px solid ${active?'var(--purple-border)':'rgba(255,255,255,0.08)'};border-radius:var(--radius-sm);color:${active?'var(--text)':'var(--text-dim)'};font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);text-align:center;transition:all 0.15s;">
+                  <div>${labels[val]}</div>
+                  <div style="font-size:10px;font-weight:400;margin-top:2px;opacity:0.7;">${descs[val]}</div>
+                </button>`;
+              }).join('')}
+            </div>
+            <button onclick="saveCardSizeRaffle()" style="padding:8px 20px;background:var(--purple);border:none;border-radius:20px;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">💾 Guardar tamaño</button>
+            </div>
+          </div>
+
           <span style="font-size:13px;font-weight:700;color:var(--text);">Overlay para OBS</span>
         </div>
         <div style="padding:18px 20px;">
@@ -4800,6 +4821,28 @@ async function saveRaffleOpacity() {
     body: JSON.stringify({ raffle_settings: settings })
   });
   if (res.ok) { streamerData.raffle_settings = settings; showToast('Opacidad guardada ✓'); }
+}
+
+function selectCardSizeRaffle(val, el) {
+  document.querySelectorAll('[data-raffle-size]').forEach(b => {
+    const active = b.dataset.raffleSize === val;
+    b.style.borderColor = active ? 'var(--purple-border)' : 'rgba(255,255,255,0.08)';
+    b.style.background = active ? 'var(--purple-dim)' : 'transparent';
+    b.style.color = active ? 'var(--text)' : 'var(--text-dim)';
+    b.dataset.selected = active ? 'true' : '';
+  });
+}
+
+async function saveCardSizeRaffle() {
+  const card_size = document.querySelector('[data-raffle-size][data-selected="true"]')?.dataset?.raffleSize || 'medium';
+  const current = streamerData.raffle_settings || {};
+  const settings = { ...current, card_size };
+  const res = await fetch('/api/raffle/settings', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raffle_settings: settings })
+  });
+  if (res.ok) { streamerData.raffle_settings = settings; showToast('Tamaño guardado ✓'); }
+  else showToast('Error al guardar', 'error');
 }
 
 function selectSpinStyle(val, el) {
