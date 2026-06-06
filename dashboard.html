@@ -5057,7 +5057,7 @@ async function saveRaffleSettings() {
   const entries_sub = parseInt(document.getElementById('entries_sub')?.value) || 2;
   const entries_vip = parseInt(document.getElementById('entries_vip')?.value) || 2;
   const entries_mod = parseInt(document.getElementById('entries_mod')?.value) || 1;
-  const raffle_settings = { allowed: allowed.length ? allowed : ['everyone'], join_cmd, reward_name, entries_everyone, entries_sub, entries_vip, entries_mod };
+  const raffle_settings = { ...(streamerData.raffle_settings || {}), allowed: allowed.length ? allowed : ['everyone'], join_cmd, entries_everyone, entries_sub, entries_vip, entries_mod };
   const res = await fetch('/api/raffle/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ raffle_settings }) });
   if(res.ok) { streamerData.raffle_settings = raffle_settings; showToast('Configuración guardada ✓'); }
   else showToast('Error al guardar','error');
