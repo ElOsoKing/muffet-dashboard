@@ -2,7 +2,6 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sorteo Overlay</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet">
 <style>
@@ -12,86 +11,77 @@
   --green:#40d090;--yellow:#f0c060;--pink:#e05a7a;
   --bg-opacity:0.75;--bg:rgba(0,0,0,var(--bg-opacity));--bg2:rgba(20,20,25,var(--bg-opacity));
   --text:#e8e8f0;--text-dim:#8a8aaa;
-  --sans:'Inter',sans-serif;--display:'VT323',monospace;
-  --radius:12px;
+  --sans:'Inter',sans-serif;--display:'VT323',monospace;--radius:12px;
 }
+html,body{background:transparent !important;width:100%;height:100%;font-family:var(--sans);color:var(--text);overflow:hidden;}
+.overlay{position:fixed;bottom:20px;left:20px;width:320px;}
 
-/* Fondo transparente para OBS */
-html,body{
-  background:transparent !important;
-  width:100%;height:100%;
-  font-family:var(--sans);
-  color:var(--text);
-  overflow:hidden;
-}
-
-.overlay{
-  position:fixed;bottom:20px;left:20px;
-  width:320px;
-  font-family:var(--sans);
-}
-
-/* Estado inactivo */
-.raffle-idle{display:none;}
-
-/* Card principal */
-.raffle-card{
-  background:var(--bg);
-  backdrop-filter:blur(12px);
-  border:1px solid rgba(145,71,255,0.4);
-  border-radius:var(--radius);
-  overflow:hidden;
-  animation:slideIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
-}
+/* ── CARD ACTIVA ── */
+.raffle-card{background:var(--bg);backdrop-filter:blur(12px);border:1px solid rgba(145,71,255,0.4);border-radius:var(--radius);overflow:hidden;animation:slideIn 0.4s cubic-bezier(0.34,1.56,0.64,1);}
 @keyframes slideIn{from{transform:translateX(-30px);opacity:0;}to{transform:translateX(0);opacity:1;}}
-
-/* Header */
-.card-header{
-  background:linear-gradient(135deg,rgba(145,71,255,0.3),rgba(145,71,255,0.1));
-  padding:12px 16px;
-  border-bottom:1px solid rgba(145,71,255,0.2);
-  display:flex;align-items:center;justify-content:space-between;
-}
+.card-header{background:linear-gradient(135deg,rgba(145,71,255,0.3),rgba(145,71,255,0.1));padding:12px 16px;border-bottom:1px solid rgba(145,71,255,0.2);display:flex;align-items:center;justify-content:space-between;}
 .header-left{display:flex;align-items:center;gap:8px;}
 .header-icon{font-size:20px;animation:pulse 1.5s ease infinite;}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
-.header-title{font-size:14px;font-weight:700;color:white;letter-spacing:-0.3px;}
+.header-title{font-size:14px;font-weight:700;color:white;}
 .header-prize{font-size:11px;color:var(--purple-light);margin-top:1px;}
-.participant-count{
-  background:var(--purple);border-radius:20px;
-  padding:4px 10px;font-size:13px;font-weight:700;color:white;
-  min-width:32px;text-align:center;
-}
-
-/* Lista de participantes */
+.participant-count{background:var(--purple);border-radius:20px;padding:4px 10px;font-size:13px;font-weight:700;color:white;min-width:32px;text-align:center;}
 .participants-wrap{padding:10px 12px;max-height:180px;overflow:hidden;}
 .participants-title{font-size:10px;font-weight:500;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
 .participants-list{display:flex;flex-wrap:wrap;gap:5px;}
-.p-tag{
-  background:rgba(145,71,255,0.15);border:1px solid rgba(145,71,255,0.25);
-  border-radius:20px;padding:3px 10px;font-size:11px;color:var(--purple-light);
-  animation:tagIn 0.3s ease;
-}
+.p-tag{background:rgba(145,71,255,0.15);border:1px solid rgba(145,71,255,0.25);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--purple-light);animation:tagIn 0.3s ease;}
 @keyframes tagIn{from{transform:scale(0.8);opacity:0;}to{transform:scale(1);opacity:1;}}
 .waiting{font-size:12px;color:var(--text-dim);padding:8px 0;font-style:italic;}
-
-/* Footer hint */
-.card-footer{
-  padding:8px 16px;border-top:1px solid rgba(255,255,255,0.06);
-  font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:6px;
-}
+.card-footer{padding:8px 16px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:6px;}
 .dot-live{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1s ease infinite;}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
 
+/* ── PANTALLAS DE ANIMACIÓN ── */
+.anim-screen{display:none;background:var(--bg);backdrop-filter:blur(16px);border:2px solid var(--purple);border-radius:var(--radius);overflow:hidden;box-shadow:0 0 30px rgba(145,71,255,0.4);}
+.anim-screen.show{display:block;}
+.anim-header{background:linear-gradient(135deg,rgba(145,71,255,0.35),rgba(145,71,255,0.1));padding:10px 16px;display:flex;align-items:center;justify-content:center;gap:8px;border-bottom:1px solid rgba(145,71,255,0.3);}
+.anim-title{font-size:12px;font-weight:700;color:var(--purple-light);text-transform:uppercase;letter-spacing:2px;}
+.anim-icon{font-size:18px;}
+.anim-footer{padding:8px 12px;text-align:center;font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;background:rgba(0,0,0,0.3);}
+.anim-counter{display:inline-block;background:var(--purple-dim);border:1px solid var(--purple);border-radius:20px;padding:2px 10px;color:var(--purple-light);font-size:11px;font-weight:700;margin-left:6px;}
+
+/* ESTILO 1 — RULETA (columna) */
+.slot-window{height:130px;overflow:hidden;position:relative;background:rgba(0,0,0,0.5);}
+.slot-window::before{content:'';position:absolute;top:0;left:0;right:0;height:40px;background:linear-gradient(to bottom,rgba(0,0,0,0.8),transparent);z-index:2;pointer-events:none;}
+.slot-window::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top,rgba(0,0,0,0.8),transparent);z-index:2;pointer-events:none;}
+.slot-center-line{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:44px;background:rgba(145,71,255,0.12);border-top:1px solid rgba(145,71,255,0.5);border-bottom:1px solid rgba(145,71,255,0.5);z-index:1;pointer-events:none;}
+.slot-arrows{position:absolute;top:50%;transform:translateY(-50%);width:100%;display:flex;justify-content:space-between;padding:0 8px;z-index:3;pointer-events:none;}
+.slot-arrow{font-size:20px;color:var(--yellow);text-shadow:0 0 8px rgba(240,192,96,0.8);animation:arrowPulse 0.4s ease infinite alternate;}
+@keyframes arrowPulse{from{opacity:0.5;transform:scale(0.9);}to{opacity:1;transform:scale(1.1);}}
+.slot-reel{display:flex;flex-direction:column;align-items:center;will-change:transform;}
+.slot-item{height:44px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:28px;color:white;width:100%;text-align:center;text-shadow:0 0 10px rgba(145,71,255,0.6);flex-shrink:0;}
+.slot-item.highlight{color:var(--yellow);text-shadow:0 0 16px rgba(240,192,96,0.8);}
+
+/* ESTILO 2 — TRAGAMONEDAS (3 columnas) */
+.slots-3col{display:flex;gap:4px;padding:8px;background:rgba(0,0,0,0.5);height:130px;}
+.slots-3col .slot-col{flex:1;overflow:hidden;position:relative;border-radius:6px;border:1px solid rgba(145,71,255,0.3);}
+.slots-3col .slot-col::before{content:'';position:absolute;top:0;left:0;right:0;height:30px;background:linear-gradient(to bottom,rgba(0,0,0,0.9),transparent);z-index:2;}
+.slots-3col .slot-col::after{content:'';position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(to top,rgba(0,0,0,0.9),transparent);z-index:2;}
+.slots-3col .col-reel{display:flex;flex-direction:column;align-items:center;will-change:transform;}
+.slots-3col .col-item{height:43px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;color:white;width:100%;flex-shrink:0;text-align:center;}
+.slots-3col .col-item.match{color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.9);}
+.slots-3col .col-highlight{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:43px;background:rgba(145,71,255,0.1);border-top:1px solid rgba(145,71,255,0.4);border-bottom:1px solid rgba(145,71,255,0.4);z-index:1;}
+
+/* ESTILO 3 — CARTAS */
+.cards-area{height:130px;display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,0.4);position:relative;overflow:hidden;}
+.card-deck{position:relative;width:80px;height:110px;}
+.playing-card{position:absolute;width:80px;height:110px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid rgba(145,71,255,0.5);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--display);font-size:16px;color:white;text-align:center;padding:4px;cursor:default;backface-visibility:hidden;transform-style:preserve-3d;box-shadow:0 4px 12px rgba(0,0,0,0.5);}
+.playing-card .card-name{font-size:14px;line-height:1.1;word-break:break-all;}
+.playing-card .card-suit{font-size:20px;margin-top:4px;}
+.card-name-display{flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:28px;color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.8);padding:0 12px;text-align:center;}
+
+/* ESTILO 4 — BOLAS */
+.balls-area{height:130px;position:relative;overflow:hidden;background:rgba(0,0,0,0.4);}
+.lottery-ball{position:absolute;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;color:white;text-align:center;font-weight:700;cursor:default;line-height:1.1;word-break:break-all;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 -3px 6px rgba(0,0,0,0.3),inset 0 3px 6px rgba(255,255,255,0.2);}
+.ball-selected{transform:scale(1.2);z-index:10;box-shadow:0 0 20px rgba(240,192,96,0.8),0 4px 12px rgba(0,0,0,0.4)!important;}
+
 /* ── GANADOR ── */
-.winner-screen{
-  display:none;
-  background:var(--bg);backdrop-filter:blur(16px);
-  border:2px solid var(--yellow);border-radius:var(--radius);
-  padding:24px 20px;text-align:center;
-  animation:winnerIn 0.6s cubic-bezier(0.34,1.56,0.64,1);
-  position:relative;overflow:hidden;
-}
+.winner-screen{display:none;background:var(--bg);backdrop-filter:blur(16px);border:2px solid var(--yellow);border-radius:var(--radius);padding:24px 20px;text-align:center;animation:winnerIn 0.6s cubic-bezier(0.34,1.56,0.64,1);position:relative;overflow:hidden;}
 .winner-screen.show{display:block;}
 @keyframes winnerIn{from{transform:scale(0.5);opacity:0;}to{transform:scale(1);opacity:1;}}
 .winner-trophy{font-size:48px;display:block;margin-bottom:8px;animation:trophyBounce 0.5s ease infinite alternate;}
@@ -104,10 +94,10 @@ html,body{
 </style>
 </head>
 <body>
-
 <div class="overlay" id="overlay">
   <div class="raffle-idle" id="idleState"></div>
 
+  <!-- CARD ACTIVA -->
   <div class="raffle-card" id="activeState" style="display:none;">
     <div class="card-header">
       <div class="header-left">
@@ -131,6 +121,21 @@ html,body{
     </div>
   </div>
 
+  <!-- PANTALLA ANIMACIÓN -->
+  <div class="anim-screen" id="animState">
+    <div class="anim-header">
+      <span class="anim-icon" id="animIcon">🎰</span>
+      <span class="anim-title" id="animTitle">Eligiendo ganador...</span>
+    </div>
+    <!-- contenido dinámico según estilo -->
+    <div id="animContent"></div>
+    <div class="anim-footer">
+      <span id="animStatus">Girando...</span>
+      <span class="anim-counter" id="animCounter"></span>
+    </div>
+  </div>
+
+  <!-- GANADOR -->
   <div class="winner-screen" id="winnerState">
     <span class="winner-trophy">🏆</span>
     <div class="winner-label">¡Ganador!</div>
@@ -142,8 +147,256 @@ html,body{
 <script>
 const username = window.location.pathname.split('/overlay/sorteo/')[1];
 let lastParticipants = [];
-// Persistir ganador mostrado en sessionStorage para sobrevivir recargas de OBS
 let winnerShown = sessionStorage.getItem('raffle_winner_shown') || null;
+let slotAnimating = false;
+let currentSpinStyle = 'ruleta';
+
+// ══ ESTILO 1: RULETA ══
+function buildRuleta(container) {
+  container.innerHTML = `
+    <div class="slot-window">
+      <div class="slot-center-line"></div>
+      <div class="slot-arrows"><span class="slot-arrow">▶</span><span class="slot-arrow">◀</span></div>
+      <div class="slot-reel" id="slotReel"></div>
+    </div>`;
+}
+
+function animRuleta(participants, winner, onDone) {
+  const reel = document.getElementById('slotReel');
+  const ITEM_H = 44;
+  const shuffled = [...participants].sort(() => Math.random() - 0.5);
+  const spinList = [];
+  for (let i = 0; i < 40; i++) spinList.push(shuffled[i % shuffled.length]);
+  spinList.push(winner);
+  reel.innerHTML = spinList.map((n,i) =>
+    `<div class="slot-item${i===spinList.length-1?' highlight':''}">${n}</div>`
+  ).join('');
+  reel.style.transition = 'none';
+  reel.style.transform = `translateY(${ITEM_H}px)`;
+  const phases = [
+    {dur:800,ease:'cubic-bezier(0.2,0,0.8,1)',label:'Girando...',pct:0.15},
+    {dur:1200,ease:'cubic-bezier(0.2,0,0.6,1)',label:'Girando...',pct:0.35},
+    {dur:1800,ease:'cubic-bezier(0.1,0,0.4,1)',label:'Frenando...',pct:0.60},
+    {dur:2500,ease:'cubic-bezier(0.05,0,0.2,1)',label:'Frenando...',pct:0.82},
+    {dur:1200,ease:'cubic-bezier(0.02,0,0.05,1)',label:'¡Ya casi!',pct:0.95},
+  ];
+  let idx = 0;
+  function next() {
+    if (idx >= phases.length) {
+      reel.style.transition = 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+      reel.style.transform = `translateY(${-(spinList.length-1)*ITEM_H+ITEM_H}px)`;
+      document.getElementById('animStatus').textContent = '🎊 ¡Tenemos ganador!';
+      setTimeout(onDone, 600);
+      return;
+    }
+    const p = phases[idx];
+    const itemIdx = Math.floor(spinList.length * p.pct);
+    reel.style.transition = `transform ${p.dur}ms ${p.ease}`;
+    reel.style.transform = `translateY(${-(itemIdx*ITEM_H)+ITEM_H}px)`;
+    document.getElementById('animStatus').textContent = p.label;
+    idx++;
+    setTimeout(next, p.dur);
+  }
+  setTimeout(next, 100);
+}
+
+// ══ ESTILO 2: TRAGAMONEDAS ══
+function buildSlots3(container) {
+  container.innerHTML = `
+    <div class="slots-3col">
+      <div class="slot-col"><div class="col-highlight"></div><div class="col-reel" id="col0"></div></div>
+      <div class="slot-col"><div class="col-highlight"></div><div class="col-reel" id="col1"></div></div>
+      <div class="slot-col"><div class="col-highlight"></div><div class="col-reel" id="col2"></div></div>
+    </div>`;
+}
+
+function animSlots3(participants, winner, onDone) {
+  const ITEM_H = 43;
+  const shuffled = [...participants].sort(() => Math.random() - 0.5);
+  // Dividir nombre del ganador en 3 partes o usar 3 emojis/fragmentos
+  const parts = winner.length <= 6
+    ? [winner.slice(0,2)||'?', winner.slice(2,4)||'?', winner.slice(4)||'?']
+    : [winner.slice(0,Math.ceil(winner.length/3)), winner.slice(Math.ceil(winner.length/3),Math.ceil(winner.length*2/3)), winner.slice(Math.ceil(winner.length*2/3))];
+
+  const cols = [0,1,2].map(i => {
+    const reel = document.getElementById(`col${i}`);
+    const list = [];
+    for (let j = 0; j < 35+i*5; j++) list.push(shuffled[j % shuffled.length]);
+    list.push(winner); // mostrar nombre completo en cada col centrado
+    reel.innerHTML = list.map((n,idx) =>
+      `<div class="col-item${idx===list.length-1?' match':''}">${idx===list.length-1?parts[i]:n.slice(0,4)}</div>`
+    ).join('');
+    reel.style.transition = 'none';
+    reel.style.transform = `translateY(${ITEM_H}px)`;
+    return { reel, list };
+  });
+
+  const delays = [0, 400, 800];
+  const baseDur = [6000, 6400, 6800];
+  let done = 0;
+
+  cols.forEach(({reel, list}, i) => {
+    setTimeout(() => {
+      reel.style.transition = `transform ${baseDur[i]}ms cubic-bezier(0.05,0.2,0.1,1)`;
+      reel.style.transform = `translateY(${-(list.length-1)*ITEM_H+ITEM_H}px)`;
+    }, delays[i]+100);
+    setTimeout(() => {
+      done++;
+      if (done === 3) {
+        document.getElementById('animStatus').textContent = '🎊 ¡Tenemos ganador!';
+        setTimeout(onDone, 500);
+      }
+    }, delays[i]+baseDur[i]+100);
+  });
+}
+
+// ══ ESTILO 3: CARTAS ══
+function buildCartas(container) {
+  container.innerHTML = `
+    <div class="cards-area">
+      <div class="card-deck" id="cardDeck"></div>
+      <div class="card-name-display" id="cardNameDisplay" style="display:none;"></div>
+    </div>`;
+}
+
+function animCartas(participants, winner, onDone) {
+  const deck = document.getElementById('cardDeck');
+  const nameDisplay = document.getElementById('cardNameDisplay');
+  const suits = ['♠','♥','♦','♣'];
+  const colors = ['#9147ff','#e05a7a','#40d090','#f0c060'];
+  const shuffled = [...participants].sort(() => Math.random() - 0.5).slice(0,8);
+  shuffled.push(winner);
+
+  let idx = 0;
+  let currentCard = null;
+
+  function showNext() {
+    if (idx >= shuffled.length) {
+      // Mostrar ganador grande
+      deck.style.display = 'none';
+      nameDisplay.style.display = 'flex';
+      nameDisplay.textContent = winner;
+      document.getElementById('animStatus').textContent = '🎊 ¡Tenemos ganador!';
+      setTimeout(onDone, 800);
+      return;
+    }
+    const name = shuffled[idx];
+    const suit = suits[idx % 4];
+    const color = colors[idx % 4];
+    const isLast = idx === shuffled.length - 1;
+    const delay = isLast ? 600 : Math.max(80, 400 - idx * 35);
+
+    if (currentCard) currentCard.style.opacity = '0.2';
+
+    const card = document.createElement('div');
+    card.className = 'playing-card';
+    card.style.cssText = `
+      border-color:${color}55;
+      z-index:${idx};
+      top:${Math.random()*10-5}px;
+      left:${Math.random()*10-5}px;
+      transform:rotate(${Math.random()*10-5}deg);
+      animation:cardFlip 0.2s ease;
+      background:linear-gradient(135deg,rgba(20,20,30,0.95),rgba(30,30,50,0.95));
+    `;
+    card.innerHTML = `<div class="card-name" style="color:${color};font-size:${name.length>8?'10px':'12px'}">${name}</div><div class="card-suit" style="color:${color}">${suit}</div>`;
+
+    // Limpiar cartas viejas si hay muchas
+    while(deck.children.length > 5) deck.removeChild(deck.firstChild);
+    deck.appendChild(card);
+    currentCard = card;
+    document.getElementById('animStatus').textContent = isLast ? '¡Ya casi!' : `Barajando... (${idx+1}/${shuffled.length})`;
+    idx++;
+    setTimeout(showNext, delay);
+  }
+
+  // Agregar keyframe de animación
+  if (!document.getElementById('cardFlipStyle')) {
+    const style = document.createElement('style');
+    style.id = 'cardFlipStyle';
+    style.textContent = '@keyframes cardFlip{from{transform:rotateY(90deg) rotate(-5deg);opacity:0;}to{opacity:1;}}';
+    document.head.appendChild(style);
+  }
+  showNext();
+}
+
+// ══ ESTILO 4: BOLAS ══
+function buildBolas(container) {
+  container.innerHTML = `<div class="balls-area" id="ballsArea"></div>`;
+}
+
+function animBolas(participants, winner, onDone) {
+  const area = document.getElementById('ballsArea');
+  const colors = ['#9147ff','#e05a7a','#40d090','#f0c060','#58a6ff','#ff6b35','#a8e063'];
+  const W = 320, H = 130, BALL = 52;
+  const shown = [...participants].sort(() => Math.random() - 0.5).slice(0, 8);
+  if (!shown.includes(winner)) { shown[shown.length-1] = winner; }
+
+  const balls = shown.map((name, i) => {
+    const el = document.createElement('div');
+    el.className = 'lottery-ball';
+    const color = colors[i % colors.length];
+    el.style.cssText = `background:radial-gradient(circle at 35% 35%, ${color}dd, ${color}88);left:${Math.random()*(W-BALL)}px;top:${Math.random()*(H-BALL)}px;`;
+    el.style.fontSize = name.length > 8 ? '9px' : name.length > 5 ? '11px' : '13px';
+    el.textContent = name;
+    el.dataset.vx = (Math.random() - 0.5) * 6;
+    el.dataset.vy = (Math.random() - 0.5) * 6;
+    area.appendChild(el);
+    return el;
+  });
+
+  let frame = 0;
+  let animId;
+  const totalFrames = 180; // ~3 segundos a 60fps
+
+  function bounce() {
+    frame++;
+    const speed = Math.max(0.1, 1 - frame / totalFrames);
+    balls.forEach(ball => {
+      let x = parseFloat(ball.style.left);
+      let y = parseFloat(ball.style.top);
+      let vx = parseFloat(ball.dataset.vx) * speed;
+      let vy = parseFloat(ball.dataset.vy) * speed;
+      x += vx; y += vy;
+      if (x < 0) { x = 0; ball.dataset.vx = Math.abs(vx); }
+      if (x > W-BALL) { x = W-BALL; ball.dataset.vx = -Math.abs(vx); }
+      if (y < 0) { y = 0; ball.dataset.vy = Math.abs(vy); }
+      if (y > H-BALL) { y = H-BALL; ball.dataset.vy = -Math.abs(vy); }
+      ball.style.left = x + 'px';
+      ball.style.top = y + 'px';
+    });
+
+    if (frame < totalFrames) {
+      animId = requestAnimationFrame(bounce);
+    } else {
+      // Resaltar la bola ganadora
+      cancelAnimationFrame(animId);
+      balls.forEach(ball => {
+        if (ball.textContent === winner) {
+          ball.classList.add('ball-selected');
+          ball.style.background = `radial-gradient(circle at 35% 35%, ${colors[0]}ff, ${colors[0]}aa)`;
+          ball.style.left = (W/2 - BALL/2) + 'px';
+          ball.style.top = (H/2 - BALL/2) + 'px';
+          ball.style.transition = 'all 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+        } else {
+          ball.style.opacity = '0.25';
+          ball.style.transition = 'opacity 0.4s ease';
+        }
+      });
+      document.getElementById('animStatus').textContent = '🎊 ¡Tenemos ganador!';
+      setTimeout(onDone, 800);
+    }
+  }
+  animId = requestAnimationFrame(bounce);
+}
+
+// ══ ORQUESTADOR ══
+const STYLES = {
+  ruleta:       { icon:'🎰', title:'Eligiendo ganador...', build:buildRuleta,  anim:animRuleta  },
+  tragamonedas: { icon:'🎲', title:'¡Girando los rodillos!', build:buildSlots3, anim:animSlots3  },
+  cartas:       { icon:'🃏', title:'Barajando las cartas...', build:buildCartas, anim:animCartas  },
+  bolas:        { icon:'🎱', title:'Mezclando las bolas...', build:buildBolas,  anim:animBolas   },
+};
 
 function spawnConfetti() {
   const colors = ['#9147ff','#f0c060','#40d090','#e05a7a','#60a0f0','#ffffff'];
@@ -157,6 +410,42 @@ function spawnConfetti() {
   }
 }
 
+function showAnimation(winner, prize, participants) {
+  if (slotAnimating) return;
+  slotAnimating = true;
+
+  const activeEl = document.getElementById('activeState');
+  const animEl   = document.getElementById('animState');
+  const winnerEl = document.getElementById('winnerState');
+  const style = STYLES[currentSpinStyle] || STYLES.ruleta;
+
+  // Setup
+  document.getElementById('animIcon').textContent = style.icon;
+  document.getElementById('animTitle').textContent = style.title;
+  document.getElementById('animCounter').textContent = `${participants.length} participantes`;
+
+  style.build(document.getElementById('animContent'));
+
+  activeEl.style.display = 'none';
+  animEl.classList.add('show');
+
+  const pool = participants.length > 1 ? participants : [winner, winner, winner, winner];
+
+  style.anim(pool, winner, () => {
+    setTimeout(() => {
+      animEl.classList.remove('show');
+      document.getElementById('winnerName').textContent = winner;
+      document.getElementById('winnerPrize').textContent = '🎁 ' + (prize || '');
+      winnerEl.classList.add('show');
+      spawnConfetti();
+      setTimeout(() => {
+        winnerEl.classList.remove('show');
+        slotAnimating = false;
+      }, 12000);
+    }, 400);
+  });
+}
+
 async function pollRaffle() {
   if (!username) return;
   try {
@@ -164,43 +453,35 @@ async function pollRaffle() {
     if (!res.ok) return;
     const data = await res.json();
 
-    const activeEl  = document.getElementById('activeState');
-    const winnerEl  = document.getElementById('winnerState');
+    const activeEl = document.getElementById('activeState');
+    const winnerEl = document.getElementById('winnerState');
+    const animEl   = document.getElementById('animState');
+
+    // Actualizar estilo si cambió
+    if (data.spin_style) currentSpinStyle = data.spin_style;
 
     if (data.winner && !winnerShown) {
-      winnerShown = data.winner; // guardar el nombre para no repetirlo
+      winnerShown = data.winner;
       sessionStorage.setItem('raffle_winner_shown', data.winner);
-      activeEl.style.display = 'none';
-      document.getElementById('winnerName').textContent  = data.winner;
-      document.getElementById('winnerPrize').textContent = '🎁 ' + (data.prize || '');
-      winnerEl.classList.add('show');
-      spawnConfetti();
-      setTimeout(() => {
-        winnerEl.classList.remove('show');
-        // Ocultar overlay completo — sorteo terminado
-        activeEl.style.display = 'none';
-      }, 12000);
+      const parts = lastParticipants.length > 0 ? lastParticipants : (data.participants || [data.winner]);
+      showAnimation(data.winner, data.prize, parts);
       return;
     }
 
-    // Si ya se mostró el ganador, no hacer nada más aunque siga en Supabase
     if (winnerShown) return;
 
     if (!data.active) { activeEl.style.opacity = ''; activeEl.style.display = 'none'; return; }
-    // Nuevo sorteo activo — limpiar ganador anterior
     if (data.active && winnerShown) { winnerShown = null; sessionStorage.removeItem('raffle_winner_shown'); }
 
-    // Aplicar opacidad y fondo configurados
     const opacity = (data.overlay_opacity ?? 100) / 100;
     activeEl.style.opacity = opacity;
     const bgOpacity = (data.bg_opacity ?? 75) / 100;
     document.documentElement.style.setProperty('--bg-opacity', bgOpacity);
-    // Quitar backdrop-filter cuando el fondo es casi sólido
-    const cards = document.querySelectorAll('.raffle-card, .winner-screen');
-    cards.forEach(el => {
+    document.querySelectorAll('.raffle-card,.winner-screen,.anim-screen').forEach(el => {
       el.style.backdropFilter = bgOpacity >= 0.9 ? 'none' : 'blur(12px)';
     });
 
+    animEl.classList.remove('show');
     winnerEl.classList.remove('show');
     activeEl.style.display = 'block';
     document.getElementById('overlayPrize').textContent   = '🏆 ' + (data.prize || '');
@@ -209,15 +490,11 @@ async function pollRaffle() {
 
     const list = document.getElementById('overlayParticipants');
     const participants = data.participants || [];
-
-    // Solo re-renderizar si cambió
     if (JSON.stringify(participants) !== JSON.stringify(lastParticipants)) {
       lastParticipants = participants;
-      if (!participants.length) {
-        list.innerHTML = '<span class="waiting">Esperando participantes...</span>';
-      } else {
-        list.innerHTML = participants.map(p => `<span class="p-tag">${p}</span>`).join('');
-      }
+      list.innerHTML = participants.length
+        ? participants.map(p => `<span class="p-tag">${p}</span>`).join('')
+        : '<span class="waiting">Esperando participantes...</span>';
     }
   } catch(e) {}
 }
