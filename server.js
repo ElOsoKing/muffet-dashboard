@@ -593,7 +593,7 @@ app.post('/webhook/twitch', (req, res) => {
     }
 
     // Enviar evento al bot para otros eventos
-    const botUrl = `http://localhost:${process.env.BOT_PORT || 3001}/event`;
+    const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
     fetch(botUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -645,7 +645,7 @@ async function handleRewardRedemption(event) {
   console.log(`[redemption] ✅ ${username} agregado al sorteo de #${channelName} (${participants.length} participantes)`);
 
   // Notificar en el chat via bot
-  const botUrl = `http://localhost:${process.env.BOT_PORT || 3001}/event`;
+  const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
   fetch(botUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1198,7 +1198,7 @@ app.post('/api/raffle/end', requireAuth, async (req, res) => {
     await sbUpdate('streamers', { raffle_active: { active: false, prize: raffle.prize, winner, participants: [], ended_at: new Date().toISOString() } }, { twitch_id: req.session.user.id });
 
     // Notificar al bot para que anuncie el ganador en el chat
-    const botUrl = `http://localhost:${process.env.BOT_PORT || 3001}/event`;
+    const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
     fetch(botUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
