@@ -3982,7 +3982,9 @@ function selectTimeFrame(val, el) {
 }
 
 async function saveShoutoutConfig() {
+  const current = streamerData.shoutout_config || {};
   const config = {
+    ...current,
     quality: document.querySelector('input[name="clipQuality"]:checked')?.value || '1080',
     volume: parseInt(document.getElementById('clipVolume')?.value) ?? 100,
     max_duration: parseInt(document.getElementById('clipMaxDuration')?.value) || 60,
