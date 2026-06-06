@@ -165,67 +165,72 @@ function animRuleta(participants, winner, onDone) {
   const reel = document.getElementById('slotReel');
   const statusEl = document.getElementById('animStatus');
   const ITEM_H = 44;
-  const COUNT = 60; // items en el reel para tener recorrido suficiente
 
+  // Lista circular infinita — el reel tiene muchos items para que nunca se vea el borde
   const shuffled = [...participants].sort(() => Math.random() - 0.5);
+  const BIG = 120;
   const spinList = [];
-  for (let i = 0; i < COUNT; i++) spinList.push(shuffled[i % shuffled.length]);
+  for (let i = 0; i < BIG; i++) spinList.push(shuffled[i % shuffled.length]);
   spinList.push(winner);
 
   reel.innerHTML = spinList.map((n,i) =>
     `<div class="slot-item${i===spinList.length-1?' highlight':''}">${n}</div>`
   ).join('');
-
-  // Posición inicial: arriba (primer elemento centrado)
   reel.style.transition = 'none';
   reel.style.transform = `translateY(${ITEM_H}px)`;
+  reel.getBoundingClientRect(); // force reflow
 
-  // Forzar reflow para que el browser tome la posición inicial
-  reel.getBoundingClientRect();
+  // Animación con requestAnimationFrame — física propia
+  // posición en px, velocidad en px/frame
+  let pos = ITEM_H;
+  const finalPos = -(BIG * ITEM_H) + ITEM_H;
+  const totalDist = Math.abs(finalPos - pos);
 
-  // Posición final: último elemento (ganador) centrado
-  const finalY = -(COUNT * ITEM_H) + ITEM_H;
+  let velocity = 0;
+  const maxVel = 60;       // velocidad pico en px/frame
+  const accelFrames = 30;  // frames para llegar a velocidad máxima
+  let frameCount = 0;
+  let phase = 'accel';     // accel → cruise → decel → done
+  let rafId;
 
-  // Animación en 3 pasos usando CSS keyframes con duración total ~8s
-  // Paso 1: arrancar rápido (0-30% del recorrido) en 1.5s
-  // Paso 2: velocidad máxima (30-70%) en 2s  
-  // Paso 3: frenar suave (70-100%) en 4.5s
-  const step1Y = Math.floor(COUNT * 0.30) * -ITEM_H + ITEM_H;
-  const step2Y = Math.floor(COUNT * 0.70) * -ITEM_H + ITEM_H;
+  // Cuándo empezar a frenar — cuando queda X px para el final
+  const decelDist = totalDist * 0.35;
 
-  function step1() {
-    statusEl.textContent = 'Girando...';
-    reel.style.transition = 'transform 1.5s cubic-bezier(0.4,0,0.6,1)';
-    reel.style.transform = `translateY(${step1Y}px)`;
-  }
-  function step2() {
-    statusEl.textContent = 'Girando...';
-    reel.style.transition = 'transform 2s linear';
-    reel.style.transform = `translateY(${step2Y}px)`;
-  }
-  function step3() {
-    statusEl.textContent = 'Frenando...';
-    reel.style.transition = 'transform 3.5s cubic-bezier(0.25,0.46,0.45,0.94)';
-    reel.style.transform = `translateY(${Math.floor(COUNT * 0.92) * -ITEM_H + ITEM_H}px)`;
-  }
-  function step4() {
-    statusEl.textContent = '¡Ya casi!';
-    reel.style.transition = 'transform 1.2s cubic-bezier(0.0,0.0,0.2,1)';
-    reel.style.transform = `translateY(${finalY}px)`;
-  }
-  function done() {
-    statusEl.textContent = '🎊 ¡Tenemos ganador!';
-    setTimeout(onDone, 500);
+  function tick() {
+    frameCount++;
+    const distLeft = Math.abs(finalPos - pos);
+
+    if (phase === 'accel') {
+      velocity = Math.min(maxVel, velocity + maxVel / accelFrames);
+      if (velocity >= maxVel) phase = 'cruise';
+      statusEl.textContent = 'Girando...';
+    } else if (phase === 'cruise') {
+      if (distLeft <= decelDist) phase = 'decel';
+      statusEl.textContent = 'Girando...';
+    } else if (phase === 'decel') {
+      // Frenar progresivamente — más lento conforme se acerca
+      const progress = 1 - (distLeft / decelDist);
+      velocity = maxVel * Math.pow(1 - progress, 1.8);
+      velocity = Math.max(velocity, 0.5); // mínimo para no parar antes
+      statusEl.textContent = distLeft < decelDist * 0.3 ? '¡Ya casi!' : 'Frenando...';
+    }
+
+    pos -= velocity;
+
+    if (pos <= finalPos) {
+      // Llegamos — snap exacto al ganador
+      reel.style.transform = `translateY(${finalPos}px)`;
+      statusEl.textContent = '🎊 ¡Tenemos ganador!';
+      cancelAnimationFrame(rafId);
+      setTimeout(onDone, 600);
+      return;
+    }
+
+    reel.style.transform = `translateY(${pos}px)`;
+    rafId = requestAnimationFrame(tick);
   }
 
-  // Secuenciar con requestAnimationFrame para evitar saltos
-  requestAnimationFrame(() => {
-    step1();
-    setTimeout(() => requestAnimationFrame(step2), 1500);
-    setTimeout(() => requestAnimationFrame(step3), 3500);
-    setTimeout(() => requestAnimationFrame(step4), 7000);
-    setTimeout(done, 8200);
-  });
+  rafId = requestAnimationFrame(tick);
 }
 
 // ══ ESTILO 2: TRAGAMONEDAS ══
