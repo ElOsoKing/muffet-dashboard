@@ -96,6 +96,15 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 .c{position:absolute;width:7px;height:7px;border-radius:2px;animation:fall 2.5s ease-in forwards;top:-10px;}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
 
+/* ── MARCOS DECORATIVOS ── */
+.frame-overlay{position:absolute;inset:0;pointer-events:none;z-index:20;}
+.frame-overlay svg{position:absolute;inset:0;width:100%;height:100%;}
+
+/* Animaciones de marcos */
+@keyframes neonPulse{0%,100%{opacity:1;filter:drop-shadow(0 0 4px currentColor);}50%{opacity:0.7;filter:drop-shadow(0 0 12px currentColor);}}
+@keyframes goldShine{0%{opacity:0.8;}50%{opacity:1;}100%{opacity:0.8;}}
+@keyframes spiderWeb{0%{opacity:0.6;}50%{opacity:1;}100%{opacity:0.6;}}
+
 /* Animaciones */
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideIn{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
@@ -108,6 +117,8 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 <div id="scene">
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
+  <!-- Marco decorativo -->
+  <div class="frame-overlay" id="frameOverlay"></div>
   <!-- Título arriba -->
   <div id="titleBar"><div id="soTitle"></div></div>
   <!-- Clip en el medio -->
@@ -241,6 +252,9 @@ function applyStyle(config) {
     overlay.style.borderRadius = '12px';
   }
 
+  // Marco decorativo
+  applyFrame(bs, accent);
+
   // Barra progreso
   document.getElementById('progressFill').style.background =
     `linear-gradient(90deg,${accent},${accent}99)`;
@@ -251,6 +265,152 @@ function applyStyle(config) {
     link.rel = 'stylesheet';
     link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(font)}:wght@400;700;800&display=swap`;
     document.head.appendChild(link);
+  }
+}
+
+function applyFrame(frameStyle, accent) {
+  const frameEl = document.getElementById('frameOverlay');
+  if (!frameEl) return;
+  frameEl.innerHTML = '';
+  frameEl.style.animation = '';
+
+  const c = accent || '#9147ff'; // color acento
+
+  if (frameStyle === 'corners') {
+    // Solo esquinas decoradas
+    frameEl.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="${c}" stroke-width="2.5" fill="none" opacity="0.9">
+        <polyline points="2,14 2,2 14,2"/>
+        <polyline points="86,2 98,2 98,14"/>
+        <polyline points="2,86 2,98 14,98"/>
+        <polyline points="86,98 98,98 98,86"/>
+        <line x1="2" y1="2" x2="6" y2="6" stroke-width="1"/>
+        <line x1="98" y1="2" x2="94" y2="6" stroke-width="1"/>
+        <line x1="2" y1="98" x2="6" y2="94" stroke-width="1"/>
+        <line x1="98" y1="98" x2="94" y2="94" stroke-width="1"/>
+      </g>
+    </svg>`;
+  } else if (frameStyle === 'gold') {
+    frameEl.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#f0c060"/>
+          <stop offset="30%" style="stop-color:#ffd700"/>
+          <stop offset="60%" style="stop-color:#f0a800"/>
+          <stop offset="100%" style="stop-color:#f0c060"/>
+        </linearGradient>
+      </defs>
+      <rect x="1" y="1" width="98" height="98" rx="3" ry="3" stroke="url(#goldGrad)" stroke-width="2.5" fill="none"/>
+      <rect x="3.5" y="3.5" width="93" height="93" rx="2" ry="2" stroke="url(#goldGrad)" stroke-width="0.8" fill="none" opacity="0.5"/>
+      <!-- Ornamentos en esquinas -->
+      <circle cx="4" cy="4" r="2" fill="#ffd700"/>
+      <circle cx="96" cy="4" r="2" fill="#ffd700"/>
+      <circle cx="4" cy="96" r="2" fill="#ffd700"/>
+      <circle cx="96" cy="96" r="2" fill="#ffd700"/>
+      <!-- Detalles laterales -->
+      <line x1="20" y1="1.5" x2="80" y2="1.5" stroke="#ffd700" stroke-width="1" opacity="0.6"/>
+      <line x1="20" y1="98.5" x2="80" y2="98.5" stroke="#ffd700" stroke-width="1" opacity="0.6"/>
+    </svg>`;
+    frameEl.style.animation = 'goldShine 3s ease infinite';
+  } else if (frameStyle === 'neon') {
+    frameEl.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1.5" y="1.5" width="97" height="97" rx="2" ry="2" stroke="#e05a7a" stroke-width="2" fill="none" filter="url(#neonBlur)"/>
+      <rect x="1.5" y="1.5" width="97" height="97" rx="2" ry="2" stroke="#e05a7a" stroke-width="0.5" fill="none" opacity="0.5"/>
+      <defs>
+        <filter id="neonBlur"><feGaussianBlur stdDeviation="1.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+    </svg>`;
+    frameEl.style.animation = 'neonPulse 1.5s ease infinite';
+    frameEl.style.color = '#e05a7a';
+  } else if (frameStyle === 'gaming') {
+    // Estilo HUD con cortes en esquinas
+    frameEl.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="${c}" fill="none">
+        <!-- Marco principal con cortes en esquinas -->
+        <polyline points="12,1.5 88,1.5 98.5,12 98.5,88 88,98.5 12,98.5 1.5,88 1.5,12 12,1.5" stroke-width="2"/>
+        <!-- Detalles interiores en esquinas -->
+        <polyline points="14,4 22,4 22,6" stroke-width="1" opacity="0.6"/>
+        <polyline points="86,4 78,4 78,6" stroke-width="1" opacity="0.6"/>
+        <polyline points="14,96 22,96 22,94" stroke-width="1" opacity="0.6"/>
+        <polyline points="86,96 78,96 78,94" stroke-width="1" opacity="0.6"/>
+        <!-- Marcas laterales -->
+        <line x1="1.5" y1="40" x2="4" y2="40" stroke-width="1.5" opacity="0.7"/>
+        <line x1="1.5" y1="50" x2="5" y2="50" stroke-width="2" opacity="0.9"/>
+        <line x1="1.5" y1="60" x2="4" y2="60" stroke-width="1.5" opacity="0.7"/>
+        <line x1="98.5" y1="40" x2="96" y2="40" stroke-width="1.5" opacity="0.7"/>
+        <line x1="98.5" y1="50" x2="95" y2="50" stroke-width="2" opacity="0.9"/>
+        <line x1="98.5" y1="60" x2="96" y2="60" stroke-width="1.5" opacity="0.7"/>
+      </g>
+    </svg>`;
+  } else if (frameStyle === 'medieval') {
+    frameEl.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="#8B6914" fill="none">
+        <rect x="2" y="2" width="96" height="96" stroke-width="2.5"/>
+        <rect x="4.5" y="4.5" width="91" height="91" stroke-width="0.8" opacity="0.5"/>
+        <!-- Torres en esquinas -->
+        <rect x="1" y="1" width="8" height="8" stroke-width="1.5" fill="#8B691422"/>
+        <rect x="91" y="1" width="8" height="8" stroke-width="1.5" fill="#8B691422"/>
+        <rect x="1" y="91" width="8" height="8" stroke-width="1.5" fill="#8B691422"/>
+        <rect x="91" y="91" width="8" height="8" stroke-width="1.5" fill="#8B691422"/>
+        <!-- Almenas -->
+        <rect x="2" y="1" width="3" height="3" fill="#8B6914"/>
+        <rect x="6" y="1" width="3" height="3" fill="#8B6914"/>
+        <rect x="91" y="1" width="3" height="3" fill="#8B6914"/>
+        <rect x="95" y="1" width="3" height="3" fill="#8B6914"/>
+        <rect x="2" y="96" width="3" height="3" fill="#8B6914"/>
+        <rect x="6" y="96" width="3" height="3" fill="#8B6914"/>
+        <rect x="91" y="96" width="3" height="3" fill="#8B6914"/>
+        <rect x="95" y="96" width="3" height="3" fill="#8B6914"/>
+        <!-- Ornamento central superior -->
+        <path d="M47,2 L50,5 L53,2" stroke-width="1.5" fill="#8B691433"/>
+        <path d="M47,98 L50,95 L53,98" stroke-width="1.5" fill="#8B691433"/>
+      </g>
+    </svg>`;
+  } else if (frameStyle === 'spider') {
+    // Telarañas en las esquinas — temático Muffet
+    frameEl.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="${c}" fill="none" opacity="0.85">
+        <!-- Borde principal -->
+        <rect x="1.5" y="1.5" width="97" height="97" rx="4" stroke-width="1.5"/>
+        <!-- Telaraña esquina superior izquierda -->
+        <line x1="2" y1="2" x2="20" y2="2" stroke-width="0.8" opacity="0.5"/>
+        <line x1="2" y1="2" x2="2" y2="20" stroke-width="0.8" opacity="0.5"/>
+        <line x1="2" y1="2" x2="20" y2="20" stroke-width="0.8" opacity="0.5"/>
+        <path d="M2,8 Q8,8 8,2" stroke-width="0.7" opacity="0.6"/>
+        <path d="M2,14 Q14,14 14,2" stroke-width="0.7" opacity="0.6"/>
+        <path d="M2,20 Q20,20 20,2" stroke-width="0.7" opacity="0.6"/>
+        <!-- Araña pequeña esquina SL -->
+        <circle cx="5" cy="5" r="1.2" fill="${c}" opacity="0.8"/>
+        <!-- Telaraña esquina superior derecha -->
+        <line x1="98" y1="2" x2="80" y2="2" stroke-width="0.8" opacity="0.5"/>
+        <line x1="98" y1="2" x2="98" y2="20" stroke-width="0.8" opacity="0.5"/>
+        <line x1="98" y1="2" x2="80" y2="20" stroke-width="0.8" opacity="0.5"/>
+        <path d="M98,8 Q92,8 92,2" stroke-width="0.7" opacity="0.6"/>
+        <path d="M98,14 Q86,14 86,2" stroke-width="0.7" opacity="0.6"/>
+        <path d="M98,20 Q80,20 80,2" stroke-width="0.7" opacity="0.6"/>
+        <circle cx="95" cy="5" r="1.2" fill="${c}" opacity="0.8"/>
+        <!-- Telaraña esquina inferior izquierda -->
+        <line x1="2" y1="98" x2="20" y2="98" stroke-width="0.8" opacity="0.5"/>
+        <line x1="2" y1="98" x2="2" y2="80" stroke-width="0.8" opacity="0.5"/>
+        <line x1="2" y1="98" x2="20" y2="80" stroke-width="0.8" opacity="0.5"/>
+        <path d="M2,92 Q8,92 8,98" stroke-width="0.7" opacity="0.6"/>
+        <path d="M2,86 Q14,86 14,98" stroke-width="0.7" opacity="0.6"/>
+        <path d="M2,80 Q20,80 20,98" stroke-width="0.7" opacity="0.6"/>
+        <circle cx="5" cy="95" r="1.2" fill="${c}" opacity="0.8"/>
+        <!-- Telaraña esquina inferior derecha -->
+        <line x1="98" y1="98" x2="80" y2="98" stroke-width="0.8" opacity="0.5"/>
+        <line x1="98" y1="98" x2="98" y2="80" stroke-width="0.8" opacity="0.5"/>
+        <line x1="98" y1="98" x2="80" y2="80" stroke-width="0.8" opacity="0.5"/>
+        <path d="M98,92 Q92,92 92,98" stroke-width="0.7" opacity="0.6"/>
+        <path d="M98,86 Q86,86 86,98" stroke-width="0.7" opacity="0.6"/>
+        <path d="M98,80 Q80,80 80,98" stroke-width="0.7" opacity="0.6"/>
+        <circle cx="95" cy="95" r="1.2" fill="${c}" opacity="0.8"/>
+      </g>
+    </svg>`;
+    frameEl.style.animation = 'spiderWeb 3s ease infinite';
+  } else {
+    // Sin marco especial — limpiar
+    frameEl.innerHTML = '';
   }
 }
 
