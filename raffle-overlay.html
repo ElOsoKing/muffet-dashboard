@@ -13,8 +13,9 @@
   --text:#e8e8f0;--text-dim:#8a8aaa;
   --sans:'Inter',sans-serif;--display:'VT323',monospace;--radius:12px;
 }
-html,body{background:transparent !important;width:100%;height:100%;font-family:var(--sans);color:var(--text);overflow:hidden;}
-.overlay{position:fixed;bottom:20px;left:20px;width:320px;}
+html,body{background:transparent !important;width:1920px;height:1080px;font-family:var(--sans);color:var(--text);overflow:hidden;}
+:root{--overlay-w:320px;--anim-h:130px;}
+.overlay{position:fixed;bottom:20px;left:20px;width:var(--overlay-w);}
 
 /* CARD ACTIVA */
 .raffle-card{background:var(--bg);backdrop-filter:blur(12px);border:1px solid rgba(145,71,255,0.4);border-radius:var(--radius);overflow:hidden;animation:slideIn 0.4s cubic-bezier(0.34,1.56,0.64,1);}
@@ -46,7 +47,7 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 .anim-counter{display:inline-block;background:var(--purple-dim);border:1px solid var(--purple);border-radius:20px;padding:2px 10px;color:var(--purple-light);font-size:11px;font-weight:700;margin-left:6px;}
 
 /* RULETA */
-.slot-window{height:130px;overflow:hidden;position:relative;background:rgba(0,0,0,0.5);}
+.slot-window{height:var(--anim-h);overflow:hidden;position:relative;background:rgba(0,0,0,0.5);}
 .slot-window::before{content:'';position:absolute;top:0;left:0;right:0;height:40px;background:linear-gradient(to bottom,rgba(0,0,0,0.85),transparent);z-index:2;pointer-events:none;}
 .slot-window::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to top,rgba(0,0,0,0.85),transparent);z-index:2;pointer-events:none;}
 .slot-center-line{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:44px;background:rgba(145,71,255,0.12);border-top:1px solid rgba(145,71,255,0.5);border-bottom:1px solid rgba(145,71,255,0.5);z-index:1;pointer-events:none;}
@@ -54,11 +55,11 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 .slot-arrow{font-size:20px;color:var(--yellow);text-shadow:0 0 8px rgba(240,192,96,0.8);animation:arrowPulse 0.4s ease infinite alternate;}
 @keyframes arrowPulse{from{opacity:0.5;}to{opacity:1;}}
 .slot-reel{display:flex;flex-direction:column;align-items:center;will-change:transform;}
-.slot-item{height:44px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:28px;color:white;width:100%;text-align:center;text-shadow:0 0 10px rgba(145,71,255,0.5);flex-shrink:0;}
+.slot-item{height:44px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:var(--item-font,28px);color:white;width:100%;text-align:center;text-shadow:0 0 10px rgba(145,71,255,0.5);flex-shrink:0;}
 .slot-item.highlight{color:var(--yellow);text-shadow:0 0 16px rgba(240,192,96,0.9);}
 
 /* TRAGAMONEDAS */
-.slots-3col{display:flex;gap:4px;padding:8px;background:rgba(0,0,0,0.5);height:130px;}
+.slots-3col{display:flex;gap:4px;padding:8px;background:rgba(0,0,0,0.5);height:var(--anim-h);}
 .slots-3col .slot-col{flex:1;overflow:hidden;position:relative;border-radius:6px;border:1px solid rgba(145,71,255,0.3);}
 .slots-3col .slot-col::before{content:'';position:absolute;top:0;left:0;right:0;height:30px;background:linear-gradient(to bottom,rgba(0,0,0,0.9),transparent);z-index:2;}
 .slots-3col .slot-col::after{content:'';position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(to top,rgba(0,0,0,0.9),transparent);z-index:2;}
@@ -68,14 +69,14 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 .slots-3col .col-highlight{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:43px;background:rgba(145,71,255,0.1);border-top:1px solid rgba(145,71,255,0.4);border-bottom:1px solid rgba(145,71,255,0.4);z-index:1;}
 
 /* CARTAS */
-.cards-area{height:130px;display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,0.4);position:relative;overflow:hidden;}
+.cards-area{height:var(--anim-h);display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,0.4);position:relative;overflow:hidden;}
 
 /* BOLAS */
-.balls-area{height:130px;position:relative;overflow:hidden;background:rgba(0,0,0,0.4);}
+.balls-area{height:var(--anim-h);position:relative;overflow:hidden;background:rgba(0,0,0,0.4);}
 .lottery-ball{position:absolute;width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;color:white;text-align:center;font-weight:700;line-height:1.1;word-break:break-all;padding:4px;will-change:transform;box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 -3px 6px rgba(0,0,0,0.3),inset 0 3px 6px rgba(255,255,255,0.2);}
 
 /* RUEDA */
-.wheel-wrap{display:flex;align-items:center;justify-content:space-between;height:130px;padding:2px 8px;background:rgba(0,0,0,0.4);gap:8px;}
+.wheel-wrap{display:flex;align-items:center;justify-content:space-between;height:var(--anim-h);padding:2px 8px;background:rgba(0,0,0,0.4);gap:8px;}
 .wheel-container{position:relative;width:130px;height:130px;flex-shrink:0;}
 .wheel-pointer{position:absolute;right:-13px;top:50%;transform:translateY(-50%);font-size:24px;filter:drop-shadow(0 0 6px rgba(240,192,96,0.9));z-index:5;}
 .wheel-winner-text{flex:1;font-family:var(--display);font-size:26px;color:var(--yellow);text-shadow:0 0 14px rgba(240,192,96,0.8);text-align:center;display:none;line-height:1.2;word-break:break-word;}
@@ -111,7 +112,7 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 
 /* Nombre con glow pulsante */
 .winner-name{
-  font-family:var(--display);font-size:46px;color:white;line-height:1;
+  font-family:var(--display);font-size:var(--winner-font,46px);color:white;line-height:1;
   margin-bottom:6px;word-break:break-all;
   text-shadow:0 0 20px var(--yellow),0 0 40px rgba(240,192,96,0.5);
   animation:nameReveal 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.5s both, nameGlow 2s ease 1.2s infinite;
@@ -205,17 +206,14 @@ const SIZES = {
 
 function applySize(size) {
   const s = SIZES[size] || SIZES.medium;
-  const overlay = document.getElementById('overlay');
-  overlay.style.width = s.width + 'px';
-  // Ajustar altura de las áreas de animación
-  document.querySelectorAll('.slot-window,.slots-3col,.cards-area,.balls-area,.wheel-wrap').forEach(el => {
-    el.style.height = s.animH + 'px';
-  });
-  // Ajustar fuente de los items
-  document.documentElement.style.setProperty('--anim-scale', s.fontSize);
-  // Ajustar canvas de la rueda si existe
-  const wc = document.getElementById('wheelCanvas');
-  if (wc) { const ws = Math.round(s.animH - 4); wc.width = ws; wc.height = ws; }
+  // Usar CSS variables para que todo escale junto
+  document.documentElement.style.setProperty('--overlay-w', s.width + 'px');
+  document.documentElement.style.setProperty('--anim-h', s.animH + 'px');
+  // Ajustar fuentes según tamaño
+  const root = document.documentElement;
+  root.style.setProperty('--header-font', Math.round(14 * s.fontSize) + 'px');
+  root.style.setProperty('--item-font', Math.round(28 * s.fontSize) + 'px');
+  root.style.setProperty('--winner-font', Math.round(46 * s.fontSize) + 'px');
 }
 
 // Fisher-Yates shuffle real
