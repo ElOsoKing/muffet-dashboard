@@ -81,16 +81,63 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 .wheel-winner-text{flex:1;font-family:var(--display);font-size:26px;color:var(--yellow);text-shadow:0 0 14px rgba(240,192,96,0.8);text-align:center;display:none;line-height:1.2;word-break:break-word;}
 
 /* GANADOR */
-.winner-screen{display:none;background:var(--bg);backdrop-filter:blur(16px);border:2px solid var(--yellow);border-radius:var(--radius);padding:24px 20px;text-align:center;animation:winnerIn 0.6s cubic-bezier(0.34,1.56,0.64,1);position:relative;overflow:hidden;}
-.winner-screen.show{display:block;}
-@keyframes winnerIn{from{transform:scale(0.5);opacity:0;}to{transform:scale(1);opacity:1;}}
-.winner-trophy{font-size:48px;display:block;margin-bottom:8px;animation:trophyBounce 0.5s ease infinite alternate;}
-@keyframes trophyBounce{from{transform:translateY(0) rotate(-5deg);}to{transform:translateY(-8px) rotate(5deg);}}
-.winner-label{font-size:10px;font-weight:600;color:var(--yellow);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
-.winner-name{font-family:var(--display);font-size:42px;color:white;line-height:1;margin-bottom:4px;text-shadow:0 0 20px rgba(145,71,255,0.8);word-break:break-all;}
-.winner-prize{font-size:12px;color:var(--text-dim);}
-.confetti-piece{position:absolute;width:7px;height:7px;border-radius:2px;animation:confettiFall 2.5s ease-in forwards;}
-@keyframes confettiFall{0%{opacity:1;transform:translateY(-10px) rotate(0);}100%{opacity:0;transform:translateY(250px) rotate(720deg);}}
+.winner-screen{
+  display:none;position:relative;overflow:hidden;
+  background:linear-gradient(135deg,rgba(0,0,0,0.95),rgba(10,0,20,0.98));
+  border:2px solid var(--yellow);border-radius:var(--radius);
+  padding:0;text-align:center;
+}
+.winner-screen.show{display:block;animation:winnerScreenIn 0.5s cubic-bezier(0.34,1.56,0.64,1);}
+@keyframes winnerScreenIn{from{transform:scale(0.8);opacity:0;}to{transform:scale(1);opacity:1;}}
+
+/* Fondo de fuegos artificiales */
+#fireworksCanvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;}
+
+/* Contenido sobre los fuegos */
+.winner-content{position:relative;z-index:2;padding:18px 20px 20px;}
+
+/* Corona animada */
+.winner-crown{font-size:36px;display:block;margin-bottom:2px;
+  animation:crownDrop 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.1s both;}
+@keyframes crownDrop{from{transform:translateY(-40px) scale(0.5);opacity:0;}to{transform:translateY(0) scale(1);opacity:1;}}
+
+/* Label */
+.winner-label{
+  font-size:10px;font-weight:700;color:var(--yellow);
+  text-transform:uppercase;letter-spacing:3px;margin-bottom:8px;
+  animation:fadeSlideUp 0.4s ease 0.3s both;
+}
+@keyframes fadeSlideUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+/* Nombre con glow pulsante */
+.winner-name{
+  font-family:var(--display);font-size:46px;color:white;line-height:1;
+  margin-bottom:6px;word-break:break-all;
+  text-shadow:0 0 20px var(--yellow),0 0 40px rgba(240,192,96,0.5);
+  animation:nameReveal 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.5s both, nameGlow 2s ease 1.2s infinite;
+}
+@keyframes nameReveal{from{transform:scale(0.3);opacity:0;filter:blur(8px);}to{transform:scale(1);opacity:1;filter:blur(0);}}
+@keyframes nameGlow{0%,100%{text-shadow:0 0 20px var(--yellow),0 0 40px rgba(240,192,96,0.5);}50%{text-shadow:0 0 30px var(--yellow),0 0 60px rgba(240,192,96,0.8),0 0 80px rgba(240,192,96,0.3);}}
+
+/* Premio */
+.winner-prize{
+  font-size:13px;color:var(--purple-light);font-weight:600;
+  background:rgba(145,71,255,0.15);border:1px solid rgba(145,71,255,0.3);
+  border-radius:20px;padding:4px 14px;display:inline-block;
+  animation:fadeSlideUp 0.4s ease 0.8s both;
+}
+
+/* Barra brillante */
+.winner-shine{
+  position:absolute;top:0;left:-100%;width:60%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.06),transparent);
+  animation:shine 2s ease 1s infinite;z-index:1;pointer-events:none;
+}
+@keyframes shine{0%{left:-100%;}100%{left:200%;}}
+
+/* Confetti mejorado */
+.confetti-piece{position:absolute;animation:confettiFall 3s ease-in forwards;z-index:3;}
+@keyframes confettiFall{0%{opacity:1;transform:translateY(-10px) rotate(0) scale(1);}70%{opacity:1;}100%{opacity:0;transform:translateY(280px) rotate(720deg) scale(0.5);}}
 </style>
 </head>
 <body>
@@ -130,10 +177,14 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
     </div>
   </div>
   <div class="winner-screen" id="winnerState">
-    <span class="winner-trophy">🏆</span>
-    <div class="winner-label">¡Ganador!</div>
-    <div class="winner-name" id="winnerName"></div>
-    <div class="winner-prize" id="winnerPrize"></div>
+    <canvas id="fireworksCanvas"></canvas>
+    <div class="winner-shine"></div>
+    <div class="winner-content">
+      <span class="winner-crown">👑</span>
+      <div class="winner-label">¡Tenemos ganador!</div>
+      <div class="winner-name" id="winnerName"></div>
+      <div class="winner-prize" id="winnerPrize"></div>
+    </div>
   </div>
 </div>
 
@@ -144,6 +195,28 @@ let winnerShown = sessionStorage.getItem('raffle_winner_shown') || null;
 let slotAnimating = false;
 let currentSpinStyle = 'ruleta';
 const WINNER_REVEAL_TIME = 1200;
+
+// Tamaños del overlay
+const SIZES = {
+  small:  { width: 240, animH: 100, fontSize: 0.8 },
+  medium: { width: 320, animH: 130, fontSize: 1.0 },
+  large:  { width: 420, animH: 170, fontSize: 1.3 },
+};
+
+function applySize(size) {
+  const s = SIZES[size] || SIZES.medium;
+  const overlay = document.getElementById('overlay');
+  overlay.style.width = s.width + 'px';
+  // Ajustar altura de las áreas de animación
+  document.querySelectorAll('.slot-window,.slots-3col,.cards-area,.balls-area,.wheel-wrap').forEach(el => {
+    el.style.height = s.animH + 'px';
+  });
+  // Ajustar fuente de los items
+  document.documentElement.style.setProperty('--anim-scale', s.fontSize);
+  // Ajustar canvas de la rueda si existe
+  const wc = document.getElementById('wheelCanvas');
+  if (wc) { const ws = Math.round(s.animH - 4); wc.width = ws; wc.height = ws; }
+}
 
 // Fisher-Yates shuffle real
 function shuffle(array) {
@@ -513,15 +586,84 @@ const STYLES = {
 };
 
 function spawnConfetti() {
-  const colors = ['#9147ff','#f0c060','#40d090','#e05a7a','#60a0f0','#ffffff'];
+  const colors = ['#9147ff','#f0c060','#40d090','#e05a7a','#60a0f0','#ffffff','#ff6b35','#b388ff'];
   const screen = document.getElementById('winnerState');
-  for (let i = 0; i < 25; i++) {
+
+  // Confetti mejorado — distintas formas y tamaños
+  for (let i = 0; i < 40; i++) {
     const el = document.createElement('div');
     el.className = 'confetti-piece';
-    el.style.cssText = `left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};animation-delay:${Math.random()*1.5}s;animation-duration:${2+Math.random()}s;`;
+    const size = 5 + Math.random() * 8;
+    const isCircle = Math.random() > 0.5;
+    el.style.cssText = `
+      left:${Math.random()*100}%;
+      background:${colors[Math.floor(Math.random()*colors.length)]};
+      animation-delay:${Math.random()*2}s;
+      animation-duration:${2.5+Math.random()*1.5}s;
+      width:${size}px;height:${isCircle?size:size*0.4}px;
+      border-radius:${isCircle?'50%':'2px'};
+      transform:rotate(${Math.random()*360}deg);
+    `;
     screen.appendChild(el);
-    setTimeout(() => el.remove(), 4000);
+    setTimeout(() => el.remove(), 5000);
   }
+
+  // Fuegos artificiales en canvas
+  const canvas = document.getElementById('fireworksCanvas');
+  if (!canvas) return;
+  canvas.width = screen.offsetWidth || 320;
+  canvas.height = screen.offsetHeight || 160;
+  const ctx = canvas.getContext('2d');
+  const particles = [];
+  const fwColors = ['#f0c060','#9147ff','#40d090','#e05a7a','#58a6ff','#ffffff'];
+
+  function createBurst(x, y) {
+    const color = fwColors[Math.floor(Math.random() * fwColors.length)];
+    for (let i = 0; i < 28; i++) {
+      const angle = (i / 28) * Math.PI * 2;
+      const speed = 2 + Math.random() * 3;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1, decay: 0.02 + Math.random() * 0.02,
+        size: 2 + Math.random() * 3,
+        color
+      });
+    }
+  }
+
+  // Explotar 4 veces en posiciones aleatorias
+  const bursts = [
+    [0.25, 0.3], [0.75, 0.25], [0.5, 0.6], [0.15, 0.7], [0.85, 0.5]
+  ];
+  bursts.forEach(([px, py], i) => {
+    setTimeout(() => createBurst(canvas.width * px, canvas.height * py), i * 400);
+  });
+
+  let fwRaf;
+  function drawFw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      p.vy += 0.05; // gravedad suave
+      p.life -= p.decay;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (particles.length > 0) fwRaf = requestAnimationFrame(drawFw);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  fwRaf = requestAnimationFrame(drawFw);
+
+  // Limpiar después
+  setTimeout(() => { cancelAnimationFrame(fwRaf); ctx.clearRect(0,0,canvas.width,canvas.height); }, 8000);
 }
 
 function showAnimation(winner, prize, participants) {
@@ -560,6 +702,7 @@ async function pollRaffle() {
     const winnerEl = document.getElementById('winnerState');
     const animEl   = document.getElementById('animState');
     if (data.spin_style) currentSpinStyle = data.spin_style;
+    if (data.card_size) applySize(data.card_size);
     if (winnerShown && data.active && !data.winner) {
       winnerShown = null;
       sessionStorage.removeItem('raffle_winner_shown');
