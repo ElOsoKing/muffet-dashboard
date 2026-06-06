@@ -3915,13 +3915,13 @@ async function saveShoutoutStyle() {
     show_followers: document.getElementById('style_show_followers')?.checked !== false,
     show_timer: document.getElementById('style_show_timer')?.checked !== false,
     title: document.getElementById('style_title')?.value || '¡Sigan a {user}!',
-    border_style: document.querySelector('[data-border][data-selected="true"]')?.dataset?.border || 'glow',
+    border_style: document.querySelector('[data-border][data-selected="true"]')?.dataset?.border || streamerData.shoutout_config?.style?.border_style || 'glow',
     font: document.getElementById('style_font')?.value || 'Inter',
     text_color: document.getElementById('style_text_color')?.value || '#ffffff',
     accent_color: document.getElementById('style_accent_color')?.value || '#9147ff',
-    animation: document.querySelector('[data-anim][data-selected="true"]')?.dataset?.anim || 'fade',
-    card_size: document.querySelector('[data-size][data-selected="true"]')?.dataset?.size || 'medium',
-    card_position: document.querySelector('[data-pos][data-selected="true"]')?.dataset?.pos || 'bottom-left',
+    animation: document.querySelector('[data-anim][data-selected="true"]')?.dataset?.anim || streamerData.shoutout_config?.style?.animation || 'fade',
+    card_size: document.querySelector('[data-size][data-selected="true"]')?.dataset?.size || streamerData.shoutout_config?.style?.card_size || 'medium',
+    card_position: document.querySelector('[data-pos][data-selected="true"]')?.dataset?.pos || streamerData.shoutout_config?.style?.card_position || 'bottom-left',
   };
   const current = streamerData.shoutout_config || {};
   const config = { ...current, style };
