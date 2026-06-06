@@ -2188,6 +2188,12 @@ function renderMain() {
           </div>
 
           <div style="margin-bottom:16px;">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🎁 Canje de puntos del canal (opcional)</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;line-height:1.5;">Si tienes una recompensa de puntos del canal para el sorteo, escribe aquí el nombre exacto del mensaje que pide al canjearla. Muffet agregará automáticamente a quien la canjee si hay un sorteo activo.</div>
+            <input class="form-input" id="raffleRewardName" value="${s.raffle_settings?.reward_name||''}" placeholder="Ej: entrar sorteo, participar, ticket sorteo..." style="font-size:13px;">
+          </div>
+
+          <div style="margin-bottom:16px;">
             <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">¿Quién puede participar?</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;">
               ${['everyone','sub','vip','mod'].map(p => {
@@ -4881,11 +4887,12 @@ function setRaffleBgOpacity(val) {
 async function saveRaffleSettings() {
   const allowed = Array.from(document.querySelectorAll('#sec-raffle [data-perm]:checked')).map(i=>i.dataset.perm);
   const join_cmd = document.getElementById('raffleJoinCmd')?.value.trim() || '!entrar';
+  const reward_name = document.getElementById('raffleRewardName')?.value.trim() || '';
   const entries_everyone = parseInt(document.getElementById('entries_everyone')?.value) || 1;
   const entries_sub = parseInt(document.getElementById('entries_sub')?.value) || 2;
   const entries_vip = parseInt(document.getElementById('entries_vip')?.value) || 2;
   const entries_mod = parseInt(document.getElementById('entries_mod')?.value) || 1;
-  const raffle_settings = { allowed: allowed.length ? allowed : ['everyone'], join_cmd, entries_everyone, entries_sub, entries_vip, entries_mod };
+  const raffle_settings = { allowed: allowed.length ? allowed : ['everyone'], join_cmd, reward_name, entries_everyone, entries_sub, entries_vip, entries_mod };
   const res = await fetch('/api/raffle/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ raffle_settings }) });
   if(res.ok) { streamerData.raffle_settings = raffle_settings; showToast('Configuración guardada ✓'); }
   else showToast('Error al guardar','error');
