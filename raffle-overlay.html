@@ -163,41 +163,69 @@ function buildRuleta(container) {
 
 function animRuleta(participants, winner, onDone) {
   const reel = document.getElementById('slotReel');
+  const statusEl = document.getElementById('animStatus');
   const ITEM_H = 44;
+  const COUNT = 60; // items en el reel para tener recorrido suficiente
+
   const shuffled = [...participants].sort(() => Math.random() - 0.5);
   const spinList = [];
-  for (let i = 0; i < 40; i++) spinList.push(shuffled[i % shuffled.length]);
+  for (let i = 0; i < COUNT; i++) spinList.push(shuffled[i % shuffled.length]);
   spinList.push(winner);
+
   reel.innerHTML = spinList.map((n,i) =>
     `<div class="slot-item${i===spinList.length-1?' highlight':''}">${n}</div>`
   ).join('');
+
+  // Posición inicial: arriba (primer elemento centrado)
   reel.style.transition = 'none';
   reel.style.transform = `translateY(${ITEM_H}px)`;
-  const phases = [
-    {dur:800,ease:'cubic-bezier(0.2,0,0.8,1)',label:'Girando...',pct:0.15},
-    {dur:1200,ease:'cubic-bezier(0.2,0,0.6,1)',label:'Girando...',pct:0.35},
-    {dur:1800,ease:'cubic-bezier(0.1,0,0.4,1)',label:'Frenando...',pct:0.60},
-    {dur:2500,ease:'cubic-bezier(0.05,0,0.2,1)',label:'Frenando...',pct:0.82},
-    {dur:1200,ease:'cubic-bezier(0.02,0,0.05,1)',label:'¡Ya casi!',pct:0.95},
-  ];
-  let idx = 0;
-  function next() {
-    if (idx >= phases.length) {
-      reel.style.transition = 'transform 0.4s cubic-bezier(0.34,1.56,0.64,1)';
-      reel.style.transform = `translateY(${-(spinList.length-1)*ITEM_H+ITEM_H}px)`;
-      document.getElementById('animStatus').textContent = '🎊 ¡Tenemos ganador!';
-      setTimeout(onDone, 600);
-      return;
-    }
-    const p = phases[idx];
-    const itemIdx = Math.floor(spinList.length * p.pct);
-    reel.style.transition = `transform ${p.dur}ms ${p.ease}`;
-    reel.style.transform = `translateY(${-(itemIdx*ITEM_H)+ITEM_H}px)`;
-    document.getElementById('animStatus').textContent = p.label;
-    idx++;
-    setTimeout(next, p.dur);
+
+  // Forzar reflow para que el browser tome la posición inicial
+  reel.getBoundingClientRect();
+
+  // Posición final: último elemento (ganador) centrado
+  const finalY = -(COUNT * ITEM_H) + ITEM_H;
+
+  // Animación en 3 pasos usando CSS keyframes con duración total ~8s
+  // Paso 1: arrancar rápido (0-30% del recorrido) en 1.5s
+  // Paso 2: velocidad máxima (30-70%) en 2s  
+  // Paso 3: frenar suave (70-100%) en 4.5s
+  const step1Y = Math.floor(COUNT * 0.30) * -ITEM_H + ITEM_H;
+  const step2Y = Math.floor(COUNT * 0.70) * -ITEM_H + ITEM_H;
+
+  function step1() {
+    statusEl.textContent = 'Girando...';
+    reel.style.transition = 'transform 1.5s cubic-bezier(0.4,0,0.6,1)';
+    reel.style.transform = `translateY(${step1Y}px)`;
   }
-  setTimeout(next, 100);
+  function step2() {
+    statusEl.textContent = 'Girando...';
+    reel.style.transition = 'transform 2s linear';
+    reel.style.transform = `translateY(${step2Y}px)`;
+  }
+  function step3() {
+    statusEl.textContent = 'Frenando...';
+    reel.style.transition = 'transform 3.5s cubic-bezier(0.25,0.46,0.45,0.94)';
+    reel.style.transform = `translateY(${Math.floor(COUNT * 0.92) * -ITEM_H + ITEM_H}px)`;
+  }
+  function step4() {
+    statusEl.textContent = '¡Ya casi!';
+    reel.style.transition = 'transform 1.2s cubic-bezier(0.0,0.0,0.2,1)';
+    reel.style.transform = `translateY(${finalY}px)`;
+  }
+  function done() {
+    statusEl.textContent = '🎊 ¡Tenemos ganador!';
+    setTimeout(onDone, 500);
+  }
+
+  // Secuenciar con requestAnimationFrame para evitar saltos
+  requestAnimationFrame(() => {
+    step1();
+    setTimeout(() => requestAnimationFrame(step2), 1500);
+    setTimeout(() => requestAnimationFrame(step3), 3500);
+    setTimeout(() => requestAnimationFrame(step4), 7000);
+    setTimeout(done, 8200);
+  });
 }
 
 // ══ ESTILO 2: TRAGAMONEDAS ══
