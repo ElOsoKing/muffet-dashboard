@@ -997,6 +997,24 @@ app.get('/api/spotify/current', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// API — listar recompensas de puntos del canal
+app.get('/api/raffle/rewards', requireAuth, async (req, res) => {
+  try {
+    const data = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${req.session.user.id}&limit=1`, { headers: sbHeaders });
+    const streamer = (await data.json())?.[0];
+    if (!streamer?.access_token) return res.status(400).json({ error: 'Sin token de Twitch' });
+    const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${streamer.twitch_id}&only_manageable_rewards=false`, {
+      headers: { 'Authorization': `Bearer ${streamer.access_token}`, 'Client-Id': process.env.TWITCH_CLIENT_ID }
+    });
+    if (!r.ok) {
+      const err = await r.json();
+      return res.status(400).json({ error: err.message || 'Error al obtener recompensas' });
+    }
+    const rewards = await r.json();
+    res.json({ rewards: rewards.data || [] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // API — config de Spotify
 app.post('/api/spotify/config', requireAuth, async (req, res) => {
   try {
