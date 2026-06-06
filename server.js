@@ -1014,6 +1014,7 @@ app.get('/api/raffle/rewards', requireAuth, async (req, res) => {
     // Log si no hay token
     if (!streamer?.access_token) console.error('[rewards] Sin access_token para', req.session.user.id);
     const rewards = await r.json();
+    console.log('[rewards] Twitch response:', JSON.stringify(rewards).slice(0, 500));
     res.json({ rewards: rewards.data || [] });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
