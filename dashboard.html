@@ -4986,8 +4986,11 @@ async function clearRaffleReward() {
   if (res.ok) {
     streamerData.raffle_settings = settings;
     showToast('Recompensa eliminada');
-    renderMain();
-    showSection('sorteo');
+    // Actualizar DOM sin renderMain
+    const selectedBlock = document.getElementById('selectedRewardBlock');
+    const noMsg = document.getElementById('noRewardMsg');
+    if (selectedBlock) selectedBlock.style.display = 'none';
+    if (noMsg) noMsg.style.display = 'block';
   }
 }
 
