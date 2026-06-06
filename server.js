@@ -666,7 +666,7 @@ app.get('/overlay/spotify/:username', async (req, res) => {
     const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=plan&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
-    if (!data?.[0] || data[0].plan !== 'pro') return proOnlyPage(res);
+    if (!data?.[0] || (data[0].plan !== 'pro' && data[0].plan !== 'admin')) return proOnlyPage(res);
     res.sendFile(path.join(__dirname, 'spotify-overlay.html'));
   } catch(err) { res.status(500).send('Error'); }
 });
@@ -1045,7 +1045,7 @@ app.get('/overlay/sorteo/:username', async (req, res) => {
     const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=plan&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
-    if (!data?.[0] || data[0].plan !== 'pro') return proOnlyPage(res);
+    if (!data?.[0] || (data[0].plan !== 'pro' && data[0].plan !== 'admin')) return proOnlyPage(res);
     res.sendFile(path.join(__dirname, 'raffle-overlay.html'));
   } catch(err) { res.status(500).send('Error'); }
 });
