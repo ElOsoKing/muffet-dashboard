@@ -166,24 +166,25 @@ function animRuleta(participants, winner, onDone) {
   const statusEl = document.getElementById('animStatus');
   const ITEM_H = 44;
 
-  // Lista circular infinita — el reel tiene muchos items para que nunca se vea el borde
+  // Ganador en posición aleatoria — entre 70% y 90% del reel
   const shuffled = [...participants].sort(() => Math.random() - 0.5);
   const BIG = 120;
+  const winnerIdx = Math.floor(BIG * (0.7 + Math.random() * 0.2)); // posición aleatoria
   const spinList = [];
-  for (let i = 0; i < BIG; i++) spinList.push(shuffled[i % shuffled.length]);
-  spinList.push(winner);
+  for (let i = 0; i < BIG + 10; i++) {
+    if (i === winnerIdx) spinList.push(winner);
+    else spinList.push(shuffled[i % shuffled.length]);
+  }
 
   reel.innerHTML = spinList.map((n,i) =>
-    `<div class="slot-item${i===spinList.length-1?' highlight':''}">${n}</div>`
+    `<div class="slot-item${i===winnerIdx?' highlight':''}">${n}</div>`
   ).join('');
   reel.style.transition = 'none';
   reel.style.transform = `translateY(${ITEM_H}px)`;
   reel.getBoundingClientRect(); // force reflow
 
-  // Animación con requestAnimationFrame — física propia
-  // posición en px, velocidad en px/frame
   let pos = ITEM_H;
-  const finalPos = -(BIG * ITEM_H) + ITEM_H;
+  const finalPos = -(winnerIdx * ITEM_H) + ITEM_H;
   const totalDist = Math.abs(finalPos - pos);
 
   let velocity = 0;
@@ -245,41 +246,93 @@ function buildSlots3(container) {
 
 function animSlots3(participants, winner, onDone) {
   const ITEM_H = 43;
+  const statusEl = document.getElementById('animStatus');
   const shuffled = [...participants].sort(() => Math.random() - 0.5);
-  // Dividir nombre del ganador en 3 partes o usar 3 emojis/fragmentos
-  const parts = winner.length <= 6
-    ? [winner.slice(0,2)||'?', winner.slice(2,4)||'?', winner.slice(4)||'?']
-    : [winner.slice(0,Math.ceil(winner.length/3)), winner.slice(Math.ceil(winner.length/3),Math.ceil(winner.length*2/3)), winner.slice(Math.ceil(winner.length*2/3))];
+  const BIG = 90;
 
-  const cols = [0,1,2].map(i => {
+  // Ganador en posición aleatoria de cada columna
+  const colReels = [0,1,2].map(i => {
     const reel = document.getElementById(`col${i}`);
+    const total = BIG + i*10 + 10;
+    const winIdx = Math.floor(total * (0.65 + Math.random() * 0.2));
     const list = [];
-    for (let j = 0; j < 35+i*5; j++) list.push(shuffled[j % shuffled.length]);
-    list.push(winner); // mostrar nombre completo en cada col centrado
+    for (let j = 0; j < total; j++) {
+      if (j === winIdx) list.push(winner);
+      else list.push(shuffled[j % shuffled.length]);
+    }
     reel.innerHTML = list.map((n,idx) =>
-      `<div class="col-item${idx===list.length-1?' match':''}">${idx===list.length-1?parts[i]:n.slice(0,4)}</div>`
+      `<div class="col-item${idx===winIdx?' match':''}">${n.slice(0,6)}</div>`
     ).join('');
     reel.style.transition = 'none';
     reel.style.transform = `translateY(${ITEM_H}px)`;
-    return { reel, list };
+    reel.getBoundingClientRect();
+    const finalPos = -(winIdx * ITEM_H) + ITEM_H;
+    return { reel, finalPos, list };
   });
 
-  const delays = [0, 400, 800];
-  const baseDur = [6000, 6400, 6800];
-  let done = 0;
+  // Animar cada columna con RAF — velocidades de parada distintas para efecto casino
+  const maxVels = [55, 50, 45];
+  const stopDelays = [0, 60, 120]; // frames de delay entre columnas al frenar
+  let doneCount = 0;
 
-  cols.forEach(({reel, list}, i) => {
-    setTimeout(() => {
-      reel.style.transition = `transform ${baseDur[i]}ms cubic-bezier(0.05,0.2,0.1,1)`;
-      reel.style.transform = `translateY(${-(list.length-1)*ITEM_H+ITEM_H}px)`;
-    }, delays[i]+100);
-    setTimeout(() => {
-      done++;
-      if (done === 3) {
-        document.getElementById('animStatus').textContent = '🎊 ¡Tenemos ganador!';
-        setTimeout(onDone, 500);
+  colReels.forEach(({reel, finalPos}, colIdx) => {
+    let pos = ITEM_H;
+    let velocity = 0;
+    const maxVel = maxVels[colIdx];
+    const totalDist = Math.abs(finalPos - pos);
+    const decelDist = totalDist * 0.4;
+    let phase = 'accel';
+    let frameCount = 0;
+    let started = false;
+    let rafId;
+
+    function tick() {
+      frameCount++;
+      // Delay de arranque para col 1 y 2
+      if (!started) {
+        if (frameCount < colIdx * 8) { rafId = requestAnimationFrame(tick); return; }
+        started = true;
       }
-    }, delays[i]+baseDur[i]+100);
+
+      const distLeft = Math.abs(finalPos - pos);
+
+      if (phase === 'accel') {
+        velocity = Math.min(maxVel, velocity + maxVel / 25);
+        if (velocity >= maxVel) phase = 'cruise';
+      } else if (phase === 'cruise') {
+        // Frenar después del delay correspondiente
+        if (frameCount > stopDelays[colIdx] + 60 && distLeft <= decelDist) phase = 'decel';
+      } else if (phase === 'decel') {
+        const progress = 1 - (distLeft / decelDist);
+        velocity = maxVel * Math.pow(1 - progress, 2);
+        velocity = Math.max(velocity, 0.4);
+      }
+
+      pos -= velocity;
+
+      if (pos <= finalPos) {
+        reel.style.transform = `translateY(${finalPos}px)`;
+        cancelAnimationFrame(rafId);
+        doneCount++;
+        if (doneCount === 1) statusEl.textContent = 'Frenando...';
+        if (doneCount === 3) {
+          statusEl.textContent = '🎊 ¡Tenemos ganador!';
+          setTimeout(onDone, 500);
+        }
+        return;
+      }
+
+      if (colIdx === 0) {
+        if (distLeft < decelDist * 0.5) statusEl.textContent = '¡Ya casi!';
+        else if (phase === 'decel') statusEl.textContent = 'Frenando...';
+        else statusEl.textContent = 'Girando...';
+      }
+
+      reel.style.transform = `translateY(${pos}px)`;
+      rafId = requestAnimationFrame(tick);
+    }
+
+    rafId = requestAnimationFrame(tick);
   });
 }
 
@@ -297,14 +350,18 @@ function animCartas(participants, winner, onDone) {
   const nameDisplay = document.getElementById('cardNameDisplay');
   const suits = ['♠','♥','♦','♣'];
   const colors = ['#9147ff','#e05a7a','#40d090','#f0c060'];
-  const shuffled = [...participants].sort(() => Math.random() - 0.5).slice(0,8);
-  shuffled.push(winner);
+  // Mezclar cantidad aleatoria de cartas antes del ganador (7-14)
+  const numFake = 7 + Math.floor(Math.random() * 8);
+  const shuffled = [...participants].sort(() => Math.random() - 0.5).slice(0, numFake);
+  // Asegurar que el ganador no aparezca antes de la última posición
+  const filtered = shuffled.filter(p => p !== winner);
+  filtered.push(winner);
 
   let idx = 0;
   let currentCard = null;
 
   function showNext() {
-    if (idx >= shuffled.length) {
+    if (idx >= filtered.length) {
       // Mostrar ganador grande
       deck.style.display = 'none';
       nameDisplay.style.display = 'flex';
@@ -313,10 +370,10 @@ function animCartas(participants, winner, onDone) {
       setTimeout(onDone, 800);
       return;
     }
-    const name = shuffled[idx];
+    const name = filtered[idx];
     const suit = suits[idx % 4];
     const color = colors[idx % 4];
-    const isLast = idx === shuffled.length - 1;
+    const isLast = idx === filtered.length - 1;
     const delay = isLast ? 600 : Math.max(80, 400 - idx * 35);
 
     if (currentCard) currentCard.style.opacity = '0.2';
@@ -338,7 +395,7 @@ function animCartas(participants, winner, onDone) {
     while(deck.children.length > 5) deck.removeChild(deck.firstChild);
     deck.appendChild(card);
     currentCard = card;
-    document.getElementById('animStatus').textContent = isLast ? '¡Ya casi!' : `Barajando... (${idx+1}/${shuffled.length})`;
+    document.getElementById('animStatus').textContent = isLast ? '¡Ya casi!' : `Barajando... (${idx+1}/${filtered.length})`;
     idx++;
     setTimeout(showNext, delay);
   }
@@ -372,8 +429,10 @@ function animBolas(participants, winner, onDone) {
     el.style.cssText = `background:radial-gradient(circle at 35% 35%, ${color}dd, ${color}88);left:${Math.random()*(W-BALL)}px;top:${Math.random()*(H-BALL)}px;`;
     el.style.fontSize = name.length > 8 ? '9px' : name.length > 5 ? '11px' : '13px';
     el.textContent = name;
-    el.dataset.vx = (Math.random() - 0.5) * 6;
-    el.dataset.vy = (Math.random() - 0.5) * 6;
+    const speed = 4 + Math.random() * 6; // velocidad aleatoria por bola
+    const angle = Math.random() * Math.PI * 2;
+    el.dataset.vx = Math.cos(angle) * speed;
+    el.dataset.vy = Math.sin(angle) * speed;
     area.appendChild(el);
     return el;
   });
