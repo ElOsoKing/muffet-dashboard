@@ -303,7 +303,7 @@ function startTimer(duration) {
 async function showShoutout(user, clip, mp4Url, config) {
   currentConfig = config || {};
   const style = currentConfig.style || {};
-  const duration = clip ? Math.min((clip.duration * 1000) + 2000, 90000) : 10000;
+  const duration = clip ? Math.max(Math.min((clip.duration * 1000) + 2000, 90000), 8000) : 10000; // mínimo 8s siempre
 
   applyStyle(currentConfig);
 
