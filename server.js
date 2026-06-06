@@ -1008,8 +1008,11 @@ app.get('/api/raffle/rewards', requireAuth, async (req, res) => {
     });
     if (!r.ok) {
       const err = await r.json();
-      return res.status(400).json({ error: err.message || 'Error al obtener recompensas' });
+      console.error('[rewards] Twitch error:', r.status, JSON.stringify(err));
+      return res.status(400).json({ error: err.message || `Error Twitch ${r.status}`, details: err });
     }
+    // Log si no hay token
+    if (!streamer?.access_token) console.error('[rewards] Sin access_token para', req.session.user.id);
     const rewards = await r.json();
     res.json({ rewards: rewards.data || [] });
   } catch(err) { res.status(500).json({ error: err.message }); }
