@@ -392,6 +392,32 @@ app.get('/api/admin/streamers', requireAdmin, async (req, res) => {
   }
 });
 
+// API admin — publicar novedades en Discord
+app.post('/api/admin/changelog', requireAdmin, async (req, res) => {
+  try {
+    const webhookUrl = process.env.DISCORD_CHANGELOG_WEBHOOK;
+    if (!webhookUrl) return res.status(400).json({ error: 'Webhook no configurado' });
+    const { version, date, items } = req.body;
+    const fields = items.map(item => ({ name: item, value: '​', inline: false }));
+    const payload = {
+      embeds: [{
+        title: `🕷️ MuffetBot ${version} — Novedades`,
+        description: `Nueva actualización disponible — ${date}`,
+        color: 9519103,
+        fields: items.map(item => ({ name: item, value: '​', inline: false })),
+        footer: { text: `MuffetBot • ${date}` }
+      }]
+    };
+    const r = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (r.ok || r.status === 204) res.json({ success: true });
+    else res.status(400).json({ error: 'Error al enviar a Discord' });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // API admin — aprobar streamer
 app.post('/api/admin/approve/:id', requireAdmin, async (req, res) => {
   try {
