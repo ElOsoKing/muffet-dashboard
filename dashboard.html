@@ -2273,10 +2273,10 @@ function renderMain() {
             <div style="${s.plan!=='pro'&&s.plan!=='admin'?'filter:blur(3px);pointer-events:none;':''}">
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">🎰 Animación del ganador</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
-              ${['ruleta','tragamonedas','cartas','bolas'].map(val => {
+              ${['ruleta','tragamonedas','cartas','bolas','rueda'].map(val => {
                 const active = (s.raffle_settings?.spin_style||'ruleta') === val;
-                const labels = {ruleta:'🎰 Ruleta',tragamonedas:'🎲 Tragamonedas',cartas:'🃏 Cartas',bolas:'🎱 Bolas'};
-                const descs = {ruleta:'Nombres girando en columna',tragamonedas:'3 rodillos al estilo casino',cartas:'Cartas que se barajan',bolas:'Bolas rebotando'};
+                const labels = {ruleta:'🎰 Ruleta',tragamonedas:'🎲 Tragamonedas',cartas:'🃏 Cartas',bolas:'🎱 Bolas',rueda:'🎡 Rueda de la fortuna'};
+                const descs = {ruleta:'Nombres girando en columna',tragamonedas:'3 rodillos al estilo casino',cartas:'Cartas boca abajo, se voltea el ganador',bolas:'Bolas rebotando',rueda:'Rueda giratoria con todos los participantes'};
                 return `<button onclick="selectSpinStyle('${val}',this)" data-spin="${val}" data-selected="${active?'true':''}"
                   style="padding:10px 12px;background:${active?'var(--purple-dim)':'transparent'};border:1px solid ${active?'var(--purple-border)':'rgba(255,255,255,0.08)'};border-radius:var(--radius-sm);color:${active?'var(--text)':'var(--text-dim)'};font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);text-align:left;transition:all 0.15s;">
                   <div>${labels[val]}</div>
