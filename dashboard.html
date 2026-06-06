@@ -4885,27 +4885,44 @@ async function loadRaffleRewards() {
     }
 
     list.style.display = 'flex';
-    list.innerHTML = rewards.map(r => {
-      const cost = r.cost?.toLocaleString() || '0';
+    list.innerHTML = '';
+    rewards.forEach(r => {
+      const cost = (r.cost || 0).toLocaleString();
       const img = r.image?.url_1x || r.default_image?.url_1x || '';
       const isSelected = streamerData.raffle_settings?.reward_id === r.id;
-      return `<div onclick="selectRaffleReward('${r.id}','${r.title.replace(/'/g,"\'")}','${img}')"
-        style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);
-        background:${isSelected?'rgba(145,71,255,0.12)':'transparent'};
-        border:1px solid ${isSelected?'rgba(145,71,255,0.4)':'rgba(255,255,255,0.06)'};
-        cursor:pointer;transition:all 0.15s;"
-        onmouseover="this.style.background='rgba(145,71,255,0.08)';this.style.borderColor='rgba(145,71,255,0.2)'"
-        onmouseout="this.style.background='${isSelected?'rgba(145,71,255,0.12)':'transparent'}';this.style.borderColor='${isSelected?'rgba(145,71,255,0.4)':'rgba(255,255,255,0.06)'}'">
-        <div style="width:32px;height:32px;border-radius:6px;background:rgba(${r.background_color?hexToRgb(r.background_color):'145,71,255'},0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;">
-          ${img ? `<img src="${img}" style="width:24px;height:24px;object-fit:contain;">` : '<span style="font-size:16px;">🎁</span>'}
-        </div>
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.title}</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:1px;">💰 ${cost} puntos ${r.is_enabled?'':'<span style="color:var(--pink);">· Desactivada</span>'}</div>
-        </div>
-        ${isSelected?'<span style="color:var(--purple-light);font-size:16px;">✓</span>':''}
-      </div>`;
-    }).join('');
+      const bgColor = r.background_color || '#9147ff';
+      const rgb = hexToRgb(bgColor);
+
+      const div = document.createElement('div');
+      div.style.cssText = `display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);background:${isSelected?'rgba(145,71,255,0.12)':'transparent'};border:1px solid ${isSelected?'rgba(145,71,255,0.4)':'rgba(255,255,255,0.06)'};cursor:pointer;transition:all 0.15s;margin-bottom:4px;`;
+      div.onmouseenter = () => { div.style.background = 'rgba(145,71,255,0.08)'; div.style.borderColor = 'rgba(145,71,255,0.25)'; };
+      div.onmouseleave = () => { div.style.background = isSelected ? 'rgba(145,71,255,0.12)' : 'transparent'; div.style.borderColor = isSelected ? 'rgba(145,71,255,0.4)' : 'rgba(255,255,255,0.06)'; };
+      div.onclick = () => selectRaffleReward(r.id, r.title, img);
+
+      const iconDiv = document.createElement('div');
+      iconDiv.style.cssText = `width:34px;height:34px;border-radius:8px;background:rgba(${rgb},0.25);border:1px solid rgba(${rgb},0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;`;
+      if (img) {
+        const i = document.createElement('img');
+        i.src = img; i.style.cssText = 'width:24px;height:24px;object-fit:contain;';
+        iconDiv.appendChild(i);
+      } else {
+        iconDiv.style.fontSize = '18px';
+        iconDiv.textContent = '🎁';
+      }
+
+      const infoDiv = document.createElement('div');
+      infoDiv.style.cssText = 'flex:1;min-width:0;';
+      infoDiv.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.title}</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px;">💰 ${cost} puntos${!r.is_enabled?' · <span style=\"color:var(--pink)\">Desactivada</span>':''}</div>`;
+
+      div.appendChild(iconDiv);
+      div.appendChild(infoDiv);
+      if (isSelected) {
+        const check = document.createElement('span');
+        check.textContent = '✓'; check.style.cssText = 'color:var(--purple-light);font-size:18px;font-weight:700;';
+        div.appendChild(check);
+      }
+      list.appendChild(div);
+    });
 
     btn.innerHTML = '<span>↺</span> Recargar';
     btn.disabled = false;
