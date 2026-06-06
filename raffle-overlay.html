@@ -63,23 +63,22 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 .slots-3col .slot-col::before{content:'';position:absolute;top:0;left:0;right:0;height:30px;background:linear-gradient(to bottom,rgba(0,0,0,0.9),transparent);z-index:2;}
 .slots-3col .slot-col::after{content:'';position:absolute;bottom:0;left:0;right:0;height:30px;background:linear-gradient(to top,rgba(0,0,0,0.9),transparent);z-index:2;}
 .slots-3col .col-reel{display:flex;flex-direction:column;align-items:center;will-change:transform;}
-.slots-3col .col-item{height:43px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:20px;color:white;width:100%;flex-shrink:0;text-align:center;}
+.slots-3col .col-item{height:43px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;color:white;width:100%;flex-shrink:0;text-align:center;}
 .slots-3col .col-item.match{color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.9);}
 .slots-3col .col-highlight{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);height:43px;background:rgba(145,71,255,0.1);border-top:1px solid rgba(145,71,255,0.4);border-bottom:1px solid rgba(145,71,255,0.4);z-index:1;}
 
 /* CARTAS */
 .cards-area{height:130px;display:flex;align-items:center;justify-content:center;padding:10px;background:rgba(0,0,0,0.4);position:relative;overflow:hidden;}
-.card-name-display{flex:1;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:30px;color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.8);text-align:center;display:none;line-height:1.2;}
 
 /* BOLAS */
 .balls-area{height:130px;position:relative;overflow:hidden;background:rgba(0,0,0,0.4);}
-.lottery-ball{position:absolute;width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;color:white;text-align:center;font-weight:700;cursor:default;line-height:1.1;word-break:break-all;padding:4px;will-change:transform;box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 -3px 6px rgba(0,0,0,0.3),inset 0 3px 6px rgba(255,255,255,0.2);}
+.lottery-ball{position:absolute;width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;color:white;text-align:center;font-weight:700;line-height:1.1;word-break:break-all;padding:4px;will-change:transform;box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 -3px 6px rgba(0,0,0,0.3),inset 0 3px 6px rgba(255,255,255,0.2);}
 
 /* RUEDA */
-.wheel-wrap{display:flex;align-items:center;justify-content:space-between;height:130px;padding:6px 10px;background:rgba(0,0,0,0.4);gap:10px;}
-.wheel-container{position:relative;width:128px;height:128px;flex-shrink:0;}
-.wheel-pointer{position:absolute;right:-10px;top:50%;transform:translateY(-50%);font-size:22px;filter:drop-shadow(0 0 6px rgba(240,192,96,0.9));z-index:5;}
-.wheel-winner-text{flex:1;font-family:var(--display);font-size:28px;color:var(--yellow);text-shadow:0 0 14px rgba(240,192,96,0.8);text-align:center;display:none;line-height:1.2;word-break:break-all;}
+.wheel-wrap{display:flex;align-items:center;justify-content:space-between;height:130px;padding:2px 8px;background:rgba(0,0,0,0.4);gap:8px;}
+.wheel-container{position:relative;width:130px;height:130px;flex-shrink:0;}
+.wheel-pointer{position:absolute;right:-13px;top:50%;transform:translateY(-50%);font-size:24px;filter:drop-shadow(0 0 6px rgba(240,192,96,0.9));z-index:5;}
+.wheel-winner-text{flex:1;font-family:var(--display);font-size:26px;color:var(--yellow);text-shadow:0 0 14px rgba(240,192,96,0.8);text-align:center;display:none;line-height:1.2;word-break:break-word;}
 
 /* GANADOR */
 .winner-screen{display:none;background:var(--bg);backdrop-filter:blur(16px);border:2px solid var(--yellow);border-radius:var(--radius);padding:24px 20px;text-align:center;animation:winnerIn 0.6s cubic-bezier(0.34,1.56,0.64,1);position:relative;overflow:hidden;}
@@ -88,7 +87,7 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 .winner-trophy{font-size:48px;display:block;margin-bottom:8px;animation:trophyBounce 0.5s ease infinite alternate;}
 @keyframes trophyBounce{from{transform:translateY(0) rotate(-5deg);}to{transform:translateY(-8px) rotate(5deg);}}
 .winner-label{font-size:10px;font-weight:600;color:var(--yellow);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px;}
-.winner-name{font-family:var(--display);font-size:42px;color:white;line-height:1;margin-bottom:4px;text-shadow:0 0 20px rgba(145,71,255,0.8);}
+.winner-name{font-family:var(--display);font-size:42px;color:white;line-height:1;margin-bottom:4px;text-shadow:0 0 20px rgba(145,71,255,0.8);word-break:break-all;}
 .winner-prize{font-size:12px;color:var(--text-dim);}
 .confetti-piece{position:absolute;width:7px;height:7px;border-radius:2px;animation:confettiFall 2.5s ease-in forwards;}
 @keyframes confettiFall{0%{opacity:1;transform:translateY(-10px) rotate(0);}100%{opacity:0;transform:translateY(250px) rotate(720deg);}}
@@ -144,9 +143,9 @@ let lastParticipants = [];
 let winnerShown = sessionStorage.getItem('raffle_winner_shown') || null;
 let slotAnimating = false;
 let currentSpinStyle = 'ruleta';
-const WINNER_REVEAL_TIME = 1500;
+const WINNER_REVEAL_TIME = 1200;
 
-// ── Fisher-Yates shuffle ──
+// Fisher-Yates shuffle real
 function shuffle(array) {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -156,11 +155,11 @@ function shuffle(array) {
   return arr;
 }
 
-// ── Easing functions ──
-function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
-function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
+// Easing
+const easeOutQuart = t => 1 - Math.pow(1 - t, 4);
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 
-// ══ ESTILO 1: RULETA ══
+// ══ RULETA ══
 function buildRuleta(container) {
   container.innerHTML = `
     <div class="slot-window">
@@ -174,54 +173,37 @@ function animRuleta(participants, winner, onDone) {
   const reel = document.getElementById('slotReel');
   const statusEl = document.getElementById('animStatus');
   const ITEM_H = 44;
-  const TOTAL = 300;
-  // Ganador en posición aleatoria entre 220 y 270
-  const winnerIdx = 220 + Math.floor(Math.random() * 50);
-
+  // Ganador en posición aleatoria entre 220-270 (Fisher-Yates)
   const pool = shuffle(participants);
+  const TOTAL = 300;
+  const winnerIdx = 220 + Math.floor(Math.random() * 50);
   const spinList = [];
   for (let i = 0; i < TOTAL; i++) {
     spinList.push(i === winnerIdx ? winner : pool[i % pool.length]);
   }
-
-  reel.innerHTML = spinList.map((n, i) =>
-    `<div class="slot-item${i === winnerIdx ? ' highlight' : ''}">${n}</div>`
+  reel.innerHTML = spinList.map((n,i) =>
+    `<div class="slot-item${i===winnerIdx?' highlight':''}">${n}</div>`
   ).join('');
-
   const startPos = ITEM_H;
   const finalPos = -(winnerIdx * ITEM_H) + ITEM_H;
-  const duration = 6500;
-  let startTime = null;
-  let rafId;
-
-  reel.style.transition = 'none';
+  const duration = 6000;
+  const startTime = performance.now();
   reel.style.transform = `translate3d(0,${startPos}px,0)`;
-  reel.getBoundingClientRect();
-
   function tick(now) {
-    if (!startTime) startTime = now;
     const t = Math.min((now - startTime) / duration, 1);
-    const eased = easeOutCubic(t);
-    const pos = startPos + (finalPos - startPos) * eased;
-
+    const pos = startPos + (finalPos - startPos) * easeOutQuart(t);
     reel.style.transform = `translate3d(0,${pos}px,0)`;
-
-    if (t < 0.3) statusEl.textContent = 'Girando...';
-    else if (t < 0.7) statusEl.textContent = 'Girando...';
-    else if (t < 0.9) statusEl.textContent = 'Frenando...';
+    if (t < 0.5) statusEl.textContent = 'Girando...';
+    else if (t < 0.82) statusEl.textContent = 'Frenando...';
     else statusEl.textContent = '¡Ya casi!';
-
-    if (t < 1) { rafId = requestAnimationFrame(tick); return; }
-
+    if (t < 1) { requestAnimationFrame(tick); return; }
     statusEl.textContent = '🎊 ¡Tenemos ganador!';
-    cancelAnimationFrame(rafId);
     setTimeout(onDone, WINNER_REVEAL_TIME);
   }
-
-  rafId = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 }
 
-// ══ ESTILO 2: TRAGAMONEDAS ══
+// ══ TRAGAMONEDAS ══
 function buildSlots3(container) {
   container.innerHTML = `
     <div class="slots-3col">
@@ -234,170 +216,126 @@ function buildSlots3(container) {
 function animSlots3(participants, winner, onDone) {
   const ITEM_H = 43;
   const statusEl = document.getElementById('animStatus');
-  const durations = [4500, 5500, 6500];
-  let doneCount = 0;
+  // Tiempos escalonados de Gemini + distancia mínima de ChatGPT + Fisher-Yates
+  const durations = [3200, 4400, 5600];
+  const startTime = performance.now();
+  let colsDone = 0;
 
-  [0, 1, 2].forEach(colIdx => {
+  [0,1,2].forEach(colIdx => {
     const reel = document.getElementById(`col${colIdx}`);
-    // Distancia mínima garantizada + aleatoriedad
-    const MIN_SPINS = 180;
-    const winIdx = MIN_SPINS + Math.floor(Math.random() * 50);
-    const total = winIdx + 30;
+    const MIN_SPINS = 180 + colIdx * 20;
+    const winIdx = MIN_SPINS + Math.floor(Math.random() * 40);
+    const total = winIdx + 20;
     const pool = shuffle(participants);
-
     const items = [];
-    for (let i = 0; i < total; i++) {
-      items.push(i === winIdx ? winner : pool[i % pool.length]);
+    for (let j = 0; j < total; j++) {
+      items.push(j === winIdx ? winner : pool[j % pool.length]);
     }
-
-    reel.innerHTML = items.map((n, i) =>
-      `<div class="col-item${i === winIdx ? ' match' : ''}">${n.slice(0, 6)}</div>`
+    reel.innerHTML = items.map((n,i) =>
+      `<div class="col-item${i===winIdx?' match':''}">${n.slice(0,6)}</div>`
     ).join('');
-
     const startPos = ITEM_H;
     const finalPos = -(winIdx * ITEM_H) + ITEM_H;
     const duration = durations[colIdx];
-    let startTime = null;
-    let rafId;
-
-    reel.style.transition = 'none';
     reel.style.transform = `translate3d(0,${startPos}px,0)`;
-    reel.getBoundingClientRect();
-
     function tick(now) {
-      if (!startTime) startTime = now;
       const t = Math.min((now - startTime) / duration, 1);
-      const eased = easeOutQuart(t);
-      const pos = startPos + (finalPos - startPos) * eased;
+      const pos = startPos + (finalPos - startPos) * easeOutQuart(t);
       reel.style.transform = `translate3d(0,${pos}px,0)`;
-
       if (colIdx === 0) {
         if (t < 0.6) statusEl.textContent = 'Girando...';
-        else if (t < 0.85) statusEl.textContent = 'Frenando...';
+        else if (t < 0.88) statusEl.textContent = 'Frenando...';
         else statusEl.textContent = '¡Ya casi!';
       }
-
-      if (t < 1) { rafId = requestAnimationFrame(tick); return; }
-
-      cancelAnimationFrame(rafId);
-      doneCount++;
-      if (doneCount === 1) statusEl.textContent = 'Frenando...';
-      if (doneCount === 2) statusEl.textContent = '¡Ya casi!';
-      if (doneCount === 3) {
+      if (t < 1) { requestAnimationFrame(tick); return; }
+      colsDone++;
+      if (colsDone === 1) statusEl.textContent = 'Frenando...';
+      if (colsDone === 2) statusEl.textContent = '¡Ya casi!';
+      if (colsDone === 3) {
         statusEl.textContent = '🎊 ¡Tenemos ganador!';
         setTimeout(onDone, WINNER_REVEAL_TIME);
       }
     }
-
-    rafId = requestAnimationFrame(tick);
+    requestAnimationFrame(tick);
   });
 }
 
-// ══ ESTILO 3: CARTAS ══
+// ══ CARTAS ══
 function buildCartas(container) {
-  container.innerHTML = `
-    <div class="cards-area">
-      <div id="cardShuffleArea" style="position:relative;width:200px;height:110px;perspective:600px;"></div>
-      <div class="card-name-display" id="cardNameDisplay" style="display:none;font-family:var(--display);font-size:30px;color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.8);text-align:center;flex:1;display:none;align-items:center;justify-content:center;"></div>
-    </div>`;
+  container.innerHTML = `<div class="cards-area"><div id="cardShuffleArea" style="position:relative;width:200px;height:110px;perspective:600px;"></div></div>`;
 }
 
 function animCartas(participants, winner, onDone) {
   const area = document.getElementById('cardShuffleArea');
-  const nameDisplay = document.getElementById('cardNameDisplay');
   const statusEl = document.getElementById('animStatus');
-
   if (!document.getElementById('cardStyles')) {
     const s = document.createElement('style');
     s.id = 'cardStyles';
     s.textContent = `
-      .c-wrapper{position:absolute;width:68px;height:100px;transform-style:preserve-3d;}
-      .c-back,.c-front{position:absolute;width:68px;height:100px;border-radius:8px;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,0.5);}
-      .c-back{background:linear-gradient(135deg,#1a0a2e,#0d0620);border:2px solid rgba(145,71,255,0.5);font-size:24px;}
-      .c-front{background:linear-gradient(135deg,#1a0a2e,#2a1050);border:2px solid var(--yellow);transform:rotateY(180deg);font-family:var(--display);font-size:20px;color:var(--yellow);text-align:center;padding:6px;line-height:1.1;}
-      .c-wrapper.flipped{animation:flipCard 0.6s cubic-bezier(0.4,0,0.2,1) forwards;}
-      @keyframes flipCard{from{transform:rotateY(0)}to{transform:rotateY(180deg)}}
+      .c-wrap{position:absolute;width:70px;height:100px;transform-style:preserve-3d;transition:all 0.3s ease;}
+      .c-back{position:absolute;width:70px;height:100px;border-radius:8px;background:linear-gradient(135deg,#1a0a2e,#0d0620);border:2px solid rgba(145,71,255,0.5);display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 12px rgba(0,0,0,0.5);backface-visibility:hidden;transition:transform 0.6s cubic-bezier(0.4,0,0.2,1);}
+      .c-front{position:absolute;width:70px;height:100px;border-radius:8px;background:linear-gradient(135deg,#1a0a2e,#2a1050);border:2px solid var(--yellow);display:flex;flex-direction:column;align-items:center;justify-content:center;backface-visibility:hidden;transform:rotateY(180deg);transition:transform 0.6s cubic-bezier(0.4,0,0.2,1);font-family:var(--display);font-size:20px;color:var(--yellow);text-align:center;padding:6px;line-height:1.1;word-break:break-all;}
     `;
     document.head.appendChild(s);
   }
-
-  const numCards = 5 + Math.floor(Math.random() * 4);
-  const winnerCardIdx = Math.floor(Math.random() * numCards);
+  const numCards = 6;
+  const winnerIndex = Math.floor(Math.random() * numCards);
   const cards = [];
-
   for (let i = 0; i < numCards; i++) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'c-wrapper';
-    wrapper.style.left = (i * 20) + 'px';
-    wrapper.style.top = (Math.random() * 8 - 4) + 'px';
-    wrapper.style.transform = `rotate(${Math.random() * 8 - 4}deg)`;
-    wrapper.style.zIndex = i;
-
+    const wrap = document.createElement('div');
+    wrap.className = 'c-wrap';
+    wrap.style.left = (i * 25) + 'px';
+    wrap.style.top = '5px';
+    wrap.style.transform = `rotate(${Math.random()*8-4}deg)`;
+    wrap.style.zIndex = i;
     const back = document.createElement('div');
     back.className = 'c-back';
     back.textContent = '🕷️';
-
     const front = document.createElement('div');
     front.className = 'c-front';
     front.textContent = winner;
-
-    wrapper.appendChild(back);
-    wrapper.appendChild(front);
-    area.appendChild(wrapper);
-    cards.push(wrapper);
+    wrap.appendChild(back);
+    wrap.appendChild(front);
+    area.appendChild(wrap);
+    cards.push({ wrap, back, isWinner: i === winnerIndex });
   }
-
   statusEl.textContent = 'Barajando...';
-  let shuffleCount = 0;
-  const totalShuffles = 10 + Math.floor(Math.random() * 8);
-
-  function doShuffle() {
-    if (shuffleCount >= totalShuffles) {
-      // Mover ganador al centro y voltear
-      const winCard = cards[winnerCardIdx];
+  let shuffles = 0;
+  const totalShuffles = 12 + Math.floor(Math.random() * 6);
+  const interval = setInterval(() => {
+    cards.forEach(c => {
+      c.wrap.style.left = (Math.random() * 130) + 'px';
+      c.wrap.style.top = (Math.random() * 10) + 'px';
+      c.wrap.style.zIndex = Math.floor(Math.random() * 10);
+      c.wrap.style.transform = `rotate(${Math.random()*16-8}deg)`;
+    });
+    shuffles++;
+    if (shuffles > totalShuffles) {
+      clearInterval(interval);
+      statusEl.textContent = '¡Eligiendo...!';
       setTimeout(() => {
-        statusEl.textContent = '¡Ya casi!';
-        // Atenuar las demás
-        cards.forEach((c, i) => {
-          if (i !== winnerCardIdx) {
-            c.style.transition = 'opacity 0.4s, filter 0.4s';
-            c.style.opacity = '0.2';
-            c.style.filter = 'blur(1px)';
-          }
+        const winCard = cards.find(c => c.isWinner);
+        winCard.wrap.style.transition = 'all 0.5s cubic-bezier(0.34,1.56,0.64,1)';
+        winCard.wrap.style.left = '65px';
+        winCard.wrap.style.top = '5px';
+        winCard.wrap.style.transform = 'rotate(0deg) scale(1.1)';
+        winCard.wrap.style.zIndex = '20';
+        cards.filter(c => !c.isWinner).forEach(c => {
+          c.wrap.style.opacity = '0.2';
+          c.wrap.style.filter = 'blur(1px)';
         });
-        winCard.style.transition = 'all 0.5s cubic-bezier(0.34,1.56,0.64,1)';
-        winCard.style.left = '66px';
-        winCard.style.top = '5px';
-        winCard.style.transform = 'rotate(0deg) scale(1.1)';
-        winCard.style.zIndex = '20';
         setTimeout(() => {
-          winCard.classList.add('flipped');
+          winCard.back.style.transform = 'rotateY(180deg)';
+          winCard.wrap.querySelector('.c-front').style.transform = 'rotateY(0deg)';
           statusEl.textContent = '🎊 ¡Tenemos ganador!';
           setTimeout(onDone, WINNER_REVEAL_TIME);
         }, 600);
-      }, 300);
-      return;
+      }, 400);
     }
-    const cardIdx = Math.floor(Math.random() * cards.length);
-    const card = cards[cardIdx];
-    const origLeft = parseFloat(card.style.left);
-    const origTop = parseFloat(card.style.top);
-    card.style.transition = 'all 0.07s ease';
-    card.style.left = (origLeft + (Math.random() - 0.5) * 28) + 'px';
-    card.style.top = (origTop + (Math.random() - 0.5) * 18) + 'px';
-    card.style.transform = `rotate(${Math.random() * 20 - 10}deg) scale(1.05)`;
-    setTimeout(() => {
-      card.style.left = origLeft + 'px';
-      card.style.top = origTop + 'px';
-      card.style.transform = `rotate(${Math.random() * 8 - 4}deg)`;
-    }, 80);
-    shuffleCount++;
-    setTimeout(doShuffle, Math.max(55, 180 - shuffleCount * 12));
-  }
-  setTimeout(doShuffle, 200);
+  }, 220);
 }
 
-// ══ ESTILO 4: BOLAS ══
+// ══ BOLAS ══
 function buildBolas(container) {
   container.innerHTML = `<div class="balls-area" id="ballsArea"></div>`;
 }
@@ -410,82 +348,76 @@ function animBolas(participants, winner, onDone) {
   const shown = shuffle(participants).slice(0, 8);
   if (!shown.includes(winner)) shown[shown.length - 1] = winner;
 
-  // Usar translate3d para GPU
-  const balls = shown.map((name, i) => {
+  // translate3d para GPU (ChatGPT) + deltaTime normalizado (Gemini)
+  const ballData = shown.map((name, i) => {
     const el = document.createElement('div');
     el.className = 'lottery-ball';
     const color = colors[i % colors.length];
     el.style.background = `radial-gradient(circle at 35% 35%, ${color}dd, ${color}88)`;
     el.style.fontSize = name.length > 8 ? '9px' : name.length > 5 ? '11px' : '13px';
     el.textContent = name;
-    const startX = Math.random() * (W - BALL);
-    const startY = Math.random() * (H - BALL);
-    el.style.left = '0px';
-    el.style.top = '0px';
-    el.style.transform = `translate3d(${startX}px,${startY}px,0)`;
+    el.style.left = '0';
+    el.style.top = '0';
+    const sx = Math.random() * (W - BALL);
+    const sy = Math.random() * (H - BALL);
+    el.style.transform = `translate3d(${sx}px,${sy}px,0)`;
     area.appendChild(el);
-
     const speed = 5 + Math.random() * 5;
     const angle = Math.random() * Math.PI * 2;
-    return { el, x: startX, y: startY, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, color };
+    return { el, x: sx, y: sy, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, color };
   });
 
-  let rafId;
-  const duration = 3500;
-  let startTime = null;
+  const duration = 3800;
+  const startTime = performance.now();
+  let lastTime = startTime;
 
   function bounce(now) {
-    if (!startTime) startTime = now;
+    const dt = Math.min((now - lastTime) / 16.666, 3);
+    lastTime = now;
     const t = Math.min((now - startTime) / duration, 1);
-    // Desaceleración suave con friction
-    const friction = 0.998;
+    const friction = Math.pow(0.998, dt);
 
-    balls.forEach(b => {
+    ballData.forEach(b => {
       b.vx *= friction;
       b.vy *= friction;
-      b.x += b.vx;
-      b.y += b.vy;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
       if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx); }
-      if (b.x > W - BALL) { b.x = W - BALL; b.vx = -Math.abs(b.vx); }
+      if (b.x > W-BALL) { b.x = W-BALL; b.vx = -Math.abs(b.vx); }
       if (b.y < 0) { b.y = 0; b.vy = Math.abs(b.vy); }
-      if (b.y > H - BALL) { b.y = H - BALL; b.vy = -Math.abs(b.vy); }
+      if (b.y > H-BALL) { b.y = H-BALL; b.vy = -Math.abs(b.vy); }
       b.el.style.transform = `translate3d(${b.x}px,${b.y}px,0)`;
     });
 
     if (t < 0.5) statusEl.textContent = 'Mezclando...';
-    else if (t < 0.8) statusEl.textContent = 'Eligiendo...';
+    else if (t < 0.85) statusEl.textContent = 'Eligiendo...';
     else statusEl.textContent = '¡Ya casi!';
 
-    if (t < 1) { rafId = requestAnimationFrame(bounce); return; }
+    if (t < 1) { requestAnimationFrame(bounce); return; }
 
-    cancelAnimationFrame(rafId);
-
-    // Resaltar ganador
-    balls.forEach(b => {
+    ballData.forEach(b => {
       if (b.el.textContent === winner) {
-        b.el.style.transition = 'transform 0.5s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.4s ease';
-        b.el.style.transform = `translate3d(${W/2 - BALL/2}px,${H/2 - BALL/2}px,0) scale(1.25)`;
+        b.el.style.transition = 'transform 0.5s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.4s';
+        b.el.style.transform = `translate3d(${W/2-BALL/2}px,${H/2-BALL/2}px,0) scale(1.25)`;
         b.el.style.boxShadow = `0 0 24px ${b.color}, 0 0 8px rgba(0,0,0,0.5)`;
       } else {
-        b.el.style.transition = 'opacity 0.4s ease, filter 0.4s ease';
+        b.el.style.transition = 'opacity 0.4s, filter 0.4s';
         b.el.style.opacity = '0.2';
         b.el.style.filter = 'blur(1px)';
       }
     });
-
     statusEl.textContent = '🎊 ¡Tenemos ganador!';
     setTimeout(onDone, WINNER_REVEAL_TIME);
   }
-
-  rafId = requestAnimationFrame(bounce);
+  requestAnimationFrame(bounce);
 }
 
-// ══ ESTILO 5: RUEDA DE LA FORTUNA ══
+// ══ RUEDA DE LA FORTUNA ══
 function buildRueda(container) {
   container.innerHTML = `
     <div class="wheel-wrap">
       <div class="wheel-container">
-        <canvas id="wheelCanvas" width="128" height="128"></canvas>
+        <canvas id="wheelCanvas" width="130" height="130" style="border-radius:50%;box-shadow:0 0 20px rgba(145,71,255,0.5);"></canvas>
         <span class="wheel-pointer">▶</span>
       </div>
       <div class="wheel-winner-text" id="wheelWinnerText"></div>
@@ -497,10 +429,10 @@ function animRueda(participants, winner, onDone) {
   const ctx = canvas.getContext('2d');
   const statusEl = document.getElementById('animStatus');
   const winnerText = document.getElementById('wheelWinnerText');
-  const W = 128, CX = W/2, CY = W/2, R = 60;
-
+  const W = 130, CX = W/2, CY = W/2, R = 61;
+  // Gemini: radio 60-61 + más vueltas (8-13)
   const pool = [...new Set([winner, ...shuffle(participants)])].slice(0, 8);
-  if (!pool.includes(winner)) pool[pool.length - 1] = winner;
+  if (!pool.includes(winner)) pool[pool.length-1] = winner;
   const N = pool.length;
   const sliceAngle = (Math.PI * 2) / N;
   const colors = ['#9147ff','#e05a7a','#40d090','#f0c060','#58a6ff','#ff6b35','#b388ff','#a8e063'];
@@ -524,62 +456,51 @@ function animRueda(participants, winner, onDone) {
       ctx.rotate(start + sliceAngle / 2);
       ctx.textAlign = 'right';
       ctx.fillStyle = 'white';
-      ctx.font = 'bold 8px Inter';
+      ctx.font = 'bold 9px Inter';
       ctx.shadowColor = 'rgba(0,0,0,0.9)';
       ctx.shadowBlur = 4;
-      const label = pool[i].length > 8 ? pool[i].slice(0, 7) + '…' : pool[i];
-      ctx.fillText(label, R - 4, 3);
+      const label = pool[i].length > 8 ? pool[i].slice(0, 8) + '…' : pool[i];
+      ctx.fillText(label, R - 5, 3);
       ctx.restore();
     }
-    // Centro
     ctx.beginPath();
-    ctx.arc(CX, CY, 10, 0, Math.PI * 2);
+    ctx.arc(CX, CY, 11, 0, Math.PI * 2);
     ctx.fillStyle = '#0d0620';
     ctx.fill();
     ctx.strokeStyle = 'rgba(145,71,255,0.9)';
     ctx.lineWidth = 2;
     ctx.stroke();
-    ctx.font = '10px serif';
+    ctx.font = '11px serif';
     ctx.textAlign = 'center';
     ctx.fillText('🕷️', CX, CY + 4);
   }
 
   const winnerIdx = pool.indexOf(winner);
-  // Ángulo para que el ganador quede centrado en el puntero (apunta a 0° = derecha)
   const targetAngle = -(winnerIdx * sliceAngle + sliceAngle / 2);
-  const extraSpins = (4 + Math.floor(Math.random() * 4)) * Math.PI * 2;
-  const startAngle = 0;
+  const extraSpins = (8 + Math.floor(Math.random() * 5)) * Math.PI * 2;
   const finalAngle = targetAngle - extraSpins;
-  const duration = 7000;
-  let startTime = null;
-  let rafId;
+  const duration = 5800;
+  const startTime = performance.now();
 
-  drawWheel(startAngle);
+  drawWheel(0);
 
   function tick(now) {
-    if (!startTime) startTime = now;
     const t = Math.min((now - startTime) / duration, 1);
-    const eased = easeOutQuart(t);
-    const angle = startAngle + (finalAngle - startAngle) * eased;
-
+    const angle = (finalAngle) * easeOutQuart(t);
     drawWheel(angle);
-
-    if (t < 0.4) statusEl.textContent = 'Girando...';
-    else if (t < 0.75) statusEl.textContent = 'Girando...';
-    else if (t < 0.92) statusEl.textContent = 'Frenando...';
+    if (t < 0.55) statusEl.textContent = 'Girando...';
+    else if (t < 0.88) statusEl.textContent = 'Frenando...';
     else statusEl.textContent = '¡Ya casi!';
-
-    if (t < 1) { rafId = requestAnimationFrame(tick); return; }
-
-    cancelAnimationFrame(rafId);
+    if (t < 1) { requestAnimationFrame(tick); return; }
     statusEl.textContent = '🎊 ¡Tenemos ganador!';
     winnerText.textContent = winner;
     winnerText.style.display = 'flex';
+    winnerText.style.alignItems = 'center';
+    winnerText.style.justifyContent = 'center';
     winnerText.style.animation = 'tagIn 0.5s cubic-bezier(0.34,1.56,0.64,1)';
     setTimeout(onDone, WINNER_REVEAL_TIME);
   }
-
-  rafId = requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
 }
 
 // ══ ORQUESTADOR ══
@@ -610,17 +531,13 @@ function showAnimation(winner, prize, participants) {
   const animEl   = document.getElementById('animState');
   const winnerEl = document.getElementById('winnerState');
   const style = STYLES[currentSpinStyle] || STYLES.ruleta;
-
   document.getElementById('animIcon').textContent = style.icon;
   document.getElementById('animTitle').textContent = style.title;
   document.getElementById('animCounter').textContent = `${participants.length} participantes`;
   style.build(document.getElementById('animContent'));
-
   activeEl.style.display = 'none';
   animEl.classList.add('show');
-
   const pool = participants.length > 1 ? participants : [winner, winner, winner, winner, winner];
-
   style.anim(pool, winner, () => {
     setTimeout(() => {
       animEl.classList.remove('show');
@@ -628,10 +545,7 @@ function showAnimation(winner, prize, participants) {
       document.getElementById('winnerPrize').textContent = '🎁 ' + (prize || '');
       winnerEl.classList.add('show');
       spawnConfetti();
-      setTimeout(() => {
-        winnerEl.classList.remove('show');
-        slotAnimating = false;
-      }, 12000);
+      setTimeout(() => { winnerEl.classList.remove('show'); slotAnimating = false; }, 12000);
     }, 400);
   });
 }
@@ -645,16 +559,12 @@ async function pollRaffle() {
     const activeEl = document.getElementById('activeState');
     const winnerEl = document.getElementById('winnerState');
     const animEl   = document.getElementById('animState');
-
     if (data.spin_style) currentSpinStyle = data.spin_style;
-
-    // Limpiar si hay nuevo sorteo activo sin ganador
     if (winnerShown && data.active && !data.winner) {
       winnerShown = null;
       sessionStorage.removeItem('raffle_winner_shown');
       slotAnimating = false;
     }
-
     if (data.winner && !winnerShown) {
       winnerShown = data.winner;
       sessionStorage.setItem('raffle_winner_shown', data.winner);
@@ -662,11 +572,8 @@ async function pollRaffle() {
       showAnimation(data.winner, data.prize, parts);
       return;
     }
-
     if (winnerShown) return;
-
     if (!data.active) { activeEl.style.opacity = ''; activeEl.style.display = 'none'; return; }
-
     const opacity = (data.overlay_opacity ?? 100) / 100;
     activeEl.style.opacity = opacity;
     const bgOpacity = (data.bg_opacity ?? 75) / 100;
@@ -674,14 +581,12 @@ async function pollRaffle() {
     document.querySelectorAll('.raffle-card,.winner-screen,.anim-screen').forEach(el => {
       el.style.backdropFilter = bgOpacity >= 0.9 ? 'none' : 'blur(12px)';
     });
-
     animEl.classList.remove('show');
     winnerEl.classList.remove('show');
     activeEl.style.display = 'block';
     document.getElementById('overlayPrize').textContent   = '🏆 ' + (data.prize || '');
     document.getElementById('overlayCount').textContent   = (data.participants || []).length;
     document.getElementById('overlayJoinCmd').textContent = data.join_cmd || '!entrar';
-
     const list = document.getElementById('overlayParticipants');
     const participants = data.participants || [];
     if (JSON.stringify(participants) !== JSON.stringify(lastParticipants)) {
