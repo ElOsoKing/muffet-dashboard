@@ -584,16 +584,78 @@ app.post('/webhook/twitch', (req, res) => {
   const type = req.headers['twitch-eventsub-message-type'];
   if (type === 'webhook_callback_verification') return res.status(200).send(body.challenge);
   if (type === 'notification') {
-    // Enviar evento al bot
+    const eventType = body.subscription?.type;
+    const event = body.event;
+
+    // Manejar canje de puntos para sorteo
+    if (eventType === 'channel.channel_points_custom_reward_redemption.add') {
+      handleRewardRedemption(event).catch(e => console.error('[redemption]', e.message));
+    }
+
+    // Enviar evento al bot para otros eventos
     const botUrl = `http://localhost:${process.env.BOT_PORT || 3001}/event`;
     fetch(botUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: body.subscription?.type, event: body.event })
+      body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: eventType, event })
     }).catch(() => {});
   }
   res.status(204).send();
 });
+
+async function handleRewardRedemption(event) {
+  const broadcasterId = event.broadcaster_user_id;
+  const rewardId = event.reward?.id;
+  const username = event.user_name;
+  if (!broadcasterId || !rewardId || !username) return;
+
+  // Buscar el streamer por twitch_id
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${broadcasterId}&limit=1`, { headers: sbHeaders });
+  const data = await res.json();
+  const streamer = data?.[0];
+  if (!streamer) return;
+
+  const channelName = streamer.twitch_username?.toLowerCase();
+  const configuredRewardId = streamer.raffle_settings?.reward_id;
+
+  console.log(`[redemption] ${username} canjeó ${rewardId} en #${channelName} | configurado: ${configuredRewardId||'ninguno'}`);
+
+  if (!configuredRewardId || rewardId !== configuredRewardId) return;
+
+  // Verificar que hay sorteo activo
+  const raffle = streamer.raffle_active || {};
+  if (!raffle.active) {
+    console.log(`[redemption] Sorteo no activo en #${channelName}`);
+    return;
+  }
+
+  const participants = raffle.participants || [];
+  if (participants.includes(username)) {
+    console.log(`[redemption] ${username} ya está en el sorteo`);
+    return;
+  }
+
+  participants.push(username);
+  await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${broadcasterId}`, {
+    method: 'PATCH',
+    headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raffle_active: { ...raffle, participants } })
+  });
+
+  console.log(`[redemption] ✅ ${username} agregado al sorteo de #${channelName} (${participants.length} participantes)`);
+
+  // Notificar en el chat via bot
+  const botUrl = `http://localhost:${process.env.BOT_PORT || 3001}/event`;
+  fetch(botUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      secret: process.env.BOT_SECRET || 'muffetbot-internal-2026',
+      type: 'raffle.redemption',
+      event: { channel: channelName, username, count: participants.length }
+    })
+  }).catch(() => {});
+}
 
 async function getTwitchAppToken() {
   const res = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${TWITCH_CLIENT_ID}&client_secret=${TWITCH_SECRET}&grant_type=client_credentials`, { method: 'POST' });
@@ -608,6 +670,7 @@ async function registerEventSub(broadcasterId, appToken) {
     { type: 'channel.subscribe', version: '1', condition: { broadcaster_user_id: broadcasterId } },
     { type: 'channel.subscription.gift', version: '1', condition: { broadcaster_user_id: broadcasterId } },
     { type: 'channel.cheer', version: '1', condition: { broadcaster_user_id: broadcasterId } },
+    { type: 'channel.channel_points_custom_reward_redemption.add', version: '1', condition: { broadcaster_user_id: broadcasterId } },
   ];
   for (const sub of subs) {
     try {
