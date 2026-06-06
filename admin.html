@@ -197,6 +197,8 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   <nav class="nav">
     <div class="nav-section">Admin</div>
     <div class="nav-item active"><span class="nav-icon">👥</span> Streamers</div>
+    <div class="nav-section">Herramientas</div>
+    <div class="nav-item" onclick="openChangelogModal()"><span class="nav-icon">📢</span> Publicar novedades</div>
     <div class="nav-section">Mi canal</div>
     <div class="nav-item" onclick="window.location='/dashboard'"><span class="nav-icon">🎮</span> Mi dashboard</div>
     <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
@@ -324,6 +326,24 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Modal changelog -->
+<div id="changelogModal" class="modal-overlay">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-head">
+      <div style="font-size:24px;">📢</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;">Publicar novedades en Discord</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;" id="changelogVersion"></div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('changelogModal').style.display='none'">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="changelogPreview" style="margin-bottom:16px;"></div>
+      <button onclick="publishChangelog()" style="width:100%;padding:11px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:14px;font-weight:700;cursor:pointer;font-family:var(--sans);">📢 Publicar en #changelog</button>
+    </div>
+  </div>
+</div>
 
 <script>
 let allStreamers = [];
@@ -613,6 +633,63 @@ async function confirmPro(months) {
 document.getElementById('proModal').addEventListener('click', function(e){
   if(e.target===this) this.style.display='none';
 });
+
+document.getElementById('changelogModal').addEventListener('click', function(e){
+  if(e.target===this) this.style.display='none';
+});
+
+// Novedades más recientes — sincronizado con dashboard.html
+const LATEST_CHANGELOG = {
+  version: 'v2.4',
+  date: '6 Junio 2026',
+  items: [
+    '🎰 Overlay de Sorteos con 5 animaciones — Ruleta, Tragamonedas, Cartas, Bolas y Rueda de la Fortuna',
+    '🎡 Animaciones fluidas con física propia y Fisher-Yates shuffle real',
+    '🏆 Pantalla del ganador espectacular con fuegos artificiales y confetti',
+    '📐 Tamaño del overlay configurable — Pequeño, Mediano o Grande',
+    '🎁 Canje de puntos del canal para entrar al sorteo automáticamente (EventSub)',
+    '🎨 Shoutout overlay gratis — estilos visuales exclusivos Pro',
+    '🔧 Múltiples bugs corregidos en overlays, dashboard y bot',
+  ]
+};
+
+function openChangelogModal() {
+  document.getElementById('changelogVersion').textContent = `${LATEST_CHANGELOG.version} — ${LATEST_CHANGELOG.date}`;
+  document.getElementById('changelogPreview').innerHTML = `
+    <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:14px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">Vista previa</div>
+      ${LATEST_CHANGELOG.items.map(item => `
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;font-size:13px;color:var(--text);">
+          <span style="color:var(--purple-light);margin-top:1px;">•</span>
+          <span>${item}</span>
+        </div>`).join('')}
+    </div>`;
+  document.getElementById('changelogModal').style.display = 'flex';
+}
+
+async function publishChangelog() {
+  const btn = document.querySelector('#changelogModal button[onclick="publishChangelog()"]');
+  btn.textContent = '⏳ Publicando...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/admin/changelog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(LATEST_CHANGELOG)
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('✅ Publicado en Discord');
+      document.getElementById('changelogModal').style.display = 'none';
+    } else {
+      showToast(data.error || 'Error al publicar', 'error');
+    }
+  } catch(e) {
+    showToast('Error de conexión', 'error');
+  }
+  btn.textContent = '📢 Publicar en #changelog';
+  btn.disabled = false;
+}
 
 setInterval(loadStreamers, 60000);
 loadStreamers();
