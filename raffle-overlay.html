@@ -468,10 +468,16 @@ async function pollRaffle() {
       return;
     }
 
+    // Si hay un nuevo sorteo activo, limpiar el ganador anterior
+    if (winnerShown && data.active && !data.winner) {
+      winnerShown = null;
+      sessionStorage.removeItem('raffle_winner_shown');
+      slotAnimating = false;
+    }
+
     if (winnerShown) return;
 
     if (!data.active) { activeEl.style.opacity = ''; activeEl.style.display = 'none'; return; }
-    if (data.active && winnerShown) { winnerShown = null; sessionStorage.removeItem('raffle_winner_shown'); }
 
     const opacity = (data.overlay_opacity ?? 100) / 100;
     activeEl.style.opacity = opacity;
