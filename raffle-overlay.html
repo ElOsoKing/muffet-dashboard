@@ -80,6 +80,13 @@ html,body{background:transparent !important;width:100%;height:100%;font-family:v
 .lottery-ball{position:absolute;width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:13px;color:white;text-align:center;font-weight:700;cursor:default;line-height:1.1;word-break:break-all;padding:4px;box-shadow:0 4px 12px rgba(0,0,0,0.4),inset 0 -3px 6px rgba(0,0,0,0.3),inset 0 3px 6px rgba(255,255,255,0.2);}
 .ball-selected{transform:scale(1.2);z-index:10;box-shadow:0 0 20px rgba(240,192,96,0.8),0 4px 12px rgba(0,0,0,0.4)!important;}
 
+/* ── RUEDA DE LA FORTUNA ── */
+.wheel-wrap{display:flex;align-items:center;justify-content:center;height:130px;gap:12px;padding:8px;background:rgba(0,0,0,0.4);}
+.wheel-container{position:relative;width:110px;height:110px;flex-shrink:0;}
+.wheel-canvas{border-radius:50%;box-shadow:0 0 20px rgba(145,71,255,0.5);}
+.wheel-pointer{position:absolute;right:-8px;top:50%;transform:translateY(-50%);font-size:20px;filter:drop-shadow(0 0 4px rgba(240,192,96,0.8));z-index:5;}
+.wheel-winner-text{flex:1;font-family:var(--display);font-size:26px;color:var(--yellow);text-shadow:0 0 12px rgba(240,192,96,0.8);text-align:center;display:none;line-height:1.2;}
+
 /* ── GANADOR ── */
 .winner-screen{display:none;background:var(--bg);backdrop-filter:blur(16px);border:2px solid var(--yellow);border-radius:var(--radius);padding:24px 20px;text-align:center;animation:winnerIn 0.6s cubic-bezier(0.34,1.56,0.64,1);position:relative;overflow:hidden;}
 .winner-screen.show{display:block;}
@@ -272,7 +279,7 @@ function animSlots3(participants, winner, onDone) {
 
   // Animar cada columna con RAF — velocidades de parada distintas para efecto casino
   const maxVels = [55, 50, 45];
-  const stopDelays = [0, 60, 120]; // frames de delay entre columnas al frenar
+  const minCruiseFrames = [80, 110, 140]; // mínimo frames en crucero antes de poder frenar
   let doneCount = 0;
 
   colReels.forEach(({reel, finalPos}, colIdx) => {
@@ -289,9 +296,6 @@ function animSlots3(participants, winner, onDone) {
     function tick() {
       frameCount++;
       // Delay de arranque para col 1 y 2
-      if (!started) {
-        if (frameCount < colIdx * 8) { rafId = requestAnimationFrame(tick); return; }
-        started = true;
       }
 
       const distLeft = Math.abs(finalPos - pos);
@@ -301,7 +305,8 @@ function animSlots3(participants, winner, onDone) {
         if (velocity >= maxVel) phase = 'cruise';
       } else if (phase === 'cruise') {
         // Frenar después del delay correspondiente
-        if (frameCount > stopDelays[colIdx] + 60 && distLeft <= decelDist) phase = 'decel';
+        cruiseFrames = (cruiseFrames||0) + 1;
+        if (cruiseFrames >= minCruiseFrames[colIdx] && distLeft <= decelDist) phase = 'decel';
       } else if (phase === 'decel') {
         const progress = 1 - (distLeft / decelDist);
         velocity = maxVel * Math.pow(1 - progress, 2);
@@ -340,74 +345,124 @@ function animSlots3(participants, winner, onDone) {
 function buildCartas(container) {
   container.innerHTML = `
     <div class="cards-area">
-      <div class="card-deck" id="cardDeck"></div>
+      <div id="cardShuffleArea" style="position:relative;width:200px;height:110px;perspective:600px;"></div>
       <div class="card-name-display" id="cardNameDisplay" style="display:none;"></div>
     </div>`;
 }
 
 function animCartas(participants, winner, onDone) {
-  const deck = document.getElementById('cardDeck');
+  const area = document.getElementById('cardShuffleArea');
   const nameDisplay = document.getElementById('cardNameDisplay');
-  const suits = ['♠','♥','♦','♣'];
-  const colors = ['#9147ff','#e05a7a','#40d090','#f0c060'];
-  // Mezclar cantidad aleatoria de cartas antes del ganador (7-14)
-  const numFake = 7 + Math.floor(Math.random() * 8);
-  const shuffled = [...participants].sort(() => Math.random() - 0.5).slice(0, numFake);
-  // Asegurar que el ganador no aparezca antes de la última posición
-  const filtered = shuffled.filter(p => p !== winner);
-  filtered.push(winner);
+  const statusEl = document.getElementById('animStatus');
 
-  let idx = 0;
-  let currentCard = null;
+  // Agregar estilos de carta si no existen
+  if (!document.getElementById('cardStyles')) {
+    const s = document.createElement('style');
+    s.id = 'cardStyles';
+    s.textContent = `
+      .card-back{position:absolute;width:70px;height:100px;border-radius:8px;
+        background:linear-gradient(135deg,#1a0a2e,#0d0620);
+        border:2px solid rgba(145,71,255,0.5);
+        display:flex;align-items:center;justify-content:center;font-size:24px;
+        box-shadow:0 4px 12px rgba(0,0,0,0.5);cursor:default;
+        transform-style:preserve-3d;transition:transform 0.6s cubic-bezier(0.4,0,0.2,1);}
+      .card-back.flipped{transform:rotateY(180deg) !important;}
+      .card-front{position:absolute;width:70px;height:100px;border-radius:8px;
+        background:linear-gradient(135deg,#1a0a2e,#2a1050);
+        border:2px solid var(--yellow);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        backface-visibility:hidden;transform:rotateY(180deg);
+        font-family:var(--display);font-size:20px;color:var(--yellow);
+        text-align:center;padding:6px;line-height:1.1;}
+    `;
+    document.head.appendChild(s);
+  }
 
-  function showNext() {
-    if (idx >= filtered.length) {
-      // Mostrar ganador grande
-      deck.style.display = 'none';
-      nameDisplay.style.display = 'flex';
-      nameDisplay.textContent = winner;
-      document.getElementById('animStatus').textContent = '🎊 ¡Tenemos ganador!';
-      setTimeout(onDone, 800);
+  // Crear mazo de cartas boca abajo en posiciones escalonadas
+  const numCards = 5 + Math.floor(Math.random() * 4);
+  const cards = [];
+  for (let i = 0; i < numCards; i++) {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `position:absolute;width:70px;height:100px;transform-style:preserve-3d;transition:all 0.3s ease;`;
+    wrapper.style.left = (i * 22) + 'px';
+    wrapper.style.top = (Math.random() * 8 - 4) + 'px';
+    wrapper.style.transform = `rotate(${Math.random()*8-4}deg)`;
+    wrapper.style.zIndex = i;
+
+    const back = document.createElement('div');
+    back.className = 'card-back';
+    back.style.position = 'absolute';
+    back.textContent = '🕷️';
+
+    const front = document.createElement('div');
+    front.className = 'card-front';
+    front.textContent = winner;
+
+    wrapper.appendChild(back);
+    wrapper.appendChild(front);
+    area.appendChild(wrapper);
+    cards.push({ wrapper, back });
+  }
+
+  // Fase 1: barajar animado (mover cartas rápido)
+  statusEl.textContent = 'Barajando...';
+  let shuffleCount = 0;
+  const totalShuffles = 12 + Math.floor(Math.random() * 8);
+
+  function doShuffle() {
+    if (shuffleCount >= totalShuffles) {
+      // Fase 2: resaltar la carta ganadora (última) y voltearla
+      setTimeout(() => {
+        statusEl.textContent = '¡Ya casi!';
+        // Mover la carta ganadora al centro
+        const winCard = cards[cards.length - 1];
+        winCard.wrapper.style.transition = 'all 0.5s cubic-bezier(0.34,1.56,0.64,1)';
+        winCard.wrapper.style.left = '65px';
+        winCard.wrapper.style.top = '5px';
+        winCard.wrapper.style.transform = 'rotate(0deg) scale(1.1)';
+        winCard.wrapper.style.zIndex = '20';
+        // Atenuar las demás
+        cards.slice(0,-1).forEach(c => {
+          c.wrapper.style.opacity = '0.3';
+          c.wrapper.style.transition = 'opacity 0.4s ease';
+        });
+        // Voltear después de 600ms
+        setTimeout(() => {
+          winCard.back.style.transition = 'transform 0.6s cubic-bezier(0.4,0,0.2,1)';
+          winCard.back.style.transform = 'rotateY(180deg)';
+          winCard.wrapper.querySelector('.card-front').style.transform = 'rotateY(0deg)';
+          statusEl.textContent = '🎊 ¡Tenemos ganador!';
+          setTimeout(onDone, 900);
+        }, 600);
+      }, 400);
       return;
     }
-    const name = filtered[idx];
-    const suit = suits[idx % 4];
-    const color = colors[idx % 4];
-    const isLast = idx === filtered.length - 1;
-    const delay = isLast ? 600 : Math.max(80, 400 - idx * 35);
 
-    if (currentCard) currentCard.style.opacity = '0.2';
+    // Animar una carta aleatoria moviéndola
+    const cardIdx = Math.floor(Math.random() * cards.length);
+    const card = cards[cardIdx];
+    const jumpX = (Math.random() - 0.5) * 30;
+    const jumpY = (Math.random() - 0.5) * 20;
+    const origLeft = parseFloat(card.wrapper.style.left);
+    const origTop = parseFloat(card.wrapper.style.top);
 
-    const card = document.createElement('div');
-    card.className = 'playing-card';
-    card.style.cssText = `
-      border-color:${color}55;
-      z-index:${idx};
-      top:${Math.random()*10-5}px;
-      left:${Math.random()*10-5}px;
-      transform:rotate(${Math.random()*10-5}deg);
-      animation:cardFlip 0.2s ease;
-      background:linear-gradient(135deg,rgba(20,20,30,0.95),rgba(30,30,50,0.95));
-    `;
-    card.innerHTML = `<div class="card-name" style="color:${color};font-size:${name.length>8?'10px':'12px'}">${name}</div><div class="card-suit" style="color:${color}">${suit}</div>`;
+    card.wrapper.style.transition = 'all 0.08s ease';
+    card.wrapper.style.left = (origLeft + jumpX) + 'px';
+    card.wrapper.style.top = (origTop + jumpY) + 'px';
+    card.wrapper.style.transform = `rotate(${Math.random()*20-10}deg) scale(1.05)`;
 
-    // Limpiar cartas viejas si hay muchas
-    while(deck.children.length > 5) deck.removeChild(deck.firstChild);
-    deck.appendChild(card);
-    currentCard = card;
-    document.getElementById('animStatus').textContent = isLast ? '¡Ya casi!' : `Barajando... (${idx+1}/${filtered.length})`;
-    idx++;
-    setTimeout(showNext, delay);
+    setTimeout(() => {
+      card.wrapper.style.left = origLeft + 'px';
+      card.wrapper.style.top = origTop + 'px';
+      card.wrapper.style.transform = `rotate(${Math.random()*8-4}deg)`;
+    }, 90);
+
+    shuffleCount++;
+    const delay = Math.max(60, 200 - shuffleCount * 10);
+    setTimeout(doShuffle, delay);
   }
 
-  // Agregar keyframe de animación
-  if (!document.getElementById('cardFlipStyle')) {
-    const style = document.createElement('style');
-    style.id = 'cardFlipStyle';
-    style.textContent = '@keyframes cardFlip{from{transform:rotateY(90deg) rotate(-5deg);opacity:0;}to{opacity:1;}}';
-    document.head.appendChild(style);
-  }
-  showNext();
+  setTimeout(doShuffle, 300);
 }
 
 // ══ ESTILO 4: BOLAS ══
@@ -488,7 +543,136 @@ const STYLES = {
   tragamonedas: { icon:'🎲', title:'¡Girando los rodillos!', build:buildSlots3, anim:animSlots3  },
   cartas:       { icon:'🃏', title:'Barajando las cartas...', build:buildCartas, anim:animCartas  },
   bolas:        { icon:'🎱', title:'Mezclando las bolas...', build:buildBolas,  anim:animBolas   },
+  rueda:        { icon:'🎡', title:'¡Girando la rueda!',     build:buildRueda,  anim:animRueda   },
 };
+
+// ══ ESTILO 5: RUEDA DE LA FORTUNA ══
+function buildRueda(container) {
+  container.innerHTML = `
+    <div class="wheel-wrap">
+      <div class="wheel-container">
+        <canvas id="wheelCanvas" class="wheel-canvas" width="110" height="110"></canvas>
+        <span class="wheel-pointer">▶</span>
+      </div>
+      <div class="wheel-winner-text" id="wheelWinnerText"></div>
+    </div>`;
+}
+
+function animRueda(participants, winner, onDone) {
+  const canvas = document.getElementById('wheelCanvas');
+  const ctx = canvas.getContext('2d');
+  const statusEl = document.getElementById('animStatus');
+  const winnerText = document.getElementById('wheelWinnerText');
+  const W = 110, CX = W/2, CY = W/2, R = 50;
+
+  // Tomar hasta 8 participantes para la rueda (incluyendo ganador)
+  const pool = [...new Set([winner, ...[...participants].sort(()=>Math.random()-0.5)])].slice(0,8);
+  if (!pool.includes(winner)) pool[pool.length-1] = winner;
+  const N = pool.length;
+  const slice = (Math.PI * 2) / N;
+
+  const colors = ['#9147ff','#e05a7a','#40d090','#f0c060','#58a6ff','#ff6b35','#b388ff','#a8e063'];
+
+  function drawWheel(angle) {
+    ctx.clearRect(0,0,W,W);
+    for (let i = 0; i < N; i++) {
+      const start = angle + i * slice;
+      const end = start + slice;
+      // Sector
+      ctx.beginPath();
+      ctx.moveTo(CX,CY);
+      ctx.arc(CX,CY,R,start,end);
+      ctx.closePath();
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      // Texto
+      ctx.save();
+      ctx.translate(CX,CY);
+      ctx.rotate(start + slice/2);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = 'white';
+      ctx.font = 'bold 8px Inter';
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 3;
+      const label = pool[i].length > 7 ? pool[i].slice(0,7)+'…' : pool[i];
+      ctx.fillText(label, R - 4, 3);
+      ctx.restore();
+    }
+    // Centro
+    ctx.beginPath();
+    ctx.arc(CX,CY,10,0,Math.PI*2);
+    ctx.fillStyle = '#0d0620';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(145,71,255,0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Spider emoji centro
+    ctx.font = '10px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('🕷️',CX,CY+4);
+  }
+
+  // Calcular ángulo final para que el ganador quede apuntado por el puntero (derecha = 0°)
+  const winnerIdx = pool.indexOf(winner);
+  const targetAngle = -(winnerIdx * slice + slice/2); // sector del ganador centrado en 0°
+  // Agregar vueltas aleatorias para que se vea aleatorio
+  const extraSpins = (4 + Math.floor(Math.random() * 4)) * Math.PI * 2;
+  const finalAngle = targetAngle - extraSpins;
+
+  let currentAngle = 0;
+  let velocity = 0;
+  const maxVel = 0.35;
+  let phase = 'accel';
+  let cruiseFrames = 0;
+  const minCruise = 60;
+  const totalDist = Math.abs(finalAngle - currentAngle);
+  const decelDist = totalDist * 0.4;
+  let rafId;
+
+  function tick() {
+    const distLeft = Math.abs(finalAngle - currentAngle);
+
+    if (phase === 'accel') {
+      velocity = Math.min(maxVel, velocity + maxVel/20);
+      if (velocity >= maxVel) phase = 'cruise';
+      statusEl.textContent = 'Girando...';
+    } else if (phase === 'cruise') {
+      cruiseFrames++;
+      if (cruiseFrames >= minCruise && distLeft <= decelDist) phase = 'decel';
+      statusEl.textContent = 'Girando...';
+    } else if (phase === 'decel') {
+      const progress = 1 - (distLeft / decelDist);
+      velocity = maxVel * Math.pow(1 - progress, 2);
+      velocity = Math.max(velocity, 0.003);
+      statusEl.textContent = distLeft < decelDist*0.3 ? '¡Ya casi!' : 'Frenando...';
+    }
+
+    currentAngle -= velocity;
+
+    if (currentAngle <= finalAngle) {
+      drawWheel(finalAngle);
+      statusEl.textContent = '🎊 ¡Tenemos ganador!';
+      cancelAnimationFrame(rafId);
+      // Mostrar nombre del ganador
+      setTimeout(() => {
+        winnerText.textContent = winner;
+        winnerText.style.display = 'block';
+        winnerText.style.animation = 'tagIn 0.4s cubic-bezier(0.34,1.56,0.64,1)';
+        setTimeout(onDone, 700);
+      }, 300);
+      return;
+    }
+
+    drawWheel(currentAngle);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  drawWheel(0);
+  rafId = requestAnimationFrame(tick);
+}
 
 function spawnConfetti() {
   const colors = ['#9147ff','#f0c060','#40d090','#e05a7a','#60a0f0','#ffffff'];
