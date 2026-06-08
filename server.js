@@ -1341,8 +1341,9 @@ app.get('/api/shoutout-clips/:username', async (req, res) => {
     const clipsData = await clipsRes.json();
     let clips = clipsData?.data || [];
 
-    // Filtrar por duración mínima
+    // Filtrar por duración mínima y máxima
     if (minDuration > 0) clips = clips.filter(c => c.duration >= minDuration);
+    clips = clips.filter(c => c.duration <= maxDuration);
 
     if (!clips.length) return res.json({ user, clip: null, mp4Url: null, fallback: sConfig.fallback_profile || false });
 
