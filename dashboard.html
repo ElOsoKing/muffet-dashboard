@@ -629,9 +629,48 @@ function renderMain() {
 
   <!-- OVERVIEW -->
   <div id="sec-overview" class="section active">
-    <div class="page-header">
-      <div class="page-title"><span class="status-dot"></span>¡Hola, ${userData.display_name}! 👋</div>
-      <div class="page-subtitle">Tu bot está activo y listo para el chat 🕷️</div>
+
+    <!-- HERO -->
+    <div style="position:relative;background:linear-gradient(135deg,rgba(145,71,255,0.12) 0%,rgba(145,71,255,0.04) 50%,transparent 100%);border:1px solid rgba(145,71,255,0.2);border-radius:var(--radius);padding:28px 28px 24px;margin-bottom:20px;overflow:hidden;">
+      <!-- Fondo decorativo -->
+      <div style="position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:radial-gradient(circle,rgba(145,71,255,0.15),transparent 70%);pointer-events:none;border-radius:50%;"></div>
+      <div style="position:absolute;bottom:-20px;left:30%;width:120px;height:120px;background:radial-gradient(circle,rgba(145,71,255,0.08),transparent 70%);pointer-events:none;border-radius:50%;"></div>
+
+      <div style="display:flex;align-items:center;gap:20px;position:relative;">
+        <!-- Avatar -->
+        <div style="position:relative;flex-shrink:0;">
+          <img src="${userData.profile_image_url||''}" style="width:72px;height:72px;border-radius:50%;border:3px solid rgba(145,71,255,0.5);box-shadow:0 0 24px rgba(145,71,255,0.3);" onerror="this.style.display='none'">
+          <div style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;border-radius:50%;background:var(--green);border:2px solid var(--bg);box-shadow:0 0 6px rgba(64,208,144,0.8);"></div>
+        </div>
+
+        <!-- Info -->
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:22px;font-weight:800;color:var(--text);letter-spacing:-0.5px;line-height:1.1;">¡Hola, ${userData.display_name}! 👋</div>
+          <div style="font-size:13px;color:var(--text-dim);margin-top:4px;">
+            <span style="color:var(--green);font-weight:600;">● Online</span>
+            <span style="margin:0 8px;color:var(--text-muted);">•</span>
+            <span>Plan ${s.plan==='pro'?'<span style="color:var(--purple-light);font-weight:600;">Pro ⭐</span>':'Gratuito'}</span>
+            <span style="margin:0 8px;color:var(--text-muted);">•</span>
+            <span style="color:var(--text-muted);">@${userData.username}</span>
+          </div>
+        </div>
+
+        <!-- Métricas rápidas -->
+        <div style="display:flex;gap:24px;text-align:center;flex-shrink:0;">
+          <div>
+            <div style="font-size:28px;font-weight:800;color:var(--purple-light);letter-spacing:-1px;line-height:1;">${Object.keys(commands).length}</div>
+            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">Comandos</div>
+          </div>
+          <div>
+            <div style="font-size:28px;font-weight:800;color:var(--green);letter-spacing:-1px;line-height:1;" id="statusIA2">${s.ai_enabled?'ON':'OFF'}</div>
+            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">IA</div>
+          </div>
+          <div>
+            <div style="font-size:28px;font-weight:800;color:var(--yellow);letter-spacing:-1px;line-height:1;" id="statusMod2">${s.mod_enabled?'ON':'OFF'}</div>
+            <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">Mod</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Alerta plan por vencer -->
@@ -650,28 +689,7 @@ function renderMain() {
       </div>`;
     })()}
 
-    <!-- Barra de estado -->
-    <div style="background:linear-gradient(135deg,rgba(64,208,144,0.06),rgba(145,71,255,0.06));border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:14px;">
-      <div style="width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;box-shadow:0 0 10px rgba(64,208,144,0.7);animation:pulse 2s infinite;"></div>
-      <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);">Bot online — @${userData.username}</div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Corriendo en Railway • Plan ${s.plan==='pro'?'<span style="color:var(--purple-light);">Pro ⭐</span>':'Gratuito'}</div>
-      </div>
-      <div style="display:flex;gap:20px;text-align:center;">
-        <div>
-          <div style="font-size:20px;font-weight:700;color:var(--purple-light);">${Object.keys(commands).length}</div>
-          <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">comandos</div>
-        </div>
-        <div>
-          <div id="statusIA" style="font-size:20px;font-weight:700;color:${s.ai_enabled?'var(--green)':'var(--text-muted)'};">${s.ai_enabled?'ON':'OFF'}</div>
-          <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">IA</div>
-        </div>
-        <div>
-          <div id="statusMod" style="font-size:20px;font-weight:700;color:${s.mod_enabled?'var(--yellow)':'var(--text-muted)'};">${s.mod_enabled?'ON':'OFF'}</div>
-          <div style="font-size:10px;color:var(--text-muted);margin-top:1px;">mod</div>
-        </div>
-      </div>
-    </div>
+
     <div class="stats-grid">
       <div class="stat-card" onclick="showSection('commands')" style="cursor:pointer;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
