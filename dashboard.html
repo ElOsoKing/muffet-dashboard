@@ -1865,7 +1865,11 @@ function renderMain() {
     <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;margin-bottom:16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
         <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;">Historial de solicitudes</div>
-        <button onclick="loadSpotifyHistory()" style="font-size:11px;color:var(--text-muted);background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:4px 10px;cursor:pointer;">↻</button>
+        <div style="display:flex;gap:6px;">
+          <button onclick="loadSpotifyHistory()" style="font-size:11px;color:var(--text-muted);background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:4px 10px;cursor:pointer;">↻</button>
+          <button onclick="clearSpotifyHistory()" style="font-size:11px;color:var(--pink);background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.15);border-radius:6px;padding:4px 10px;cursor:pointer;">🗑 Limpiar</button>
+          <button onclick="resetSongLimits()" style="font-size:11px;color:var(--yellow);background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.15);border-radius:6px;padding:4px 10px;cursor:pointer;">🔄 Resetear límites</button>
+        </div>
       </div>
       <div id="spotifyHistory" style="display:flex;flex-direction:column;gap:8px;">
         <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px;">Cargando historial...</div>
@@ -4183,6 +4187,22 @@ async function loadSpotifyHistory() {
       ${showAll ? '▲ Mostrar menos' : `▼ Ver ${history.length - 5} más`}
     </button>`;
   }
+}
+
+async function clearSpotifyHistory() {
+  if (!confirm('¿Limpiar el historial de canciones?')) return;
+  const config = { ...(streamerData.spotify_config || {}), history: [] };
+  const res = await fetch('/api/spotify/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ spotify_config: config }) });
+  if (res.ok) { streamerData.spotify_config = config; loadSpotifyHistory(); showToast('Historial limpiado ✓'); }
+  else showToast('Error al limpiar', 'error');
+}
+
+async function resetSongLimits() {
+  if (!confirm('¿Resetear los límites de canciones? Los usuarios podrán volver a pedir.')) return;
+  const config = { ...(streamerData.spotify_config || {}), song_limits: {} };
+  const res = await fetch('/api/spotify/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ spotify_config: config }) });
+  if (res.ok) { streamerData.spotify_config = config; showToast('Límites reseteados ✓'); }
+  else showToast('Error al resetear', 'error');
 }
 
 async function addToBlacklist() {
