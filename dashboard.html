@@ -323,6 +323,87 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
   #sec-schedule [style*="grid-template-columns:110px"]{grid-template-columns:90px 1fr 16px 1fr!important;}
   /* Ko-fi botón */
   .sidebar [href*="ko-fi"]{margin:6px 12px 4px!important;}
+
+  /* ── MEJORAS GLOBALES MÓVIL ── */
+  /* Todos los grids de 2 columnas colapsan a 1 */
+  [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+  [style*="grid-template-columns:repeat(2,1fr)"]{grid-template-columns:1fr!important;}
+  [style*="grid-template-columns:repeat(3,1fr)"]{grid-template-columns:1fr!important;}
+
+  /* Paneles con display:grid en 2 columnas */
+  #sec-music [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+  #sec-shoutout [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+  #sec-points [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+  #sec-moderation [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}
+
+  /* Sonando ahora + cola en música — columna */
+  #sec-music [style*="grid-template-columns:1fr 1fr;gap:16px"]{grid-template-columns:1fr!important;}
+
+  /* Botones de acción en fila — hacerlos full width */
+  .btn-group{flex-direction:column!important;}
+
+  /* Inputs y selects más grandes para dedos */
+  .form-input{font-size:16px!important;} /* evita zoom en iOS */
+
+  /* Textos de código muy largos */
+  code{word-break:break-all!important;}
+
+  /* Modales más anchos */
+  .modal-box{width:95vw!important;max-width:95vw!important;margin:10px!important;}
+
+  /* Toggle rows más compactos */
+  .toggle-row{gap:8px!important;}
+
+  /* Panel header con título largo */
+  .panel-header{flex-wrap:wrap!important;gap:6px!important;}
+}
+
+@media(max-width:380px){
+  .main{padding:8px;padding-top:56px;}
+  .stats-grid{grid-template-columns:1fr!important;}
+  .nav-item{font-size:13px!important;}
+  .page-title{font-size:18px!important;}
+}
+
+/* ── BOTTOM NAVIGATION BAR (solo móvil) ── */
+.bottom-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  height:60px;
+  background:rgba(13,13,15,0.97);
+  backdrop-filter:blur(16px);
+  border-top:1px solid rgba(145,71,255,0.2);
+  z-index:200;
+  padding:0 4px;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.bottom-nav-items{
+  display:flex;align-items:stretch;justify-content:space-around;
+  height:60px;
+}
+.bottom-nav-item{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;flex:1;cursor:pointer;
+  padding:6px 4px;border-radius:12px;
+  transition:all 0.15s;
+  color:var(--text-dim);
+  border:none;background:none;font-family:var(--sans);
+  -webkit-tap-highlight-color:transparent;
+}
+.bottom-nav-item.active{color:var(--purple-light);}
+.bottom-nav-item:active{background:rgba(145,71,255,0.1);}
+.bottom-nav-icon{font-size:20px;line-height:1;}
+.bottom-nav-label{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;line-height:1;}
+
+/* Más botón — abre el sidebar */
+.bottom-nav-more{
+  position:relative;
+}
+.bottom-nav-more .bottom-nav-icon{font-size:18px;}
+
+@media(max-width:768px){
+  .bottom-nav{display:flex;flex-direction:column;}
+  .main{padding-bottom:72px;}
 }
 </style>
 </head>
@@ -401,6 +482,32 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
 
 <div class="toast" id="toast"></div>
 
+<!-- BOTTOM NAVIGATION BAR -->
+<nav class="bottom-nav" id="bottomNav">
+  <div class="bottom-nav-items">
+    <button class="bottom-nav-item active" id="bnav-overview" onclick="showSection('overview');setBottomNav('overview')">
+      <span class="bottom-nav-icon">🏠</span>
+      <span class="bottom-nav-label">Inicio</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-commands" onclick="showSection('commands');setBottomNav('commands')">
+      <span class="bottom-nav-icon">⚡</span>
+      <span class="bottom-nav-label">Comandos</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-music" onclick="showSection('music');setBottomNav('music')">
+      <span class="bottom-nav-icon">🎵</span>
+      <span class="bottom-nav-label">Música</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-raffle" onclick="showSection('raffle');setBottomNav('raffle')">
+      <span class="bottom-nav-icon">🎉</span>
+      <span class="bottom-nav-label">Sorteos</span>
+    </button>
+    <button class="bottom-nav-item bottom-nav-more" onclick="toggleSidebar()">
+      <span class="bottom-nav-icon">☰</span>
+      <span class="bottom-nav-label">Más</span>
+    </button>
+  </div>
+</nav>
+
 <script>
 let streamerData = null;
 let userData = null;
@@ -443,6 +550,13 @@ async function loadData() {
   // Restaurar sección activa guardada
   const savedSection = localStorage.getItem('muffet_section') || 'overview';
   showSection(savedSection);
+}
+
+function setBottomNav(section) {
+  const map = { overview:'overview', commands:'commands', music:'music', raffle:'raffle' };
+  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('bnav-' + section);
+  if (btn) btn.classList.add('active');
 }
 
 function showSection(name) {
