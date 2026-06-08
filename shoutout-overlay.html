@@ -97,8 +97,8 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
 
 /* ── MARCOS DECORATIVOS ── */
-.frame-overlay{position:absolute;inset:0;pointer-events:none;z-index:20;}
-.frame-overlay svg{position:absolute;inset:0;width:100%;height:100%;}
+.frame-overlay{position:absolute;pointer-events:none;z-index:50;}
+.frame-overlay svg{position:absolute;inset:-3px;width:calc(100% + 6px);height:calc(100% + 6px);}
 
 /* Animaciones de marcos */
 @keyframes neonPulse{0%,100%{opacity:1;filter:drop-shadow(0 0 4px currentColor);}50%{opacity:0.7;filter:drop-shadow(0 0 12px currentColor);}}
@@ -277,17 +277,16 @@ function applyFrame(frameStyle, accent) {
   frameEl.innerHTML = '';
   frameEl.style.animation = '';
 
-  // Sincronizar posición y tamaño con el overlay
+  // Sincronizar posición con el overlay — expandir 4px hacia afuera para no tapar contenido
   const overlay = document.getElementById('overlay');
   if (overlay) {
-    frameEl.style.position = 'absolute';
-    frameEl.style.left = overlay.style.left;
-    frameEl.style.top = overlay.style.top;
-    frameEl.style.right = overlay.style.right;
-    frameEl.style.bottom = overlay.style.bottom;
-    frameEl.style.width = overlay.offsetWidth + 'px';
-    frameEl.style.height = overlay.offsetHeight + 'px';
-    frameEl.style.transform = overlay.style.transform;
+    const rect = overlay.getBoundingClientRect();
+    const sceneRect = document.getElementById('scene').getBoundingClientRect();
+    frameEl.style.left = (rect.left - sceneRect.left - 4) + 'px';
+    frameEl.style.top = (rect.top - sceneRect.top - 4) + 'px';
+    frameEl.style.width = (rect.width + 8) + 'px';
+    frameEl.style.height = (rect.height + 8) + 'px';
+    frameEl.style.transform = '';
   }
 
   const c = accent || '#9147ff'; // color acento
@@ -479,7 +478,9 @@ function startTimer(duration) {
 async function showShoutout(user, clip, mp4Url, config) {
   currentConfig = config || {};
   const style = currentConfig.style || {};
-  const duration = clip ? Math.max(Math.min((clip.duration * 1000) + 2000, 90000), 8000) : 10000; // mínimo 8s siempre
+  const maxDurSec = currentConfig.max_duration || 60;
+  const clipDur = clip ? Math.min(clip.duration, maxDurSec) : 10;
+  const duration = Math.max((clipDur * 1000) + 2000, 8000); // mínimo 8s siempre
 
   applyStyle(currentConfig);
 
@@ -539,10 +540,27 @@ async function showShoutout(user, clip, mp4Url, config) {
     video.setAttribute('playsinline','');
     video.src = mp4Url;
     video.volume = (currentConfig.volume ?? 100) / 100;
+    // Respetar duración máxima
+    if (currentConfig.max_duration) {
+      video.addEventListener('timeupdate', function() {
+        if (video.currentTime >= currentConfig.max_duration) {
+          video.pause();
+          setTimeout(hideOverlay, 1500);
+        }
+      }, { once: false });
+    }
     video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:cover;';
     clipZone.appendChild(video);
     video.play().catch(e => console.log('video error:', e));
-    video.onended = () => setTimeout(hideOverlay, 1500);
+    video.onended = () => {
+      if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+      setTimeout(hideOverlay, 1500);
+    };
+    video.onerror = () => {
+      console.log('[so] Video error — forzando hideOverlay');
+      if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+      setTimeout(hideOverlay, 1000);
+    };
   } else if (clip) {
     const iframe = document.createElement('iframe');
     iframe.id = 'clipIframe';
@@ -579,6 +597,7 @@ async function showShoutout(user, clip, mp4Url, config) {
 }
 
 function hideOverlay() {
+  if (!soActive && soQueue.length === 0) return; // ya oculto
   const overlay = document.getElementById('overlay');
   overlay.classList.remove('show');
   overlay.style.animation = '';
