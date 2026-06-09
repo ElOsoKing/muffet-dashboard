@@ -38,6 +38,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
   padding:10px 16px;
   border-bottom:2px solid var(--overlay-accent,#9147ff);
   display:none;
+  position:relative;z-index:40;
 }
 #soTitle{
   font-size:17px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
@@ -49,7 +50,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 
 /* Clip — ocupa todo el espacio disponible */
 #clipZone{
-  flex:1;position:relative;overflow:hidden;background:#000;
+  flex:1;position:relative;overflow:hidden;background:#000;z-index:10;
 }
 
 /* Barra inferior — info del streamer */
@@ -59,6 +60,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
   backdrop-filter:blur(12px);
   padding:12px 18px;
   border-top:1px solid rgba(255,255,255,0.08);
+  position:relative;z-index:40;
 }
 #badgeCard{display:flex;align-items:center;gap:12px;}
 #badgeRow{display:flex;align-items:center;gap:12px;flex:1;}
@@ -97,7 +99,9 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
 
 /* ── MARCOS DECORATIVOS ── */
-#frameOverlay svg{position:absolute;inset:-8px;width:calc(100% + 16px);height:calc(100% + 16px);}
+#frameOverlay{position:absolute;top:-10px;left:-10px;right:-10px;bottom:-10px;pointer-events:none;z-index:20;overflow:visible;}
+#frameOverlay svg{width:100%;height:100%;display:block;overflow:visible;}
+#frameOverlay svg *{vector-effect:non-scaling-stroke;}
 
 /* Animaciones de marcos */
 @keyframes neonPulse{0%,100%{opacity:1;filter:drop-shadow(0 0 4px currentColor);}50%{opacity:0.7;filter:drop-shadow(0 0 12px currentColor);}}
@@ -116,7 +120,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 <div id="scene">
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <div id="frameOverlay" style="display:none;position:absolute;inset:0;pointer-events:none;z-index:30;overflow:visible;border-radius:inherit;"></div>
+  <div id="frameOverlay" style="display:none;border-radius:inherit;"></div>
   <!-- Título arriba -->
   <div id="titleBar"><div id="soTitle"></div></div>
   <!-- Clip en el medio -->
