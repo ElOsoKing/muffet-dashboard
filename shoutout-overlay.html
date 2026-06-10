@@ -326,20 +326,8 @@ function applyFrame(frameStyle, accent) {
   frameEl.innerHTML = '';
   frameEl.style.display = 'block';
 
-  // Posicionar relativo al overlay usando getBoundingClientRect
-  function syncFrame() {
-    const or = overlay.getBoundingClientRect();
-    const sr = overlay.parentNode.getBoundingClientRect();
-    const pad = 10;
-    frameEl.style.position = 'absolute';
-    frameEl.style.left = (or.left - sr.left - pad) + 'px';
-    frameEl.style.top = (or.top - sr.top - pad) + 'px';
-    frameEl.style.width = (or.width + pad * 2) + 'px';
-    frameEl.style.height = (or.height + pad * 2) + 'px';
-  }
-  // Sync ahora y en cada frame mientras el overlay esté visible
-  setTimeout(syncFrame, 50);
-  setTimeout(syncFrame, 200);
+  // Guardar referencia para sincronizar después del show
+  window._pendingFrameSync = true;
 
   const c2 = accent || '#9147ff';
 
@@ -477,6 +465,21 @@ function applyFrame(frameStyle, accent) {
   } else {
     if (frameEl) frameEl.style.display = 'none';
   }
+}
+
+function syncFrameOverlay() {
+  const frameEl = document.getElementById('frameOverlay');
+  const overlay = document.getElementById('overlay');
+  if (!frameEl || !overlay || frameEl.style.display === 'none') return;
+  const or = overlay.getBoundingClientRect();
+  const sr = overlay.parentNode.getBoundingClientRect();
+  if (or.width === 0 || or.height === 0) return; // overlay aún no visible
+  const pad = 10;
+  frameEl.style.left = (or.left - sr.left - pad) + 'px';
+  frameEl.style.top = (or.top - sr.top - pad) + 'px';
+  frameEl.style.width = (or.width + pad * 2) + 'px';
+  frameEl.style.height = (or.height + pad * 2) + 'px';
+  window._pendingFrameSync = false;
 }
 
 function applyAnimation(animType) {
@@ -626,7 +629,9 @@ async function showShoutout(user, clip, mp4Url, config) {
   const overlay = document.getElementById('overlay');
   overlay.style.setProperty('--overlay-opacity', (currentConfig.overlay_opacity ?? 100) / 100);
   overlay.classList.add('show');
-  // El marco se aplica con applyFrame al cargar el config
+  // Sincronizar el marco DESPUÉS de que el overlay sea visible
+  setTimeout(syncFrameOverlay, 100);
+  setTimeout(syncFrameOverlay, 400);
   applyAnimation(style.animation || 'fade');
 
   spawnConfetti();
