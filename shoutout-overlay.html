@@ -99,7 +99,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
 
 /* ── MARCOS DECORATIVOS ── */
-#frameOverlay{position:absolute;top:-10px;left:-10px;right:-10px;bottom:-10px;pointer-events:none;z-index:20;overflow:visible;}
+#frameOverlay{pointer-events:none;z-index:50;overflow:visible;}
 #frameOverlay svg{width:100%;height:100%;display:block;overflow:visible;}
 #frameOverlay svg *{vector-effect:non-scaling-stroke;}
 
@@ -118,9 +118,9 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 <body>
 
 <div id="scene">
+<div id="frameOverlay" style="display:none;position:absolute;pointer-events:none;z-index:50;overflow:visible;"></div>
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <div id="frameOverlay" style="display:none;border-radius:inherit;"></div>
   <!-- Título arriba -->
   <div id="titleBar"><div id="soTitle"></div></div>
   <!-- Clip en el medio -->
@@ -279,7 +279,26 @@ function applyFrame(frameStyle, accent) {
   frameEl.innerHTML = '';
   frameEl.style.animation = '';
 
-  // Sin posicionamiento JS — el marco usa CSS con inset negativo
+  // Sincronizar posición del marco con el overlay
+  requestAnimationFrame(() => {
+    const overlay = document.getElementById('overlay');
+    if (!overlay) return;
+    const pad = 10;
+    const ol = parseFloat(overlay.style.left) || 0;
+    const ot = parseFloat(overlay.style.top) || 0;
+    const ob = overlay.style.bottom !== 'auto' ? parseFloat(overlay.style.bottom) : null;
+    const or2 = overlay.style.right !== 'auto' ? parseFloat(overlay.style.right) : null;
+    const ow = overlay.offsetWidth || parseInt(overlay.style.width) || 620;
+    const oh = overlay.offsetHeight || parseInt(overlay.style.height) || 430;
+    frameEl.style.position = 'absolute';
+    frameEl.style.width = (ow + pad * 2) + 'px';
+    frameEl.style.height = (oh + pad * 2) + 'px';
+    if (ob !== null) { frameEl.style.bottom = (ob - pad) + 'px'; frameEl.style.top = 'auto'; }
+    else { frameEl.style.top = (ot - pad) + 'px'; frameEl.style.bottom = 'auto'; }
+    if (or2 !== null) { frameEl.style.right = (or2 - pad) + 'px'; frameEl.style.left = 'auto'; }
+    else { frameEl.style.left = (ol - pad) + 'px'; frameEl.style.right = 'auto'; }
+    frameEl.style.transform = overlay.style.transform || '';
+  });
 
   const c = accent || '#9147ff'; // color acento
 
