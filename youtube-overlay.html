@@ -143,6 +143,7 @@ function onYouTubeIframeAPIReady() {
     events: {
       onReady: onPlayerReady,
       onStateChange: onPlayerStateChange,
+      onError: onPlayerError,
     }
   });
 }
@@ -162,7 +163,21 @@ function onPlayerStateChange(event) {
     isPlaying = true;
   } else if (event.data === YT.PlayerState.PAUSED) {
     isPlaying = false;
+  } else if (event.data === YT.PlayerState.UNSTARTED || event.data === 5) {
+    // Video no disponible o bloqueado — dar 3 segundos y saltar
+    setTimeout(() => {
+      if (!isPlaying && currentVideo) {
+        console.log('[yt] Video no disponible — saltando al siguiente');
+        markCurrentPlayed();
+      }
+    }, 3000);
   }
+}
+
+// Detectar error de reproducción (video bloqueado, no disponible, etc.)
+function onPlayerError(event) {
+  console.log('[yt] Error en video:', event.data, '— saltando al siguiente');
+  setTimeout(() => markCurrentPlayed(), 1500);
 }
 
 // ── Cola ──
@@ -175,7 +190,7 @@ async function pollQueue() {
     applyStyle();
 
     if (queue.length === 0) {
-      if (isPlaying) hideOverlay();
+      hideOverlay();
       return;
     }
 
