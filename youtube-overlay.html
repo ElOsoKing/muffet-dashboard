@@ -25,7 +25,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 
 /* Video */
 #videoZone{flex:1;position:relative;background:#000;overflow:hidden;}
-#ytPlayer{width:100%;height:100%;border:none;}
+#ytPlayer{width:100%;height:100%;} #ytPlayer iframe{width:100%!important;height:100%!important;}
 
 /* Info panel */
 #infoPanel{
@@ -59,7 +59,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 <div id="scene">
   <div id="overlay">
     <div id="titleBar"><div id="soTitle">▶ REPRODUCIENDO</div></div>
-    <div id="videoZone"><iframe id="ytPlayer" allow="autoplay" allowfullscreen></iframe></div>
+    <div id="videoZone"><div id="ytPlayer"></div></div>
     <div id="progressBar"><div id="progressFill"></div></div>
     <div id="infoPanel">
       <div id="thumbWrap"><img id="thumb" src="" alt=""></div>
