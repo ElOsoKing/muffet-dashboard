@@ -587,6 +587,7 @@ function switchMusicTab(tab) {
 function renderYouTubeConfig() {
   const el = document.getElementById('ytConfigContent');
   const yt = streamerData.youtube_config || {};
+  _ytSelectedPos = yt.card_position || 'bottom-left';
   const isPro = streamerData.plan === 'pro' || streamerData.plan === 'admin';
   el.innerHTML = `
     <!-- Header YouTube -->
@@ -720,7 +721,10 @@ function renderYouTubeConfig() {
   `;
 }
 
+let _ytSelectedPos = 'bottom-left';
+
 function selectYTPos(pos) {
+  _ytSelectedPos = pos;
   document.querySelectorAll('[id^="ytpos-"]').forEach(btn => {
     btn.style.background = 'var(--bg3)';
     btn.style.borderColor = 'rgba(255,255,255,0.06)';
@@ -738,7 +742,7 @@ function selectYTPos(pos) {
 async function saveYouTubeConfig() {
   const yt = streamerData.youtube_config || {};
   const allowed = [...document.querySelectorAll('[data-ytperm]:checked')].map(el => el.dataset.ytperm);
-  const selectedPos = document.querySelector('[id^="ytpos-"][style*="rgba(255,0,0"]')?.id?.replace('ytpos-','') || yt.card_position || 'bottom-left';
+  const selectedPos = _ytSelectedPos || yt.card_position || 'bottom-left';
   const updated = {
     ...yt,
     enabled: document.getElementById('ytEnabled')?.checked,
