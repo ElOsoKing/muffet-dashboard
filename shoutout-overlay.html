@@ -168,16 +168,13 @@ function applyCardLayout(config) {
   const pad = 40;
 
   const sizes = {
-    small:  { w: 420 },
-    medium: { w: 620 },
-    large:  { w: 820 },
+    small:  { w: 400, h: 280 },
+    medium: { w: 600, h: 400 },
+    large:  { w: 800, h: 520 },
   };
-  const { w } = sizes[style.card_size || 'medium'];
+  const { w, h } = sizes[style.card_size || 'medium'];
   overlay.style.width = w + 'px';
-  overlay.style.height = 'auto'; // alto automático según contenido
-  // Alto del clipZone = 16:9
-  const clipZone = document.getElementById('clipZone');
-  if (clipZone) clipZone.style.height = Math.round(w * 9/16) + 'px';
+  overlay.style.height = h + 'px';
 
   // Escalar textos
   const scale = w / 620;
