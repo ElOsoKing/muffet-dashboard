@@ -1501,6 +1501,67 @@ app.get('/api/shoutout-followers/:username', async (req, res) => {
 });
 
 // ── SHOUTOUT OVERLAY ──
+// ── YouTube Player Overlay ──
+app.get('/overlay/youtube/:username', (req, res) => {
+  res.sendFile(path.join(__dirname, 'youtube-overlay.html'));
+});
+
+app.get('/api/youtube/config', async (req, res) => {
+  const channel = req.query.channel?.toLowerCase();
+  if (!channel) return res.json({ config: {} });
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const data = await r.json();
+    res.json({ config: data?.[0]?.youtube_config || {} });
+  } catch(e) { res.json({ config: {} }); }
+});
+
+app.get('/api/youtube/queue', async (req, res) => {
+  const channel = req.query.channel?.toLowerCase();
+  if (!channel) return res.json({ queue: [], config: {} });
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const data = await r.json();
+    const ytConfig = data?.[0]?.youtube_config || {};
+    res.json({ queue: ytConfig.queue || [], config: ytConfig });
+  } catch(e) { res.json({ queue: [], config: {} }); }
+});
+
+app.post('/api/youtube/queue/next', async (req, res) => {
+  const { channel, videoId } = req.body;
+  if (!channel) return res.json({ ok: false });
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const data = await r.json();
+    const ytConfig = data?.[0]?.youtube_config || {};
+    let queue = ytConfig.queue || [];
+    // Quitar la canción que terminó
+    if (queue.length > 0 && queue[0].videoId === videoId) queue.shift();
+    // Actualizar en Supabase
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ youtube_config: { ...ytConfig, queue } })
+    });
+    res.json({ ok: true, remaining: queue.length });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+app.post('/api/youtube/config', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const data = await r.json();
+    const current = data?.[0]?.youtube_config || {};
+    const updated = { ...current, ...req.body.youtube_config };
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ youtube_config: updated })
+    });
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false }); }
+});
+
 app.get('/overlay/shoutout/:username', async (req, res) => {
   try {
     res.sendFile(path.join(__dirname, 'shoutout-overlay.html'));
