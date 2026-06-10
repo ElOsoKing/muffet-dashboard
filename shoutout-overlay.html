@@ -469,13 +469,21 @@ function applyFrame(frameStyle, accent) {
 
 function applyAnimation(animType) {
   const wrapper = document.getElementById('overlayWrapper');
+  const durations = { fade:400, slide:500, zoom:400, bounce:600 };
   const anims = {
     fade:   'fadeIn 0.4s ease forwards',
     slide:  'slideIn 0.5s ease forwards',
     zoom:   'zoomIn 0.4s ease forwards',
     bounce: 'bounceIn 0.6s cubic-bezier(0.36,0.07,0.19,0.97) forwards',
   };
-  wrapper.style.animation = anims[animType] || anims.fade;
+  const anim = animType || 'fade';
+  wrapper.style.animation = anims[anim] || anims.fade;
+  // Limpiar animación después de que termine para no bloquear opacity del CSS
+  setTimeout(() => {
+    if (wrapper.classList.contains('show')) {
+      wrapper.style.animation = '';
+    }
+  }, (durations[anim] || 400) + 50);
 }
 
 function spawnConfetti() {
