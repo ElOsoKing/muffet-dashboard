@@ -629,6 +629,40 @@ function renderYouTubeConfig() {
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Volumen del overlay (%)</div>
             <input type="number" id="ytVolume" class="form-input" min="0" max="100" value="${yt.volume??100}" onchange="saveYouTubeConfig()">
           </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Ancho del overlay (px)</div>
+            <input type="number" id="ytWidth" class="form-input" min="200" max="1920" value="${yt.card_width||480}" onchange="saveYouTubeConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Alto del overlay (px)</div>
+            <input type="number" id="ytHeight" class="form-input" min="150" max="1080" value="${yt.card_height||300}" onchange="saveYouTubeConfig()">
+          </div>
+        </div>
+
+        <!-- Posición -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Posición en pantalla</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:280px;">
+            ${['top-left','top-center','top-right','middle-left','center','middle-right','bottom-left','bottom-center','bottom-right'].map(pos => {
+              const icons = {'top-left':'↖','top-center':'↑','top-right':'↗','middle-left':'←','center':'·','middle-right':'→','bottom-left':'↙','bottom-center':'↓','bottom-right':'↘'};
+              const sel = (yt.card_position||'bottom-left') === pos;
+              return `<button onclick="selectYTPos('${pos}')" id="ytpos-${pos}"
+                style="padding:8px;border-radius:6px;font-size:16px;cursor:pointer;transition:all 0.15s;font-family:var(--sans);
+                background:${sel?'rgba(255,0,0,0.15)':'var(--bg3)'};border:1px solid ${sel?'rgba(255,0,0,0.4)':'rgba(255,255,255,0.06)'};
+                color:${sel?'#FF4444':'var(--text-muted)'};">
+                ${icons[pos]}
+              </button>`;
+            }).join('')}
+          </div>
+        </div>
+
+        <!-- Color acento -->
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Color de acento</div>
+            <input type="color" id="ytAccentColor" value="${yt.accent_color||'#FF0000'}" onchange="saveYouTubeConfig()"
+              style="width:48px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none;">
+          </div>
         </div>
 
         <!-- Permisos -->
@@ -686,14 +720,34 @@ function renderYouTubeConfig() {
   `;
 }
 
+function selectYTPos(pos) {
+  document.querySelectorAll('[id^="ytpos-"]').forEach(btn => {
+    btn.style.background = 'var(--bg3)';
+    btn.style.borderColor = 'rgba(255,255,255,0.06)';
+    btn.style.color = 'var(--text-muted)';
+  });
+  const btn = document.getElementById('ytpos-' + pos);
+  if (btn) {
+    btn.style.background = 'rgba(255,0,0,0.15)';
+    btn.style.borderColor = 'rgba(255,0,0,0.4)';
+    btn.style.color = '#FF4444';
+  }
+  saveYouTubeConfig();
+}
+
 async function saveYouTubeConfig() {
   const yt = streamerData.youtube_config || {};
   const allowed = [...document.querySelectorAll('[data-ytperm]:checked')].map(el => el.dataset.ytperm);
+  const selectedPos = document.querySelector('[id^="ytpos-"][style*="rgba(255,0,0"]')?.id?.replace('ytpos-','') || yt.card_position || 'bottom-left';
   const updated = {
     ...yt,
     enabled: document.getElementById('ytEnabled')?.checked,
     max_per_user: parseInt(document.getElementById('ytMaxPerUser')?.value) || 3,
     volume: parseInt(document.getElementById('ytVolume')?.value) ?? 100,
+    card_width: parseInt(document.getElementById('ytWidth')?.value) || 480,
+    card_height: parseInt(document.getElementById('ytHeight')?.value) || 300,
+    card_position: selectedPos,
+    accent_color: document.getElementById('ytAccentColor')?.value || '#FF0000',
     allowed: allowed.length ? allowed : ['everyone'],
   };
   streamerData.youtube_config = updated;
