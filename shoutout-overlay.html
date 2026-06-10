@@ -474,14 +474,30 @@ function syncFrameOverlay() {
   const frameEl = document.getElementById('frameOverlay');
   const overlay = document.getElementById('overlay');
   if (!frameEl || !overlay || frameEl.style.display === 'none') return;
+
+  // Calcular dimensiones reales del overlay
+  const ow = parseInt(overlay.style.width) || overlay.offsetWidth;
+  const clipZone = document.getElementById('clipZone');
+  const titleBar = document.getElementById('titleBar');
+  const infoPanel = document.getElementById('infoPanel');
+  const clipH = clipZone ? clipZone.offsetHeight : 0;
+  const titleH = titleBar && titleBar.style.display !== 'none' ? titleBar.offsetHeight : 0;
+  const infoH = infoPanel ? infoPanel.offsetHeight : 0;
+  const oh = clipH + titleH + infoH;
+
+  if (ow === 0 || oh === 0) {
+    setTimeout(syncFrameOverlay, 100);
+    return;
+  }
+
+  // Posición del overlay en el scene
   const or = overlay.getBoundingClientRect();
   const sr = overlay.parentNode.getBoundingClientRect();
-  if (or.width === 0 || or.height === 0) return; // overlay aún no visible
   const pad = 10;
   frameEl.style.left = (or.left - sr.left - pad) + 'px';
   frameEl.style.top = (or.top - sr.top - pad) + 'px';
-  frameEl.style.width = (or.width + pad * 2) + 'px';
-  frameEl.style.height = (or.height + pad * 2) + 'px';
+  frameEl.style.width = (ow + pad * 2) + 'px';
+  frameEl.style.height = (oh + pad * 2) + 'px';
   window._pendingFrameSync = false;
 }
 
@@ -634,7 +650,8 @@ async function showShoutout(user, clip, mp4Url, config) {
   overlay.classList.add('show');
   // Sincronizar el marco DESPUÉS de que el overlay sea visible
   setTimeout(syncFrameOverlay, 100);
-  setTimeout(syncFrameOverlay, 400);
+  setTimeout(syncFrameOverlay, 300);
+  setTimeout(syncFrameOverlay, 600);
   applyAnimation(style.animation || 'fade');
 
   spawnConfetti();
