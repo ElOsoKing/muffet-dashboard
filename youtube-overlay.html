@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>MuffetBot — YouTube Player</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:'Inter',sans-serif;}
+
+#scene{width:1920px;height:1080px;position:relative;}
+
+/* Overlay card */
+#overlay{
+  position:absolute;
+  display:none;
+  flex-direction:column;
+  background:#000;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 8px 40px rgba(0,0,0,0.8);
+  transition:opacity 0.4s ease;
+  opacity:0;
+}
+#overlay.show{display:flex;opacity:1;}
+
+/* Video */
+#videoZone{flex:1;position:relative;background:#000;overflow:hidden;}
+#ytPlayer{width:100%;height:100%;border:none;}
+
+/* Info panel */
+#infoPanel{
+  background:rgba(0,0,0,0.92);
+  padding:10px 14px;
+  display:flex;align-items:center;gap:12px;
+  border-top:1px solid rgba(255,255,255,0.08);
+}
+#thumbWrap{flex-shrink:0;}
+#thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;}
+#trackInfo{flex:1;min-width:0;}
+#trackName{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#trackMeta{font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px;}
+#queueCount{font-size:10px;color:rgba(255,255,255,0.35);flex-shrink:0;}
+
+/* Progress */
+#progressBar{height:3px;background:rgba(255,255,255,0.1);}
+#progressFill{height:100%;background:#FF0000;width:0%;transition:width 0.5s linear;}
+
+/* Title bar */
+#titleBar{
+  background:rgba(0,0,0,0.85);
+  padding:8px 14px;
+  border-bottom:2px solid #FF0000;
+  display:none;
+}
+#soTitle{font-size:14px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#FF0000;}
+</style>
+</head>
+<body>
+<div id="scene">
+  <div id="overlay">
+    <div id="titleBar"><div id="soTitle">▶ REPRODUCIENDO</div></div>
+    <div id="videoZone"><iframe id="ytPlayer" allow="autoplay" allowfullscreen></iframe></div>
+    <div id="progressBar"><div id="progressFill"></div></div>
+    <div id="infoPanel">
+      <div id="thumbWrap"><img id="thumb" src="" alt=""></div>
+      <div id="trackInfo">
+        <div id="trackName">—</div>
+        <div id="trackMeta">—</div>
+      </div>
+      <div id="queueCount"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(location.search);
+const channel = params.get('channel') || 'elosoking1';
+const SERVER = '';
+
+let ytPlayer = null;
+let currentVideo = null;
+let queue = [];
+let pollInterval = null;
+let progressInterval = null;
+let config = {};
+let hideTimeout = null;
+let isPlaying = false;
+
+// ── Cargar configuración ──
+async function loadConfig() {
+  try {
+    const res = await fetch(`${SERVER}/api/youtube/config?channel=${channel}`);
+    const data = await res.json();
+    config = data.config || {};
+    applyStyle();
+  } catch(e) {}
+}
+
+function applyStyle() {
+  const overlay = document.getElementById('overlay');
+  const w = config.card_width || 480;
+  const h = config.card_height || 300;
+  overlay.style.width = w + 'px';
+  overlay.style.height = h + 'px';
+
+  // Posición
+  const pad = 2.5;
+  const posMap = {
+    'top-left':      { top: pad+'%',    left: pad+'%',    bottom:'auto', right:'auto', transform:'' },
+    'top-center':    { top: pad+'%',    left: '50%',      bottom:'auto', right:'auto', transform:'translateX(-50%)' },
+    'top-right':     { top: pad+'%',    right: pad+'%',   bottom:'auto', left:'auto',  transform:'' },
+    'center':        { top: '50%',      left: '50%',      bottom:'auto', right:'auto', transform:'translate(-50%,-50%)' },
+    'bottom-left':   { bottom: pad+'%', left: pad+'%',    top:'auto',    right:'auto', transform:'' },
+    'bottom-center': { bottom: pad+'%', left: '50%',      top:'auto',    right:'auto', transform:'translateX(-50%)' },
+    'bottom-right':  { bottom: pad+'%', right: pad+'%',   top:'auto',    left:'auto',  transform:'' },
+  };
+  const pos = posMap[config.card_position || 'bottom-left'];
+  Object.entries(pos).forEach(([k, v]) => overlay.style[k] = v);
+
+  // Volumen
+  if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(config.volume ?? 100);
+
+  // Color acento
+  document.getElementById('progressFill').style.background = config.accent_color || '#FF0000';
+  document.getElementById('soTitle').style.color = config.accent_color || '#FF0000';
+  document.getElementById('titleBar').style.borderBottomColor = config.accent_color || '#FF0000';
+}
+
+// ── YouTube IFrame API ──
+function onYouTubeIframeAPIReady() {
+  ytPlayer = new YT.Player('ytPlayer', {
+    width: '100%',
+    height: '100%',
+    playerVars: {
+      autoplay: 1,
+      controls: 0,
+      modestbranding: 1,
+      rel: 0,
+      showinfo: 0,
+      iv_load_policy: 3,
+      disablekb: 1,
+    },
+    events: {
+      onReady: onPlayerReady,
+      onStateChange: onPlayerStateChange,
+    }
+  });
+}
+
+function onPlayerReady() {
+  ytPlayer.setVolume(config.volume ?? 100);
+  pollQueue();
+  pollInterval = setInterval(pollQueue, 5000);
+  progressInterval = setInterval(updateProgress, 1000);
+}
+
+function onPlayerStateChange(event) {
+  if (event.data === YT.PlayerState.ENDED) {
+    console.log('[yt] Video terminado — siguiente en cola');
+    markCurrentPlayed();
+  } else if (event.data === YT.PlayerState.PLAYING) {
+    isPlaying = true;
+  } else if (event.data === YT.PlayerState.PAUSED) {
+    isPlaying = false;
+  }
+}
+
+// ── Cola ──
+async function pollQueue() {
+  try {
+    const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}`);
+    const data = await res.json();
+    queue = data.queue || [];
+    config = { ...config, ...(data.config || {}) };
+    applyStyle();
+
+    if (queue.length === 0) {
+      if (isPlaying) hideOverlay();
+      return;
+    }
+
+    const next = queue[0];
+    if (!currentVideo || currentVideo.videoId !== next.videoId) {
+      playVideo(next);
+    }
+
+    // Actualizar contador
+    const qc = document.getElementById('queueCount');
+    if (queue.length > 1) qc.textContent = `+${queue.length - 1} en cola`;
+    else qc.textContent = '';
+
+  } catch(e) {}
+}
+
+async function markCurrentPlayed() {
+  if (!currentVideo) return;
+  try {
+    await fetch(`${SERVER}/api/youtube/queue/next`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel, videoId: currentVideo.videoId })
+    });
+    currentVideo = null;
+    isPlaying = false;
+    await pollQueue();
+  } catch(e) {}
+}
+
+function playVideo(item) {
+  currentVideo = item;
+  isPlaying = true;
+
+  // Mostrar overlay
+  showOverlay();
+
+  // Cargar video
+  if (ytPlayer && ytPlayer.loadVideoById) {
+    ytPlayer.loadVideoById(item.videoId);
+    ytPlayer.setVolume(config.volume ?? 100);
+  }
+
+  // Info
+  document.getElementById('trackName').textContent = item.title || 'Sin título';
+  document.getElementById('trackMeta').textContent = `${item.channelTitle || ''} · pedido por @${item.requestedBy || '?'}`;
+  document.getElementById('thumb').src = `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`;
+
+  // Título
+  const titleBar = document.getElementById('titleBar');
+  if (config.show_title !== false) {
+    titleBar.style.display = 'block';
+    document.getElementById('soTitle').textContent = '▶ ' + (item.title || 'REPRODUCIENDO');
+  } else {
+    titleBar.style.display = 'none';
+  }
+}
+
+function showOverlay() {
+  if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+  const overlay = document.getElementById('overlay');
+  overlay.classList.add('show');
+}
+
+function hideOverlay() {
+  const overlay = document.getElementById('overlay');
+  overlay.classList.remove('show');
+  isPlaying = false;
+  currentVideo = null;
+}
+
+function updateProgress() {
+  if (!ytPlayer || !ytPlayer.getCurrentTime) return;
+  try {
+    const current = ytPlayer.getCurrentTime();
+    const duration = ytPlayer.getDuration();
+    if (duration > 0) {
+      const pct = (current / duration) * 100;
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+  } catch(e) {}
+}
+
+// ── Init ──
+async function init() {
+  await loadConfig();
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(tag);
+}
+
+init();
+</script>
+</body>
+</html>
