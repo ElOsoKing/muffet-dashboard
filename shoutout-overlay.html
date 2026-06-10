@@ -168,13 +168,19 @@ function applyCardLayout(config) {
   const pad = 40;
 
   const sizes = {
-    small:  { w: 400, h: 280 },
-    medium: { w: 600, h: 400 },
-    large:  { w: 800, h: 520 },
+    small:  { w: 400 },
+    medium: { w: 600 },
+    large:  { w: 800 },
   };
-  const { w, h } = sizes[style.card_size || 'medium'];
+  const { w } = sizes[style.card_size || 'medium'];
   overlay.style.width = w + 'px';
-  overlay.style.height = h + 'px';
+  overlay.style.height = 'auto';
+  // clipZone con aspect ratio 16:9
+  const clipZone = document.getElementById('clipZone');
+  if (clipZone) {
+    clipZone.style.height = Math.round(w * 9 / 16) + 'px';
+    clipZone.style.flex = 'none';
+  }
 
   // Escalar textos
   const scale = w / 620;
