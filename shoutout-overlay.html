@@ -99,7 +99,8 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
 
 /* ── MARCOS DECORATIVOS ── */
-#frameOverlay svg{position:absolute;inset:-10px;width:calc(100% + 20px);height:calc(100% + 20px);overflow:visible;}
+#frameOverlay{position:absolute;pointer-events:none;z-index:50;overflow:visible;}
+#frameOverlay svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
 #frameOverlay svg *{vector-effect:non-scaling-stroke;}
 
 /* Animaciones de marcos */
@@ -119,7 +120,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 <div id="scene">
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <div id="frameOverlay" style="display:none;position:absolute;inset:0;pointer-events:none;z-index:50;overflow:visible;"></div>
+
   <!-- Título arriba -->
   <div id="titleBar"><div id="soTitle"></div></div>
   <!-- Clip en el medio -->
@@ -317,11 +318,20 @@ function applyFrame(frameStyle, accent) {
     return;
   }
 
-  // Marcos SVG — usar el frameOverlay estático dentro del overlay
+  // Crear/reusar frameOverlay como hijo del scene (hermano del overlay)
+  const scene = document.getElementById('scene');
   let frameEl = document.getElementById('frameOverlay');
-  if (!frameEl) return;
+  if (!frameEl) {
+    frameEl = document.createElement('div');
+    frameEl.id = 'frameOverlay';
+    scene.appendChild(frameEl);
+  }
   frameEl.innerHTML = '';
-  frameEl.style.display = 'block';
+  frameEl.style.display = 'none'; // Se muestra en syncFrame
+
+  // Guardar el estilo para sincronizar después del show
+  frameEl._pendingStyle = frameStyle;
+  frameEl._pendingColor = c2;
 
   const c2 = accent || '#9147ff';
 
@@ -457,39 +467,33 @@ function applyFrame(frameStyle, accent) {
     </svg>`;
     // spiderWeb via CSS
   } else {
-    if (frameEl) frameEl.style.display = 'none';
+    frameEl.style.display = 'none';
+    return;
   }
+  // No mostrar aún — syncFrameOverlay lo posiciona y muestra
 }
 
 function syncFrameOverlay() {
   const frameEl = document.getElementById('frameOverlay');
   const overlay = document.getElementById('overlay');
-  if (!frameEl || !overlay || frameEl.style.display === 'none') return;
+  if (!frameEl || !overlay) return;
+  if (!frameEl._pendingStyle) return; // sin marco pendiente
 
-  // Calcular dimensiones reales del overlay
-  const ow = parseInt(overlay.style.width) || overlay.offsetWidth;
-  const clipZone = document.getElementById('clipZone');
-  const titleBar = document.getElementById('titleBar');
-  const infoPanel = document.getElementById('infoPanel');
-  const clipH = clipZone ? clipZone.offsetHeight : 0;
-  const titleH = titleBar && titleBar.style.display !== 'none' ? titleBar.offsetHeight : 0;
-  const infoH = infoPanel ? infoPanel.offsetHeight : 0;
-  const oh = clipH + titleH + infoH;
-
-  if (ow === 0 || oh === 0) {
+  // Usar getBoundingClientRect que da dimensiones reales post-render
+  const or = overlay.getBoundingClientRect();
+  const sr = document.getElementById('scene').getBoundingClientRect();
+  if (or.width === 0 || or.height === 0) {
     setTimeout(syncFrameOverlay, 100);
     return;
   }
 
-  // Posición del overlay en el scene
-  const or = overlay.getBoundingClientRect();
-  const sr = overlay.parentNode.getBoundingClientRect();
-  const pad = 10;
+  const pad = 8;
   frameEl.style.left = (or.left - sr.left - pad) + 'px';
   frameEl.style.top = (or.top - sr.top - pad) + 'px';
-  frameEl.style.width = (ow + pad * 2) + 'px';
-  frameEl.style.height = (oh + pad * 2) + 'px';
-  window._pendingFrameSync = false;
+  frameEl.style.width = (or.width + pad * 2) + 'px';
+  frameEl.style.height = (or.height + pad * 2) + 'px';
+  frameEl.style.display = 'block';
+  frameEl._pendingStyle = null;
 }
 
 function applyAnimation(animType) {
