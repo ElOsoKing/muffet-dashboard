@@ -1535,12 +1535,21 @@ app.post('/api/youtube/queue/next', async (req, res) => {
     const data = await r.json();
     const ytConfig = data?.[0]?.youtube_config || {};
     let queue = ytConfig.queue || [];
+    let removedItem = null;
     // Quitar la canción que terminó
-    if (queue.length > 0 && queue[0].videoId === videoId) queue.shift();
+    if (queue.length > 0 && queue[0].videoId === videoId) {
+      removedItem = queue.shift();
+    }
+    // Liberar slot del límite del usuario
+    const limits = ytConfig.song_limits || {};
+    if (removedItem?.requestedBy && limits[removedItem.requestedBy]) {
+      limits[removedItem.requestedBy] = limits[removedItem.requestedBy].filter(s => s.uri !== videoId);
+      if (limits[removedItem.requestedBy].length === 0) delete limits[removedItem.requestedBy];
+    }
     // Actualizar en Supabase
     await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}`, {
       method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ youtube_config: { ...ytConfig, queue } })
+      body: JSON.stringify({ youtube_config: { ...ytConfig, queue, song_limits: limits } })
     });
     res.json({ ok: true, remaining: queue.length });
   } catch(e) { res.json({ ok: false }); }
