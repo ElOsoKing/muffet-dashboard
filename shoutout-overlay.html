@@ -99,9 +99,8 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 @keyframes fall{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(110vh) rotate(600deg);}}
 
 /* ── MARCOS DECORATIVOS ── */
-#frameOverlay{position:absolute;pointer-events:none;z-index:50;overflow:visible;}
-#frameOverlay svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;}
-#frameOverlay svg *{vector-effect:non-scaling-stroke;}
+/* Marco decorativo via outline en el overlay */
+#overlay.has-frame{outline-offset:8px;}
 
 /* Animaciones de marcos */
 @keyframes neonPulse{0%,100%{opacity:1;filter:drop-shadow(0 0 4px currentColor);}50%{opacity:0.7;filter:drop-shadow(0 0 12px currentColor);}}
@@ -120,7 +119,6 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 <div id="scene">
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-
   <!-- Título arriba -->
   <div id="titleBar"><div id="soTitle"></div></div>
   <!-- Clip en el medio -->
@@ -318,20 +316,21 @@ function applyFrame(frameStyle, accent) {
     return;
   }
 
-  // Crear/reusar frameOverlay como hijo del scene (hermano del overlay)
-  const scene = document.getElementById('scene');
+  // Para marcos SVG complejos (corners, gaming, medieval, spider) usar un pseudo-elemento via box-shadow + SVG background en ::after
+  // Como no podemos usar ::after en JS, usamos un div absoluto que sigue al overlay
+  // Crear/reusar el frameEl
   let frameEl = document.getElementById('frameOverlay');
   if (!frameEl) {
     frameEl = document.createElement('div');
     frameEl.id = 'frameOverlay';
-    scene.appendChild(frameEl);
+    frameEl.style.cssText = 'position:absolute;pointer-events:none;z-index:50;overflow:visible;display:block;';
+    overlay.parentNode.insertBefore(frameEl, overlay.nextSibling);
   }
   frameEl.innerHTML = '';
-  frameEl.style.display = 'none'; // Se muestra en syncFrame
+  frameEl.style.display = 'block';
 
-  // Guardar el estilo para sincronizar después del show
-  frameEl._pendingStyle = frameStyle;
-  frameEl._pendingColor = c2;
+  // Guardar referencia para sincronizar después del show
+  window._pendingFrameSync = true;
 
   const c2 = accent || '#9147ff';
 
@@ -467,33 +466,39 @@ function applyFrame(frameStyle, accent) {
     </svg>`;
     // spiderWeb via CSS
   } else {
-    frameEl.style.display = 'none';
-    return;
+    if (frameEl) frameEl.style.display = 'none';
   }
-  // No mostrar aún — syncFrameOverlay lo posiciona y muestra
 }
 
 function syncFrameOverlay() {
   const frameEl = document.getElementById('frameOverlay');
   const overlay = document.getElementById('overlay');
-  if (!frameEl || !overlay) return;
-  if (!frameEl._pendingStyle) return; // sin marco pendiente
+  if (!frameEl || !overlay || frameEl.style.display === 'none') return;
 
-  // Usar getBoundingClientRect que da dimensiones reales post-render
-  const or = overlay.getBoundingClientRect();
-  const sr = document.getElementById('scene').getBoundingClientRect();
-  if (or.width === 0 || or.height === 0) {
+  // Calcular dimensiones reales del overlay
+  const ow = parseInt(overlay.style.width) || overlay.offsetWidth;
+  const clipZone = document.getElementById('clipZone');
+  const titleBar = document.getElementById('titleBar');
+  const infoPanel = document.getElementById('infoPanel');
+  const clipH = clipZone ? clipZone.offsetHeight : 0;
+  const titleH = titleBar && titleBar.style.display !== 'none' ? titleBar.offsetHeight : 0;
+  const infoH = infoPanel ? infoPanel.offsetHeight : 0;
+  const oh = clipH + titleH + infoH;
+
+  if (ow === 0 || oh === 0) {
     setTimeout(syncFrameOverlay, 100);
     return;
   }
 
-  const pad = 8;
+  // Posición del overlay en el scene
+  const or = overlay.getBoundingClientRect();
+  const sr = overlay.parentNode.getBoundingClientRect();
+  const pad = 10;
   frameEl.style.left = (or.left - sr.left - pad) + 'px';
   frameEl.style.top = (or.top - sr.top - pad) + 'px';
-  frameEl.style.width = (or.width + pad * 2) + 'px';
-  frameEl.style.height = (or.height + pad * 2) + 'px';
-  frameEl.style.display = 'block';
-  frameEl._pendingStyle = null;
+  frameEl.style.width = (ow + pad * 2) + 'px';
+  frameEl.style.height = (oh + pad * 2) + 'px';
+  window._pendingFrameSync = false;
 }
 
 function applyAnimation(animType) {
