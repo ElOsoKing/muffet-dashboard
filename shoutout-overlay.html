@@ -176,13 +176,19 @@ function applyCardLayout(config) {
   };
   const { w } = sizes[style.card_size || 'medium'];
   overlay.style.width = w + 'px';
-  overlay.style.height = 'auto';
   // clipZone con aspect ratio 16:9
   const clipZone = document.getElementById('clipZone');
+  const clipH = Math.round(w * 9 / 16);
   if (clipZone) {
-    clipZone.style.height = Math.round(w * 9 / 16) + 'px';
+    clipZone.style.height = clipH + 'px';
     clipZone.style.flex = 'none';
   }
+  // Alto total = clipZone + titleBar (~38px) + infoPanel (~72px)
+  const titleBar = document.getElementById('titleBar');
+  const infoPanel = document.getElementById('infoPanel');
+  const titleH = titleBar && titleBar.style.display !== 'none' ? 38 : 0;
+  const infoH = 72;
+  overlay.style.height = (clipH + titleH + infoH) + 'px';
 
   // Escalar textos
   const scale = w / 620;
