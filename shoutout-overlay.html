@@ -118,9 +118,9 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
 <body>
 
 <div id="scene">
+<div id="frameOverlay" style="display:none;position:absolute;pointer-events:none;z-index:51;overflow:visible;"></div>
 <div id="overlay">
   <div class="confetti-wrap" id="confetti"></div>
-  <div id="frameOverlay" style="display:none;position:absolute;inset:-10px;pointer-events:none;z-index:50;overflow:visible;"></div>
   <!-- Título arriba -->
   <div id="titleBar"><div id="soTitle"></div></div>
   <!-- Clip en el medio -->
@@ -328,6 +328,18 @@ function applyFrame(frameStyle, accent) {
     return;
   }
 
+  // Posicionar el marco igual que el overlay pero 10px más grande
+  const ov = document.getElementById('overlay');
+  if (ov) {
+    const pad = 10;
+    frameEl.style.top = ov.style.top !== 'auto' && ov.style.top ? (parseFloat(ov.style.top) - pad) + 'px' : 'auto';
+    frameEl.style.bottom = ov.style.bottom !== 'auto' && ov.style.bottom ? (parseFloat(ov.style.bottom) - pad) + 'px' : 'auto';
+    frameEl.style.left = ov.style.left !== 'auto' && ov.style.left ? (parseFloat(ov.style.left) - pad) + 'px' : 'auto';
+    frameEl.style.right = ov.style.right !== 'auto' && ov.style.right ? (parseFloat(ov.style.right) - pad) + 'px' : 'auto';
+    frameEl.style.transform = ov.style.transform || '';
+    frameEl.style.width = (parseInt(ov.style.width) + pad * 2) + 'px';
+    frameEl.style.height = (parseInt(ov.style.height) + pad * 2) + 'px';
+  }
   frameEl.style.display = 'block';
 
   if (frameStyle === 'corners') {
@@ -626,7 +638,6 @@ function hideOverlay() {
   overlay.classList.remove('show');
   overlay.style.animation = '';
   overlay.style.removeProperty('--overlay-opacity');
-  // Ocultar el marco también
   const frameElHide = document.getElementById('frameOverlay');
   if (frameElHide) frameElHide.style.display = 'none';
   const overlay2 = document.getElementById('overlay');
