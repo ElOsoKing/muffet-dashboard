@@ -176,6 +176,7 @@ function applyCardLayout(config) {
   };
   const { w } = sizes[style.card_size || 'medium'];
   overlay.style.width = w + 'px';
+  overlay.style.height = 'auto';
   // clipZone con aspect ratio 16:9
   const clipZone = document.getElementById('clipZone');
   const clipH = Math.round(w * 9 / 16);
@@ -183,12 +184,6 @@ function applyCardLayout(config) {
     clipZone.style.height = clipH + 'px';
     clipZone.style.flex = 'none';
   }
-  // Alto total = clipZone + titleBar (~38px) + infoPanel (~72px)
-  const titleBar = document.getElementById('titleBar');
-  const infoPanel = document.getElementById('infoPanel');
-  const titleH = titleBar && titleBar.style.display !== 'none' ? 38 : 0;
-  const infoH = 72;
-  overlay.style.height = (clipH + titleH + infoH) + 'px';
 
   // Escalar textos
   const scale = w / 620;
@@ -328,19 +323,24 @@ function applyFrame(frameStyle, accent) {
     return;
   }
 
-  // Posicionar el marco igual que el overlay pero 10px más grande
-  const ov = document.getElementById('overlay');
-  if (ov) {
+  // Posicionar el marco después de que el DOM calcule el alto real
+  function positionFrame() {
+    const ov = document.getElementById('overlay');
+    if (!ov) return;
     const pad = 10;
+    const oh = ov.offsetHeight;
+    const ow2 = parseInt(ov.style.width) || ov.offsetWidth;
+    if (oh === 0) { setTimeout(positionFrame, 50); return; }
     frameEl.style.top = ov.style.top !== 'auto' && ov.style.top ? (parseFloat(ov.style.top) - pad) + 'px' : 'auto';
     frameEl.style.bottom = ov.style.bottom !== 'auto' && ov.style.bottom ? (parseFloat(ov.style.bottom) - pad) + 'px' : 'auto';
     frameEl.style.left = ov.style.left !== 'auto' && ov.style.left ? (parseFloat(ov.style.left) - pad) + 'px' : 'auto';
     frameEl.style.right = ov.style.right !== 'auto' && ov.style.right ? (parseFloat(ov.style.right) - pad) + 'px' : 'auto';
     frameEl.style.transform = ov.style.transform || '';
-    frameEl.style.width = (parseInt(ov.style.width) + pad * 2) + 'px';
-    frameEl.style.height = (parseInt(ov.style.height) + pad * 2) + 'px';
+    frameEl.style.width = (ow2 + pad * 2) + 'px';
+    frameEl.style.height = (oh + pad * 2) + 'px';
+    frameEl.style.display = 'block';
   }
-  frameEl.style.display = 'block';
+  setTimeout(positionFrame, 100);
 
   if (frameStyle === 'corners') {
     frameEl.innerHTML = `<svg width="100%" height="100%" style="overflow:visible;" xmlns="http://www.w3.org/2000/svg">
