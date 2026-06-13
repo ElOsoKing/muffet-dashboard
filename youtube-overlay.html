@@ -211,6 +211,19 @@ function onPlayerStateChange(event) {
     }
   } else if (event.data === YT.PlayerState.PLAYING) {
     isPlaying = true;
+    if (isPlayingBasePlaylist && window._pendingViewerVideo && !window._switchingToViewer) {
+      // Nueva canción de playlist empezó — interceptar y poner viewer
+      window._switchingToViewer = true;
+      ytPlayer.stopVideo();
+      const pending = window._pendingViewerVideo;
+      window._pendingViewerVideo = null;
+      isPlayingBasePlaylist = false;
+      setTimeout(() => { 
+        window._switchingToViewer = false;
+        playVideo(pending); 
+      }, 500);
+      return;
+    }
     if (isPlayingBasePlaylist) setTimeout(updateBasePlaylistInfo, 500);
   } else if (event.data === YT.PlayerState.PAUSED) {
     isPlaying = false;
