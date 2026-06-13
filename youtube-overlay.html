@@ -249,19 +249,13 @@ async function pollQueue() {
       return;
     }
 
-    // Si hay canciones de viewers, pausar playlist base y reproducir la canción
-    if (isPlayingBasePlaylist) {
-      isPlayingBasePlaylist = false;
-    }
-
     const next = queue[0];
     if (!currentVideo || currentVideo.videoId !== next.videoId) {
       if (isPlayingBasePlaylist) {
-        // Playlist sonando — esperar a que termine y luego sonar la del viewer
-        // Marcamos la canción pendiente para que suene cuando termine la actual
+        // Playlist sonando — marcar pendiente y esperar a que termine la canción actual
         window._pendingViewerVideo = next;
         console.log('[yt] Canción de viewer en espera — sonará cuando termine la actual');
-      } else {
+      } else if (!currentVideo) {
         playVideo(next);
       }
     }
