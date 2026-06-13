@@ -729,6 +729,7 @@ function renderYouTubeConfig() {
                 <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.title||'Sin título'}</div>
                 <div style="font-size:10px;color:var(--text-muted);">@${v.requestedBy||'?'}</div>
               </div>
+              ${i === 0 ? `<button onclick="ytPlayNow()" style="font-size:11px;padding:5px 10px;border-radius:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-family:var(--sans);white-space:nowrap;font-weight:600;">▶ Ahora</button>` : ''}
             </div>`).join('')
         }
       </div>
@@ -815,6 +816,12 @@ async function removeYTBlacklist(item) {
   streamerData.youtube_config = { ...yt, blacklist: (yt.blacklist||[]).filter(b => b !== item) };
   await saveYouTubeConfig();
   renderYouTubeConfig();
+}
+
+async function ytPlayNow() {
+  const res = await fetch('/api/youtube/queue/playnow', { method: 'POST', headers: {'Content-Type':'application/json'} });
+  if (res.ok) showToast('Reproduciendo canción del viewer ahora ✓');
+  else showToast('Error', 'error');
 }
 
 async function clearYTQueue() {
