@@ -621,6 +621,21 @@ function renderYouTubeConfig() {
           <div><div class="toggle-label">Solicitudes activas</div><div class="toggle-sub">Permite que el chat pida canciones con !yt</div></div>
           <label class="toggle"><input type="checkbox" id="ytEnabled" ${yt.enabled?'checked':''} onchange="saveYouTubeConfig()"><span class="toggle-slider"></span></label>
         </div>
+
+        <!-- Playlist base -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">🎵 Playlist base</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">El overlay reproducirá esta playlist cuando la cola de viewers esté vacía. Los viewers interrumpen con !yt.</div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="ytPlaylistUrl" class="form-input" placeholder="https://youtube.com/playlist?list=..." value="${yt.playlist_url||''}" style="flex:1;">
+            <button onclick="saveYTPlaylist()" class="btn btn-primary" style="white-space:nowrap;">💾 Guardar</button>
+          </div>
+          ${yt.playlist_url ? `<div style="margin-top:8px;font-size:11px;color:#FF4444;display:flex;align-items:center;gap:6px;">
+            <span style="width:7px;height:7px;border-radius:50%;background:#FF4444;display:inline-block;"></span>
+            Playlist activa — el overlay la reproducirá cuando no haya canciones en cola
+            <button onclick="removeYTPlaylist()" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:12px;margin-left:4px;">✕ Quitar</button>
+          </div>` : ''}
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Máx. canciones por usuario</div>
@@ -739,6 +754,28 @@ function selectYTPos(pos) {
   saveYouTubeConfig();
 }
 
+async function saveYTPlaylist() {
+  const url = document.getElementById('ytPlaylistUrl')?.value.trim();
+  // Validar que sea una playlist de YouTube
+  if (url && !url.includes('list=')) {
+    showToast('Ese link no es una playlist de YouTube', 'error');
+    return;
+  }
+  const yt = streamerData.youtube_config || {};
+  streamerData.youtube_config = { ...yt, playlist_url: url || '' };
+  await saveYouTubeConfig();
+  renderYouTubeConfig();
+  showToast(url ? 'Playlist guardada ✓' : 'Playlist eliminada ✓');
+}
+
+async function removeYTPlaylist() {
+  const yt = streamerData.youtube_config || {};
+  streamerData.youtube_config = { ...yt, playlist_url: '' };
+  await saveYouTubeConfig();
+  renderYouTubeConfig();
+  showToast('Playlist eliminada ✓');
+}
+
 async function saveYouTubeConfig() {
   const yt = streamerData.youtube_config || {};
   const allowed = [...document.querySelectorAll('[data-ytperm]:checked')].map(el => el.dataset.ytperm);
@@ -753,6 +790,7 @@ async function saveYouTubeConfig() {
     card_position: selectedPos,
     accent_color: document.getElementById('ytAccentColor')?.value || '#FF0000',
     allowed: allowed.length ? allowed : ['everyone'],
+    playlist_url: yt.playlist_url || '',
   };
   streamerData.youtube_config = updated;
   const res = await fetch('/api/youtube/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ youtube_config: updated }) });
