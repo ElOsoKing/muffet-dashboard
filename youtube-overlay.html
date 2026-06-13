@@ -250,13 +250,22 @@ async function pollQueue() {
     }
 
     const next = queue[0];
+    const forceNext = config.force_next === true;
+
     if (!currentVideo || currentVideo.videoId !== next.videoId) {
-      if (isPlayingBasePlaylist) {
+      if (isPlayingBasePlaylist && !forceNext) {
         // Playlist sonando — marcar pendiente y esperar a que termine la canción actual
         window._pendingViewerVideo = next;
         console.log('[yt] Canción de viewer en espera — sonará cuando termine la actual');
-      } else if (!currentVideo) {
-        playVideo(next);
+      } else {
+        // Forzar reproducción inmediata (force_next o no hay playlist)
+        if (forceNext) {
+          isPlayingBasePlaylist = false;
+          window._pendingViewerVideo = null;
+          // Limpiar el flag en Supabase
+          fetch(`${SERVER}/api/youtube/queue/clearforce?channel=${channel}`, { method: 'POST' }).catch(()=>{});
+        }
+        if (!currentVideo || forceNext) playVideo(next);
       }
     }
 
