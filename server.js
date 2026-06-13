@@ -1555,6 +1555,40 @@ app.post('/api/youtube/queue/next', async (req, res) => {
   } catch(e) { res.json({ ok: false }); }
 });
 
+// Limpiar flag force_next
+app.post('/api/youtube/queue/clearforce', async (req, res) => {
+  const channel = req.query.channel || req.body?.channel;
+  if (!channel) return res.json({ ok: false });
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const data = await r.json();
+    const ytConfig = data?.[0]?.youtube_config || {};
+    delete ytConfig.force_next;
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ youtube_config: ytConfig })
+    });
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Forzar reproducción de la canción del viewer inmediatamente
+app.post('/api/youtube/queue/playnow', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const data = await r.json();
+    const ytConfig = data?.[0]?.youtube_config || {};
+    // Activar flag para que el overlay salte la playlist
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ youtube_config: { ...ytConfig, force_next: true } })
+    });
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false }); }
+});
+
 app.post('/api/youtube/config', async (req, res) => {
   const username = req.session?.user?.username;
   if (!username) return res.status(401).json({ error: 'No autorizado' });
