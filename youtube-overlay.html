@@ -86,14 +86,18 @@ let config = {};
 let hideTimeout = null;
 let isPlaying = false;
 let isPlayingBasePlaylist = false;
+let basePlaylistId = null;
+let basePlaylistIndex = 0;
 
-function playBasePlaylist(playlistUrl) {
+function playBasePlaylist(playlistUrl, resumeFromIndex) {
   if (!ytPlayer || !ytPlayer.loadPlaylist) return;
   isPlayingBasePlaylist = true;
   const match = playlistUrl.match(/[?&]list=([^&]+)/);
   if (!match) return;
   const listId = match[1];
-  ytPlayer.loadPlaylist({ listType: 'playlist', list: listId, index: 0 });
+  basePlaylistId = listId;
+  const startIndex = resumeFromIndex !== undefined ? resumeFromIndex : 0;
+  ytPlayer.loadPlaylist({ listType: 'playlist', list: listId, index: startIndex });
   ytPlayer.setVolume(config.volume ?? 100);
   showOverlay();
   document.getElementById('queueCount').textContent = '🎵 Playlist';
@@ -212,8 +216,9 @@ function onPlayerStateChange(event) {
   } else if (event.data === YT.PlayerState.PLAYING) {
     isPlaying = true;
     if (isPlayingBasePlaylist && window._pendingViewerVideo && !window._switchingToViewer) {
-      // Nueva canción de playlist empezó — interceptar y poner viewer
+      // Nueva canción de playlist empezó — guardar índice y poner viewer
       window._switchingToViewer = true;
+      try { basePlaylistIndex = ytPlayer.getPlaylistIndex() || 0; } catch(e) {}
       ytPlayer.stopVideo();
       const pending = window._pendingViewerVideo;
       window._pendingViewerVideo = null;
@@ -305,9 +310,9 @@ async function markCurrentPlayed() {
     const data = await res.json();
     const remaining = data.queue || [];
     if (remaining.length === 0 && config.playlist_url) {
-      // Retomar playlist base
-      console.log('[yt] Cola vacía — retomando playlist base');
-      playBasePlaylist(config.playlist_url);
+      // Retomar playlist base desde donde estaba
+      console.log('[yt] Cola vacía — retomando playlist base en índice', basePlaylistIndex);
+      playBasePlaylist(config.playlist_url, basePlaylistIndex);
     } else {
       await pollQueue();
     }
