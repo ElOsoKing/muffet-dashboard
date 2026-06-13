@@ -85,6 +85,26 @@ let progressInterval = null;
 let config = {};
 let hideTimeout = null;
 let isPlaying = false;
+let isPlayingBasePlaylist = false;
+
+function playBasePlaylist(playlistUrl) {
+  if (!ytPlayer || !ytPlayer.loadPlaylist) return;
+  isPlayingBasePlaylist = true;
+  // Extraer playlist ID del URL
+  const match = playlistUrl.match(/[?&]list=([^&]+)/);
+  if (!match) return;
+  const listId = match[1];
+  ytPlayer.loadPlaylist({ listType: 'playlist', list: listId, index: 0 });
+  ytPlayer.setVolume(config.volume ?? 100);
+  showOverlay();
+  document.getElementById('trackName').textContent = '🎵 Playlist base';
+  document.getElementById('trackMeta').textContent = 'Reproduciendo playlist del streamer';
+  document.getElementById('thumb').src = '';
+  document.getElementById('queueCount').textContent = '';
+  const titleBar = document.getElementById('titleBar');
+  if (titleBar) titleBar.style.display = 'none';
+  console.log('[yt] Reproduciendo playlist base:', listId);
+}
 
 // ── Cargar configuración ──
 async function loadConfig() {
@@ -190,8 +210,18 @@ async function pollQueue() {
     applyStyle();
 
     if (queue.length === 0) {
-      hideOverlay();
+      // Si hay playlist base, reproducirla
+      if (config.playlist_url && !isPlayingBasePlaylist) {
+        playBasePlaylist(config.playlist_url);
+      } else if (!config.playlist_url) {
+        hideOverlay();
+      }
       return;
+    }
+
+    // Si hay canciones de viewers, pausar playlist base y reproducir la canción
+    if (isPlayingBasePlaylist) {
+      isPlayingBasePlaylist = false;
     }
 
     const next = queue[0];
