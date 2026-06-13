@@ -571,6 +571,7 @@ function switchMusicTab(tab) {
     youtubeBtn.style.background = 'transparent';
     youtubeBtn.style.borderColor = 'rgba(255,255,255,0.08)';
     youtubeBtn.style.color = 'var(--text-muted)';
+    stopYTPolling();
   } else {
     spotifyContent.style.display = 'none';
     youtubeContent.style.display = 'block';
@@ -581,6 +582,7 @@ function switchMusicTab(tab) {
     spotifyBtn.style.borderColor = 'rgba(255,255,255,0.08)';
     spotifyBtn.style.color = 'var(--text-muted)';
     renderYouTubeConfig();
+    startYTPolling();
   }
 }
 
@@ -716,10 +718,10 @@ function renderYouTubeConfig() {
     <!-- Cola actual -->
     <div class="panel">
       <div class="panel-header">
-        <div class="panel-title">📋 Cola actual</div>
+        <div class="panel-title">📋 Cola actual <span id="ytQueueCount" style="font-size:11px;color:var(--text-muted);font-weight:400;">${(yt.queue||[]).length} videos</span></div>
         <button onclick="clearYTQueue()" style="font-size:11px;color:var(--pink);background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.15);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--sans);">🗑 Limpiar cola</button>
       </div>
-      <div class="panel-body">
+      <div class="panel-body" id="ytQueueList">
         ${(yt.queue||[]).length === 0
           ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Cola vacía 🎵</div>'
           : (yt.queue||[]).map((v,i)=>`
@@ -730,6 +732,26 @@ function renderYouTubeConfig() {
                 <div style="font-size:10px;color:var(--text-muted);">@${v.requestedBy||'?'}</div>
               </div>
               ${i === 0 ? `<button onclick="ytPlayNow()" style="font-size:11px;padding:5px 10px;border-radius:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-family:var(--sans);white-space:nowrap;font-weight:600;">▶ Ahora</button>` : ''}
+            </div>`).join('')
+        }
+      </div>
+    </div>
+    <!-- Historial -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">📜 Historial</div>
+        <button onclick="clearYTHistory()" style="font-size:11px;color:var(--pink);background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.15);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--sans);">🗑 Limpiar</button>
+      </div>
+      <div class="panel-body" id="ytHistoryList">
+        ${(yt.history||[]).length === 0
+          ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Sin historial aún 🎵</div>'
+          : (yt.history||[]).slice(0,5).map((h,i) => `
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<Math.min((yt.history||[]).length,5)-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
+              <img src="https://img.youtube.com/vi/${h.videoId}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.title||'Sin título'}</div>
+                <div style="font-size:10px;color:var(--text-muted);">@${h.requestedBy||'?'} · ${new Date(h.playedAt||h.addedAt||Date.now()).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'})}</div>
+              </div>
             </div>`).join('')
         }
       </div>
@@ -822,6 +844,15 @@ async function ytPlayNow() {
   const res = await fetch('/api/youtube/queue/playnow', { method: 'POST', headers: {'Content-Type':'application/json'} });
   if (res.ok) showToast('Reproduciendo canción del viewer ahora ✓');
   else showToast('Error', 'error');
+}
+
+async function clearYTHistory() {
+  if (!confirm('¿Limpiar el historial de YouTube?')) return;
+  const yt = streamerData.youtube_config || {};
+  streamerData.youtube_config = { ...yt, history: [] };
+  await saveYouTubeConfig();
+  renderYouTubeConfig();
+  showToast('Historial limpiado ✓');
 }
 
 async function clearYTQueue() {
@@ -4602,6 +4633,63 @@ function renderBlacklist() {
 let spotifyInterval = null;
 function startSpotifyPolling(){ stopSpotifyPolling(); spotifyInterval = setInterval(loadSpotifyStatus, 10000); loadSpotifyStatus(); }
 function stopSpotifyPolling(){ if(spotifyInterval){ clearInterval(spotifyInterval); spotifyInterval = null; } }
+
+// ── YouTube polling ──
+let ytPollInterval = null;
+function startYTPolling(){
+  stopYTPolling();
+  ytPollInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/streamer');
+      const data = await res.json();
+      if (data.streamer) {
+        streamerData.youtube_config = data.streamer.youtube_config || {};
+        // Solo re-renderizar la cola y el historial, no todo el panel
+        refreshYTQueue();
+        refreshYTHistory();
+      }
+    } catch(e) {}
+  }, 8000);
+}
+function stopYTPolling(){ if(ytPollInterval){ clearInterval(ytPollInterval); ytPollInterval = null; } }
+
+function refreshYTQueue() {
+  const yt = streamerData.youtube_config || {};
+  const queue = yt.queue || [];
+  const queueEl = document.getElementById('ytQueueList');
+  if (!queueEl) return;
+  queueEl.innerHTML = queue.length === 0
+    ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Cola vacía 🎵</div>'
+    : queue.map((v,i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<queue.length-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
+        <img src="https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.title||'Sin título'}</div>
+          <div style="font-size:10px;color:var(--text-muted);">@${v.requestedBy||'?'}</div>
+        </div>
+        ${i === 0 ? `<button onclick="ytPlayNow()" style="font-size:11px;padding:5px 10px;border-radius:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-family:var(--sans);white-space:nowrap;font-weight:600;">▶ Ahora</button>` : ''}
+      </div>`).join('');
+  // Actualizar contador en el header
+  const countEl = document.getElementById('ytQueueCount');
+  if (countEl) countEl.textContent = queue.length + ' videos';
+}
+
+function refreshYTHistory() {
+  const yt = streamerData.youtube_config || {};
+  const history = yt.history || [];
+  const histEl = document.getElementById('ytHistoryList');
+  if (!histEl) return;
+  histEl.innerHTML = history.length === 0
+    ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Sin historial aún 🎵</div>'
+    : history.slice(0,5).map((h,i) => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<Math.min(history.length,5)-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
+        <img src="https://img.youtube.com/vi/${h.videoId}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.title||'Sin título'}</div>
+          <div style="font-size:10px;color:var(--text-muted);">@${h.requestedBy||'?'} · ${new Date(h.playedAt||h.addedAt).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+      </div>`).join('');
+}
 
 async function saveSpotifyCredentials() {
   const spotify_client_id = document.getElementById('spotifyClientId')?.value.trim();
