@@ -119,6 +119,8 @@ function updateBasePlaylistInfo() {
   } catch(e) {}
   // Seguir actualizando cada 5s por si cambia la canción en la playlist
   if (isPlayingBasePlaylist) setTimeout(updateBasePlaylistInfo, 5000);
+  // Mostrar barra de progreso
+  updateProgress();
 }
 
 // ── Cargar configuración ──
@@ -192,14 +194,27 @@ function onPlayerReady() {
 
 function onPlayerStateChange(event) {
   if (event.data === YT.PlayerState.ENDED) {
-    console.log('[yt] Video terminado — siguiente en cola');
-    markCurrentPlayed();
+    if (isPlayingBasePlaylist) {
+      // Verificar si hay canción de viewer esperando
+      if (window._pendingViewerVideo) {
+        const pending = window._pendingViewerVideo;
+        window._pendingViewerVideo = null;
+        isPlayingBasePlaylist = false;
+        playVideo(pending);
+      } else {
+        // Playlist base — YouTube avanza solo, solo actualizamos info
+        setTimeout(updateBasePlaylistInfo, 1000);
+      }
+    } else {
+      console.log('[yt] Video terminado — siguiente en cola');
+      markCurrentPlayed();
+    }
   } else if (event.data === YT.PlayerState.PLAYING) {
     isPlaying = true;
+    if (isPlayingBasePlaylist) setTimeout(updateBasePlaylistInfo, 500);
   } else if (event.data === YT.PlayerState.PAUSED) {
     isPlaying = false;
   } else if (event.data === YT.PlayerState.UNSTARTED || event.data === 5) {
-    // Video no disponible o bloqueado — dar 3 segundos y saltar
     setTimeout(() => {
       if (!isPlaying && currentVideo) {
         console.log('[yt] Video no disponible — saltando al siguiente');
@@ -241,7 +256,14 @@ async function pollQueue() {
 
     const next = queue[0];
     if (!currentVideo || currentVideo.videoId !== next.videoId) {
-      playVideo(next);
+      if (isPlayingBasePlaylist) {
+        // Playlist sonando — esperar a que termine y luego sonar la del viewer
+        // Marcamos la canción pendiente para que suene cuando termine la actual
+        window._pendingViewerVideo = next;
+        console.log('[yt] Canción de viewer en espera — sonará cuando termine la actual');
+      } else {
+        playVideo(next);
+      }
     }
 
     // Actualizar contador
@@ -262,7 +284,17 @@ async function markCurrentPlayed() {
     });
     currentVideo = null;
     isPlaying = false;
-    await pollQueue();
+    // Verificar si hay más canciones en cola
+    const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}`);
+    const data = await res.json();
+    const remaining = data.queue || [];
+    if (remaining.length === 0 && config.playlist_url) {
+      // Retomar playlist base
+      console.log('[yt] Cola vacía — retomando playlist base');
+      playBasePlaylist(config.playlist_url);
+    } else {
+      await pollQueue();
+    }
   } catch(e) {}
 }
 
