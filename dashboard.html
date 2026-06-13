@@ -1067,9 +1067,24 @@ function renderMain() {
       <div class="panel-body" style="padding:0;">
         ${[
           {
+            version: 'v2.6',
+            date: '13 Junio 2026',
+            badge: 'nuevo',
+            items: [
+              '▶️ Nuevo apartado de YouTube — reproduce tu playlist base y los viewers agregan canciones con !yt',
+              '🎵 Cola colaborativa — canciones de viewers suenan después de la canción actual sin cortarla',
+              '🔄 Playlist base retoma desde donde estaba al terminar canción del viewer',
+              '⏭️ Comandos !ytskip, !ytcola, !ytactual, !ytnext para controlar la música',
+              '📋 Historial de YouTube con auto-refresh cada 8 segundos en el dashboard',
+              '🎯 Botón "▶ Ahora" para reproducir canción del viewer inmediatamente',
+              '🔒 Límite de canciones por usuario en YouTube igual que Spotify',
+              '🕷️ Muffet responde con la personalidad del canal en !muffeton y !muffetoff',
+            ]
+          },
+          {
             version: 'v2.5',
             date: '8 Junio 2026',
-            badge: 'nuevo',
+            badge: null,
             items: [
               '🎵 Límite de canciones por usuario — sistema real con Spotify como fuente de verdad',
               '🔄 Límite persiste en Supabase y sobrevive reinicios del bot automáticamente',
