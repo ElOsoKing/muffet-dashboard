@@ -640,18 +640,17 @@ document.getElementById('changelogModal').addEventListener('click', function(e){
 
 // Novedades más recientes — sincronizado con dashboard.html
 const LATEST_CHANGELOG = {
-  version: 'v2.5',
-  date: '8 Junio 2026',
+  version: 'v2.6',
+  date: '13 Junio 2026',
   items: [
-    '🎵 Límite de canciones por usuario — sistema real con Spotify como fuente de verdad',
-    '🔄 Límite persiste en Supabase y sobrevive reinicios del bot automáticamente',
-    '📋 Historial de canciones muestra 5 más botón "Ver más"',
-    '🕷️ Marcos del shoutout overlay mejorados — ya no tapan el clip ni el título',
-    '📍 Posición del shoutout overlay usa porcentajes — funciona en cualquier resolución de OBS',
-    '⏱️ Duración máxima del clip ahora funciona correctamente',
-    '🎨 Dashboard mejorado — hero en inicio, sombras, gradientes y contadores animados',
-    '📱 Responsive móvil mejorado — bottom navigation bar y grids adaptables',
-    '🔧 Cola de shoutouts múltiples — ya no se pierden ni se cortan',
+    '▶️ Nuevo apartado de YouTube — reproduce tu playlist base y los viewers agregan canciones con !yt',
+    '🎵 Cola colaborativa — canciones de viewers suenan después de la canción actual sin cortarla',
+    '🔄 Playlist base retoma desde donde estaba al terminar canción del viewer',
+    '⏭️ Comandos !ytskip, !ytcola, !ytactual, !ytnext para controlar la música',
+    '📋 Historial de YouTube con auto-refresh cada 8 segundos en el dashboard',
+    '🎯 Botón "▶ Ahora" para reproducir canción del viewer inmediatamente',
+    '🔒 Límite de canciones por usuario en YouTube igual que Spotify',
+    '🕷️ Muffet responde con la personalidad del canal en !muffeton y !muffetoff',
   ]
 };
 
