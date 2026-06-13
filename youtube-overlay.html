@@ -90,20 +90,35 @@ let isPlayingBasePlaylist = false;
 function playBasePlaylist(playlistUrl) {
   if (!ytPlayer || !ytPlayer.loadPlaylist) return;
   isPlayingBasePlaylist = true;
-  // Extraer playlist ID del URL
   const match = playlistUrl.match(/[?&]list=([^&]+)/);
   if (!match) return;
   const listId = match[1];
   ytPlayer.loadPlaylist({ listType: 'playlist', list: listId, index: 0 });
   ytPlayer.setVolume(config.volume ?? 100);
   showOverlay();
-  document.getElementById('trackName').textContent = '🎵 Playlist base';
-  document.getElementById('trackMeta').textContent = 'Reproduciendo playlist del streamer';
-  document.getElementById('thumb').src = '';
-  document.getElementById('queueCount').textContent = '';
+  document.getElementById('queueCount').textContent = '🎵 Playlist';
   const titleBar = document.getElementById('titleBar');
   if (titleBar) titleBar.style.display = 'none';
+  // Leer título real después de que cargue
+  setTimeout(updateBasePlaylistInfo, 1500);
   console.log('[yt] Reproduciendo playlist base:', listId);
+}
+
+function updateBasePlaylistInfo() {
+  if (!isPlayingBasePlaylist || !ytPlayer || !ytPlayer.getVideoData) return;
+  try {
+    const data = ytPlayer.getVideoData();
+    if (data && data.title) {
+      document.getElementById('trackName').textContent = data.title;
+      document.getElementById('trackMeta').textContent = data.author || 'Playlist del streamer';
+      const videoId = data.video_id;
+      if (videoId) {
+        document.getElementById('thumb').src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+      }
+    }
+  } catch(e) {}
+  // Seguir actualizando cada 5s por si cambia la canción en la playlist
+  if (isPlayingBasePlaylist) setTimeout(updateBasePlaylistInfo, 5000);
 }
 
 // ── Cargar configuración ──
