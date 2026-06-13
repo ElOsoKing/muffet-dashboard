@@ -1540,6 +1540,14 @@ app.post('/api/youtube/queue/next', async (req, res) => {
     if (queue.length > 0 && queue[0].videoId === videoId) {
       removedItem = queue.shift();
     }
+    // Guardar en historial
+    if (removedItem) {
+      const history = ytConfig.history || [];
+      history.unshift({ ...removedItem, playedAt: new Date().toISOString() });
+      if (history.length > 20) history.pop();
+      ytConfig.history = history;
+    }
+
     // Liberar slot del límite del usuario
     const limits = ytConfig.song_limits || {};
     if (removedItem?.requestedBy && limits[removedItem.requestedBy]) {
