@@ -4646,7 +4646,7 @@ function renderBlacklist() {
 
 // ── SPOTIFY ──
 let spotifyInterval = null;
-function startSpotifyPolling(){ stopSpotifyPolling(); spotifyInterval = setInterval(loadSpotifyStatus, 10000); loadSpotifyStatus(); }
+function startSpotifyPolling(){ stopSpotifyPolling(); spotifyInterval = setInterval(loadSpotifyStatus, 20000); loadSpotifyStatus(); }
 function stopSpotifyPolling(){ if(spotifyInterval){ clearInterval(spotifyInterval); spotifyInterval = null; } }
 
 // ── YouTube polling ──
@@ -4664,7 +4664,7 @@ function startYTPolling(){
         refreshYTHistory();
       }
     } catch(e) {}
-  }, 8000);
+  }, 20000);
 }
 function stopYTPolling(){ if(ytPollInterval){ clearInterval(ytPollInterval); ytPollInterval = null; } }
 
