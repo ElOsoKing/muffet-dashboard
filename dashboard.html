@@ -3097,12 +3097,12 @@ function renderMain() {
               ['none','Sin borde','transparent','transparent'],
               ['solid','Sólido','var(--purple)','rgba(145,71,255,0.15)'],
               ['glow','✨ Glow','rgba(145,71,255,0.5)','rgba(145,71,255,0.1)'],
-              ['neon','💜 Neon','#e05a7a','rgba(224,90,122,0.1)'],
+              ['neon','💜 Neón','#e05a7a','rgba(224,90,122,0.1)'],
               ['gold','⭐ Dorado','#f0c060','rgba(240,192,96,0.1)'],
-              ['corners','📐 Esquinas','var(--purple)','rgba(145,71,255,0.1)'],
+              ['corners','⌐ Esquinas','var(--purple)','rgba(145,71,255,0.1)'],
               ['gaming','🎮 Gaming','var(--purple)','rgba(145,71,255,0.1)'],
-              ['medieval','⚔️ Medieval','#8B6914','rgba(139,105,20,0.1)'],
-              ['spider','🕷️ Araña','var(--purple)','rgba(145,71,255,0.1)'],
+              ['rainbow','🌈 Arcoíris','#9147ff','rgba(145,71,255,0.1)'],
+              ['double','▣ Doble','var(--purple)','rgba(145,71,255,0.1)'],
             ].map(([val,label,borderColor,bg]) => {
               const active = (s.shoutout_config?.style?.border_style||'glow')===val;
               return `<button onclick="selectBorderStyle('${val}',this)" data-border="${val}" data-selected="${active?'true':''}"
