@@ -629,26 +629,49 @@ function renderYouTubeConfig() {
       </div>
     </div>
 
-    <!-- 🎛️ Control de reproducción -->
-    <div class="panel">
-      <div class="panel-header"><div class="panel-title">🎛️ Control de reproducción</div></div>
-      <div class="panel-body">
-        <div id="ytNowPlayingCard" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-          <img id="ytNowThumb" src="" style="width:64px;height:36px;border-radius:6px;object-fit:cover;background:var(--bg3);flex-shrink:0;" onerror="this.style.opacity=0">
-          <div style="flex:1;min-width:0;">
-            <div id="ytNowTitle" style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Sin información</div>
-            <div id="ytNowMeta" style="font-size:11px;color:var(--text-muted);">—</div>
+    <!-- 🎛️ Control de reproducción + 📋 Cola actual -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;" class="yt-np-grid">
+      <div class="panel" style="margin-bottom:0;">
+        <div class="panel-header"><div class="panel-title">🎛️ Sonando ahora</div></div>
+        <div class="panel-body">
+          <div id="ytNowPlayingCard" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <img id="ytNowThumb" src="" style="width:64px;height:36px;border-radius:6px;object-fit:cover;background:var(--bg3);flex-shrink:0;" onerror="this.style.opacity=0">
+            <div style="flex:1;min-width:0;">
+              <div id="ytNowTitle" style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Sin información</div>
+              <div id="ytNowMeta" style="font-size:11px;color:var(--text-muted);">—</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button onclick="ytControl('pause')" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">⏸</button>
+            <button onclick="ytControl('play')" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">▶</button>
+            <button onclick="ytControl('skip')" style="width:40px;height:40px;border-radius:50%;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">⏭</button>
+            <div style="flex:1;display:flex;align-items:center;gap:8px;margin-left:10px;">
+              <span style="font-size:12px;color:var(--text-muted);">🔊</span>
+              <input type="range" id="ytVolumeSlider" min="0" max="100" value="${yt.volume??100}" oninput="ytSetVolume(this.value)" style="flex:1;accent-color:#FF0000;">
+              <span id="ytVolumeLabel" style="font-size:11px;color:var(--text-muted);width:32px;">${yt.volume??100}%</span>
+            </div>
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <button onclick="ytControl('pause')" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">⏸</button>
-          <button onclick="ytControl('play')" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">▶</button>
-          <button onclick="ytControl('skip')" style="width:40px;height:40px;border-radius:50%;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">⏭</button>
-          <div style="flex:1;display:flex;align-items:center;gap:8px;margin-left:10px;">
-            <span style="font-size:12px;color:var(--text-muted);">🔊</span>
-            <input type="range" id="ytVolumeSlider" min="0" max="100" value="${yt.volume??100}" oninput="ytSetVolume(this.value)" style="flex:1;accent-color:#FF0000;">
-            <span id="ytVolumeLabel" style="font-size:11px;color:var(--text-muted);width:32px;">${yt.volume??100}%</span>
-          </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:0;">
+        <div class="panel-header">
+          <div class="panel-title">📋 Próximas <span id="ytQueueCount" style="font-size:11px;color:var(--text-muted);font-weight:400;">${(yt.queue||[]).length} videos</span></div>
+          <button onclick="clearYTQueue()" style="font-size:11px;color:var(--pink);background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.15);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--sans);">🗑 Limpiar</button>
+        </div>
+        <div class="panel-body" id="ytQueueList" style="max-height:160px;overflow-y:auto;">
+          ${(yt.queue||[]).length === 0
+            ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">La cola está vacía 🎵</div>'
+            : (yt.queue||[]).map((v,i)=>`
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<(yt.queue.length-1)?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
+                <img src="https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.title||'Sin título'}</div>
+                  <div style="font-size:10px;color:var(--text-muted);">@${v.requestedBy||'?'}</div>
+                </div>
+                ${i === 0 ? `<button onclick="ytPlayNow()" style="font-size:11px;padding:5px 10px;border-radius:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-family:var(--sans);white-space:nowrap;font-weight:600;">▶ Ahora</button>` : ''}
+              </div>`).join('')
+          }
         </div>
       </div>
     </div>
@@ -768,27 +791,6 @@ function renderYouTubeConfig() {
       </div>
     </div>
 
-    <!-- 📋 Cola actual -->
-    <div class="panel">
-      <div class="panel-header">
-        <div class="panel-title">📋 Cola actual <span id="ytQueueCount" style="font-size:11px;color:var(--text-muted);font-weight:400;">${(yt.queue||[]).length} videos</span></div>
-        <button onclick="clearYTQueue()" style="font-size:11px;color:var(--pink);background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.15);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--sans);">🗑 Limpiar cola</button>
-      </div>
-      <div class="panel-body" id="ytQueueList">
-        ${(yt.queue||[]).length === 0
-          ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Cola vacía 🎵</div>'
-          : (yt.queue||[]).map((v,i)=>`
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<(yt.queue.length-1)?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
-              <img src="https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;">
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.title||'Sin título'}</div>
-                <div style="font-size:10px;color:var(--text-muted);">@${v.requestedBy||'?'}</div>
-              </div>
-              ${i === 0 ? `<button onclick="ytPlayNow()" style="font-size:11px;padding:5px 10px;border-radius:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-family:var(--sans);white-space:nowrap;font-weight:600;">▶ Ahora</button>` : ''}
-            </div>`).join('')
-        }
-      </div>
-    </div>
 
     <!-- 📜 Historial -->
     <div class="panel">
