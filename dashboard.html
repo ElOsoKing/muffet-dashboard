@@ -629,6 +629,30 @@ function renderYouTubeConfig() {
       </div>
     </div>
 
+    <!-- Control de reproducción -->
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">🎛️ Control de reproducción</div></div>
+      <div class="panel-body">
+        <div id="ytNowPlayingCard" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <img id="ytNowThumb" src="" style="width:64px;height:36px;border-radius:6px;object-fit:cover;background:var(--bg3);flex-shrink:0;" onerror="this.style.opacity=0">
+          <div style="flex:1;min-width:0;">
+            <div id="ytNowTitle" style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Sin información</div>
+            <div id="ytNowMeta" style="font-size:11px;color:var(--text-muted);">—</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button onclick="ytControl('pause')" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">⏸</button>
+          <button onclick="ytControl('play')" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">▶</button>
+          <button onclick="ytControl('skip')" style="width:40px;height:40px;border-radius:50%;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">⏭</button>
+          <div style="flex:1;display:flex;align-items:center;gap:8px;margin-left:10px;">
+            <span style="font-size:12px;color:var(--text-muted);">🔊</span>
+            <input type="range" id="ytVolumeSlider" min="0" max="100" value="${yt.volume??100}" oninput="ytSetVolume(this.value)" style="flex:1;accent-color:#FF0000;">
+            <span id="ytVolumeLabel" style="font-size:11px;color:var(--text-muted);width:32px;">${yt.volume??100}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Activar/desactivar -->
     <div class="panel">
       <div class="panel-header"><div class="panel-title">⚙️ Configuración general</div></div>
@@ -858,6 +882,22 @@ async function removeYTBlacklist(item) {
   streamerData.youtube_config = { ...yt, blacklist: (yt.blacklist||[]).filter(b => b !== item) };
   await saveYouTubeConfig();
   renderYouTubeConfig();
+}
+
+async function ytControl(action) {
+  try {
+    await fetch('/api/youtube/control', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action }) });
+    showToast(action === 'pause' ? 'Pausado ⏸' : action === 'play' ? 'Reanudado ▶' : 'Canción saltada ⏭');
+  } catch(e) { showToast('Error', 'error'); }
+}
+
+let _ytVolumeDebounce = null;
+function ytSetVolume(value) {
+  document.getElementById('ytVolumeLabel').textContent = value + '%';
+  clearTimeout(_ytVolumeDebounce);
+  _ytVolumeDebounce = setTimeout(async () => {
+    await fetch('/api/youtube/control', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'volume', value }) });
+  }, 400);
 }
 
 async function ytPlayNow() {
@@ -4735,6 +4775,28 @@ function stopYTPolling(){ if(ytPollInterval){ clearInterval(ytPollInterval); ytP
 function refreshYTQueue() {
   const yt = streamerData.youtube_config || {};
   const queue = yt.queue || [];
+
+  // Actualizar tarjeta "ahora sonando"
+  const nowThumb = document.getElementById('ytNowThumb');
+  const nowTitle = document.getElementById('ytNowTitle');
+  const nowMeta = document.getElementById('ytNowMeta');
+  if (nowTitle) {
+    if (queue.length > 0) {
+      const current = queue[0];
+      nowTitle.textContent = current.title || 'Sin título';
+      nowMeta.textContent = `Pedido por @${current.requestedBy||'?'}`;
+      if (nowThumb) { nowThumb.src = `https://img.youtube.com/vi/${current.videoId}/mqdefault.jpg`; nowThumb.style.opacity = 1; }
+    } else if (yt.playlist_url) {
+      nowTitle.textContent = '🎵 Playlist base';
+      nowMeta.textContent = 'Reproduciendo playlist del streamer';
+      if (nowThumb) nowThumb.style.opacity = 0;
+    } else {
+      nowTitle.textContent = 'Sin información';
+      nowMeta.textContent = '—';
+      if (nowThumb) nowThumb.style.opacity = 0;
+    }
+  }
+
   const queueEl = document.getElementById('ytQueueList');
   if (!queueEl) return;
   queueEl.innerHTML = queue.length === 0
