@@ -249,6 +249,27 @@ function onPlayerError(event) {
 }
 
 // ── Cola ──
+let _lastCommandTs = 0;
+
+function handlePlayerCommand() {
+  const cmdTs = config.player_command_ts || 0;
+  if (cmdTs <= _lastCommandTs) return; // ya procesado
+  _lastCommandTs = cmdTs;
+  const cmd = config.player_command;
+  if (!ytPlayer) return;
+  if (cmd === 'pause' && ytPlayer.pauseVideo) {
+    ytPlayer.pauseVideo();
+  } else if (cmd === 'play' && ytPlayer.playVideo) {
+    ytPlayer.playVideo();
+  } else if (cmd === 'skip') {
+    if (isPlayingBasePlaylist && ytPlayer.nextVideo) {
+      ytPlayer.nextVideo();
+    } else if (currentVideo) {
+      markCurrentPlayed();
+    }
+  }
+}
+
 async function pollQueue() {
   try {
     const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}`);
@@ -256,6 +277,7 @@ async function pollQueue() {
     queue = data.queue || [];
     config = { ...config, ...(data.config || {}) };
     applyStyle();
+    handlePlayerCommand();
 
     if (queue.length === 0) {
       // Si hay playlist base, reproducirla
