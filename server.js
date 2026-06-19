@@ -1581,6 +1581,32 @@ app.post('/api/youtube/queue/clearforce', async (req, res) => {
 });
 
 // Forzar reproducción de la canción del viewer inmediatamente
+// Control de reproducción: pausar/reanudar/volumen
+app.post('/api/youtube/control', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const { action, value } = req.body; // action: 'pause' | 'play' | 'skip' | 'volume'
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const data = await r.json();
+    const ytConfig = data?.[0]?.youtube_config || {};
+    const updated = { ...ytConfig };
+
+    if (action === 'pause') updated.player_command = 'pause';
+    else if (action === 'play') updated.player_command = 'play';
+    else if (action === 'skip') updated.player_command = 'skip';
+    else if (action === 'volume') updated.volume = Math.max(0, Math.min(100, parseInt(value) || 0));
+
+    updated.player_command_ts = Date.now(); // timestamp para que el overlay sepa que es nuevo
+
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ youtube_config: updated })
+    });
+    res.json({ ok: true });
+  } catch(e) { res.json({ ok: false }); }
+});
+
 app.post('/api/youtube/queue/playnow', async (req, res) => {
   const username = req.session?.user?.username;
   if (!username) return res.status(401).json({ error: 'No autorizado' });
