@@ -253,19 +253,25 @@ let _lastCommandTs = 0;
 
 function handlePlayerCommand() {
   const cmdTs = config.player_command_ts || 0;
+  console.log('[control] cmdTs:', cmdTs, 'lastTs:', _lastCommandTs, 'cmd:', config.player_command, 'ytPlayer exists:', !!ytPlayer);
   if (cmdTs <= _lastCommandTs) return; // ya procesado
   _lastCommandTs = cmdTs;
   const cmd = config.player_command;
-  if (!ytPlayer) return;
+  if (!ytPlayer) { console.log('[control] ytPlayer no existe aún'); return; }
+  console.log('[control] Ejecutando comando:', cmd);
   if (cmd === 'pause' && ytPlayer.pauseVideo) {
     ytPlayer.pauseVideo();
+    console.log('[control] pauseVideo() llamado');
   } else if (cmd === 'play' && ytPlayer.playVideo) {
     ytPlayer.playVideo();
+    console.log('[control] playVideo() llamado');
   } else if (cmd === 'skip') {
     if (isPlayingBasePlaylist && ytPlayer.nextVideo) {
       ytPlayer.nextVideo();
+      console.log('[control] nextVideo() llamado');
     } else if (currentVideo) {
       markCurrentPlayed();
+      console.log('[control] markCurrentPlayed() llamado');
     }
   }
 }
