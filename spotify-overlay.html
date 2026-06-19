@@ -240,6 +240,7 @@ let progressInterval = null;
 
 function setupMarquee(el) {
   el.classList.remove('marquee');
+  el.classList.remove('animate');
   el.style.removeProperty('--marquee-dist');
   el.style.removeProperty('--marquee-dur');
   const wrap = el.parentElement;
@@ -314,8 +315,8 @@ function updateWidget(data) {
     artistEl.classList.add('animate');
 
     // Detectar overflow y activar marquee si el texto es muy largo
-    setTimeout(() => setupMarquee(trackEl), 450);
-    setTimeout(() => setupMarquee(artistEl), 450);
+    setTimeout(() => setupMarquee(trackEl), 600);
+    setTimeout(() => setupMarquee(artistEl), 600);
   }
 
   // Progreso
