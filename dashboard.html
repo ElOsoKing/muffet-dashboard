@@ -629,7 +629,7 @@ function renderYouTubeConfig() {
       </div>
     </div>
 
-    <!-- Control de reproducción -->
+    <!-- 🎛️ Control de reproducción -->
     <div class="panel">
       <div class="panel-header"><div class="panel-title">🎛️ Control de reproducción</div></div>
       <div class="panel-body">
@@ -653,9 +653,9 @@ function renderYouTubeConfig() {
       </div>
     </div>
 
-    <!-- Activar/desactivar -->
+    <!-- ▶️ Reproducción -->
     <div class="panel">
-      <div class="panel-header"><div class="panel-title">⚙️ Configuración general</div></div>
+      <div class="panel-header"><div class="panel-title">▶️ Reproducción</div></div>
       <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
         <div class="toggle-row">
           <div><div class="toggle-label">Solicitudes activas</div><div class="toggle-sub">Permite que el chat pida canciones con !yt</div></div>
@@ -676,20 +676,47 @@ function renderYouTubeConfig() {
             <button onclick="removeYTPlaylist()" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:12px;margin-left:4px;">✕ Quitar</button>
           </div>` : ''}
         </div>
+
+        <!-- Permisos -->
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">¿Quién puede pedir canciones?</div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            ${['everyone','sub','vip','mod'].map(p => {
+              const labels = {everyone:'Todos',sub:'Subs',vip:'VIPs',mod:'Mods'};
+              const sel = (yt.allowed||['everyone']).includes(p);
+              return `<label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:${sel?'rgba(255,0,0,0.1)':'var(--bg3)'};border:1px solid ${sel?'rgba(255,0,0,0.3)':'rgba(255,255,255,0.06)'};font-size:12px;color:${sel?'#FF0000':'var(--text-dim)'};">
+                <input type="checkbox" data-ytperm="${p}" ${sel?'checked':''} onchange="saveYouTubeConfig()" style="display:none;">
+                ${labels[p]}
+              </label>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🔒 Límites -->
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">🔒 Límites</div></div>
+      <div class="panel-body">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Máx. canciones por usuario</div>
             <input type="number" id="ytMaxPerUser" class="form-input" min="1" max="10" value="${yt.max_per_user||3}" onchange="saveYouTubeConfig()">
           </div>
           <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Volumen del overlay (%)</div>
-            <input type="number" id="ytVolume" class="form-input" min="0" max="100" value="${yt.volume??100}" onchange="saveYouTubeConfig()">
-          </div>
-          <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Duración máxima (minutos)</div>
             <input type="number" id="ytMaxDuration" class="form-input" min="1" max="180" value="${yt.max_duration_min||10}" onchange="saveYouTubeConfig()" placeholder="10">
             <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Videos más largos serán rechazados</div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🎨 Apariencia -->
+    <div class="panel">
+      <div class="panel-header"><div class="panel-title">🎨 Apariencia del overlay</div></div>
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Ancho del overlay (px)</div>
             <input type="number" id="ytWidth" class="form-input" min="200" max="1920" value="${yt.card_width||480}" onchange="saveYouTubeConfig()">
@@ -718,32 +745,15 @@ function renderYouTubeConfig() {
         </div>
 
         <!-- Color acento -->
-        <div style="display:flex;align-items:center;gap:12px;">
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Color de acento</div>
-            <input type="color" id="ytAccentColor" value="${yt.accent_color||'#FF0000'}" onchange="saveYouTubeConfig()"
-              style="width:48px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none;">
-          </div>
-        </div>
-
-        <!-- Permisos -->
         <div>
-          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">¿Quién puede pedir canciones?</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;">
-            ${['everyone','sub','vip','mod'].map(p => {
-              const labels = {everyone:'Todos',sub:'Subs',vip:'VIPs',mod:'Mods'};
-              const sel = (yt.allowed||['everyone']).includes(p);
-              return `<label style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;cursor:pointer;background:${sel?'rgba(255,0,0,0.1)':'var(--bg3)'};border:1px solid ${sel?'rgba(255,0,0,0.3)':'rgba(255,255,255,0.06)'};font-size:12px;color:${sel?'#FF0000':'var(--text-dim)'};">
-                <input type="checkbox" data-ytperm="${p}" ${sel?'checked':''} onchange="saveYouTubeConfig()" style="display:none;">
-                ${labels[p]}
-              </label>`;
-            }).join('')}
-          </div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Color de acento</div>
+          <input type="color" id="ytAccentColor" value="${yt.accent_color||'#FF0000'}" onchange="saveYouTubeConfig()"
+            style="width:48px;height:36px;border:none;border-radius:8px;cursor:pointer;background:none;">
         </div>
       </div>
     </div>
 
-    <!-- Lista negra -->
+    <!-- 🚫 Lista negra -->
     <div class="panel">
       <div class="panel-header"><div class="panel-title">🚫 Lista negra</div></div>
       <div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
@@ -758,7 +768,7 @@ function renderYouTubeConfig() {
       </div>
     </div>
 
-    <!-- Cola actual -->
+    <!-- 📋 Cola actual -->
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">📋 Cola actual <span id="ytQueueCount" style="font-size:11px;color:var(--text-muted);font-weight:400;">${(yt.queue||[]).length} videos</span></div>
@@ -779,7 +789,8 @@ function renderYouTubeConfig() {
         }
       </div>
     </div>
-    <!-- Historial -->
+
+    <!-- 📜 Historial -->
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">📜 Historial</div>
