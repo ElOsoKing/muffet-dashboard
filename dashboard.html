@@ -422,6 +422,26 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
   box-shadow:0 -4px 20px rgba(0,0,0,0.4);
 }
 #stickySaveBar.show{display:flex;}
+.yt-volume-slider{
+  -webkit-appearance:none;appearance:none;
+  width:100%;height:5px;border-radius:4px;
+  background:linear-gradient(to right, #FF0000 var(--vol-pct,100%), rgba(255,255,255,0.12) var(--vol-pct,100%));
+  outline:none;cursor:pointer;
+}
+.yt-volume-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:14px;height:14px;border-radius:50%;
+  background:#fff;border:2px solid #FF0000;
+  cursor:pointer;box-shadow:0 0 6px rgba(255,0,0,0.5);
+  transition:transform 0.15s;
+}
+.yt-volume-slider::-webkit-slider-thumb:hover{transform:scale(1.2);}
+.yt-volume-slider::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;
+  background:#fff;border:2px solid #FF0000;
+  cursor:pointer;box-shadow:0 0 6px rgba(255,0,0,0.5);
+}
+.yt-volume-slider::-moz-range-track{background:transparent;}
 </style>
 </head>
 <body>
@@ -642,13 +662,13 @@ function renderYouTubeConfig() {
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
-            <button onclick="ytControl('pause')" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">⏸</button>
-            <button onclick="ytControl('play')" style="width:40px;height:40px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">▶</button>
-            <button onclick="ytControl('skip')" style="width:40px;height:40px;border-radius:50%;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">⏭</button>
-            <div style="flex:1;display:flex;align-items:center;gap:8px;margin-left:10px;">
-              <span style="font-size:12px;color:var(--text-muted);">🔊</span>
-              <input type="range" id="ytVolumeSlider" min="0" max="100" value="${yt.volume??100}" oninput="ytSetVolume(this.value)" style="flex:1;accent-color:#FF0000;">
-              <span id="ytVolumeLabel" style="font-size:11px;color:var(--text-muted);width:32px;">${yt.volume??100}%</span>
+            <button onclick="ytControl('pause')" style="width:38px;height:38px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">⏸</button>
+            <button onclick="ytControl('play')" style="width:44px;height:44px;border-radius:50%;background:#FF0000;border:none;color:white;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(255,0,0,0.4);transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">▶</button>
+            <button onclick="ytControl('skip')" style="width:38px;height:38px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">⏭</button>
+            <div style="flex:1;display:flex;align-items:center;gap:10px;margin-left:12px;">
+              <span style="font-size:13px;">🔊</span>
+              <input type="range" id="ytVolumeSlider" class="yt-volume-slider" min="0" max="100" value="${yt.volume??100}" oninput="ytSetVolume(this.value)" style="flex:1;--vol-pct:${yt.volume??100}%;">
+              <span id="ytVolumeLabel" style="font-size:11px;color:var(--text-muted);width:32px;text-align:right;">${yt.volume??100}%</span>
             </div>
           </div>
         </div>
@@ -907,6 +927,7 @@ async function ytControl(action) {
 let _ytVolumeDebounce = null;
 function ytSetVolume(value) {
   document.getElementById('ytVolumeLabel').textContent = value + '%';
+  document.getElementById('ytVolumeSlider').style.setProperty('--vol-pct', value + '%');
   clearTimeout(_ytVolumeDebounce);
   _ytVolumeDebounce = setTimeout(async () => {
     await fetch('/api/youtube/control', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'volume', value }) });
