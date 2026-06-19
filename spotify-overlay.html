@@ -168,13 +168,13 @@ body {
 
 @keyframes marquee {
   0%   { transform: translateX(0); }
-  15%  { transform: translateX(0); }
-  85%  { transform: translateX(var(--marquee-dist, -50px)); }
+  10%  { transform: translateX(0); }
+  90%  { transform: translateX(var(--marquee-dist, -50px)); }
   100% { transform: translateX(var(--marquee-dist, -50px)); }
 }
 
 .track-name.marquee, .artist-name.marquee {
-  animation: marquee 6s ease-in-out infinite alternate;
+  animation: marquee var(--marquee-dur, 8s) ease-in-out infinite alternate;
 }
 
 /* Barra de progreso */
@@ -241,13 +241,17 @@ let progressInterval = null;
 function setupMarquee(el) {
   el.classList.remove('marquee');
   el.style.removeProperty('--marquee-dist');
+  el.style.removeProperty('--marquee-dur');
   const wrap = el.parentElement;
   const overflowAmount = el.scrollWidth - wrap.clientWidth;
   console.log('[marquee]', el.id, 'scrollWidth:', el.scrollWidth, 'clientWidth:', wrap.clientWidth, 'overflow:', overflowAmount);
   if (overflowAmount > 4) {
     el.style.setProperty('--marquee-dist', `-${overflowAmount + 12}px`);
+    // Duración proporcional: más texto = más tiempo, mínimo 6s
+    const dur = Math.max(6, overflowAmount / 15);
+    el.style.setProperty('--marquee-dur', `${dur}s`);
     el.classList.add('marquee');
-    console.log('[marquee] activado en', el.id);
+    console.log('[marquee] activado en', el.id, 'duración:', dur);
   }
 }
 
