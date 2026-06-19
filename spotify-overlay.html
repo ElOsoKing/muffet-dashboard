@@ -243,9 +243,11 @@ function setupMarquee(el) {
   el.style.removeProperty('--marquee-dist');
   const wrap = el.parentElement;
   const overflowAmount = el.scrollWidth - wrap.clientWidth;
+  console.log('[marquee]', el.id, 'scrollWidth:', el.scrollWidth, 'clientWidth:', wrap.clientWidth, 'overflow:', overflowAmount);
   if (overflowAmount > 4) {
     el.style.setProperty('--marquee-dist', `-${overflowAmount + 12}px`);
     el.classList.add('marquee');
+    console.log('[marquee] activado en', el.id);
   }
 }
 
