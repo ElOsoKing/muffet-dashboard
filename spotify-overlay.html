@@ -138,16 +138,21 @@ body {
   50% { opacity: 0.3; }
 }
 
+.track-name-wrap, .artist-name-wrap {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+}
+
 .track-name {
   font-size: 14px;
   font-weight: 700;
   color: #ffffff;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   line-height: 1.2;
   margin-bottom: 3px;
   transition: opacity 0.3s;
+  display: inline-block;
 }
 
 .artist-name {
@@ -155,10 +160,20 @@ body {
   font-weight: 400;
   color: rgba(255, 255, 255, 0.55);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   margin-bottom: 8px;
   transition: opacity 0.3s;
+  display: inline-block;
+}
+
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  15%  { transform: translateX(0); }
+  85%  { transform: translateX(var(--marquee-dist, -50px)); }
+  100% { transform: translateX(var(--marquee-dist, -50px)); }
+}
+
+.track-name.marquee, .artist-name.marquee {
+  animation: marquee 6s ease-in-out infinite alternate;
 }
 
 /* Barra de progreso */
@@ -209,8 +224,8 @@ body {
       <span class="label-dot" id="labelDot"></span>
       Sonando ahora
     </div>
-    <div class="track-name" id="trackName">—</div>
-    <div class="artist-name" id="artistName">—</div>
+    <div class="track-name-wrap"><div class="track-name" id="trackName">—</div></div>
+    <div class="artist-name-wrap"><div class="artist-name" id="artistName">—</div></div>
     <div class="progress-wrap">
       <div class="progress-bar" id="progressBar" style="width:0%"></div>
     </div>
@@ -221,6 +236,17 @@ body {
 const username = window.location.pathname.split('/overlay/spotify/')[1];
 let currentTrack = '';
 let progressInterval = null;
+
+function setupMarquee(el) {
+  el.classList.remove('marquee');
+  el.style.removeProperty('--marquee-dist');
+  const wrap = el.parentElement;
+  const overflowAmount = el.scrollWidth - wrap.clientWidth;
+  if (overflowAmount > 4) {
+    el.style.setProperty('--marquee-dist', `-${overflowAmount + 12}px`);
+    el.classList.add('marquee');
+  }
+}
 
 async function fetchStatus() {
   try {
@@ -279,6 +305,10 @@ function updateWidget(data) {
     artistEl.textContent = data.artist;
     trackEl.classList.add('animate');
     artistEl.classList.add('animate');
+
+    // Detectar overflow y activar marquee si el texto es muy largo
+    setTimeout(() => setupMarquee(trackEl), 450);
+    setTimeout(() => setupMarquee(artistEl), 450);
   }
 
   // Progreso
