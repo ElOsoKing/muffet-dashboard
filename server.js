@@ -668,6 +668,7 @@ async function handleRewardRedemption(event) {
     console.log(`[redemption] ✅ ${username} ganó Primerin en #${channelName} (${ranking[username.toLowerCase()]} victorias)`);
 
     const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+    console.log(`[redemption] Notificando al bot en: ${botUrl}`);
     fetch(botUrl, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -675,7 +676,8 @@ async function handleRewardRedemption(event) {
         type: 'primerin.redemption',
         event: { channel: channelName, username, wins: ranking[username.toLowerCase()], message: primerinConfig.message || '' }
       })
-    }).catch(() => {});
+    }).then(r => console.log(`[redemption] Bot respondió status: ${r.status}`))
+      .catch(e => console.error('[redemption] Error al notificar al bot:', e.message));
     return;
   }
 
