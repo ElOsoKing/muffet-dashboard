@@ -642,11 +642,44 @@ async function handleRewardRedemption(event) {
   if (!streamer) return;
 
   const channelName = streamer.twitch_username?.toLowerCase();
-  const configuredRewardId = streamer.raffle_settings?.reward_id;
+  const configuredRaffleReward = streamer.raffle_settings?.reward_id;
+  const primerinConfig = streamer.primerin_config || {};
+  const configuredPrimerinReward = primerinConfig.mode === 'reward' ? primerinConfig.reward_id : null;
 
-  console.log(`[redemption] ${username} canjeó ${rewardId} en #${channelName} | configurado: ${configuredRewardId||'ninguno'}`);
+  console.log(`[redemption] ${username} canjeó ${rewardId} en #${channelName} | sorteo: ${configuredRaffleReward||'ninguno'} | primerin: ${configuredPrimerinReward||'ninguno'}`);
 
-  if (!configuredRewardId || rewardId !== configuredRewardId) return;
+  // ── Canje de Primerin ──
+  if (configuredPrimerinReward && rewardId === configuredPrimerinReward) {
+    const isPro = streamer.plan === 'pro' || streamer.plan === 'admin';
+    if (!isPro) { console.log(`[redemption] #${channelName} no es Pro — Primerin ignorado`); return; }
+
+    const today = new Date().toISOString().split('T')[0];
+    const usedToday = primerinConfig.used_today || {};
+    // En modo canje confiamos en el límite de Twitch (Max redemptions per stream)
+    const ranking = primerinConfig.ranking || {};
+    ranking[username.toLowerCase()] = (ranking[username.toLowerCase()] || 0) + 1;
+    const newConfig = { ...primerinConfig, ranking, used_today: { date: today, winner: username } };
+
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${broadcasterId}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ primerin_config: newConfig })
+    });
+
+    console.log(`[redemption] ✅ ${username} ganó Primerin en #${channelName} (${ranking[username.toLowerCase()]} victorias)`);
+
+    const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+    fetch(botUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: process.env.BOT_SECRET || 'muffetbot-internal-2026',
+        type: 'primerin.redemption',
+        event: { channel: channelName, username, wins: ranking[username.toLowerCase()], message: primerinConfig.message || '' }
+      })
+    }).catch(() => {});
+    return;
+  }
+
+  if (!configuredRaffleReward || rewardId !== configuredRaffleReward) return;
 
   // Verificar que hay sorteo activo
   const raffle = streamer.raffle_active || {};
