@@ -2313,15 +2313,90 @@ function renderMain() {
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
       <div class="panel-body">
+
+        <!-- Selector de modo: Comando o Canje -->
         <div class="form-group">
-          <label class="form-label">Nombre del comando</label>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:14px;font-weight:600;color:var(--purple-light);">!</span>
-            <input class="form-input" id="priminCmd" value="${(s.primerin_config||{}).command||'primerin'}" placeholder="primerin" style="width:160px;">
+          <label class="form-label">¿Cómo se activa?</label>
+          <div style="display:flex;gap:8px;">
+            <button onclick="setPrimerinMode('command')" id="primModeCmdBtn"
+              style="flex:1;padding:10px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:all 0.15s;
+              background:${(s.primerin_config?.mode||'command')==='command'?'rgba(145,71,255,0.12)':'var(--bg3)'};
+              border:1px solid ${(s.primerin_config?.mode||'command')==='command'?'var(--purple-border)':'rgba(255,255,255,0.06)'};
+              color:${(s.primerin_config?.mode||'command')==='command'?'var(--purple-light)':'var(--text-dim)'};">
+              💬 Comando del chat
+            </button>
+            <button onclick="setPrimerinMode('reward')" id="primModeRewardBtn"
+              style="flex:1;padding:10px;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:all 0.15s;
+              background:${s.primerin_config?.mode==='reward'?'rgba(145,71,255,0.12)':'var(--bg3)'};
+              border:1px solid ${s.primerin_config?.mode==='reward'?'var(--purple-border)':'rgba(255,255,255,0.06)'};
+              color:${s.primerin_config?.mode==='reward'?'var(--purple-light)':'var(--text-dim)'};">
+              🎁 Canje de puntos
+            </button>
           </div>
-          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Ej: !primero, !first, !aqui — solo letras y números</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">Solo una opción puede estar activa a la vez.</div>
         </div>
-        <div class="form-group" style="margin-top:12px;">
+
+        <!-- Modo comando -->
+        <div id="primCommandBlock" style="display:${(s.primerin_config?.mode||'command')==='command'?'block':'none'};margin-top:14px;">
+          <div class="form-group">
+            <label class="form-label">Nombre del comando</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:14px;font-weight:600;color:var(--purple-light);">!</span>
+              <input class="form-input" id="priminCmd" value="${(s.primerin_config||{}).command||'primerin'}" placeholder="primerin" style="width:160px;">
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Ej: !primero, !first, !aqui — solo letras y números</div>
+          </div>
+        </div>
+
+        <!-- Modo canje -->
+        <div id="primRewardBlock" style="display:${s.primerin_config?.mode==='reward'?'block':'none'};margin-top:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;">🎁 Canje de puntos del canal</div>
+            <button onclick="loadPrimerinRewards()" id="loadPrimRewardsBtn"
+              style="display:flex;align-items:center;gap:5px;padding:5px 12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:20px;color:var(--text-dim);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);">
+              <span>↺</span> Cargar recompensas
+            </button>
+          </div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;">
+            Quien canjee esta recompensa será el ganador del Primerin automáticamente.
+          </div>
+
+          <!-- Tutorial -->
+          <div style="background:rgba(145,71,255,0.06);border:1px solid rgba(145,71,255,0.2);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px;">
+            <div style="font-size:12px;font-weight:700;color:var(--purple-light);margin-bottom:8px;">⚡ ¿Cómo activarlo?</div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
+                <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">1</span>
+                <span>Crea una recompensa de puntos en tu canal de Twitch</span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
+                <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">2</span>
+                <span>Haz clic en <strong style="color:var(--text);">↺ Cargar recompensas</strong> y selecciónala</span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
+                <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">3</span>
+                <span>El primero en canjearla cada stream gana el punto 🥇</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="primSelectedRewardBlock" style="margin-bottom:10px;display:${s.primerin_config?.reward_id?'block':'none'};">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(145,71,255,0.08);border:1px solid rgba(145,71,255,0.25);border-radius:var(--radius-sm);">
+              <span style="font-size:20px;">${s.primerin_config?.reward_image?`<img src="${s.primerin_config.reward_image}" style="width:24px;height:24px;border-radius:4px;">`:'🎁'}</span>
+              <div style="flex:1;">
+                <div style="font-size:13px;font-weight:700;color:var(--text);">${s.primerin_config?.reward_name||'Recompensa'}</div>
+                <div style="font-size:10px;color:var(--purple-light);margin-top:1px;">✅ Seleccionada</div>
+              </div>
+              <button onclick="clearPrimerinReward()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;">×</button>
+            </div>
+          </div>
+          <div id="primNoRewardMsg" style="font-size:12px;color:var(--text-muted);font-style:italic;padding:8px 0;display:${s.primerin_config?.reward_id?'none':'block'};">
+            Sin recompensa configurada — haz clic en "Cargar recompensas"
+          </div>
+          <div id="primRewardsList"></div>
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
           <label class="form-label">Mensaje personalizado <span style="color:var(--text-muted);font-size:11px;">(opcional)</span></label>
           <textarea class="form-input" id="priminMsg" style="min-height:70px;" placeholder="Ej: ¡@{user} llegó primero! 🥇 Lleva {wins} veces siendo el primero.">${(s.primerin_config||{}).message||''}</textarea>
           <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Variables: <code style="color:var(--purple-light);">{user}</code> nombre del ganador, <code style="color:var(--purple-light);">{wins}</code> número de victorias. Si lo dejas vacío Muffet improvisa con IA.</div>
@@ -2403,7 +2478,7 @@ function renderMain() {
     <!-- Header con estilo Spotify -->
     <div style="background:linear-gradient(135deg,rgba(30,215,96,0.12),rgba(30,215,96,0.02),transparent);border:1px solid rgba(30,215,96,0.15);border-radius:var(--radius);padding:24px;margin-bottom:20px;position:relative;overflow:hidden;">
       <div style="position:absolute;top:-20px;right:-20px;width:120px;height:120px;background:radial-gradient(circle,rgba(30,215,96,0.12),transparent);border-radius:50%;pointer-events:none;"></div>
-      <div style="display:flex;align-items:center;gap:14px;position:relative;">
+      <div style="display:flex;align-items:center;gap:14px;position:relative;flex-wrap:wrap;">
         <div style="width:48px;height:48px;background:#1ed760;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 0 20px rgba(30,215,96,0.4);">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="black"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
         </div>
@@ -2411,6 +2486,10 @@ function renderMain() {
           <div style="font-size:18px;font-weight:700;color:var(--text);">Spotify</div>
           <div style="font-size:12px;color:#1ed760;margin-top:2px;">${s.spotify_token ? '✓ Conectado' : 'No conectado'}</div>
         </div>
+        ${!s.spotify_token && s.spotify_disconnected_reason === 'invalid_grant' ? `
+        <div style="width:100%;margin-top:12px;padding:12px 14px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.25);border-radius:var(--radius-sm);font-size:12px;color:var(--pink);">
+          ⚠️ Tu conexión con Spotify expiró (Spotify caduca los tokens cada 6 meses). Dale a <strong>Conectar</strong> para reactivar las solicitudes de canciones.
+        </div>` : ''}
         ${s.spotify_token ? `
         <div style="display:flex;gap:8px;">
           <a href="/auth/spotify" style="font-size:12px;padding:6px 14px;border-radius:20px;text-decoration:none;background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.3);color:#1ed760;font-weight:500;transition:all 0.15s;">↻ Reconectar</a>
@@ -5127,12 +5206,134 @@ function renderPrimerinRanking() {
 }
 
 // ── FIN RELOAD SECTIONS ──
+function setPrimerinMode(mode) {
+  const cmdBlock = document.getElementById('primCommandBlock');
+  const rewardBlock = document.getElementById('primRewardBlock');
+  const cmdBtn = document.getElementById('primModeCmdBtn');
+  const rewardBtn = document.getElementById('primModeRewardBtn');
+  if (mode === 'command') {
+    cmdBlock.style.display = 'block';
+    rewardBlock.style.display = 'none';
+    cmdBtn.style.background = 'rgba(145,71,255,0.12)'; cmdBtn.style.borderColor = 'var(--purple-border)'; cmdBtn.style.color = 'var(--purple-light)';
+    rewardBtn.style.background = 'var(--bg3)'; rewardBtn.style.borderColor = 'rgba(255,255,255,0.06)'; rewardBtn.style.color = 'var(--text-dim)';
+  } else {
+    cmdBlock.style.display = 'none';
+    rewardBlock.style.display = 'block';
+    rewardBtn.style.background = 'rgba(145,71,255,0.12)'; rewardBtn.style.borderColor = 'var(--purple-border)'; rewardBtn.style.color = 'var(--purple-light)';
+    cmdBtn.style.background = 'var(--bg3)'; cmdBtn.style.borderColor = 'rgba(255,255,255,0.06)'; cmdBtn.style.color = 'var(--text-dim)';
+  }
+  streamerData.primerin_config = { ...(streamerData.primerin_config || {}), mode };
+}
+
+async function loadPrimerinRewards() {
+  const btn = document.getElementById('loadPrimRewardsBtn');
+  const list = document.getElementById('primRewardsList');
+  if (!list) return;
+  btn.textContent = '↺ Cargando...';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/raffle/rewards'); // mismo endpoint de recompensas de Twitch
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      showToast(data.error || 'Error al cargar recompensas', 'error');
+      btn.innerHTML = '<span>↺</span> Cargar recompensas';
+      btn.disabled = false;
+      return;
+    }
+    const rewards = data.rewards || [];
+    if (!rewards.length) {
+      showToast('No hay recompensas de puntos en tu canal', 'error');
+      btn.innerHTML = '<span>↺</span> Cargar recompensas';
+      btn.disabled = false;
+      return;
+    }
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.innerHTML = '';
+    rewards.forEach(r => {
+      const cost = (r.cost || 0).toLocaleString();
+      const img = r.image?.url_1x || r.default_image?.url_1x || '';
+      const isSelected = streamerData.primerin_config?.reward_id === r.id;
+      const bgColor = r.background_color || '#9147ff';
+      const rgb = hexToRgb(bgColor);
+      const div = document.createElement('div');
+      div.style.cssText = `display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);background:${isSelected?'rgba(145,71,255,0.12)':'transparent'};border:1px solid ${isSelected?'rgba(145,71,255,0.4)':'rgba(255,255,255,0.06)'};cursor:pointer;transition:all 0.15s;margin-bottom:4px;`;
+      div.onclick = () => selectPrimerinReward(r.id, r.title, img);
+      const iconDiv = document.createElement('div');
+      iconDiv.style.cssText = `width:34px;height:34px;border-radius:8px;background:rgba(${rgb},0.25);border:1px solid rgba(${rgb},0.4);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;`;
+      if (img) { const i = document.createElement('img'); i.src = img; i.style.cssText = 'width:24px;height:24px;object-fit:contain;'; iconDiv.appendChild(i); }
+      else { iconDiv.style.fontSize = '18px'; iconDiv.textContent = '🎁'; }
+      const infoDiv = document.createElement('div');
+      infoDiv.style.cssText = 'flex:1;min-width:0;';
+      infoDiv.innerHTML = `<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${r.title}</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px;">💰 ${cost} puntos${!r.is_enabled?' · <span style=\"color:var(--pink)\">Desactivada</span>':''}</div>`;
+      div.appendChild(iconDiv); div.appendChild(infoDiv);
+      if (isSelected) { const check = document.createElement('span'); check.textContent = '✓'; check.style.cssText = 'color:var(--purple-light);font-size:18px;font-weight:700;'; div.appendChild(check); }
+      list.appendChild(div);
+    });
+    btn.innerHTML = '<span>↺</span> Recargar';
+    btn.disabled = false;
+  } catch(e) {
+    showToast('Error al conectar', 'error');
+    btn.innerHTML = '<span>↺</span> Cargar recompensas';
+    btn.disabled = false;
+  }
+}
+
+async function selectPrimerinReward(id, name, image) {
+  const current = streamerData.primerin_config || {};
+  const config = { ...current, mode: 'reward', reward_id: id, reward_name: name, reward_image: image };
+  const res = await fetch('/api/primerin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ primerin_config: config }) });
+  if (res.ok) {
+    streamerData.primerin_config = config;
+    showToast('Recompensa guardada ✓');
+    const list = document.getElementById('primRewardsList');
+    if (list) list.style.display = 'none';
+    const noMsg = document.getElementById('primNoRewardMsg');
+    if (noMsg) noMsg.style.display = 'none';
+    const selectedBlock = document.getElementById('primSelectedRewardBlock');
+    if (selectedBlock) {
+      selectedBlock.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(145,71,255,0.08);border:1px solid rgba(145,71,255,0.25);border-radius:var(--radius-sm);">
+          <span style="font-size:20px;">${image ? `<img src="${image}" style="width:24px;height:24px;border-radius:4px;">` : '🎁'}</span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:var(--text);">${name}</div>
+            <div style="font-size:10px;color:var(--purple-light);margin-top:1px;">✅ Seleccionada</div>
+          </div>
+          <button onclick="clearPrimerinReward()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:2px 6px;">×</button>
+        </div>`;
+      selectedBlock.style.display = 'block';
+    }
+  } else { showToast('Error al guardar', 'error'); }
+}
+
+async function clearPrimerinReward() {
+  const current = streamerData.primerin_config || {};
+  const config = { ...current, reward_id: null, reward_name: '', reward_image: '' };
+  const res = await fetch('/api/primerin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ primerin_config: config }) });
+  if (res.ok) {
+    streamerData.primerin_config = config;
+    showToast('Recompensa eliminada');
+    const selectedBlock = document.getElementById('primSelectedRewardBlock');
+    const noMsg = document.getElementById('primNoRewardMsg');
+    if (selectedBlock) selectedBlock.style.display = 'none';
+    if (noMsg) noMsg.style.display = 'block';
+  }
+}
+
 async function savePrimerinConfig(inputId) {
-  const id = inputId || 'priminCmd';
-  const command = document.getElementById(id)?.value.trim().replace('!','').toLowerCase();
-  if (!command) { showToast('Escribe un nombre de comando','error'); return; }
+  const mode = streamerData.primerin_config?.mode || 'command';
   const message = document.getElementById('priminMsg')?.value.trim() || '';
-  const config = { ...(streamerData.primerin_config || {}), command, message };
+  let config = { ...(streamerData.primerin_config || {}), message, mode };
+
+  if (mode === 'command') {
+    const id = inputId || 'priminCmd';
+    const command = document.getElementById(id)?.value.trim().replace('!','').toLowerCase();
+    if (!command) { showToast('Escribe un nombre de comando','error'); return; }
+    config.command = command;
+  } else {
+    if (!config.reward_id) { showToast('Selecciona una recompensa primero','error'); return; }
+  }
+
   const res = await fetch('/api/primerin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ primerin_config: config }) });
   if(res.ok) { streamerData.primerin_config = config; renderPrimerinRanking(); showToast('Guardado ✓'); }
   else showToast('Error','error');
