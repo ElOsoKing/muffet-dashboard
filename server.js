@@ -502,6 +502,70 @@ app.get('/api/streamer', requireAuth, async (req, res) => {
   }
 });
 
+// ── Exportar/Importar configuración (sin tokens ni datos sensibles) ──
+const EXPORTABLE_FIELDS = [
+  'shoutout_config', 'spotify_config', 'youtube_config', 'primerin_config',
+  'points_config', 'raffle_settings', 'mod_config', 'personality_prompt',
+  'on_message', 'off_message', 'auto_messages', 'auto_message_interval',
+  'on_off_ai', 'system_commands', 'welcome_config'
+];
+
+app.get('/api/config/export', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+
+    const exportData = { _muffetbot_export: true, _version: 1, _exported_at: new Date().toISOString() };
+    EXPORTABLE_FIELDS.forEach(field => { if (streamer[field] !== undefined) exportData[field] = streamer[field]; });
+
+    // Limpiar cosas específicas del canal que no deben copiarse a otro streamer
+    if (exportData.shoutout_config) {
+      exportData.shoutout_config = { ...exportData.shoutout_config };
+      delete exportData.shoutout_config.reward_id;
+      delete exportData.shoutout_config.reward_name;
+    }
+    if (exportData.youtube_config) {
+      exportData.youtube_config = { ...exportData.youtube_config };
+      delete exportData.youtube_config.queue;
+      delete exportData.youtube_config.history;
+      delete exportData.youtube_config.song_limits;
+      delete exportData.youtube_config.player_command;
+      delete exportData.youtube_config.player_command_ts;
+    }
+    if (exportData.primerin_config) {
+      exportData.primerin_config = { ...exportData.primerin_config };
+      delete exportData.primerin_config.ranking;
+      delete exportData.primerin_config.used_today;
+      delete exportData.primerin_config.reward_id;
+      delete exportData.primerin_config.reward_name;
+    }
+    if (exportData.raffle_settings) {
+      exportData.raffle_settings = { ...exportData.raffle_settings };
+      delete exportData.raffle_settings.reward_id;
+    }
+    if (exportData.points_config) {
+      exportData.points_config = { ...exportData.points_config }; // ranking vive aparte en viewer_points, no se exporta
+    }
+
+    res.json(exportData);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/config/import', requireAuth, async (req, res) => {
+  try {
+    const incoming = req.body;
+    if (!incoming || incoming._muffetbot_export !== true) {
+      return res.status(400).json({ error: 'Archivo inválido — no es una configuración de MuffetBot' });
+    }
+    const updates = {};
+    EXPORTABLE_FIELDS.forEach(field => { if (incoming[field] !== undefined) updates[field] = incoming[field]; });
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No hay configuración para importar' });
+
+    await sbUpdate('streamers', updates, { twitch_id: req.session.user.id });
+    res.json({ success: true, imported: Object.keys(updates) });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/on-off-ai', requireAuth, async (req, res) => {
   try {
     const { on_off_ai } = req.body;
