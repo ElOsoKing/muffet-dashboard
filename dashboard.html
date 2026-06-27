@@ -1054,6 +1054,54 @@ function showSection(name) {
 }
 
 // ── Vista previa en vivo de overlays ──
+// ── Backup de configuración ──
+async function exportConfig() {
+  try {
+    const res = await fetch('/api/config/export');
+    if (!res.ok) { showToast('Error al exportar', 'error'); return; }
+    const data = await res.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `muffetbot-config-${userData.username}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Configuración exportada ✓');
+  } catch(e) { showToast('Error al exportar', 'error'); }
+}
+
+async function importConfig(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data._muffetbot_export) {
+      showToast('Ese archivo no es una configuración válida de MuffetBot', 'error');
+      input.value = '';
+      return;
+    }
+    if (!confirm('¿Importar esta configuración? Sobreescribirá tus ajustes actuales de las secciones incluidas.')) {
+      input.value = '';
+      return;
+    }
+    const res = await fetch('/api/config/import', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+    const result = await res.json();
+    if (res.ok) {
+      showToast(`Configuración importada ✓ (${result.imported.length} secciones)`);
+      setTimeout(() => location.reload(), 1200);
+    } else {
+      showToast(result.error || 'Error al importar', 'error');
+    }
+  } catch(e) {
+    showToast('El archivo no es un JSON válido', 'error');
+  }
+  input.value = '';
+}
+
 function showOverlayPreview(url, title) {
   let modal = document.getElementById('overlayPreviewModal');
   if (!modal) {
@@ -3831,6 +3879,26 @@ function renderMain() {
           <div class="upgrade-text"><strong>Desbloquea el Plan Pro</strong><br>Bot propio, Spotify + overlay OBS, sorteos OBS, Primerin, duelos, anuncio en vivo y más por solo $5/mes</div>
           <button class="btn btn-primary" onclick="window.location='/plans'">Ver planes →</button>
         </div>`:''}
+      </div>
+    </div>
+
+    <!-- Exportar / Importar configuración -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📦 Backup de configuración</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;">
+          Descarga toda tu configuración (shoutout, música, primerin, puntos, sorteos, personalidad) en un archivo. Útil para hacer respaldo o copiar tu setup a otro canal.
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button onclick="exportConfig()" style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);">
+            ⬇️ Exportar configuración
+          </button>
+          <label style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);">
+            ⬆️ Importar configuración
+            <input type="file" accept=".json" onchange="importConfig(this)" style="display:none;">
+          </label>
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">⚠️ Importar sobreescribirá tu configuración actual de las secciones incluidas en el archivo. No afecta tokens ni datos de cuenta.</div>
       </div>
     </div>
     ${s.plan==='pro'||s.plan==='admin'?`
