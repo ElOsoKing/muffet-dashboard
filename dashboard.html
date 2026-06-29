@@ -2701,6 +2701,11 @@ function renderMain() {
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
       <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+        <div class="toggle-row">
+          <div><div class="toggle-label">Emoji Game activo</div><div class="toggle-sub">Permite que el chat use !emojigame</div></div>
+          <label class="toggle"><input type="checkbox" id="emojiGameEnabled" ${s.emojigame_config?.enabled!==false?'checked':''} onchange="saveEmojiGameConfig()"><span class="toggle-slider"></span></label>
+        </div>
+
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Categoría preferida</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;">
@@ -2714,10 +2719,29 @@ function renderMain() {
           </div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">El chat también puede elegir escribiendo !emojigame pelicula / serie / videojuego</div>
         </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Puntos por adivinar (sin pistas)</div>
+            <input type="number" id="emojiGamePoints" class="form-input" min="5" max="200" value="${s.emojigame_config?.base_points||30}" onchange="saveEmojiGameConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Puntos que resta cada pista</div>
+            <input type="number" id="emojiGameHintPenalty" class="form-input" min="0" max="100" value="${s.emojigame_config?.hint_penalty??10}" onchange="saveEmojiGameConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Puntos mínimos garantizados</div>
+            <input type="number" id="emojiGameMinPoints" class="form-input" min="0" max="100" value="${s.emojigame_config?.min_points??10}" onchange="saveEmojiGameConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Cooldown entre rondas (segundos)</div>
+            <input type="number" id="emojiGameCooldown" class="form-input" min="0" max="300" value="${s.emojigame_config?.cooldown_sec??20}" onchange="saveEmojiGameConfig()">
+          </div>
+        </div>
+
         <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--text-dim);line-height:1.6;">
           💡 Comandos: <code style="color:var(--purple-light);">!emojigame</code> activa un reto · <code style="color:var(--purple-light);">!emojihint</code> da una pista (resta puntos) · <code style="color:var(--purple-light);">!emojiskip</code> salta el reto actual (mods)
         </div>
-        <div style="font-size:11px;color:var(--text-muted);">🏆 Puntos: 30 si adivinas sin pistas, -10 por cada pista usada (mínimo 10 puntos)</div>
       </div>
     </div>
   </div>
@@ -5523,6 +5547,22 @@ function renderPrimerinRanking() {
 }
 
 // ── FIN RELOAD SECTIONS ──
+async function saveEmojiGameConfig() {
+  const config = {
+    ...(streamerData.emojigame_config || {}),
+    enabled: document.getElementById('emojiGameEnabled')?.checked,
+    base_points: parseInt(document.getElementById('emojiGamePoints')?.value) || 30,
+    hint_penalty: parseInt(document.getElementById('emojiGameHintPenalty')?.value) ?? 10,
+    min_points: parseInt(document.getElementById('emojiGameMinPoints')?.value) ?? 10,
+    cooldown_sec: parseInt(document.getElementById('emojiGameCooldown')?.value) ?? 20,
+  };
+  try {
+    const res = await fetch('/api/emojigame', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ emojigame_config: config }) });
+    if (res.ok) { streamerData.emojigame_config = config; showToast('Guardado ✓'); }
+    else showToast('Error al guardar', 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
 async function setEmojiGameCategory(category) {
   document.querySelectorAll('[data-emojicat]').forEach(btn => {
     const sel = btn.dataset.emojicat === category;
@@ -5531,12 +5571,8 @@ async function setEmojiGameCategory(category) {
     btn.style.borderColor = sel ? 'var(--purple-border)' : 'rgba(255,255,255,0.06)';
     btn.style.color = sel ? 'var(--purple-light)' : 'var(--text-dim)';
   });
-  const config = { ...(streamerData.emojigame_config || {}), category };
-  try {
-    const res = await fetch('/api/emojigame', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ emojigame_config: config }) });
-    if (res.ok) { streamerData.emojigame_config = config; showToast('Categoría guardada ✓'); }
-    else showToast('Error al guardar', 'error');
-  } catch(e) { showToast('Error de conexión', 'error'); }
+  streamerData.emojigame_config = { ...(streamerData.emojigame_config || {}), category };
+  await saveEmojiGameConfig();
 }
 
 function setPrimerinMode(mode) {
