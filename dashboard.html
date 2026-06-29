@@ -2722,16 +2722,14 @@ function renderMain() {
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Puntos por adivinar (sin pistas)</div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Puntos por adivinar</div>
             <input type="number" id="emojiGamePoints" class="form-input" min="5" max="200" value="${s.emojigame_config?.base_points||30}" onchange="saveEmojiGameConfig()">
+            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Premio fijo al adivinar, sin importar cuántas pistas usó</div>
           </div>
           <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Puntos que resta cada pista</div>
-            <input type="number" id="emojiGameHintPenalty" class="form-input" min="0" max="100" value="${s.emojigame_config?.hint_penalty??10}" onchange="saveEmojiGameConfig()">
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Puntos mínimos garantizados</div>
-            <input type="number" id="emojiGameMinPoints" class="form-input" min="0" max="100" value="${s.emojigame_config?.min_points??10}" onchange="saveEmojiGameConfig()">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Costo de cada pista</div>
+            <input type="number" id="emojiGameHintCost" class="form-input" min="0" max="100" value="${s.emojigame_config?.hint_cost??10}" onchange="saveEmojiGameConfig()">
+            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Se cobra de los puntos guardados del usuario que pide !emojihint</div>
           </div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Cooldown entre rondas (segundos)</div>
@@ -5552,8 +5550,7 @@ async function saveEmojiGameConfig() {
     ...(streamerData.emojigame_config || {}),
     enabled: document.getElementById('emojiGameEnabled')?.checked,
     base_points: parseInt(document.getElementById('emojiGamePoints')?.value) || 30,
-    hint_penalty: parseInt(document.getElementById('emojiGameHintPenalty')?.value) ?? 10,
-    min_points: parseInt(document.getElementById('emojiGameMinPoints')?.value) ?? 10,
+    hint_cost: parseInt(document.getElementById('emojiGameHintCost')?.value) ?? 10,
     cooldown_sec: parseInt(document.getElementById('emojiGameCooldown')?.value) ?? 20,
   };
   try {
