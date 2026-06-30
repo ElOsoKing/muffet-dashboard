@@ -1091,91 +1091,10 @@ function showSection(name) {
   }
   if(name === 'spotify') { loadSpotifyStatus(); loadSpotifyHistory(); startSpotifyPolling(); }
   if(name !== 'music' && name !== 'spotify') stopSpotifyPolling();
-  if(name === 'settings') loadSharedAccessPanel();
   if(window.innerWidth <= 768) toggleSidebar();
 }
 
 // ── Vista previa en vivo de overlays ──
-// ── Acceso compartido al dashboard ──
-async function loadSharedAccessPanel() {
-  const el = document.getElementById('sharedAccessPanel');
-  if (!el) return;
-  try {
-    const res = await fetch('/api/shared-access/list');
-    const data = await res.json();
-    if (!res.ok) { el.innerHTML = `<div style="color:var(--pink);font-size:13px;">${data.error||'Error al cargar'}</div>`; return; }
-
-    const sharedByMe = data.sharedByMe || [];
-    const sharedWithMe = data.sharedWithMe || [];
-
-    el.innerHTML = `
-      <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.5;">
-        Invita a otro streamer registrado en MuffetBot para que pueda ver o editar tu configuración. Útil entre canales colaborativos o para que un editor de confianza te ayude.
-      </div>
-
-      <div style="display:flex;gap:8px;margin-bottom:16px;">
-        <input type="text" id="sharedAccessUsername" class="form-input" placeholder="username de Twitch (sin @)" style="flex:1;">
-        <select id="sharedAccessRole" class="form-input" style="width:140px;">
-          <option value="lector">👁️ Solo ver</option>
-          <option value="editor">✏️ Editar</option>
-        </select>
-        <button onclick="inviteSharedAccess()" class="btn btn-primary" style="white-space:nowrap;">+ Invitar</button>
-      </div>
-
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Personas con acceso a TU canal</div>
-      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px;">
-        ${sharedByMe.length === 0
-          ? '<div style="font-size:12px;color:var(--text-muted);font-style:italic;">Nadie tiene acceso todavía</div>'
-          : sharedByMe.map(a => `
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);">
-              <div style="flex:1;font-size:13px;color:var(--text);">@${a.username}</div>
-              <div style="font-size:11px;color:${a.role==='editor'?'var(--purple-light)':'var(--text-dim)'};padding:3px 10px;border-radius:12px;background:${a.role==='editor'?'rgba(145,71,255,0.12)':'var(--bg4)'};">${a.role==='editor'?'✏️ Editor':'👁️ Lector'}</div>
-              <button onclick="removeSharedAccess('${a.username}')" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:13px;">✕</button>
-            </div>`).join('')
-        }
-      </div>
-
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Canales a los que TÚ tienes acceso</div>
-      <div style="display:flex;flex-direction:column;gap:6px;">
-        ${sharedWithMe.length === 0
-          ? '<div style="font-size:12px;color:var(--text-muted);font-style:italic;">Ninguno por ahora</div>'
-          : sharedWithMe.map(s => `
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius-sm);border:1px solid rgba(255,255,255,0.06);">
-              <div style="flex:1;font-size:13px;color:var(--text);">@${s.channel}</div>
-              <div style="font-size:11px;color:${s.role==='editor'?'var(--purple-light)':'var(--text-dim)'};padding:3px 10px;border-radius:12px;background:${s.role==='editor'?'rgba(145,71,255,0.12)':'var(--bg4)'};">${s.role==='editor'?'✏️ Editor':'👁️ Lector'}</div>
-              <button onclick="switchToChannel('${s.channel}')" style="font-size:11px;padding:5px 12px;background:var(--purple);border:none;border-radius:14px;color:white;cursor:pointer;font-family:var(--sans);">Ver dashboard</button>
-            </div>`).join('')
-        }
-      </div>
-    `;
-  } catch(e) { el.innerHTML = '<div style="color:var(--pink);font-size:13px;">Error al cargar</div>'; }
-}
-
-async function inviteSharedAccess() {
-  const username = document.getElementById('sharedAccessUsername')?.value.trim();
-  const role = document.getElementById('sharedAccessRole')?.value;
-  if (!username) { showToast('Escribe un username', 'error'); return; }
-  try {
-    const res = await fetch('/api/shared-access/invite', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, role }) });
-    const data = await res.json();
-    if (res.ok) { showToast(`@${username} ahora tiene acceso ✓`); loadSharedAccessPanel(); }
-    else showToast(data.error || 'Error', 'error');
-  } catch(e) { showToast('Error de conexión', 'error'); }
-}
-
-async function removeSharedAccess(username) {
-  if (!confirm(`¿Quitar el acceso de @${username}?`)) return;
-  try {
-    const res = await fetch('/api/shared-access/remove', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username }) });
-    if (res.ok) { showToast('Acceso removido ✓'); loadSharedAccessPanel(); }
-    else showToast('Error', 'error');
-  } catch(e) { showToast('Error de conexión', 'error'); }
-}
-
-function switchToChannel(channel) {
-  window.location.href = `/dashboard?as=${channel}`;
-}
-
 // ── Backup de configuración ──
 async function exportConfig() {
   try {
@@ -4144,13 +4063,6 @@ function renderMain() {
       </div>
     </div>
 
-    <!-- Acceso compartido al dashboard -->
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">🤝 Acceso compartido</span></div>
-      <div class="panel-body" id="sharedAccessPanel">
-        <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:13px;">Cargando...</div>
-      </div>
-    </div>
     ${s.plan==='pro'||s.plan==='admin'?`
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🤖 Bot personalizado — Pro</span></div>
