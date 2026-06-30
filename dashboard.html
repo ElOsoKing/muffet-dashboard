@@ -2732,6 +2732,11 @@ function renderMain() {
             <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Se cobra de los puntos guardados del usuario que pide !emojihint</div>
           </div>
           <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Tiempo límite (minutos)</div>
+            <input type="number" id="emojiGameTimeout" class="form-input" min="1" max="10" value="${s.emojigame_config?.timeout_min??2}" onchange="saveEmojiGameConfig()">
+            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Si nadie adivina en este tiempo, Muffet revela la respuesta</div>
+          </div>
+          <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Cooldown entre rondas (segundos)</div>
             <input type="number" id="emojiGameCooldown" class="form-input" min="0" max="300" value="${s.emojigame_config?.cooldown_sec??20}" onchange="saveEmojiGameConfig()">
           </div>
@@ -5552,6 +5557,7 @@ async function saveEmojiGameConfig() {
     base_points: parseInt(document.getElementById('emojiGamePoints')?.value) || 30,
     hint_cost: parseInt(document.getElementById('emojiGameHintCost')?.value) ?? 10,
     cooldown_sec: parseInt(document.getElementById('emojiGameCooldown')?.value) ?? 20,
+    timeout_min: parseInt(document.getElementById('emojiGameTimeout')?.value) ?? 2,
   };
   try {
     const res = await fetch('/api/emojigame', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ emojigame_config: config }) });
