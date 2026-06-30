@@ -2745,6 +2745,16 @@ function renderMain() {
         <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--text-dim);line-height:1.6;">
           💡 Comandos: <code style="color:var(--purple-light);">!emojigame</code> activa un reto · <code style="color:var(--purple-light);">!emojihint</code> da una pista (resta puntos) · <code style="color:var(--purple-light);">!emojiskip</code> salta el reto actual (mods)
         </div>
+
+        <div class="toggle-row" style="margin-top:4px;">
+          <div><div class="toggle-label">Reto automático</div><div class="toggle-sub">Muffet activa un reto sola cada X minutos si el chat está activo</div></div>
+          <label class="toggle"><input type="checkbox" id="emojiGameAutoEnabled" ${s.emojigame_config?.auto_enabled?'checked':''} onchange="saveEmojiGameConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div id="emojiAutoIntervalRow" style="display:${s.emojigame_config?.auto_enabled?'block':'none'};">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;margin-top:12px;">Intervalo automático (minutos)</div>
+          <input type="number" id="emojiGameAutoInterval" class="form-input" min="5" max="120" value="${s.emojigame_config?.auto_interval_min??30}" onchange="saveEmojiGameConfig()" style="width:120px;">
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Mínimo 5 minutos entre retos automáticos</div>
+        </div>
       </div>
     </div>
   </div>
@@ -5551,6 +5561,9 @@ function renderPrimerinRanking() {
 
 // ── FIN RELOAD SECTIONS ──
 async function saveEmojiGameConfig() {
+  const autoEnabled = document.getElementById('emojiGameAutoEnabled')?.checked || false;
+  const autoRow = document.getElementById('emojiAutoIntervalRow');
+  if (autoRow) autoRow.style.display = autoEnabled ? 'block' : 'none';
   const config = {
     ...(streamerData.emojigame_config || {}),
     enabled: document.getElementById('emojiGameEnabled')?.checked,
@@ -5558,6 +5571,8 @@ async function saveEmojiGameConfig() {
     hint_cost: parseInt(document.getElementById('emojiGameHintCost')?.value) ?? 10,
     cooldown_sec: parseInt(document.getElementById('emojiGameCooldown')?.value) ?? 20,
     timeout_min: parseInt(document.getElementById('emojiGameTimeout')?.value) ?? 2,
+    auto_enabled: document.getElementById('emojiGameAutoEnabled')?.checked || false,
+    auto_interval_min: Math.max(5, parseInt(document.getElementById('emojiGameAutoInterval')?.value) || 30),
   };
   try {
     const res = await fetch('/api/emojigame', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ emojigame_config: config }) });
