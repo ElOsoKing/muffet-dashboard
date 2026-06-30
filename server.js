@@ -493,83 +493,13 @@ app.post('/api/admin/plan/:id', requireAdmin, async (req, res) => {
 
 app.get('/api/streamer', requireAuth, async (req, res) => {
   try {
-    const requestedChannel = req.query.as?.toLowerCase();
-    let streamer;
-
-    if (requestedChannel) {
-      // Quiere ver el canal de otro streamer — verificar que tenga acceso compartido
-      const target = await sbSelect('streamers', { twitch_username: requestedChannel });
-      if (!target) return res.status(404).json({ error: 'Canal no encontrado' });
-      const access = (target.shared_access || []).find(a => a.twitch_id === req.session.user.id);
-      if (!access && target.twitch_id !== req.session.user.id) {
-        return res.status(403).json({ error: 'No tienes acceso a ese canal' });
-      }
-      streamer = target;
-      return res.json({ streamer, user: { ...req.session.user, role: access?.role || 'owner' }, viewingAs: requestedChannel, accessRole: access?.role || 'owner' });
-    }
-
-    streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
     if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
-    res.json({ streamer, user: { ...req.session.user, role: streamer.role }, accessRole: 'owner' });
+    res.json({ streamer, user: { ...req.session.user, role: streamer.role } });
   } catch (err) {
     console.error('GET /api/streamer:', err.message);
     res.status(500).json({ error: 'Error del servidor' });
   }
-});
-
-// ── Acceso compartido al dashboard ──
-app.get('/api/shared-access/list', requireAuth, async (req, res) => {
-  try {
-    const me = await sbSelect('streamers', { twitch_id: req.session.user.id });
-    if (!me) return res.status(404).json({ error: 'No encontrado' });
-
-    // Canales que YO comparto con otros (soy el dueño)
-    const sharedByMe = me.shared_access || [];
-
-    // Canales a los que TENGO acceso (otros me invitaron)
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?select=twitch_username,shared_access`, { headers: sbHeaders });
-    const all = await r.json();
-    const sharedWithMe = (all || [])
-      .filter(s => (s.shared_access || []).some(a => a.twitch_id === req.session.user.id))
-      .map(s => {
-        const access = s.shared_access.find(a => a.twitch_id === req.session.user.id);
-        return { channel: s.twitch_username, role: access.role };
-      });
-
-    res.json({ sharedByMe, sharedWithMe });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.post('/api/shared-access/invite', requireAuth, async (req, res) => {
-  try {
-    const { username, role } = req.body;
-    if (!username || !['editor','lector'].includes(role)) return res.status(400).json({ error: 'Datos inválidos' });
-
-    const invitedUsername = username.toLowerCase().replace('@','');
-    const invited = await sbSelect('streamers', { twitch_username: invitedUsername });
-    if (!invited) return res.status(404).json({ error: `No encontramos a @${invitedUsername} registrado en MuffetBot` });
-    if (invited.twitch_id === req.session.user.id) return res.status(400).json({ error: 'No puedes invitarte a ti mismo' });
-
-    const me = await sbSelect('streamers', { twitch_id: req.session.user.id });
-    const current = me.shared_access || [];
-    if (current.find(a => a.twitch_id === invited.twitch_id)) {
-      return res.status(400).json({ error: `@${invitedUsername} ya tiene acceso` });
-    }
-    const updated = [...current, { twitch_id: invited.twitch_id, username: invitedUsername, role, added_at: new Date().toISOString() }];
-
-    await sbUpdate('streamers', { shared_access: updated }, { twitch_id: req.session.user.id });
-    res.json({ success: true, shared_access: updated });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.post('/api/shared-access/remove', requireAuth, async (req, res) => {
-  try {
-    const { username } = req.body;
-    const me = await sbSelect('streamers', { twitch_id: req.session.user.id });
-    const updated = (me.shared_access || []).filter(a => a.username !== username?.toLowerCase());
-    await sbUpdate('streamers', { shared_access: updated }, { twitch_id: req.session.user.id });
-    res.json({ success: true, shared_access: updated });
-  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Exportar/Importar configuración (sin tokens ni datos sensibles) ──
