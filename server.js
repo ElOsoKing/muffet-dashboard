@@ -188,7 +188,7 @@ app.get('/login', (req, res) => {
 
 app.get('/auth/twitch', (req, res) => {
   const redirectUri = BASE_URL + '/auth/twitch/callback';
-  const scopes = 'user:read:email channel:manage:broadcast clips:edit channel:read:redemptions channel:manage:redemptions';
+  const scopes = 'user:read:email channel:manage:broadcast clips:edit channel:read:redemptions channel:manage:redemptions moderator:read:followers';
     const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
   res.redirect(url);
 });
@@ -1015,6 +1015,15 @@ app.post('/api/emojigame', requireAuth, async (req, res) => {
     const { emojigame_config } = req.body;
     if (!isValidObject(emojigame_config)) return res.status(400).json({ error: 'Inválido' });
     await sbUpdate('streamers', { emojigame_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/welcome-config', requireAuth, async (req, res) => {
+  try {
+    const { welcome_config } = req.body;
+    if (!isValidObject(welcome_config)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { welcome_config }, { twitch_id: req.session.user.id });
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
