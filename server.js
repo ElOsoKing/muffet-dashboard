@@ -1019,14 +1019,6 @@ app.post('/api/emojigame', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/welcome-config', requireAuth, async (req, res) => {
-  try {
-    const { welcome_config } = req.body;
-    if (!isValidObject(welcome_config)) return res.status(400).json({ error: 'Inválido' });
-    await sbUpdate('streamers', { welcome_config }, { twitch_id: req.session.user.id });
-    res.json({ success: true });
-  } catch(err) { res.status(500).json({ error: err.message }); }
-});
 
 app.post('/api/counters', requireAuth, async (req, res) => {
   try {
