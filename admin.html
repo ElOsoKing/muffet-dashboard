@@ -640,15 +640,18 @@ document.getElementById('changelogModal').addEventListener('click', function(e){
 
 // Novedades más recientes — sincronizado con dashboard.html
 const LATEST_CHANGELOG = {
-  version: 'v2.8',
-  date: '29 Junio 2026',
+  version: 'v2.9',
+  date: '10 Julio 2026',
   items: [
-    '🎬 Emoji Game — adivina películas, series y videojuegos con emojis generados por Claude IA',
-    '💡 !emojihint cobra puntos del saldo del usuario — pistas progresivas (más letras cada vez)',
-    '⏰ Tiempo límite configurable — Muffet revela la respuesta si nadie adivina',
-    '🔥 Racha de victorias — Muffet anuncia cuando alguien adivina 3, 5 o más seguidas',
-    '🤖 Reto automático — Muffet activa el juego sola cada X minutos si el chat está activo',
-    '⚙️ Todo configurable desde el dashboard — puntos, cooldown, timeout, categoría, intervalo',
+    '🤖 El bot principal cambió de nombre — ahora es MuffetBot_ (antes muffet_osoking)',
+    '🛡️ Moderación reparada — no funcionaba por un cambio de Twitch de 2023; ahora usa la API moderna (el bot debe ser mod de tu canal)',
+    '⚠️ Bots personalizados: regenera tu token con los permisos de moderación para que tu bot pueda borrar mensajes y dar timeouts',
+    '💜 Alertas de follows mejoradas — los follows cercanos se agrupan en un solo mensaje (protección contra follow-bots)',
+    '🔑 Para alertas de follows: reconecta tu cuenta de Twitch una vez y presiona "Activar alertas" de nuevo',
+    '🎬 Emoji Game: más variedad real de géneros y épocas, validación anti-bugs con reintento automático',
+    '🎉 Los saludos de raid ya no se pierden — y Muffet ya no saluda uno por uno a los raiders',
+    '🙋 Muffet ahora avisa cuando Spotify o YouTube están desactivados en vez de quedarse callada',
+    '🔒 Seguridad de la base de datos reforzada (RLS activado)',
   ]
 };
 
