@@ -1096,24 +1096,6 @@ function showSection(name) {
 
 // ── Vista previa en vivo de overlays ──
 // ── Backup de configuración ──
-// ── Alertas de follows ──
-async function saveFollowAlerts() {
-  const enabled = document.getElementById('followAlertsEnabled')?.checked || false;
-  const config = { ...(streamerData.welcome_config || {}), follow_alerts: enabled };
-  try {
-    const res = await fetch('/api/welcome-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ welcome_config: config }) });
-    if (!res.ok) { showToast('Error al guardar', 'error'); return; }
-    streamerData.welcome_config = config;
-    if (enabled) {
-      // Asegurar que la suscripción EventSub de follows esté registrada
-      await fetch('/api/eventsub/register', { method: 'POST' }).catch(() => {});
-      showToast('Alertas de follows activadas 💜');
-    } else {
-      showToast('Alertas de follows desactivadas');
-    }
-  } catch(e) { showToast('Error de conexión', 'error'); }
-}
-
 async function exportConfig() {
   try {
     const res = await fetch('/api/config/export');
@@ -4070,20 +4052,6 @@ function renderMain() {
       </div>
     </div>
 
-    <!-- Alertas de follows -->
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">💜 Alertas de follows</span></div>
-      <div class="panel-body">
-        <div class="toggle-row">
-          <div><div class="toggle-label">Agradecer nuevos follows</div><div class="toggle-sub">Muffet agradece en el chat cuando alguien sigue tu canal. Los follows cercanos se agrupan en un solo mensaje para evitar spam.</div></div>
-          <label class="toggle"><input type="checkbox" id="followAlertsEnabled" ${s.welcome_config?.follow_alerts?'checked':''} onchange="saveFollowAlerts()"><span class="toggle-slider"></span></label>
-        </div>
-        <div style="background:rgba(240,192,96,0.06);border:1px solid rgba(240,192,96,0.22);border-radius:var(--radius-sm);padding:10px 14px;margin-top:12px;font-size:11px;color:var(--text-dim);line-height:1.6;">
-          ⚠️ Si conectaste tu cuenta antes de julio 2026, necesitas <a href="/auth/twitch" style="color:var(--purple-light);">reconectar tu cuenta de Twitch</a> una vez para autorizar el permiso de followers. Luego activa el toggle.
-        </div>
-      </div>
-    </div>
-
     <!-- Exportar / Importar configuración -->
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">📦 Backup de configuración</span></div>
@@ -4188,6 +4156,9 @@ function renderMain() {
         </div>
         <button class="btn btn-primary" onclick="registerAlerts()">🔔 Activar alertas</button>
         <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Solo necesitas hacer esto una vez por canal.</div>
+        <div style="background:rgba(240,192,96,0.06);border:1px solid rgba(240,192,96,0.22);border-radius:var(--radius-sm);padding:10px 14px;margin-top:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">
+          ⚠️ Para las alertas de <strong style="color:var(--text);">follows</strong>: si conectaste tu cuenta antes de julio 2026, <a href="/auth/twitch" style="color:var(--purple-light);">reconecta tu cuenta de Twitch</a> una vez para autorizar el permiso de followers, y luego vuelve a presionar "Activar alertas".
+        </div>
       </div>
     </div>
   </div>
