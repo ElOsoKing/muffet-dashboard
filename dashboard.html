@@ -2167,6 +2167,15 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- Requisitos para que la moderación funcione -->
+    <div style="background:rgba(240,192,96,0.06);border:1px solid rgba(240,192,96,0.22);border-radius:var(--radius);padding:14px 18px;margin-bottom:20px;">
+      <div style="font-size:12px;font-weight:700;color:#f0c060;margin-bottom:8px;">⚠️ Requisitos para que Muffet pueda moderar</div>
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.7;">
+        1. El bot debe ser <strong style="color:var(--text);">moderador de tu canal</strong> — escribe <code style="color:var(--purple-light);">/mod ${s.custom_bot_username||'MuffetBot_'}</code> en tu chat si aún no lo es.<br>
+        ${s.custom_bot_username?`2. Como usas un bot personalizado (<strong style="color:var(--text);">${s.custom_bot_username}</strong>), su token debe incluir los permisos de moderación (<code style="color:var(--purple-light);">moderator:manage:chat_messages</code> y <code style="color:var(--purple-light);">moderator:manage:banned_users</code>). Si lo generaste antes de julio 2026, regenera el token con esos permisos y actualízalo en Configuración.`:''}
+      </div>
+    </div>
+
     <!-- Palabras prohibidas — ancho completo con color rojo -->
     <div style="background:linear-gradient(135deg,rgba(224,90,122,0.08),var(--bg2));border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius);padding:20px;margin-bottom:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
