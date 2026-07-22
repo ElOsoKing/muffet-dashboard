@@ -3871,6 +3871,7 @@ function renderMain() {
             ['twitter','🐦','Twitter/X','https://twitter.com/tucanal','rgba(29,161,242,0.06)','rgba(29,161,242,0.15)'],
             ['instagram','📸','Instagram','https://instagram.com/tucanal','rgba(225,48,108,0.06)','rgba(225,48,108,0.15)'],
             ['discord','💬','Discord','https://discord.gg/tuservidor','rgba(88,101,242,0.06)','rgba(88,101,242,0.15)'],
+            ['donaciones','💸','Donaciones','https://paypal.me/tuusuario o Ko-fi, etc.','rgba(64,208,144,0.06)','rgba(64,208,144,0.15)'],
           ].map(([key,icon,label,placeholder,bg,border])=>`
           <div style="display:flex;align-items:center;gap:10px;">
             <div style="width:36px;height:36px;background:${bg};border:1px solid ${border};border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;">${icon}</div>
@@ -4749,7 +4750,7 @@ function addWord(e){if(e.key!=='Enter')return;const input=document.getElementByI
 function removeWord(btn,word){btn.closest('.word-tag').remove();saveModConfig();}
 async function saveModeration(){const banned_words=Array.from(document.querySelectorAll('.word-tag')).map(el=>el.textContent.replace('×','').trim());const warn_message=document.getElementById('warnInput').value;const mod_enabled=streamerData.mod_enabled;const res=await fetch('/api/moderation',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mod_enabled,banned_words,warn_message})});res.ok?(streamerData.banned_words=banned_words,streamerData.warn_message=warn_message,showToast('Moderación guardada ✓')):showToast('Error','error');}
 async function saveSocials(){
-  const keys=['twitch','youtube','tiktok','twitter','instagram','discord'];
+  const keys=['twitch','youtube','tiktok','twitter','instagram','discord','donaciones'];
   const social_links={};
   keys.forEach(k=>{const val=document.getElementById(`social_${k}`)?.value.trim();if(val)social_links[k]=val;});
   const youtube_channel_id=document.getElementById('youtube_channel_id')?.value.trim()||null;
