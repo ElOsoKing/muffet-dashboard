@@ -50,7 +50,9 @@ async function processQueue() {
   el.src = alert.media_url;
   el.volume = vol;
 
+  let hardStop = null;
   const cleanup = () => {
+    if (hardStop) clearTimeout(hardStop);
     video.classList.remove('show');
     el.removeAttribute('src');
     el.load();
@@ -61,9 +63,17 @@ async function processQueue() {
   el.onended = cleanup;
   el.onerror = cleanup;
 
-  // Tope duro de 30s por si el archivo es más largo de lo esperado
-  const hardStop = setTimeout(() => { try { el.pause(); } catch(e){} cleanup(); }, 30000);
-  el.addEventListener('ended', () => clearTimeout(hardStop), { once: true });
+  // Tope de seguridad: duración real del archivo + 2s de margen, con techo de 90s
+  // por si el navegador no reporta la duración a tiempo (archivo corrupto, etc.)
+  el.onloadedmetadata = () => {
+    if (hardStop) clearTimeout(hardStop);
+    const safetyMs = isFinite(el.duration) && el.duration > 0
+      ? Math.min(el.duration * 1000 + 2000, 90000)
+      : 90000;
+    hardStop = setTimeout(() => { try { el.pause(); } catch(e){} cleanup(); }, safetyMs);
+  };
+  // Respaldo por si loadedmetadata nunca dispara
+  hardStop = setTimeout(() => { try { el.pause(); } catch(e){} cleanup(); }, 90000);
 
   if (alert.media_type === 'video') video.classList.add('show');
   try { await el.play(); } catch(e) { cleanup(); }
