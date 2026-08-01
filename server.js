@@ -107,7 +107,12 @@ app.post('/webhooks/lemonsqueezy', express.raw({ type: '*/*' }), async (req, res
   }
 });
 
-app.use(express.json({ limit: '50kb' })); // limitar payload
+const globalJsonParser = express.json({ limit: '50kb' });
+app.use((req, res, next) => {
+  // El upload de media alerts usa su propio parser con límite de 8MB — el global lo saltea
+  if (req.path === '/api/media-alerts/upload') return next();
+  return globalJsonParser(req, res, next);
+});
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
