@@ -504,7 +504,7 @@ app.get('/api/streamer', requireAuth, async (req, res) => {
 
 // ── Exportar/Importar configuración (sin tokens ni datos sensibles) ──
 const EXPORTABLE_FIELDS = [
-  'shoutout_config', 'spotify_config', 'youtube_config', 'primerin_config', 'emojigame_config',
+  'shoutout_config', 'spotify_config', 'youtube_config', 'primerin_config', 'emojigame_config', 'media_alerts',
   'points_config', 'raffle_settings', 'mod_config', 'personality_prompt',
   'on_message', 'off_message', 'auto_messages', 'auto_message_interval',
   'on_off_ai', 'system_commands', 'welcome_config'
@@ -693,6 +693,111 @@ app.post('/webhook/twitch', (req, res) => {
   res.status(204).send();
 });
 
+// ══════════════════════════════════════════
+//  MEDIA ALERTS — audio/video al canjear puntos del canal
+//  El server solo empuja el aviso por SSE; el overlay carga el archivo directo desde Supabase Storage (CDN)
+// ══════════════════════════════════════════
+const alertConnections = {}; // { channelName: Set<res> } — overlays conectados por SSE
+
+function pushMediaAlert(channelName, alert) {
+  const conns = alertConnections[channelName];
+  if (!conns || !conns.size) { console.log(`[media-alerts] Sin overlays conectados en #${channelName}`); return; }
+  const payload = `data: ${JSON.stringify(alert)}\n\n`;
+  conns.forEach(res => { try { res.write(payload); } catch(e) {} });
+  console.log(`[media-alerts] Alerta enviada a ${conns.size} overlay(s) de #${channelName}`);
+}
+
+// SSE — el overlay se conecta aquí y queda escuchando
+app.get('/api/media-alerts/events/:username', (req, res) => {
+  const channelName = req.params.username?.toLowerCase();
+  if (!channelName) return res.status(400).end();
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.write('data: {"type":"connected"}\n\n');
+  if (!alertConnections[channelName]) alertConnections[channelName] = new Set();
+  alertConnections[channelName].add(res);
+  const keepalive = setInterval(() => { try { res.write(': ping\n\n'); } catch(e) {} }, 25000);
+  req.on('close', () => {
+    clearInterval(keepalive);
+    alertConnections[channelName]?.delete(res);
+  });
+});
+
+// Subir archivo de audio/video a Supabase Storage (base64, máx 5MB)
+const MEDIA_ALERT_TYPES = { 'audio/mpeg':'mp3', 'audio/ogg':'ogg', 'audio/wav':'wav', 'video/mp4':'mp4', 'video/webm':'webm' };
+let alertsBucketReady = false;
+
+async function ensureAlertsBucket() {
+  if (alertsBucketReady) return;
+  try {
+    await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+      method: 'POST', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'alerts', name: 'alerts', public: true, file_size_limit: 5242880 })
+    });
+  } catch(e) {}
+  alertsBucketReady = true; // si ya existía, el POST falla pero el bucket está
+}
+
+app.post('/api/media-alerts/upload', requireAuth, express.json({ limit: '8mb' }), async (req, res) => {
+  try {
+    const { filename, mime, data } = req.body;
+    if (!filename || !mime || !data) return res.status(400).json({ error: 'Datos incompletos' });
+    const ext = MEDIA_ALERT_TYPES[mime];
+    if (!ext) return res.status(400).json({ error: 'Formato no soportado — usa MP3, OGG, WAV, MP4 o WebM' });
+    const buffer = Buffer.from(data, 'base64');
+    if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'El archivo supera los 5MB' });
+
+    await ensureAlertsBucket();
+    const channelName = req.session.user.username?.toLowerCase() || req.session.user.id;
+    const safeName = `${Date.now()}_${filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`.slice(0, 80);
+    const path = `${channelName}/${safeName}`;
+
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/alerts/${path}`, {
+      method: 'POST', headers: { ...sbHeaders, 'Content-Type': mime, 'x-upsert': 'true' },
+      body: buffer
+    });
+    if (!up.ok) {
+      const err = await up.text();
+      console.error('[media-alerts] Upload error:', up.status, err.slice(0, 200));
+      return res.status(500).json({ error: 'Error al subir el archivo' });
+    }
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/alerts/${path}`;
+    res.json({ success: true, url: publicUrl, type: mime.startsWith('video') ? 'video' : 'audio' });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Guardar configuración de media alerts
+app.post('/api/media-alerts', requireAuth, async (req, res) => {
+  try {
+    const { media_alerts } = req.body;
+    if (!isValidObject(media_alerts)) return res.status(400).json({ error: 'Inválido' });
+    if (Array.isArray(media_alerts.alerts) && media_alerts.alerts.length > 20) {
+      return res.status(400).json({ error: 'Máximo 20 alertas por canal' });
+    }
+    await sbUpdate('streamers', { media_alerts }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Probar una alerta desde el dashboard
+app.post('/api/media-alerts/test', requireAuth, async (req, res) => {
+  try {
+    const { url, type, volume } = req.body;
+    const channelName = req.session.user.username?.toLowerCase();
+    pushMediaAlert(channelName, { type: 'alert', media_url: url, media_type: type, volume: volume ?? 80, redeemer: 'Prueba' });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Servir el overlay
+app.get('/overlay/alerts/:username', (req, res) => {
+  res.sendFile(path.join(__dirname, 'media-alerts-overlay.html'));
+});
+
 async function handleRewardRedemption(event) {
   const broadcasterId = event.broadcaster_user_id;
   const rewardId = event.reward?.id;
@@ -706,6 +811,21 @@ async function handleRewardRedemption(event) {
   if (!streamer) return;
 
   const channelName = streamer.twitch_username?.toLowerCase();
+
+  // ── Media Alert (audio/video en overlay) ──
+  const mediaAlerts = streamer.media_alerts || {};
+  if (mediaAlerts.enabled !== false && Array.isArray(mediaAlerts.alerts)) {
+    const matched = mediaAlerts.alerts.find(a => a.reward_id === rewardId && a.media_url);
+    if (matched) {
+      const isProMedia = streamer.plan === 'pro' || streamer.plan === 'admin';
+      if (isProMedia) {
+        pushMediaAlert(channelName, { type: 'alert', media_url: matched.media_url, media_type: matched.media_type || 'audio', volume: matched.volume ?? 80, redeemer: username });
+        console.log(`[media-alerts] ${username} disparó "${matched.name || 'alerta'}" en #${channelName}`);
+      }
+      return;
+    }
+  }
+
   const configuredRaffleReward = streamer.raffle_settings?.reward_id;
   const primerinConfig = streamer.primerin_config || {};
   const configuredPrimerinReward = primerinConfig.mode === 'reward' ? primerinConfig.reward_id : null;
