@@ -498,6 +498,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
       <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin <span class="pro-badge" id="badge-primerin" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('emojigame')"><span class="nav-icon">🎬</span> Emoji Game <span class="pro-badge" id="badge-emojigame" style="display:none;">PRO</span></div>
+      <div class="nav-item" onclick="showSection('mediaalerts')"><span class="nav-icon">🔊</span> Alertas multimedia <span class="pro-badge" id="badge-mediaalerts" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Análisis <span class="nav-arrow">▾</span></div>
@@ -1078,6 +1079,7 @@ function showSection(name) {
   if(name === 'automessages') renderAutoMsgList();
   if(name === 'counters') renderCountersList();
   if(name === 'primerin') renderPrimerinRanking();
+  if(name === 'mediaalerts') initMediaAlertsSection();
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
@@ -1096,6 +1098,135 @@ function showSection(name) {
 
 // ── Vista previa en vivo de overlays ──
 // ── Backup de configuración ──
+// ── Alertas multimedia (audio/video por canje de puntos) ──
+let mediaAlertRewards = null; // cache de recompensas de Twitch
+
+async function initMediaAlertsSection() {
+  const urlInput = document.getElementById('mediaAlertsOverlayUrl');
+  if (urlInput) urlInput.value = `${window.location.origin}/overlay/alerts/${(userData.username||'').toLowerCase()}`;
+  renderMediaAlertsList();
+  if (!mediaAlertRewards) {
+    try {
+      const res = await fetch('/api/raffle/rewards');
+      const data = await res.json();
+      if (res.ok) { mediaAlertRewards = data.rewards || data.data || []; renderMediaAlertsList(); }
+    } catch(e) {}
+  }
+}
+
+function renderMediaAlertsList() {
+  const el = document.getElementById('mediaAlertsList');
+  if (!el) return;
+  const alerts = (streamerData.media_alerts?.alerts) || [];
+  if (!alerts.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);font-style:italic;padding:10px 0;">No tienes alertas todavía — crea la primera con el botón de abajo</div>';
+    return;
+  }
+  const rewardOptions = (sel) => {
+    const opts = (mediaAlertRewards || []).map(r => `<option value="${r.id}" ${r.id===sel?'selected':''}>${r.title} (${r.cost} pts)</option>`).join('');
+    return `<option value="">— Elige recompensa —</option>${opts}${sel && !(mediaAlertRewards||[]).find(r=>r.id===sel) ? `<option value="${sel}" selected>(recompensa vinculada)</option>` : ''}`;
+  };
+  el.innerHTML = alerts.map((a, i) => `
+    <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;">
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+        <input class="form-input" placeholder="Nombre (ej. Meme del gato)" value="${(a.name||'').replace(/"/g,'&quot;')}" onchange="updateMediaAlert(${i},'name',this.value)" style="flex:1;font-size:12px;">
+        <button onclick="removeMediaAlert(${i})" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:15px;">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:5px;">Recompensa de Twitch</div>
+          <select class="form-input" onchange="updateMediaAlert(${i},'reward_id',this.value)" style="font-size:12px;">${rewardOptions(a.reward_id)}</select>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:5px;">Volumen: <span id="mediaVol${i}">${a.volume??80}</span>%</div>
+          <input type="range" min="0" max="100" value="${a.volume??80}" oninput="document.getElementById('mediaVol${i}').textContent=this.value" onchange="updateMediaAlert(${i},'volume',parseInt(this.value))" style="width:100%;">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        ${a.media_url
+          ? `<div style="font-size:11px;color:var(--green,#40d090);">✓ ${a.media_type==='video'?'🎥 Video':'🔉 Audio'} subido</div>
+             <button class="btn btn-secondary" onclick="testMediaAlert(${i})" style="font-size:11px;padding:6px 12px;">▶️ Probar</button>`
+          : '<div style="font-size:11px;color:var(--text-muted);">Sin archivo aún</div>'}
+        <label class="btn btn-secondary" style="font-size:11px;padding:6px 12px;cursor:pointer;">
+          📁 ${a.media_url?'Cambiar':'Subir'} archivo
+          <input type="file" accept=".mp3,.ogg,.wav,.mp4,.webm,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm" style="display:none;" onchange="uploadMediaAlertFile(${i}, this)">
+        </label>
+      </div>
+    </div>`).join('');
+}
+
+function addMediaAlert() {
+  if (!streamerData.media_alerts) streamerData.media_alerts = { enabled: true, alerts: [] };
+  if (!streamerData.media_alerts.alerts) streamerData.media_alerts.alerts = [];
+  if (streamerData.media_alerts.alerts.length >= 20) { showToast('Máximo 20 alertas', 'error'); return; }
+  streamerData.media_alerts.alerts.push({ name: '', reward_id: '', media_url: '', media_type: 'audio', volume: 80 });
+  renderMediaAlertsList();
+}
+
+function updateMediaAlert(i, field, value) {
+  const a = streamerData.media_alerts?.alerts?.[i];
+  if (!a) return;
+  a[field] = value;
+  saveMediaAlerts(true);
+}
+
+function removeMediaAlert(i) {
+  if (!confirm('¿Eliminar esta alerta?')) return;
+  streamerData.media_alerts.alerts.splice(i, 1);
+  renderMediaAlertsList();
+  saveMediaAlerts(true);
+}
+
+async function uploadMediaAlertFile(i, input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('El archivo supera los 5MB', 'error'); input.value=''; return; }
+  showToast('Subiendo archivo...');
+  try {
+    const base64 = await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = () => res(reader.result.split(',')[1]);
+      reader.onerror = rej;
+      reader.readAsDataURL(file);
+    });
+    const res = await fetch('/api/media-alerts/upload', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filename: file.name, mime: file.type, data: base64 })
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error || 'Error al subir', 'error'); return; }
+    const a = streamerData.media_alerts.alerts[i];
+    a.media_url = data.url;
+    a.media_type = data.type;
+    renderMediaAlertsList();
+    await saveMediaAlerts(true);
+    showToast('Archivo subido ✓');
+  } catch(e) { showToast('Error al subir el archivo', 'error'); }
+}
+
+async function testMediaAlert(i) {
+  const a = streamerData.media_alerts?.alerts?.[i];
+  if (!a?.media_url) return;
+  try {
+    const res = await fetch('/api/media-alerts/test', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: a.media_url, type: a.media_type, volume: a.volume })
+    });
+    if (res.ok) showToast('Alerta enviada al overlay — revisa OBS ▶️');
+    else showToast('Error al probar', 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+async function saveMediaAlerts(silent) {
+  const enabled = document.getElementById('mediaAlertsEnabled')?.checked !== false;
+  const config = { enabled, alerts: (streamerData.media_alerts?.alerts) || [] };
+  try {
+    const res = await fetch('/api/media-alerts', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ media_alerts: config }) });
+    if (res.ok) { streamerData.media_alerts = config; if (!silent) showToast('Guardado ✓'); }
+    else if (!silent) showToast('Error al guardar', 'error');
+  } catch(e) { if (!silent) showToast('Error de conexión', 'error'); }
+}
+
 async function exportConfig() {
   try {
     const res = await fetch('/api/config/export');
@@ -2711,6 +2842,48 @@ function renderMain() {
           <input type="number" id="emojiGameAutoInterval" class="form-input" min="5" max="120" value="${s.emojigame_config?.auto_interval_min??30}" onchange="saveEmojiGameConfig()" style="width:120px;">
           <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Mínimo 5 minutos entre retos automáticos</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALERTAS MULTIMEDIA -->
+  <div id="sec-mediaalerts" class="section ${s.plan!=='pro'?'pro-lock':''}">
+    ${s.plan!=='pro'&&s.plan!=='admin'?`
+    <div class="pro-lock-overlay">
+      <div class="pro-lock-badge">⭐ Función Pro</div>
+      <div class="pro-lock-text">Las alertas con audio y video son exclusivas del plan Pro.</div>
+      <a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
+    </div>`:''}
+    <div class="page-header">
+      <div class="page-title">🔊 Alertas multimedia</div>
+      <div class="page-subtitle">Tus viewers canjean puntos del canal y suena un audio o video (memes) en tu stream</div>
+    </div>
+
+    <!-- Overlay URL -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📺 Overlay para OBS</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">Agrega esta URL como <strong style="color:var(--text);">Browser Source</strong> en OBS (tamaño recomendado: 1920x1080, con "Control audio via OBS" activado si quieres controlar el volumen desde el mezclador):</div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="mediaAlertsOverlayUrl" readonly value="" style="flex:1;font-size:12px;">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('mediaAlertsOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alertas configuradas -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">🎬 Tus alertas</span>
+        <label class="toggle" style="margin-left:auto;"><input type="checkbox" id="mediaAlertsEnabled" ${s.media_alerts?.enabled!==false?'checked':''} onchange="saveMediaAlerts()"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Cada alerta vincula una <strong style="color:var(--text);">recompensa de puntos del canal</strong> de Twitch con un archivo de audio o video. Crea la recompensa primero en tu panel de Twitch (con su costo y cooldown), luego vincúlala aquí.<br>
+          <span style="font-size:11px;color:var(--text-muted);">Formatos: MP3, OGG, WAV, MP4, WebM · Máximo 5MB · Recomendado: clips de 5-10 segundos</span>
+        </div>
+        <div id="mediaAlertsList"></div>
+        <button class="btn btn-primary" onclick="addMediaAlert()" style="margin-top:12px;">+ Nueva alerta</button>
       </div>
     </div>
   </div>
