@@ -1145,13 +1145,15 @@ function renderMediaAlertsList() {
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         ${a.media_url
           ? `<div style="font-size:11px;color:var(--green,#40d090);">✓ ${a.media_type==='video'?'🎥 Video':'🔉 Audio'} subido</div>
-             <button class="btn btn-secondary" onclick="testMediaAlert(${i})" style="font-size:11px;padding:6px 12px;">▶️ Probar</button>`
+             <button class="btn btn-secondary" onclick="testMediaAlert(${i})" style="font-size:11px;padding:6px 12px;">▶️ Probar</button>
+             <button class="btn btn-secondary" onclick="previewMediaAlert(${i})" style="font-size:11px;padding:6px 12px;">👀 Vista previa</button>`
           : '<div style="font-size:11px;color:var(--text-muted);">Sin archivo aún</div>'}
         <label class="btn btn-secondary" style="font-size:11px;padding:6px 12px;cursor:pointer;">
           📁 ${a.media_url?'Cambiar':'Subir'} archivo
           <input type="file" accept=".mp3,.ogg,.wav,.mp4,.webm,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm" style="display:none;" onchange="uploadMediaAlertFile(${i}, this)">
         </label>
       </div>
+      <div id="mediaPreview${i}" style="display:none;margin-top:10px;"></div>
     </div>`).join('');
 }
 
@@ -1215,6 +1217,21 @@ async function testMediaAlert(i) {
     if (res.ok) showToast('Alerta enviada al overlay — revisa OBS ▶️');
     else showToast('Error al probar', 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+function previewMediaAlert(i) {
+  const a = streamerData.media_alerts?.alerts?.[i];
+  const box = document.getElementById(`mediaPreview${i}`);
+  if (!a?.media_url || !box) return;
+  // Toggle: si ya está abierto, cerrarlo (y detener la reproducción)
+  if (box.style.display !== 'none') { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const vol = Math.min(100, Math.max(0, a.volume ?? 80)) / 100;
+  box.innerHTML = a.media_type === 'video'
+    ? `<video src="${a.media_url}" controls autoplay style="width:100%;max-height:260px;border-radius:8px;background:#000;"></video>`
+    : `<audio src="${a.media_url}" controls autoplay style="width:100%;"></audio>`;
+  box.style.display = 'block';
+  const el = box.firstChild;
+  el.volume = vol;
 }
 
 async function saveMediaAlerts(silent) {
