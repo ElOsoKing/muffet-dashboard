@@ -732,29 +732,37 @@ app.get('/api/media-alerts/events/:username', (req, res) => {
   });
 });
 
-// Subir archivo de audio/video a Supabase Storage (base64, máx 5MB)
+// Subir archivo de audio/video a Supabase Storage (base64, máx 15MB — suficiente para clips de hasta ~40-50s)
 const MEDIA_ALERT_TYPES = { 'audio/mpeg':'mp3', 'audio/ogg':'ogg', 'audio/wav':'wav', 'video/mp4':'mp4', 'video/webm':'webm' };
+const MEDIA_ALERT_MAX_BYTES = 15 * 1024 * 1024;
 let alertsBucketReady = false;
 
 async function ensureAlertsBucket() {
   if (alertsBucketReady) return;
   try {
-    await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+    const created = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
       method: 'POST', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: 'alerts', name: 'alerts', public: true, file_size_limit: 5242880 })
+      body: JSON.stringify({ id: 'alerts', name: 'alerts', public: true, file_size_limit: MEDIA_ALERT_MAX_BYTES })
     });
+    if (!created.ok) {
+      // Ya existía (posiblemente con el límite viejo de 5MB) — actualizarlo
+      await fetch(`${SUPABASE_URL}/storage/v1/bucket/alerts`, {
+        method: 'PUT', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ public: true, file_size_limit: MEDIA_ALERT_MAX_BYTES })
+      }).catch(() => {});
+    }
   } catch(e) {}
-  alertsBucketReady = true; // si ya existía, el POST falla pero el bucket está
+  alertsBucketReady = true;
 }
 
-app.post('/api/media-alerts/upload', requireAuth, express.json({ limit: '8mb' }), async (req, res) => {
+app.post('/api/media-alerts/upload', requireAuth, express.json({ limit: '21mb' }), async (req, res) => {
   try {
     const { filename, mime, data } = req.body;
     if (!filename || !mime || !data) return res.status(400).json({ error: 'Datos incompletos' });
     const ext = MEDIA_ALERT_TYPES[mime];
     if (!ext) return res.status(400).json({ error: 'Formato no soportado — usa MP3, OGG, WAV, MP4 o WebM' });
     const buffer = Buffer.from(data, 'base64');
-    if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'El archivo supera los 5MB' });
+    if (buffer.length > MEDIA_ALERT_MAX_BYTES) return res.status(400).json({ error: 'El archivo supera los 15MB' });
 
     await ensureAlertsBucket();
     const channelName = req.session.user.username?.toLowerCase() || req.session.user.id;
