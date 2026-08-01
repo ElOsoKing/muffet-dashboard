@@ -1208,7 +1208,7 @@ function removeMediaAlert(i) {
 async function uploadMediaAlertFile(i, input) {
   const file = input.files?.[0];
   if (!file) return;
-  if (file.size > 5 * 1024 * 1024) { showToast('El archivo supera los 5MB', 'error'); input.value=''; return; }
+  if (file.size > 15 * 1024 * 1024) { showToast('El archivo supera los 15MB', 'error'); input.value=''; return; }
   showToast('Subiendo archivo...');
   try {
     const base64 = await new Promise((res, rej) => {
@@ -2945,7 +2945,7 @@ function renderMain() {
       <div class="panel-body">
         <div id="mediaAlertsList"></div>
         <button class="btn btn-primary" onclick="addMediaAlert()" style="margin-top:14px;width:100%;border:1px dashed rgba(145,71,255,0.4);background:rgba(145,71,255,0.06);color:var(--purple-light);">+ Nueva alerta</button>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center;">Formatos: MP3, OGG, WAV, MP4, WebM · Máximo 5MB por archivo · Hasta 20 alertas</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center;">Formatos: MP3, OGG, WAV, MP4, WebM · Máximo 15MB por archivo · Hasta 20 alertas</div>
       </div>
     </div>
   </div>
