@@ -1118,43 +1118,54 @@ function renderMediaAlertsList() {
   const el = document.getElementById('mediaAlertsList');
   if (!el) return;
   const alerts = (streamerData.media_alerts?.alerts) || [];
+  const counter = document.getElementById('mediaAlertsCount');
+  if (counter) counter.textContent = alerts.length ? `${alerts.length}/20` : '';
   if (!alerts.length) {
-    el.innerHTML = '<div style="font-size:12px;color:var(--text-muted);font-style:italic;padding:10px 0;">No tienes alertas todavía — crea la primera con el botón de abajo</div>';
+    el.innerHTML = `
+      <div style="text-align:center;padding:36px 20px;">
+        <div style="font-size:44px;margin-bottom:12px;opacity:0.8;">🎭</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:6px;">Aún no tienes alertas</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.6;">Crea la primera y llena tu stream de memes<br>cuando tus viewers canjeen puntos 🕷️</div>
+      </div>`;
     return;
   }
   const rewardOptions = (sel) => {
     const opts = (mediaAlertRewards || []).map(r => `<option value="${r.id}" ${r.id===sel?'selected':''}>${r.title} (${r.cost} pts)</option>`).join('');
     return `<option value="">— Elige recompensa —</option>${opts}${sel && !(mediaAlertRewards||[]).find(r=>r.id===sel) ? `<option value="${sel}" selected>(recompensa vinculada)</option>` : ''}`;
   };
-  el.innerHTML = alerts.map((a, i) => `
-    <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;">
-      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
-        <input class="form-input" placeholder="Nombre (ej. Meme del gato)" value="${(a.name||'').replace(/"/g,'&quot;')}" onchange="updateMediaAlert(${i},'name',this.value)" style="flex:1;font-size:12px;">
-        <button onclick="removeMediaAlert(${i})" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:15px;">✕</button>
+  el.innerHTML = alerts.map((a, i) => {
+    const ready = a.media_url && a.reward_id;
+    const isVideo = a.media_type === 'video';
+    return `
+    <div style="background:var(--bg3);border:1px solid ${ready?'rgba(64,208,144,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:16px;margin-bottom:12px;transition:border-color 0.2s;">
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:${isVideo?'rgba(255,100,130,0.12)':'rgba(96,165,250,0.12)'};border:1px solid ${isVideo?'rgba(255,100,130,0.25)':'rgba(96,165,250,0.25)'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${a.media_url?(isVideo?'🎥':'🔉'):'📂'}</div>
+        <input class="form-input" placeholder="Nombre (ej. Meme del gato)" value="${(a.name||'').replace(/"/g,'&quot;')}" onchange="updateMediaAlert(${i},'name',this.value)" style="flex:1;font-size:13px;font-weight:600;">
+        <span style="font-size:10px;font-weight:700;padding:4px 10px;border-radius:12px;white-space:nowrap;${ready?'background:rgba(64,208,144,0.12);color:#40d090;':'background:rgba(240,192,96,0.12);color:#f0c060;'}">${ready?'✓ Lista':'⚠ Incompleta'}</span>
+        <button onclick="removeMediaAlert(${i})" title="Eliminar" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:15px;padding:4px;transition:color 0.15s;" onmouseover="this.style.color='var(--pink)'" onmouseout="this.style.color='var(--text-muted)'">✕</button>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
         <div>
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:5px;">Recompensa de Twitch</div>
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">🎁 Recompensa de Twitch</div>
           <select class="form-input" onchange="updateMediaAlert(${i},'reward_id',this.value)" style="font-size:12px;">${rewardOptions(a.reward_id)}</select>
         </div>
         <div>
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:5px;">Volumen: <span id="mediaVol${i}">${a.volume??80}</span>%</div>
-          <input type="range" min="0" max="100" value="${a.volume??80}" oninput="document.getElementById('mediaVol${i}').textContent=this.value" onchange="updateMediaAlert(${i},'volume',parseInt(this.value))" style="width:100%;">
+          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:5px;">🔊 Volumen: <span id="mediaVol${i}" style="color:var(--purple-light);">${a.volume??80}</span>%</div>
+          <input type="range" min="0" max="100" value="${a.volume??80}" oninput="document.getElementById('mediaVol${i}').textContent=this.value" onchange="updateMediaAlert(${i},'volume',parseInt(this.value))" style="width:100%;accent-color:var(--purple);">
         </div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        ${a.media_url
-          ? `<div style="font-size:11px;color:var(--green,#40d090);">✓ ${a.media_type==='video'?'🎥 Video':'🔉 Audio'} subido</div>
-             <button class="btn btn-secondary" onclick="testMediaAlert(${i})" style="font-size:11px;padding:6px 12px;">▶️ Probar</button>
-             <button class="btn btn-secondary" onclick="previewMediaAlert(${i})" style="font-size:11px;padding:6px 12px;">👀 Vista previa</button>`
-          : '<div style="font-size:11px;color:var(--text-muted);">Sin archivo aún</div>'}
-        <label class="btn btn-secondary" style="font-size:11px;padding:6px 12px;cursor:pointer;">
-          📁 ${a.media_url?'Cambiar':'Subir'} archivo
+        <label class="btn btn-secondary" style="font-size:11px;padding:7px 14px;cursor:pointer;">
+          📁 ${a.media_url?'Cambiar archivo':'Subir archivo'}
           <input type="file" accept=".mp3,.ogg,.wav,.mp4,.webm,audio/mpeg,audio/ogg,audio/wav,video/mp4,video/webm" style="display:none;" onchange="uploadMediaAlertFile(${i}, this)">
         </label>
+        ${a.media_url ? `
+        <button class="btn btn-secondary" onclick="previewMediaAlert(${i})" style="font-size:11px;padding:7px 14px;">👀 Vista previa</button>
+        <button class="btn btn-secondary" onclick="testMediaAlert(${i})" style="font-size:11px;padding:7px 14px;background:rgba(145,71,255,0.1);border-color:rgba(145,71,255,0.3);color:var(--purple-light);">▶️ Probar en OBS</button>` : ''}
       </div>
-      <div id="mediaPreview${i}" style="display:none;margin-top:10px;"></div>
-    </div>`).join('');
+      <div id="mediaPreview${i}" style="display:none;margin-top:12px;"></div>
+    </div>`;
+  }).join('');
 }
 
 function addMediaAlert() {
@@ -2876,13 +2887,28 @@ function renderMain() {
       <div class="page-subtitle">Tus viewers canjean puntos del canal y suena un audio o video (memes) en tu stream</div>
     </div>
 
+    <!-- Cómo funciona — 3 pasos -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
+      ${[
+        ['1','🎁','Crea la recompensa','En tu panel de Twitch, con el costo en puntos y cooldown que quieras'],
+        ['2','📁','Sube tu meme','Audio o video corto (5-10 seg) y vincúlalo a la recompensa aquí'],
+        ['3','🎉','¡A disfrutar!','Cuando un viewer la canjee, el meme suena en tu stream al instante'],
+      ].map(([num,icon,title,desc])=>`
+      <div style="background:linear-gradient(135deg,rgba(145,71,255,0.06),rgba(145,71,255,0.02));border:1px solid rgba(145,71,255,0.15);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-8px;right:6px;font-size:52px;font-weight:800;color:rgba(145,71,255,0.08);font-family:var(--sans);">${num}</div>
+        <div style="font-size:24px;margin-bottom:8px;">${icon}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${title}</div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.5;">${desc}</div>
+      </div>`).join('')}
+    </div>
+
     <!-- Overlay URL -->
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">📺 Overlay para OBS</span></div>
       <div class="panel-body">
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">Agrega esta URL como <strong style="color:var(--text);">Browser Source</strong> en OBS (tamaño recomendado: 1920x1080, con "Control audio via OBS" activado si quieres controlar el volumen desde el mezclador):</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">Agrega esta URL como <strong style="color:var(--text);">Browser Source</strong> en OBS · Tamaño recomendado: 1920x1080</div>
         <div style="display:flex;gap:8px;">
-          <input class="form-input" id="mediaAlertsOverlayUrl" readonly value="" style="flex:1;font-size:12px;">
+          <input class="form-input" id="mediaAlertsOverlayUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
           <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('mediaAlertsOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
         </div>
       </div>
@@ -2892,15 +2918,13 @@ function renderMain() {
     <div class="panel">
       <div class="panel-header">
         <span class="panel-title-text">🎬 Tus alertas</span>
+        <span id="mediaAlertsCount" style="font-size:11px;color:var(--text-muted);margin-left:10px;"></span>
         <label class="toggle" style="margin-left:auto;"><input type="checkbox" id="mediaAlertsEnabled" ${s.media_alerts?.enabled!==false?'checked':''} onchange="saveMediaAlerts()"><span class="toggle-slider"></span></label>
       </div>
       <div class="panel-body">
-        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-          Cada alerta vincula una <strong style="color:var(--text);">recompensa de puntos del canal</strong> de Twitch con un archivo de audio o video. Crea la recompensa primero en tu panel de Twitch (con su costo y cooldown), luego vincúlala aquí.<br>
-          <span style="font-size:11px;color:var(--text-muted);">Formatos: MP3, OGG, WAV, MP4, WebM · Máximo 5MB · Recomendado: clips de 5-10 segundos</span>
-        </div>
         <div id="mediaAlertsList"></div>
-        <button class="btn btn-primary" onclick="addMediaAlert()" style="margin-top:12px;">+ Nueva alerta</button>
+        <button class="btn btn-primary" onclick="addMediaAlert()" style="margin-top:14px;width:100%;border:1px dashed rgba(145,71,255,0.4);background:rgba(145,71,255,0.06);color:var(--purple-light);">+ Nueva alerta</button>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center;">Formatos: MP3, OGG, WAV, MP4, WebM · Máximo 5MB por archivo · Hasta 20 alertas</div>
       </div>
     </div>
   </div>
