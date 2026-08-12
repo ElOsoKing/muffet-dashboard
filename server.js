@@ -235,6 +235,7 @@ app.get('/auth/twitch/callback', async (req, res) => {
         ai_enabled: true, mod_enabled: false, banned_words: [],
         warn_message: '⚠️ Cuidado, dearie~ 🕷️',
         access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
         role: isAdmin ? 'admin' : 'streamer',
         approved: true,
       });
@@ -261,7 +262,7 @@ app.get('/auth/twitch/callback', async (req, res) => {
         }).catch(e => console.error('[Discord webhook]', e.message));
       }
     } else {
-      await sbUpdate('streamers', { access_token: tokenData.access_token }, { twitch_id: twitchUser.id });
+      await sbUpdate('streamers', { access_token: tokenData.access_token, refresh_token: tokenData.refresh_token }, { twitch_id: twitchUser.id });
     }
 
     if (!streamer?.id) { console.error('Streamer null'); return res.redirect('/?error=auth'); }
