@@ -959,18 +959,45 @@ app.post('/api/schedule', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Refrescar/obtener un access_token de Twitch válido para un streamer ──
+async function refreshTwitchToken(twitchId, refreshToken) {
+  try {
+    const res = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token', refresh_token: refreshToken,
+        client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET,
+      }).toString()
+    });
+    const data = await res.json();
+    if (!data.access_token) { console.error('[twitch-refresh] Sin access_token:', JSON.stringify(data)); return null; }
+    await sbUpdate('streamers', { access_token: data.access_token, refresh_token: data.refresh_token || refreshToken }, { twitch_id: twitchId });
+    return data.access_token;
+  } catch(e) { console.error('[twitch-refresh] error:', e.message); return null; }
+}
+
+async function getFreshTwitchToken(streamer) {
+  if (!streamer?.access_token) return null;
+  const check = await fetch('https://id.twitch.tv/oauth2/validate', { headers: { 'Authorization': `Bearer ${streamer.access_token}` } });
+  if (check.ok) return streamer.access_token;
+  if (!streamer.refresh_token) return null;
+  return refreshTwitchToken(streamer.twitch_id, streamer.refresh_token);
+}
+
 // ── API Último clip ──
 app.get('/api/clips/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
-    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_id,access_token&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_id,access_token,refresh_token&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
     const streamer = data?.[0];
-    if (!streamer?.access_token) return res.json([]);
+    const token = await getFreshTwitchToken(streamer);
+    if (!token) return res.json([]);
 
     const r = await fetch(`https://api.twitch.tv/helix/clips?broadcaster_id=${streamer.twitch_id}&first=4`, {
-      headers: { 'Authorization': `Bearer ${streamer.access_token}`, 'Client-Id': TWITCH_CLIENT_ID }
+      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID }
     });
     const clipData = await r.json();
     const clips = (clipData.data || []).map(c => ({
@@ -1334,19 +1361,17 @@ app.get('/api/raffle/rewards', requireAuth, async (req, res) => {
   try {
     const data = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${req.session.user.id}&limit=1`, { headers: sbHeaders });
     const streamer = (await data.json())?.[0];
-    if (!streamer?.access_token) return res.status(400).json({ error: 'Sin token de Twitch' });
+    const token = await getFreshTwitchToken(streamer);
+    if (!token) return res.status(400).json({ error: 'Sin token de Twitch — reconecta tu cuenta' });
     const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${streamer.twitch_id}&only_manageable_rewards=false`, {
-      headers: { 'Authorization': `Bearer ${streamer.access_token}`, 'Client-Id': process.env.TWITCH_CLIENT_ID }
+      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': process.env.TWITCH_CLIENT_ID }
     });
     if (!r.ok) {
       const err = await r.json();
       console.error('[rewards] Twitch error:', r.status, JSON.stringify(err));
       return res.status(400).json({ error: err.message || `Error Twitch ${r.status}`, details: err });
     }
-    // Log si no hay token
-    if (!streamer?.access_token) console.error('[rewards] Sin access_token para', req.session.user.id);
     const rewards = await r.json();
-    console.log('[rewards] Twitch response:', JSON.stringify(rewards).slice(0, 500));
     res.json({ rewards: rewards.data || [] });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
