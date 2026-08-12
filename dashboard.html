@@ -2043,6 +2043,7 @@ function renderMain() {
           { id:'dar',      icon:'💰', name:'!dar',      desc:'Dar puntos a un usuario',                   who:'Mods'  },
           { id:'primerin', icon:'🥇', name:'!primerin', desc:'El primero en usarlo gana — comando editable', who:'Todos' },
           { id:'emojigame',icon:'🎬', name:'!emojigame',desc:'Adivina películas/series/videojuegos con emojis — IA genera el reto', who:'Todos' },
+          { id:'emojigame',icon:'🏆', name:'!emojitop', desc:'Ranking de quién más ha adivinado en el Emoji Game', who:'Todos' },
         ];
         return cmds.map(cmd => {
           const active = sys[cmd.id] !== false; // activo por defecto
