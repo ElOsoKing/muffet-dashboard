@@ -2088,6 +2088,52 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- Comandos de puntos y apuestas -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🎰 Puntos y apuestas</span></div>
+      <div class="panel-body">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${[
+            ['!puntos', 'Ver tus puntos y nivel actual'],
+            ['!top', 'Top 5 viewers con más puntos'],
+            ['!slots 100', 'Tragamonedas — 3 símbolos, triple da premio grande (7️⃣7️⃣7️⃣ es el jackpot)'],
+            ['!apostar 100', 'Apuesta 50/50 — gana x2 (mismo que !apostar 100 facil)'],
+            ['!apostar 100 arriesgado', '25% de ganar — paga x4'],
+            ['!apostar 100 extremo', '10% de ganar — paga x9, el más arriesgado'],
+            ['!duelo @usuario 100', 'Reta a otro viewer — debe aceptar para que se juegue'],
+            ['!aceptar', 'Acepta un duelo pendiente que te hicieron'],
+            ['!rechazar', 'Rechaza un duelo pendiente sin arriesgar puntos'],
+            ['!canjear premio', 'Canjea puntos por un premio configurado'],
+          ].map(([cmd, desc]) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
+              <code style="font-size:13px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:220px;">${cmd}</code>
+              <span style="font-size:12px;color:var(--text-dim);">${desc}</span>
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:14px;background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
+          <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:8px;">💡 !duelo ya no se resuelve al instante:</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.7;">
+            Viewer1: <code style="color:var(--purple-light);">!duelo @Viewer2 100</code><br>
+            Muffet: ⚔️ @Viewer1 reta a @Viewer2 por 100 🏆! @Viewer2 escribe !aceptar o !rechazar (60s)<br>
+            Viewer2: <code style="color:var(--purple-light);">!aceptar</code><br>
+            Muffet: ⚔️ ¡Duelo de puntos! ¡Ganó @Viewer2! 🎉
+          </div>
+        </div>
+        <div style="margin-top:10px;background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
+          <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:8px;">⚙️ Comandos para gestionar (mods):</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${[
+              ['!dar 100 @usuario', 'Regala puntos a un viewer'],
+            ].map(([cmd, desc]) => `
+              <div style="display:flex;align-items:center;gap:12px;">
+                <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:200px;">${cmd}</code>
+                <span style="font-size:12px;color:var(--text-dim);">${desc}</span>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Comandos de IA -->
     <div class="panel">
