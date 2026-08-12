@@ -1125,7 +1125,8 @@ async function initMediaAlertsSection() {
       const res = await fetch('/api/raffle/rewards');
       const data = await res.json();
       if (res.ok) { mediaAlertRewards = data.rewards || data.data || []; renderMediaAlertsList(); }
-    } catch(e) {}
+      else { console.error('[media-alerts] Error al cargar recompensas:', data.error); showToast(data.error || 'No se pudieron cargar las recompensas de Twitch', 'error'); }
+    } catch(e) { console.error('[media-alerts] Error de red:', e); showToast('Error de conexión al cargar recompensas', 'error'); }
   }
 }
 
