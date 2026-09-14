@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Subatón Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&family=VT323&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.widget {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, rgba(20,16,28,0.92), rgba(11,10,16,0.92));
+  border: 1px solid rgba(139,92,246,0.4);
+  border-radius: 16px;
+  padding: 14px 26px;
+  box-shadow: 0 0 30px rgba(139,92,246,0.25), 0 8px 24px rgba(0,0,0,0.4);
+}
+.widget.show { display: flex; }
+
+.icon { font-size: 30px; filter: drop-shadow(0 0 8px rgba(139,92,246,0.6)); }
+
+.time {
+  font-family: 'VT323', monospace;
+  font-size: 48px;
+  color: #e8dfff;
+  letter-spacing: 2px;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(139,92,246,0.5);
+}
+.time.paused { color: #c9a876; opacity: 0.85; }
+.time.urgent { color: #e05a7a; animation: pulse 1s infinite; }
+
+@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.5;} }
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8f88a8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+.addon {
+  position: absolute;
+  font-family: 'VT323', monospace;
+  font-size: 26px;
+  color: #3ecf8e;
+  text-shadow: 0 0 10px rgba(62,207,142,0.7);
+  opacity: 0;
+  pointer-events: none;
+}
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+  20% { opacity: 1; transform: translateY(-10px) scale(1.1); }
+  80% { opacity: 1; transform: translateY(-40px) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
+}
+.addon.pop { animation: floatUp 2.2s ease-out forwards; }
+</style>
+</head>
+<body>
+<div class="widget" id="widget">
+  <div class="icon">🕷️⏱️</div>
+  <div>
+    <div class="time" id="timeDisplay">00:00:00</div>
+    <div class="label" id="labelText">SUBATÓN</div>
+  </div>
+  <div class="addon" id="addonPopup"></div>
+</div>
+<script>
+const channel = decodeURIComponent(location.pathname.split('/').pop() || '').toLowerCase();
+const widget = document.getElementById('widget');
+const timeDisplay = document.getElementById('timeDisplay');
+const labelText = document.getElementById('labelText');
+const addonPopup = document.getElementById('addonPopup');
+
+let targetEndTime = null; // ms epoch, cuando running=true
+let staticRemaining = null; // segundos, cuando running=false
+let running = false;
+let lastKnownSeconds = null;
+
+function formatTime(totalSeconds) {
+  totalSeconds = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
+function currentSeconds() {
+  if (running && targetEndTime) return Math.max(0, (targetEndTime - Date.now()) / 1000);
+  return staticRemaining || 0;
+}
+
+function tick() {
+  const secs = currentSeconds();
+  timeDisplay.textContent = formatTime(secs);
+  timeDisplay.classList.toggle('paused', !running);
+  timeDisplay.classList.toggle('urgent', running && secs > 0 && secs < 120);
+  labelText.textContent = running ? 'SUBATÓN' : 'SUBATÓN (pausado)';
+
+  // Detectar incremento de tiempo (alguien donó) para mostrar el popup "+X min"
+  if (lastKnownSeconds !== null && secs > lastKnownSeconds + 1) {
+    const added = Math.round((secs - lastKnownSeconds) / 60);
+    if (added > 0) showAddon(added);
+  }
+  lastKnownSeconds = secs;
+}
+
+function showAddon(minutes) {
+  addonPopup.textContent = `+${minutes} min`;
+  addonPopup.classList.remove('pop');
+  void addonPopup.offsetWidth; // reiniciar animación
+  addonPopup.classList.add('pop');
+}
+
+async function syncState() {
+  try {
+    const res = await fetch(`/api/subathon/state/${channel}`);
+    const data = await res.json();
+    if (!data.enabled) { widget.classList.remove('show'); return; }
+    widget.classList.add('show');
+    running = data.running;
+    targetEndTime = data.target_end_time ? new Date(data.target_end_time).getTime() : null;
+    staticRemaining = data.remaining_seconds || 0;
+  } catch(e) {}
+}
+
+syncState();
+setInterval(syncState, 5000); // sincroniza con el servidor cada 5s (por si suman tiempo o pausan)
+setInterval(tick, 1000); // countdown local suave cada segundo
+</script>
+</body>
+</html>
