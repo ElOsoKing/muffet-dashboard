@@ -1180,6 +1180,78 @@ app.post('/api/emojigame', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Subatón ──
+app.post('/api/subathon-config', requireAuth, async (req, res) => {
+  try {
+    const { subathon_config } = req.body;
+    if (!isValidObject(subathon_config)) return res.status(400).json({ error: 'Inválido' });
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (streamer?.plan !== 'pro' && streamer?.plan !== 'admin') return res.status(403).json({ error: 'Función exclusiva de Pro' });
+    const current = streamer?.subathon_config || {};
+    // Solo actualizar los campos de configuración — nunca pisar running/target_end_time/remaining_seconds desde aquí
+    const merged = { ...current, ...subathon_config };
+    await sbUpdate('streamers', { subathon_config: merged }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/subathon/control', requireAuth, async (req, res) => {
+  try {
+    const { action, minutes } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (streamer?.plan !== 'pro' && streamer?.plan !== 'admin') return res.status(403).json({ error: 'Función exclusiva de Pro' });
+    const cfg = streamer?.subathon_config || {};
+    let updated = { ...cfg };
+
+    if (action === 'start') {
+      const startSeconds = Math.max(0, (parseFloat(minutes) || 0) * 60);
+      updated = { ...cfg, running: true, target_end_time: new Date(Date.now() + startSeconds * 1000).toISOString(), remaining_seconds: 0 };
+    } else if (action === 'pause') {
+      if (cfg.running && cfg.target_end_time) {
+        const secondsLeft = Math.max(0, Math.floor((new Date(cfg.target_end_time).getTime() - Date.now()) / 1000));
+        updated = { ...cfg, running: false, remaining_seconds: secondsLeft };
+      }
+    } else if (action === 'resume') {
+      const secondsLeft = cfg.remaining_seconds || 0;
+      updated = { ...cfg, running: true, target_end_time: new Date(Date.now() + secondsLeft * 1000).toISOString() };
+    } else if (action === 'adjust') {
+      const deltaSeconds = (parseFloat(minutes) || 0) * 60;
+      if (cfg.running && cfg.target_end_time) {
+        const currentEnd = new Date(cfg.target_end_time).getTime();
+        const newEnd = Math.max(Date.now(), currentEnd + deltaSeconds * 1000);
+        updated = { ...cfg, target_end_time: new Date(newEnd).toISOString() };
+      } else {
+        updated = { ...cfg, remaining_seconds: Math.max(0, (cfg.remaining_seconds || 0) + deltaSeconds) };
+      }
+    } else if (action === 'stop') {
+      updated = { ...cfg, running: false, remaining_seconds: 0, target_end_time: null };
+    } else {
+      return res.status(400).json({ error: 'Acción inválida' });
+    }
+
+    await sbUpdate('streamers', { subathon_config: updated }, { twitch_id: req.session.user.id });
+    res.json({ success: true, subathon_config: updated });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Estado público — usado por el overlay y el panel del dashboard (polling, sin auth para que el overlay de OBS pueda leerlo)
+app.get('/api/subathon/state/:username', async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_username: req.params.username.toLowerCase() });
+    const cfg = streamer?.subathon_config || {};
+    res.json({
+      enabled: !!cfg.enabled,
+      running: !!cfg.running,
+      target_end_time: cfg.target_end_time || null,
+      remaining_seconds: cfg.remaining_seconds || 0,
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/overlay/subathon/:username', (req, res) => {
+  res.sendFile(path.join(__dirname, 'subathon-overlay.html'));
+});
+
 
 app.post('/api/counters', requireAuth, async (req, res) => {
   try {
