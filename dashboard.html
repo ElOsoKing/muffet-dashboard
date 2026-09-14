@@ -1311,6 +1311,7 @@ async function saveSubathonConfig() {
     bits_unit: parseInt(document.getElementById('subathonBitsUnit')?.value) || 100,
     minutes_per_bits_unit: parseFloat(document.getElementById('subathonBitsMin')?.value) || 0,
     max_minutes: Math.round((parseFloat(document.getElementById('subathonMax')?.value) || 0) * 60),
+    announce: document.getElementById('subathonAnnounce')?.checked !== false,
   };
   try {
     const res = await fetch('/api/subathon-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ subathon_config: config }) });
@@ -3018,6 +3019,10 @@ function renderMain() {
         <div>
           <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Límite máximo de horas (0 = sin límite)</div>
           <input type="number" id="subathonMax" class="form-input" min="0" style="width:200px;" value="${Math.round((s.subathon_config?.max_minutes||0)/60*10)/10}" onchange="saveSubathonConfig()">
+        </div>
+        <div class="toggle-row" style="margin-top:16px;">
+          <div><div class="toggle-label">Avisar en el chat</div><div class="toggle-sub">Muffet dice "+X min al subatón" cada vez que alguien suma tiempo</div></div>
+          <label class="toggle"><input type="checkbox" id="subathonAnnounce" ${s.subathon_config?.announce!==false?'checked':''} onchange="saveSubathonConfig()"><span class="toggle-slider"></span></label>
         </div>
         <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-top:16px;font-size:11px;color:var(--text-dim);">
           💡 Comando para el chat: <code style="color:var(--purple-light);">!tiempo</code> — muestra cuánto queda del subatón
