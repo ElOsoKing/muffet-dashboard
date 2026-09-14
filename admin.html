@@ -642,17 +642,18 @@ document.getElementById('changelogModal').addEventListener('click', function(e){
 
 // Novedades más recientes — sincronizado con dashboard.html
 const LATEST_CHANGELOG = {
-  version: 'v2.9',
-  date: '10 Julio 2026',
+  version: 'v3.0',
+  date: '18 Agosto 2026',
   items: [
-    '🤖 El bot principal cambió de nombre — ahora es MuffetBot_',
-    '🛡️ Moderación mejorada — ahora funciona correctamente (el bot debe ser mod de tu canal)',
-    '⚠️ Bots personalizados: regenera tu token con los permisos de moderación para que tu bot pueda borrar mensajes y dar timeouts',
-    '💜 Alertas de follows mejoradas — los follows cercanos se agrupan en un solo mensaje (protección contra follow-bots)',
-    '🔑 Para alertas de follows: reconecta tu cuenta de Twitch una vez y presiona "Activar alertas" de nuevo',
-    '🎬 Emoji Game: más variedad de géneros y épocas, y correcciones de errores',
-    '🎉 Los saludos de raid ya no se pierden — y Muffet ya no saluda uno por uno a los raiders',
-    '🙋 Muffet ahora avisa cuando Spotify o YouTube están desactivados en vez de quedarse callada',
+    '🔊 Alertas multimedia — tus viewers canjean puntos y suena un audio o video (meme) en tu stream, configurable desde el dashboard',
+    '⏱️ Subatón — un contador en pantalla que suma tiempo con cada sub, gift sub y bits, ideal para streams maratón',
+    '🎰 Nuevo comando !slots — tragamonedas con premio mayor en 7️⃣7️⃣7️⃣',
+    '🎲 !apostar ahora tiene niveles de riesgo — facil, arriesgado y extremo, con distintas probabilidades y pagos',
+    '⚔️ !duelo ya no se resuelve al instante — el retado debe usar !aceptar o !rechazar',
+    '🎬 Emoji Game: pistas progresivas, racha de victorias, reto automático y ranking con !emojitop',
+    '💸 Nuevo comando !donar — muestra tu link de donaciones si lo configuraste en Redes',
+    '🛡️ Corregido un bug donde el bot principal duplicaba comandos y respuestas en canales con bot personalizado',
+    '🎵 !yt (YouTube) ahora respeta el plan Pro y ya no se pierden canciones si piden varias a la vez',
   ]
 };
 
