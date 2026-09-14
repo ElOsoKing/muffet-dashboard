@@ -1320,8 +1320,10 @@ async function saveSubathonConfig() {
 }
 
 async function subathonControl(action) {
-  const minutes = action === 'start' ? parseFloat(document.getElementById('subathonStartMinutes')?.value) : undefined;
-  if (action === 'start' && (!minutes || minutes <= 0)) { showToast('Ingresa los minutos iniciales', 'error'); return; }
+  const hours = action === 'start' ? (parseFloat(document.getElementById('subathonStartHours')?.value) || 0) : 0;
+  const mins = action === 'start' ? (parseFloat(document.getElementById('subathonStartMinutes')?.value) || 0) : undefined;
+  const minutes = action === 'start' ? (hours * 60 + mins) : undefined;
+  if (action === 'start' && (!minutes || minutes <= 0)) { showToast('Ingresa horas y/o minutos iniciales', 'error'); return; }
   if (action === 'stop' && !confirm('¿Detener el subatón por completo?')) return;
   try {
     const res = await fetch('/api/subathon/control', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action, minutes }) });
@@ -1332,12 +1334,15 @@ async function subathonControl(action) {
 }
 
 async function subathonAdjust(sign) {
-  const raw = parseFloat(document.getElementById('subathonAdjustMinutes')?.value);
-  if (!raw || raw <= 0) { showToast('Ingresa una cantidad de minutos', 'error'); return; }
+  const hours = parseFloat(document.getElementById('subathonAdjustHours')?.value) || 0;
+  const mins = parseFloat(document.getElementById('subathonAdjustMinutes')?.value) || 0;
+  const raw = hours * 60 + mins;
+  if (!raw || raw <= 0) { showToast('Ingresa horas y/o minutos', 'error'); return; }
   try {
     const res = await fetch('/api/subathon/control', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'adjust', minutes: raw * sign }) });
     const data = await res.json();
-    if (res.ok) { showToast(sign > 0 ? `+${raw} min ✓` : `-${raw} min ✓`); pollSubathonState(); }
+    const label = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    if (res.ok) { showToast(sign > 0 ? `+${label} ✓` : `-${label} ✓`); pollSubathonState(); }
     else showToast(data.error || 'Error', 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
@@ -2957,15 +2962,21 @@ function renderMain() {
         </div>
 
         <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
-          <input type="number" id="subathonStartMinutes" class="form-input" placeholder="Minutos iniciales" min="1" style="width:160px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" id="subathonStartHours" class="form-input" placeholder="Horas" min="0" style="width:90px;">
+            <span style="font-size:12px;color:var(--text-muted);">h</span>
+            <input type="number" id="subathonStartMinutes" class="form-input" placeholder="Minutos" min="0" max="59" style="width:90px;">
+            <span style="font-size:12px;color:var(--text-muted);">m</span>
+          </div>
           <button class="btn btn-primary" onclick="subathonControl('start')">▶️ Iniciar</button>
           <button class="btn btn-secondary" onclick="subathonControl('pause')">⏸️ Pausar</button>
           <button class="btn btn-secondary" onclick="subathonControl('resume')">▶️ Reanudar</button>
           <button class="btn btn-danger" onclick="subathonControl('stop')">⏹️ Detener</button>
         </div>
 
-        <div style="display:flex;gap:10px;align-items:center;">
-          <input type="number" id="subathonAdjustMinutes" class="form-input" placeholder="Minutos" style="width:120px;">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <input type="number" id="subathonAdjustHours" class="form-input" placeholder="Horas" min="0" style="width:90px;">
+          <input type="number" id="subathonAdjustMinutes" class="form-input" placeholder="Minutos" min="0" style="width:100px;">
           <button class="btn btn-secondary" onclick="subathonAdjust(1)">+ Sumar</button>
           <button class="btn btn-secondary" onclick="subathonAdjust(-1)">− Restar</button>
         </div>
