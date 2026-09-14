@@ -516,6 +516,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
       <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin <span class="pro-badge" id="badge-primerin" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('emojigame')"><span class="nav-icon">🎬</span> Emoji Game <span class="pro-badge" id="badge-emojigame" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('mediaalerts')"><span class="nav-icon">🔊</span> Alertas multimedia <span class="pro-badge" id="badge-mediaalerts" style="display:none;">PRO</span></div>
+      <div class="nav-item" onclick="showSection('subathon')"><span class="nav-icon">⏱️</span> Subatón <span class="pro-badge" id="badge-subathon" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Análisis <span class="nav-arrow">▾</span></div>
@@ -1097,6 +1098,7 @@ function showSection(name) {
   if(name === 'counters') renderCountersList();
   if(name === 'primerin') renderPrimerinRanking();
   if(name === 'mediaalerts') initMediaAlertsSection();
+  if(name === 'subathon') initSubathonSection();
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
   else stopRafflePolling();
@@ -1261,6 +1263,83 @@ function previewMediaAlert(i) {
   box.style.display = 'block';
   const el = box.firstChild;
   el.volume = vol;
+}
+
+// ── Subatón ──
+let subathonPollTimer = null;
+
+function initSubathonSection() {
+  const urlInput = document.getElementById('subathonOverlayUrl');
+  if (urlInput) urlInput.value = `${window.location.origin}/overlay/subathon/${(userData.username||'').toLowerCase()}`;
+  pollSubathonState();
+  if (subathonPollTimer) clearInterval(subathonPollTimer);
+  subathonPollTimer = setInterval(pollSubathonState, 5000);
+}
+
+function formatSubathonTime(totalSeconds) {
+  totalSeconds = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  const pad = (n) => String(n).padStart(2,'0');
+  return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+}
+
+async function pollSubathonState() {
+  const timeEl = document.getElementById('subathonLiveTime');
+  const statusEl = document.getElementById('subathonLiveStatus');
+  if (!timeEl) { clearInterval(subathonPollTimer); return; } // ya no estamos en esta sección
+  try {
+    const res = await fetch(`/api/subathon/state/${(userData.username||'').toLowerCase()}`);
+    const data = await res.json();
+    if (!data.enabled) { timeEl.textContent = '--:--:--'; statusEl.textContent = 'Desactivado'; return; }
+    const secs = data.running && data.target_end_time
+      ? Math.max(0, (new Date(data.target_end_time).getTime() - Date.now()) / 1000)
+      : (data.remaining_seconds || 0);
+    timeEl.textContent = formatSubathonTime(secs);
+    statusEl.textContent = data.running ? '🟢 Corriendo' : '⏸️ Pausado';
+  } catch(e) { statusEl.textContent = 'Error de conexión'; }
+}
+
+async function saveSubathonConfig() {
+  const config = {
+    enabled: document.getElementById('subathonEnabled')?.checked || false,
+    minutes_per_sub_t1: parseFloat(document.getElementById('subathonT1')?.value) || 0,
+    minutes_per_sub_t2: parseFloat(document.getElementById('subathonT2')?.value) || 0,
+    minutes_per_sub_t3: parseFloat(document.getElementById('subathonT3')?.value) || 0,
+    minutes_per_giftsub: parseFloat(document.getElementById('subathonGift')?.value) || 0,
+    bits_unit: parseInt(document.getElementById('subathonBitsUnit')?.value) || 100,
+    minutes_per_bits_unit: parseFloat(document.getElementById('subathonBitsMin')?.value) || 0,
+    max_minutes: Math.round((parseFloat(document.getElementById('subathonMax')?.value) || 0) * 60),
+  };
+  try {
+    const res = await fetch('/api/subathon-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ subathon_config: config }) });
+    if (res.ok) { streamerData.subathon_config = { ...(streamerData.subathon_config||{}), ...config }; showToast('Guardado ✓'); }
+    else showToast('Error al guardar', 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+async function subathonControl(action) {
+  const minutes = action === 'start' ? parseFloat(document.getElementById('subathonStartMinutes')?.value) : undefined;
+  if (action === 'start' && (!minutes || minutes <= 0)) { showToast('Ingresa los minutos iniciales', 'error'); return; }
+  if (action === 'stop' && !confirm('¿Detener el subatón por completo?')) return;
+  try {
+    const res = await fetch('/api/subathon/control', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action, minutes }) });
+    const data = await res.json();
+    if (res.ok) { showToast('Listo ✓'); pollSubathonState(); }
+    else showToast(data.error || 'Error', 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+async function subathonAdjust(sign) {
+  const raw = parseFloat(document.getElementById('subathonAdjustMinutes')?.value);
+  if (!raw || raw <= 0) { showToast('Ingresa una cantidad de minutos', 'error'); return; }
+  try {
+    const res = await fetch('/api/subathon/control', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action: 'adjust', minutes: raw * sign }) });
+    const data = await res.json();
+    if (res.ok) { showToast(sign > 0 ? `+${raw} min ✓` : `-${raw} min ✓`); pollSubathonState(); }
+    else showToast(data.error || 'Error', 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
 }
 
 async function saveMediaAlerts(silent) {
@@ -1912,6 +1991,7 @@ function renderMain() {
           { id:'primerin', icon:'🥇', name:'!primerin', desc:'El primero en usarlo gana — comando editable', who:'Todos' },
           { id:'emojigame',icon:'🎬', name:'!emojigame',desc:'Adivina películas/series/videojuegos con emojis — IA genera el reto', who:'Todos' },
           { id:'emojigame',icon:'🏆', name:'!emojitop', desc:'Ranking de quién más ha adivinado en el Emoji Game', who:'Todos' },
+          { id:'tiempo',   icon:'⏱️', name:'!tiempo',  desc:'Ver cuánto tiempo queda del subatón',                 who:'Todos' },
         ];
         return cmds.map(cmd => {
           const active = sys[cmd.id] !== false; // activo por defecto
@@ -2835,6 +2915,102 @@ function renderMain() {
         <div id="mediaAlertsList"></div>
         <button class="btn btn-primary" onclick="addMediaAlert()" style="margin-top:14px;width:100%;border:1px dashed rgba(145,71,255,0.4);background:rgba(145,71,255,0.06);color:var(--purple-light);">+ Nueva alerta</button>
         <div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center;">Formatos: MP3, OGG, WAV, MP4, WebM · Máximo 15MB por archivo · Hasta 20 alertas</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUBATÓN -->
+  <div id="sec-subathon" class="section ${s.plan!=='pro'?'pro-lock':''}">
+    ${s.plan!=='pro'&&s.plan!=='admin'?`
+    <div class="pro-lock-overlay">
+      <div class="pro-lock-badge">⭐ Función Pro</div>
+      <div class="pro-lock-text">El Subatón es exclusivo del plan Pro.</div>
+      <a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
+    </div>`:''}
+    <div class="page-header">
+      <div class="page-title">⏱️ Subatón</div>
+      <div class="page-subtitle">Un contador en pantalla que suma tiempo con cada sub, gift y bits — ideal para streams maratón</div>
+    </div>
+
+    <!-- Overlay URL -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📺 Overlay para OBS</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;">Agrega esta URL como <strong style="color:var(--text);">Browser Source</strong> en OBS (tamaño recomendado: 500x150)</div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="subathonOverlayUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('subathonOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Control en vivo -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title-text">🎮 Control en vivo</span>
+        <label class="toggle" style="margin-left:auto;"><input type="checkbox" id="subathonEnabled" ${s.subathon_config?.enabled?'checked':''} onchange="saveSubathonConfig()"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="panel-body">
+        <div style="text-align:center;padding:16px;background:var(--bg3);border-radius:var(--radius);margin-bottom:16px;">
+          <div id="subathonLiveTime" style="font-family:var(--display);font-size:42px;color:var(--purple-light);letter-spacing:1px;">--:--:--</div>
+          <div id="subathonLiveStatus" style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;">Cargando...</div>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
+          <input type="number" id="subathonStartMinutes" class="form-input" placeholder="Minutos iniciales" min="1" style="width:160px;">
+          <button class="btn btn-primary" onclick="subathonControl('start')">▶️ Iniciar</button>
+          <button class="btn btn-secondary" onclick="subathonControl('pause')">⏸️ Pausar</button>
+          <button class="btn btn-secondary" onclick="subathonControl('resume')">▶️ Reanudar</button>
+          <button class="btn btn-danger" onclick="subathonControl('stop')">⏹️ Detener</button>
+        </div>
+
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input type="number" id="subathonAdjustMinutes" class="form-input" placeholder="Minutos" style="width:120px;">
+          <button class="btn btn-secondary" onclick="subathonAdjust(1)">+ Sumar</button>
+          <button class="btn btn-secondary" onclick="subathonAdjust(-1)">− Restar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuración de minutos -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Minutos por evento</span></div>
+      <div class="panel-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Sub Tier 1</div>
+            <input type="number" id="subathonT1" class="form-input" min="0" step="0.5" value="${s.subathon_config?.minutes_per_sub_t1??2}" onchange="saveSubathonConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Sub Tier 2</div>
+            <input type="number" id="subathonT2" class="form-input" min="0" step="0.5" value="${s.subathon_config?.minutes_per_sub_t2??4}" onchange="saveSubathonConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Sub Tier 3</div>
+            <input type="number" id="subathonT3" class="form-input" min="0" step="0.5" value="${s.subathon_config?.minutes_per_sub_t3??10}" onchange="saveSubathonConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Cada sub regalado</div>
+            <input type="number" id="subathonGift" class="form-input" min="0" step="0.5" value="${s.subathon_config?.minutes_per_giftsub??2}" onchange="saveSubathonConfig()">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Bits necesarios</div>
+            <input type="number" id="subathonBitsUnit" class="form-input" min="1" value="${s.subathon_config?.bits_unit??100}" onchange="saveSubathonConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Minutos por esos bits</div>
+            <input type="number" id="subathonBitsMin" class="form-input" min="0" step="0.5" value="${s.subathon_config?.minutes_per_bits_unit??1}" onchange="saveSubathonConfig()">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Límite máximo de horas (0 = sin límite)</div>
+          <input type="number" id="subathonMax" class="form-input" min="0" style="width:200px;" value="${Math.round((s.subathon_config?.max_minutes||0)/60*10)/10}" onchange="saveSubathonConfig()">
+        </div>
+        <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-top:16px;font-size:11px;color:var(--text-dim);">
+          💡 Comando para el chat: <code style="color:var(--purple-light);">!tiempo</code> — muestra cuánto queda del subatón
+        </div>
       </div>
     </div>
   </div>
