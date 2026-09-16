@@ -1997,6 +1997,7 @@ function renderMain() {
           { id:'emojigame',icon:'🎬', name:'!emojigame',desc:'Adivina películas/series/videojuegos con emojis — IA genera el reto', who:'Todos' },
           { id:'emojigame',icon:'🏆', name:'!emojitop', desc:'Ranking de quién más ha adivinado en el Emoji Game', who:'Todos' },
           { id:'tiempo',   icon:'⏱️', name:'!tiempo',  desc:'Ver cuánto tiempo queda del subatón',                 who:'Todos' },
+          { id:'tiempo',   icon:'🏆', name:'!subathontop', desc:'Ranking de quién más tiempo ha sumado al subatón', who:'Todos' },
         ];
         return cmds.map(cmd => {
           const active = sys[cmd.id] !== false; // activo por defecto
@@ -3021,7 +3022,7 @@ function renderMain() {
           <label class="toggle"><input type="checkbox" id="subathonAnnounce" ${s.subathon_config?.announce!==false?'checked':''} onchange="saveSubathonConfig()"><span class="toggle-slider"></span></label>
         </div>
         <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-top:16px;font-size:11px;color:var(--text-dim);">
-          💡 Comando para el chat: <code style="color:var(--purple-light);">!tiempo</code> — muestra cuánto queda del subatón
+          💡 Comandos para el chat: <code style="color:var(--purple-light);">!tiempo</code> — cuánto queda del subatón · <code style="color:var(--purple-light);">!subathontop</code> — ranking de quién más aportó
         </div>
       </div>
     </div>
