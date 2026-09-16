@@ -1205,7 +1205,7 @@ app.post('/api/subathon/control', requireAuth, async (req, res) => {
 
     if (action === 'start') {
       const startSeconds = Math.max(0, (parseFloat(minutes) || 0) * 60);
-      updated = { ...cfg, running: true, target_end_time: new Date(Date.now() + startSeconds * 1000).toISOString(), remaining_seconds: 0 };
+      updated = { ...cfg, running: true, target_end_time: new Date(Date.now() + startSeconds * 1000).toISOString(), remaining_seconds: 0, contributors: {} };
     } else if (action === 'pause') {
       if (cfg.running && cfg.target_end_time) {
         const secondsLeft = Math.max(0, Math.floor((new Date(cfg.target_end_time).getTime() - Date.now()) / 1000));
