@@ -311,7 +311,7 @@ app.get('/canal/:username', async (req, res) => {
 app.get('/api/canal/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
-    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,public_name,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule,primerin_config&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,public_name,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule,primerin_config,pokedle_config&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
     const streamer = data?.[0];
