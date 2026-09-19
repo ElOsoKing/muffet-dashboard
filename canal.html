@@ -346,8 +346,9 @@ async function loadCanal() {
 
     // Grid Top + primerin
     const primerinRanking = Object.entries(data.primerin_config?.ranking || {}).sort(([,a],[,b])=>b-a).slice(0,5);
+    const pokedleRanking = Object.entries(data.pokedle_config?.wins || {}).sort(([,a],[,b])=>b-a).slice(0,5);
 
-    if (topViewers.length || primerinRanking.length) {
+    if (topViewers.length || primerinRanking.length || pokedleRanking.length) {
       const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
       const maxPts = topViewers[0]?.xp || 1;
 
@@ -403,6 +404,35 @@ async function loadCanal() {
                     </div>
                     <div class="top-right">
                       <div class="top-pts">${wins}x 🏆</div>
+                      <div class="top-bar-wrap">
+                        <div class="top-bar" style="width:${Math.round((wins/maxWins)*100)}%;background:linear-gradient(90deg,var(--accent-light),var(--accent-dim));"></div>
+                      </div>
+                    </div>
+                  </div>`).join('')}
+              </div>
+            </div>
+          </div>`;
+      }
+
+      if (pokedleRanking.length) {
+        const maxWins = pokedleRanking[0][1] || 1;
+        mainHtml += `
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">🔴 Top Pokédle</span>
+              <span class="panel-badge">diario</span>
+            </div>
+            <div class="panel-body">
+              <div class="top-list">
+                ${pokedleRanking.map(([user,wins],i) => `
+                  <div class="top-item${i===0?' first':''}">
+                    <span class="top-medal">${medals[i]||`#${i+1}`}</span>
+                    <div class="top-info">
+                      <div class="top-name">${user}</div>
+                      <div class="top-level">adivinó el Pokémon del día</div>
+                    </div>
+                    <div class="top-right">
+                      <div class="top-pts">${wins}x 🔴</div>
                       <div class="top-bar-wrap">
                         <div class="top-bar" style="width:${Math.round((wins/maxWins)*100)}%;background:linear-gradient(90deg,var(--accent-light),var(--accent-dim));"></div>
                       </div>
