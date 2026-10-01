@@ -1262,6 +1262,18 @@ app.post('/api/counters', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/counters-permission', requireAuth, async (req, res) => {
+  try {
+    const { counters_permission } = req.body;
+    const valid = ['everyone', 'sub', 'vip', 'mod'];
+    if (!Array.isArray(counters_permission) || !counters_permission.every(p => valid.includes(p))) {
+      return res.status(400).json({ error: 'Inválido' });
+    }
+    await sbUpdate('streamers', { counters_permission }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/system-commands', requireAuth, async (req, res) => {
   try {
     const { system_commands } = req.body;
