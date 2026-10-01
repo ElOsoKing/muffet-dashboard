@@ -1963,6 +1963,7 @@ function renderMain() {
                   <button onclick="adjustCounter('${name}', 1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
                 </div>
                 <button onclick="resetCounter('${name}')" style="font-size:11px;padding:4px 8px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;">Reset</button>
+                <button onclick="copyCounterOverlayUrl('${name}')" style="font-size:11px;padding:4px 8px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;">📺 Overlay</button>
                 <button class="btn btn-danger btn-sm" onclick="deleteCounter('${name}')">✕</button>
               </div>`).join('');
           })()}
@@ -5832,6 +5833,7 @@ function renderCountersList() {
         <button onclick="adjustCounter('${name}', 1)" style="width:28px;height:28px;border-radius:6px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);color:var(--text);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">+</button>
       </div>
       <button onclick="resetCounter('${name}')" style="font-size:11px;padding:4px 8px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;">Reset</button>
+      <button onclick="copyCounterOverlayUrl('${name}')" style="font-size:11px;padding:4px 8px;background:var(--bg4);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);cursor:pointer;">📺 Overlay</button>
       <button class="btn btn-danger btn-sm" onclick="deleteCounter('${name}')">✕</button>
     </div>`).join('');
 }
@@ -6119,6 +6121,12 @@ async function resetCounter(name) {
   if (el) el.textContent = 0;
   const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
   if(res.ok) { streamerData.counters = counters; showToast(`!${name} reiniciado ✓`); }
+}
+
+function copyCounterOverlayUrl(name) {
+  const url = `${window.location.origin}/overlay/counter/${(userData.username||'').toLowerCase()}?name=${encodeURIComponent(name)}`;
+  navigator.clipboard.writeText(url);
+  showToast(`URL del overlay de !${name} copiada ✓`);
 }
 
 async function deleteCounter(name) {
