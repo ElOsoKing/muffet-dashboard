@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contador Overlay</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&family=VT323&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: transparent;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.widget {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(135deg, rgba(20,16,28,0.92), rgba(11,10,16,0.92));
+  border: 1px solid rgba(139,92,246,0.4);
+  border-radius: 16px;
+  padding: 14px 26px;
+  box-shadow: 0 0 30px rgba(139,92,246,0.25), 0 8px 24px rgba(0,0,0,0.4);
+  position: relative;
+}
+.widget.show { display: flex; }
+
+.icon { font-size: 30px; filter: drop-shadow(0 0 8px rgba(139,92,246,0.6)); }
+
+.value {
+  font-family: 'VT323', monospace;
+  font-size: 48px;
+  color: #e8dfff;
+  letter-spacing: 2px;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(139,92,246,0.5);
+  transition: color 0.3s;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #8f88a8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 2px;
+}
+
+.addon {
+  position: absolute;
+  top: 0;
+  right: 10px;
+  font-family: 'VT323', monospace;
+  font-size: 26px;
+  opacity: 0;
+  pointer-events: none;
+}
+@keyframes floatUp {
+  0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+  20% { opacity: 1; transform: translateY(-10px) scale(1.1); }
+  80% { opacity: 1; transform: translateY(-40px) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
+}
+.addon.pop { animation: floatUp 2.2s ease-out forwards; }
+.addon.up { color: #3ecf8e; text-shadow: 0 0 10px rgba(62,207,142,0.7); }
+.addon.down { color: #e05a7a; text-shadow: 0 0 10px rgba(224,90,122,0.7); }
+
+.missing {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #8f88a8;
+  background: rgba(20,16,28,0.8);
+  border: 1px dashed rgba(139,92,246,0.3);
+  border-radius: 12px;
+  padding: 12px 18px;
+  display: none;
+}
+.missing.show { display: block; }
+</style>
+</head>
+<body>
+<div class="widget" id="widget">
+  <div class="icon">🕷️🔢</div>
+  <div>
+    <div class="value" id="valueDisplay">0</div>
+    <div class="label" id="labelText">CONTADOR</div>
+  </div>
+  <div class="addon" id="addonPopup"></div>
+</div>
+<div class="missing" id="missingMsg">Agrega ?name=nombre a la URL (ej. ?name=muertes)</div>
+<script>
+const channel = decodeURIComponent(location.pathname.split('/').pop() || '').toLowerCase();
+const counterName = new URLSearchParams(location.search).get('name') || '';
+const widget = document.getElementById('widget');
+const valueDisplay = document.getElementById('valueDisplay');
+const labelText = document.getElementById('labelText');
+const addonPopup = document.getElementById('addonPopup');
+const missingMsg = document.getElementById('missingMsg');
+
+let lastKnownValue = null;
+
+function showAddon(delta) {
+  addonPopup.textContent = `${delta > 0 ? '+' : ''}${delta}`;
+  addonPopup.classList.remove('pop', 'up', 'down');
+  void addonPopup.offsetWidth; // reiniciar animación
+  addonPopup.classList.add('pop', delta > 0 ? 'up' : 'down');
+}
+
+async function syncState() {
+  if (!counterName) { missingMsg.classList.add('show'); widget.classList.remove('show'); return; }
+  try {
+    const res = await fetch(`/api/counters/state/${channel}?name=${encodeURIComponent(counterName)}`);
+    const data = await res.json();
+    if (!data.exists) { missingMsg.classList.add('show'); missingMsg.textContent = `No existe el contador "${counterName}" — créalo con !addcounter ${counterName}`; widget.classList.remove('show'); return; }
+    missingMsg.classList.remove('show');
+    widget.classList.add('show');
+    labelText.textContent = counterName;
+    valueDisplay.textContent = data.value;
+
+    if (lastKnownValue !== null && data.value !== lastKnownValue) {
+      showAddon(data.value - lastKnownValue);
+    }
+    lastKnownValue = data.value;
+  } catch(e) {}
+}
+
+syncState();
+setInterval(syncState, 3000); // sincroniza con el servidor cada 3s
+</script>
+</body>
+</html>
