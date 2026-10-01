@@ -1252,6 +1252,21 @@ app.get('/overlay/subathon/:username', (req, res) => {
   res.sendFile(path.join(__dirname, 'subathon-overlay.html'));
 });
 
+app.get('/api/counters/state/:username', async (req, res) => {
+  try {
+    const name = (req.query.name || '').toLowerCase().trim();
+    if (!name) return res.status(400).json({ error: 'Falta el nombre del contador' });
+    const streamer = await sbSelect('streamers', { twitch_username: req.params.username.toLowerCase() });
+    const counters = streamer?.counters || {};
+    if (counters[name] === undefined) return res.json({ exists: false, value: null, name });
+    res.json({ exists: true, value: counters[name], name });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/overlay/counter/:username', (req, res) => {
+  res.sendFile(path.join(__dirname, 'counter-overlay.html'));
+});
+
 
 app.post('/api/counters', requireAuth, async (req, res) => {
   try {
