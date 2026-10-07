@@ -163,7 +163,7 @@ html,body{background:transparent !important;width:1920px;height:1080px;font-fami
     </div>
     <div class="card-footer">
       <div class="dot-live"></div>
-      En vivo — escribe <strong id="overlayJoinCmd" style="color:var(--purple-light)">!entrar</strong> para participar
+      En vivo — <span id="overlayJoinVerb">escribe</span> <strong id="overlayJoinCmd" style="color:var(--purple-light)">!entrar</strong> para participar
     </div>
   </div>
   <div class="anim-screen" id="animState">
@@ -727,7 +727,14 @@ async function pollRaffle() {
     activeEl.style.display = 'block';
     document.getElementById('overlayPrize').textContent   = '🏆 ' + (data.prize || '');
     document.getElementById('overlayCount').textContent   = (data.participants || []).length;
-    document.getElementById('overlayJoinCmd').textContent = data.join_cmd || '!entrar';
+    // Modo canje: se invita a canjear la recompensa en vez de escribir el comando
+    if (data.entry_mode === 'reward') {
+      document.getElementById('overlayJoinVerb').textContent = 'canjea';
+      document.getElementById('overlayJoinCmd').textContent = data.reward_name || 'la recompensa del sorteo';
+    } else {
+      document.getElementById('overlayJoinVerb').textContent = 'escribe';
+      document.getElementById('overlayJoinCmd').textContent = data.join_cmd || '!entrar';
+    }
     const list = document.getElementById('overlayParticipants');
     const participants = data.participants || [];
     if (JSON.stringify(participants) !== JSON.stringify(lastParticipants)) {
