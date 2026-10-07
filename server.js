@@ -707,10 +707,11 @@ const alertConnections = {}; // { channelName: Set<res> } — overlays conectado
 
 function pushMediaAlert(channelName, alert) {
   const conns = alertConnections[channelName];
-  if (!conns || !conns.size) { console.log(`[media-alerts] Sin overlays conectados en #${channelName}`); return; }
+  if (!conns || !conns.size) { console.log(`[media-alerts] Sin overlays conectados en #${channelName}`); return false; }
   const payload = `data: ${JSON.stringify(alert)}\n\n`;
   conns.forEach(res => { try { res.write(payload); } catch(e) {} });
   console.log(`[media-alerts] Alerta enviada a ${conns.size} overlay(s) de #${channelName}`);
+  return true;
 }
 
 // SSE — el overlay se conecta aquí y queda escuchando
@@ -812,10 +813,101 @@ app.get('/overlay/alerts/:username', (req, res) => {
   res.sendFile(path.join(__dirname, 'media-alerts-overlay.html'));
 });
 
+// ══════════════════════════════════════════
+//  RECOMPENSAS DE PUNTOS DE CANAL — crearlas desde Muffet y resolver sus canjes
+//  Twitch solo deja que una app administre las recompensas que ELLA misma creó (mismo Client-Id).
+//  Por eso solo las recompensas creadas por Muffet se pueden cumplir/reembolsar automáticamente.
+// ══════════════════════════════════════════
+
+// Una recompensa está "administrada por Muffet" si es la misma que Muffet creó para esa función
+function isManagedReward(cfg) {
+  return !!(cfg && cfg.reward_id && cfg.reward_id === cfg.managed_reward_id);
+}
+
+async function createTwitchReward(streamer, { title, cost, cooldownSec = 0, maxPerStream = 0 }) {
+  const token = await getFreshTwitchToken(streamer);
+  if (!token) return { ok: false, status: 401, message: 'sin token' };
+  const body = {
+    title, cost,
+    is_enabled: true,
+    background_color: '#8B5CF6',
+    // Deben quedar pendientes para que Muffet los pueda cumplir o reembolsar él mismo
+    should_redemptions_skip_request_queue: false,
+  };
+  if (cooldownSec > 0) { body.is_global_cooldown_enabled = true; body.global_cooldown_seconds = cooldownSec; }
+  if (maxPerStream > 0) { body.is_max_per_stream_enabled = true; body.max_per_stream = maxPerStream; }
+  const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${streamer.twitch_id}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return { ok: false, status: r.status, message: data.message || data.error || '' };
+  const reward = data.data?.[0];
+  if (!reward) return { ok: false, status: 502, message: 'Twitch no devolvió la recompensa' };
+  return { ok: true, reward: { id: reward.id, title: reward.title, cost: reward.cost, image: reward.image?.url_1x || reward.default_image?.url_1x || '' } };
+}
+
+function friendlyRewardError(status, message) {
+  const msg = String(message || '');
+  if (status === 401) return 'Tu sesión de Twitch no tiene permiso para crear recompensas — cierra sesión y vuelve a entrar con Twitch.';
+  if (status === 403) return 'Tu canal necesita ser afiliado o partner de Twitch para tener recompensas de puntos.';
+  if (/DUPLICATE/i.test(msg)) return 'Ya tienes una recompensa con ese nombre — elige otro.';
+  if (/TOO_MANY|maximum/i.test(msg)) return 'Llegaste al máximo de recompensas de Twitch (50) — borra alguna que no uses.';
+  return `Twitch no pudo crear la recompensa${msg ? `: ${msg}` : ''}`;
+}
+
+// Cumple (FULFILLED) o cancela (CANCELED → Twitch devuelve los puntos al viewer) un canje pendiente.
+// Si la recompensa no la creó Muffet, Twitch responde 403 y simplemente no se hace nada.
+async function settleRedemption(streamer, rewardId, redemptionId, status) {
+  if (!redemptionId) return false;
+  try {
+    const token = await getFreshTwitchToken(streamer);
+    if (!token) return false;
+    const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards/redemptions?id=${redemptionId}&broadcaster_id=${streamer.twitch_id}&reward_id=${rewardId}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (!r.ok) { console.error(`[redemption] No se pudo marcar ${status} (${r.status}):`, (await r.text()).slice(0, 200)); return false; }
+    console.log(`[redemption] Canje ${redemptionId} → ${status}`);
+    return true;
+  } catch(e) { console.error('[redemption] settleRedemption error:', e.message); return false; }
+}
+
+app.post('/api/rewards/create', requireAuth, async (req, res) => {
+  try {
+    const { purpose, title, cost, cooldown_sec } = req.body || {};
+    if (!['raffle', 'primerin', 'media'].includes(purpose)) return res.status(400).json({ error: 'Propósito inválido' });
+    const cleanTitle = String(title || '').trim();
+    const cleanCost = parseInt(cost);
+    const cooldown = Math.max(0, parseInt(cooldown_sec) || 0);
+    if (!cleanTitle || cleanTitle.length > 45) return res.status(400).json({ error: 'El nombre debe tener entre 1 y 45 caracteres.' });
+    if (!Number.isInteger(cleanCost) || cleanCost < 1 || cleanCost > 1000000) return res.status(400).json({ error: 'El costo debe ser de 1 punto o más.' });
+    if (cooldown > 604800) return res.status(400).json({ error: 'El enfriamiento no puede pasar de 7 días.' });
+
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+
+    // Primerin: límite de 1 canje por stream, así solo gana el primero (Muffet confía en ese límite de Twitch)
+    const result = await createTwitchReward(streamer, {
+      title: cleanTitle, cost: cleanCost, cooldownSec: cooldown,
+      maxPerStream: purpose === 'primerin' ? 1 : 0,
+    });
+    if (!result.ok) {
+      console.error(`[rewards] No se pudo crear la recompensa para ${streamer.twitch_username}: ${result.status} ${result.message}`);
+      return res.status(result.status === 401 || result.status === 403 ? result.status : 400).json({ error: friendlyRewardError(result.status, result.message) });
+    }
+    console.log(`[rewards] ${streamer.twitch_username} creó la recompensa "${result.reward.title}" (${purpose})`);
+    res.json({ success: true, reward: result.reward });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 async function handleRewardRedemption(event) {
   const broadcasterId = event.broadcaster_user_id;
   const rewardId = event.reward?.id;
   const username = event.user_name;
+  const redemptionId = event.id; // id del canje (para cumplirlo o reembolsarlo)
   if (!broadcasterId || !rewardId || !username) return;
 
   // Buscar el streamer por twitch_id
@@ -832,24 +924,39 @@ async function handleRewardRedemption(event) {
     const matched = mediaAlerts.alerts.find(a => a.reward_id === rewardId && a.media_url);
     if (matched) {
       const isProMedia = streamer.plan === 'pro' || streamer.plan === 'admin';
+      let delivered = false;
       if (isProMedia) {
-        pushMediaAlert(channelName, { type: 'alert', media_url: matched.media_url, media_type: matched.media_type || 'audio', volume: matched.volume ?? 80, redeemer: username });
+        delivered = pushMediaAlert(channelName, { type: 'alert', media_url: matched.media_url, media_type: matched.media_type || 'audio', volume: matched.volume ?? 80, redeemer: username });
         console.log(`[media-alerts] ${username} disparó "${matched.name || 'alerta'}" en #${channelName}`);
+      }
+      // Recompensa creada por Muffet: se cumple si la alerta llegó a un overlay; si no, se reembolsa
+      if (isManagedReward({ reward_id: matched.reward_id, managed_reward_id: matched.managed_reward_id })) {
+        await settleRedemption(streamer, rewardId, redemptionId, delivered ? 'FULFILLED' : 'CANCELED');
       }
       return;
     }
+  } else if (Array.isArray(mediaAlerts.alerts)) {
+    // Alertas desactivadas: si la recompensa la administra Muffet, se reembolsa en vez de quitarle los puntos al viewer
+    const offAlert = mediaAlerts.alerts.find(a => a.reward_id === rewardId && isManagedReward({ reward_id: a.reward_id, managed_reward_id: a.managed_reward_id }));
+    if (offAlert) { await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED'); return; }
   }
 
   const configuredRaffleReward = streamer.raffle_settings?.reward_id;
   const primerinConfig = streamer.primerin_config || {};
   const configuredPrimerinReward = primerinConfig.mode === 'reward' ? primerinConfig.reward_id : null;
+  const primerinManaged = isManagedReward(primerinConfig);
+  const raffleManaged = isManagedReward(streamer.raffle_settings);
 
   console.log(`[redemption] ${username} canjeó ${rewardId} en #${channelName} | sorteo: ${configuredRaffleReward||'ninguno'} | primerin: ${configuredPrimerinReward||'ninguno'}`);
 
   // ── Canje de Primerin ──
   if (configuredPrimerinReward && rewardId === configuredPrimerinReward) {
     const isPro = streamer.plan === 'pro' || streamer.plan === 'admin';
-    if (!isPro) { console.log(`[redemption] #${channelName} no es Pro — Primerin ignorado`); return; }
+    if (!isPro) {
+      console.log(`[redemption] #${channelName} no es Pro — Primerin ignorado`);
+      if (primerinManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
+      return;
+    }
 
     const today = new Date().toISOString().split('T')[0];
     const usedToday = primerinConfig.used_today || {};
@@ -876,6 +983,14 @@ async function handleRewardRedemption(event) {
       })
     }).then(r => console.log(`[redemption] Bot respondió status: ${r.status}`))
       .catch(e => console.error('[redemption] Error al notificar al bot:', e.message));
+    if (primerinManaged) await settleRedemption(streamer, rewardId, redemptionId, 'FULFILLED');
+    return;
+  }
+
+  // Primerin en modo comando pero con su recompensa todavía activa en Twitch: si la administra Muffet, se reembolsa
+  if (primerinConfig.reward_id && rewardId === primerinConfig.reward_id && rewardId !== configuredRaffleReward && primerinConfig.mode !== 'reward') {
+    console.log(`[redemption] Primerin de #${channelName} está en modo comando — canje de ${username} ignorado`);
+    if (primerinManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
     return;
   }
 
@@ -884,6 +999,7 @@ async function handleRewardRedemption(event) {
   // Si el sorteo está configurado para entrar solo por comando, los canjes no cuentan
   if (streamer.raffle_settings?.entry_mode === 'command') {
     console.log(`[redemption] Sorteo de #${channelName} está en modo comando — canje de ${username} ignorado`);
+    if (raffleManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
     return;
   }
 
@@ -891,12 +1007,14 @@ async function handleRewardRedemption(event) {
   const raffle = streamer.raffle_active || {};
   if (!raffle.active) {
     console.log(`[redemption] Sorteo no activo en #${channelName}`);
+    if (raffleManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
     return;
   }
 
   const participants = raffle.participants || [];
   if (participants.includes(username)) {
     console.log(`[redemption] ${username} ya está en el sorteo`);
+    if (raffleManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
     return;
   }
 
@@ -908,6 +1026,7 @@ async function handleRewardRedemption(event) {
   });
 
   console.log(`[redemption] ✅ ${username} agregado al sorteo de #${channelName} (${participants.length} participantes)`);
+  if (raffleManaged) await settleRedemption(streamer, rewardId, redemptionId, 'FULFILLED');
 
   // Notificar en el chat via bot
   const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
