@@ -1712,6 +1712,28 @@ function renderMain() {
         </button>`).join('')}
     </div>
 
+    <!-- Crear comandos desde el chat -->
+    <div class="panel" style="margin-bottom:20px;">
+      <div class="panel-header"><span class="panel-title-text">💬 También desde el chat de Twitch</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">Los mods y tú pueden crear, editar y borrar comandos escribiendo en el chat, sin abrir el dashboard:</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${[
+            ['!addcmd !discord Únete a mi Discord', 'Crea el comando !discord'],
+            ['!editcmd !discord Nuevo texto', 'Cambia la respuesta de un comando que ya existe'],
+            ['!delcmd !discord', 'Elimina el comando'],
+          ].map(([cmd, desc]) => `
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:250px;">${cmd}</code>
+              <span style="font-size:12px;color:var(--text-dim);">${desc}</span>
+            </div>`).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:12px;line-height:1.6;">
+          Los comandos creados desde el chat los puede usar cualquiera; para limitarlos a Subs, VIPs o Mods, edítalos aquí abajo. La respuesta puede tener hasta 450 caracteres y no se puede usar el nombre de un comando que ya trae Muffet, como <code style="color:var(--purple-light);">!top</code> o <code style="color:var(--purple-light);">!slots</code>.
+        </div>
+      </div>
+    </div>
+
     <!-- Panel -->
     <div class="panel">
       <div class="panel-header">
@@ -2157,7 +2179,7 @@ function renderMain() {
           </div>`).join('')}
 
         <div style="margin-top:14px;background:var(--bg3);border-radius:var(--radius-sm);padding:14px;">
-          <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:10px;">⚙️ Comandos para gestionar contadores (solo mods):</div>
+          <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:10px;">⚙️ Comandos para gestionar contadores:</div>
           <div style="display:flex;flex-direction:column;gap:8px;">
             ${[
               ['!addcounter deaths', 'Crea un contador llamado "deaths" con valor 0'],
@@ -2173,7 +2195,29 @@ function renderMain() {
                 <span style="font-size:12px;color:var(--text-dim);">${desc}</span>
               </div>`).join('')}
           </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:10px;line-height:1.6;">Crear y eliminar contadores es solo para mods. Sumar, restar, reiniciar o fijar el valor lo pueden hacer los mods y quien elijas en <strong style="color:var(--text);">Comandos → Contadores</strong> (VIPs, Subs o todos). Ver el valor siempre es para todos.</div>
         </div>
+      </div>
+    </div>
+
+    <!-- Crear comandos desde el chat -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">💬 Crear comandos desde el chat</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">Solo mods y el streamer. La respuesta puede llevar las variables de arriba, así que no hace falta abrir el dashboard:</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          ${[
+            ['!addcmd !hola ¡Hola {user}, bienvenido! 🕷️', 'Crea !hola — responde con el nombre de quien lo usa'],
+            ['!addcmd !juego Hoy jugamos {game}', 'Crea !juego — muestra la categoría actual del stream'],
+            ['!editcmd !hola ¡Qué bueno verte, {user}!', 'Cambia la respuesta de !hola'],
+            ['!delcmd !hola', 'Elimina el comando !hola'],
+          ].map(([cmd, desc]) => `
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <code style="font-size:12px;font-weight:600;color:var(--purple-light);font-family:monospace;min-width:330px;">${cmd}</code>
+              <span style="font-size:12px;color:var(--text-dim);">${desc}</span>
+            </div>`).join('')}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:12px;line-height:1.6;">Máximo 450 caracteres. No se pueden usar nombres de comandos que ya trae Muffet (como <code style="color:var(--purple-light);">!top</code> o <code style="color:var(--purple-light);">!slots</code>). Los comandos creados así los puede usar cualquiera; puedes cambiar quién en <strong style="color:var(--text);">Comandos</strong>.</div>
       </div>
     </div>
 
@@ -2733,14 +2777,18 @@ function renderMain() {
             <div style="display:flex;flex-direction:column;gap:6px;">
               <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
                 <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">1</span>
-                <span>Crea una recompensa de puntos en tu canal de Twitch</span>
+                <span>Pulsa <strong style="color:var(--text);">✨ Crear con Muffet</strong> (recomendado: queda con límite de 1 canje por stream y devuelve los puntos si un canje no cuenta), o crea la recompensa tú en Twitch</span>
               </div>
               <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
                 <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">2</span>
-                <span>Haz clic en <strong style="color:var(--text);">↺ Cargar recompensas</strong> y selecciónala</span>
+                <span>Si la creaste tú en Twitch, haz clic en <strong style="color:var(--text);">↺ Cargar recompensas</strong> y selecciónala</span>
               </div>
               <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
                 <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">3</span>
+                <span>Ve a <strong style="color:var(--text);">Configuración del canal → 🔔 Activar alertas</strong> (una sola vez) para que Muffet detecte los canjes</span>
+              </div>
+              <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
+                <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">4</span>
                 <span>El primero en canjearla cada stream gana el punto 🥇</span>
               </div>
             </div>
@@ -2923,9 +2971,10 @@ function renderMain() {
     <!-- Cómo funciona — 3 pasos -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
       ${[
-        ['1','🎁','Crea la recompensa','En tu panel de Twitch, con el costo en puntos y cooldown que quieras'],
-        ['2','📁','Sube tu meme','Audio o video corto (5-10 seg) y vincúlalo a la recompensa aquí'],
-        ['3','🎉','¡A disfrutar!','Cuando un viewer la canjee, el meme suena en tu stream al instante'],
+        ['1','📁','Sube tu meme','Audio o video corto (5-10 seg, hasta 15 MB) en una alerta nueva'],
+        ['2','🎁','Crea la recompensa','Con ✨ Crear en la alerta (Muffet la crea en tu Twitch) o elige una que ya tengas'],
+        ['3','🔔','Activa las alertas','Una sola vez: Configuración del canal → 🔔 Activar alertas, para que Muffet detecte los canjes'],
+        ['4','🎉','¡A disfrutar!','Cuando la canjeen, el meme suena en tu stream. Ten el overlay abierto en OBS'],
       ].map(([num,icon,title,desc])=>`
       <div style="background:linear-gradient(135deg,rgba(145,71,255,0.06),rgba(145,71,255,0.02));border:1px solid rgba(145,71,255,0.15);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden;">
         <div style="position:absolute;top:-8px;right:6px;font-size:52px;font-weight:800;color:rgba(145,71,255,0.08);font-family:var(--sans);">${num}</div>
@@ -3238,11 +3287,18 @@ function renderMain() {
           </summary>
           <div style="margin-top:10px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);border-left:3px solid rgba(30,215,96,0.4);">
             <div style="display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--text-dim);line-height:1.6;">
-              <div>1. <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1ed760;">developer.spotify.com/dashboard</a></div>
-              <div>2. Create app → cualquier nombre</div>
-              <div>3. Redirect URI: <code style="color:#1ed760;font-size:10px;">...onrender.com/auth/spotify/callback</code></div>
-              <div>4. Web API → Save → copiar Client ID y Secret</div>
-              <div>5. User Management → agregar tu email</div>
+              <div style="padding:8px 10px;background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.25);border-radius:6px;color:var(--yellow);margin-bottom:3px;">⚠️ Spotify exige una cuenta <strong>Premium</strong> para crear la app (desde marzo de 2026) y también para controlar la cola de reproducción. Con una cuenta gratuita no se puede.</div>
+              <div>1. Entra a <a href="https://developer.spotify.com/dashboard" target="_blank" style="color:#1ed760;">developer.spotify.com/dashboard</a> con esa cuenta</div>
+              <div>2. Pulsa <strong style="color:var(--text);">Create app</strong> y pon cualquier nombre y descripción</div>
+              <div>3. En <strong style="color:var(--text);">Redirect URIs</strong> pega esta dirección <strong style="color:var(--text);">exactamente igual</strong> y pulsa <strong style="color:var(--text);">Add</strong>:
+                <div style="display:flex;gap:6px;margin-top:5px;align-items:stretch;">
+                  <code style="flex:1;min-width:0;color:#1ed760;font-size:10px;background:var(--bg2);padding:6px 8px;border-radius:5px;word-break:break-all;line-height:1.5;">${window.location.origin}/auth/spotify/callback</code>
+                  <button onclick="navigator.clipboard.writeText(window.location.origin+'/auth/spotify/callback').then(()=>showToast('Redirect URI copiada ✓'))" style="flex-shrink:0;padding:0 12px;background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.3);border-radius:5px;color:#1ed760;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);">📋 Copiar</button>
+                </div>
+                <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Si cambia una sola letra, Spotify rechaza la conexión.</div>
+              </div>
+              <div>4. Marca <strong style="color:var(--text);">Web API</strong>, acepta los términos y pulsa <strong style="color:var(--text);">Save</strong>. Luego, en <strong style="color:var(--text);">Settings</strong>, copia el Client ID y el Client Secret</div>
+              <div>5. En <strong style="color:var(--text);">User Management</strong> agrega el email de tu cuenta de Spotify (cada app admite hasta 5 usuarios y cada cuenta puede tener una sola app)</div>
             </div>
           </div>
         </details>
@@ -3592,11 +3648,11 @@ function renderMain() {
               <div style="display:flex;flex-direction:column;gap:6px;">
                 <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
                   <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">1</span>
-                  <span>Crea una recompensa de puntos en tu canal de Twitch (Panel de creador → Puntos del canal → Recompensas)</span>
+                  <span>Pulsa <strong style="color:var(--text);">✨ Crear con Muffet</strong> (recomendado: devuelve los puntos si un canje no cuenta), o crea la recompensa tú en Twitch (Panel de creador → Puntos del canal → Recompensas)</span>
                 </div>
                 <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
                   <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">2</span>
-                  <span>Haz clic en <strong style="color:var(--text);">↺ Cargar recompensas</strong> y selecciona la recompensa del sorteo</span>
+                  <span>Si la creaste tú en Twitch, haz clic en <strong style="color:var(--text);">↺ Cargar recompensas</strong> y selecciona la recompensa del sorteo</span>
                 </div>
                 <div style="display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text-dim);line-height:1.5;">
                   <span style="background:var(--purple);color:white;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;margin-top:1px;">3</span>
@@ -4270,10 +4326,9 @@ function renderMain() {
             <span style="color:var(--purple-light);">▶</span> ¿Cómo encontrar mi Channel ID?
           </summary>
           <div style="margin-top:10px;padding:12px;background:var(--bg3);border-radius:var(--radius-sm);font-size:11px;color:var(--text-dim);line-height:1.8;">
-            1. Ve a YouTube e inicia sesión<br>
-            2. Click en tu foto de perfil → <strong style="color:var(--text)">Configuración</strong><br>
-            3. Click en <strong style="color:var(--text)">Configuración avanzada</strong><br>
-            4. Copia el <strong style="color:var(--purple-light)">ID de cuenta</strong> — empieza con UC
+            Entra con la cuenta dueña del canal y abre <a href="https://www.youtube.com/account_advanced" target="_blank" style="color:var(--purple-light);">youtube.com/account_advanced</a><br>
+            (o: foto de perfil → <strong style="color:var(--text)">Configuración</strong> → <strong style="color:var(--text)">Configuración avanzada</strong>)<br>
+            Copia el <strong style="color:var(--purple-light)">ID de canal</strong> — empieza con UC. No uses el "ID de usuario", que es distinto.
           </div>
         </details>
       </div>
@@ -4473,7 +4528,7 @@ function renderMain() {
               ['1', 'Crea una cuenta nueva en <strong>twitch.tv</strong> — ese será tu bot. Ponle el nombre que quieras, ej: <strong>MiCanalBot</strong>'],
               ['2', 'Inicia sesión en Twitch con esa cuenta nueva del bot'],
               ['3', 'Ve a <a href="https://twitchtokengenerator.com" target="_blank" style="color:var(--purple-light)">twitchtokengenerator.com</a> — click en <strong>Custom Scope Token</strong>'],
-              ['4', 'Activa los scopes: <strong>chat:read</strong> y <strong>chat:edit</strong> — luego click <strong>Generate Token</strong>'],
+              ['4', 'Activa estos scopes: <strong>chat:read</strong>, <strong>chat:edit</strong>, <strong>moderator:manage:chat_messages</strong> y <strong>moderator:manage:banned_users</strong> (los dos últimos permiten que tu bot borre mensajes y dé timeouts; sin ellos solo chatea) — luego click <strong>Generate Token</strong>'],
               ['5', 'Autoriza con la cuenta del bot en Twitch'],
               ['6', 'Copia el token que empieza con <strong>oauth:</strong> y pégalo abajo'],
               ['7', 'Escribe el nombre de usuario de tu bot (sin @) y guarda'],
