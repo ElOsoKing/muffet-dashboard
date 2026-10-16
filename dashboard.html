@@ -578,6 +578,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
 </nav>
 
 <script>
+const DBDLE_CHANNELS = ['elosoking1', 'lordlonelywolf']; // debe coincidir con el bot — función en prueba
 let streamerData = null;
 let userData = null;
 
@@ -2022,7 +2023,8 @@ function renderMain() {
           { id:'puntos',   icon:'🏆', name:'!puntos',   desc:'Ver puntos y nivel del usuario',            who:'Todos' },
           { id:'top',      icon:'📊', name:'!top',      desc:'Top 5 viewers con más puntos',              who:'Todos' },
           { id:'slots',    icon:'🎰', name:'!slots',    desc:'Tragamonedas — 3 símbolos, triple da premio grande',   who:'Todos' },
-          { id:'pokedle',  icon:'🔴', name:'!pokedle',  desc:'Pokémon del día — todo el chat compite, el primero en acertar gana',   who:'Todos' },
+          { id:'pokedle',  icon:'🔴', name:'!pokedle',  desc:'Pokémon cada 12 horas — todo el chat compite, el primero en acertar gana',   who:'Todos' },
+          ...(DBDLE_CHANNELS.includes((s.twitch_username||'').toLowerCase()) ? [{ id:'dbdle', icon:'🔪', name:'!dbdle', desc:'Asesino de DBD cada 12 horas — pistas por atributos (en prueba)', who:'Todos' }] : []),
           { id:'apostar',  icon:'🎲', name:'!apostar',  desc:'Apostar puntos con niveles de riesgo (facil/arriesgado/extremo)', who:'Todos' },
           { id:'duelo',    icon:'⚔️', name:'!duelo',    desc:'Retar a otro viewer a un duelo de puntos (requiere aceptar)',  who:'Todos' },
           { id:'canjear',  icon:'🎁', name:'!canjear',  desc:'Canjear puntos por premios',                who:'Todos' },
@@ -2941,18 +2943,36 @@ function renderMain() {
 
     <!-- Pokédle -->
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">🔴 Pokédle — un Pokémon nuevo cada día</span></div>
+      <div class="panel-header"><span class="panel-title-text">🔴 Pokédle — un Pokémon nuevo cada 12 horas</span></div>
       <div class="panel-body">
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
-          Cada día (medianoche hora de República Dominicana) Muffet elige un Pokémon al azar de los primeros 151. Todo el chat compite escribiendo <code style="color:var(--purple-light);">!pokedle nombre</code> — la primera persona en acertar gana <strong style="color:var(--text);">100 puntos</strong> y el reto del día se cierra. Solo usa datos (tipo, generación, altura, peso, color) — nunca imágenes oficiales.
+          Cada 12 horas (medianoche y mediodía, hora de República Dominicana) Muffet elige un Pokémon al azar de los primeros 151. Todo el chat compite escribiendo <code style="color:var(--purple-light);">!pokedle nombre</code> — la primera persona en acertar gana <strong style="color:var(--text);">100 puntos</strong> y el reto actual se cierra hasta el siguiente. Solo usa datos (tipo, generación, altura, peso, color) — nunca imágenes oficiales.
         </div>
         <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;font-size:11px;color:var(--text-dim);">
-          💡 Comandos: <code style="color:var(--purple-light);">!pokedle</code> ver estado del día · <code style="color:var(--purple-light);">!pokedle nombre</code> adivinar · <code style="color:var(--purple-light);">!pokedletop</code> ranking histórico
+          💡 Comandos: <code style="color:var(--purple-light);">!pokedle</code> ver estado del reto · <code style="color:var(--purple-light);">!pokedle nombre</code> adivinar · <code style="color:var(--purple-light);">!pokedletop</code> ranking histórico
         </div>
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🏆 Top Pokédle histórico</div>
         <div id="pokedleRanking"></div>
       </div>
     </div>
+
+    ${DBDLE_CHANNELS.includes((s.twitch_username||'').toLowerCase()) ? `
+    <!-- DBDle -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🔪 DBDle — un asesino nuevo cada 12 horas</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">
+          Cada 12 horas (medianoche y mediodía, hora de República Dominicana) Muffet elige un asesino de Dead by Daylight. Todo el chat compite escribiendo <code style="color:var(--purple-light);">!dbdle nombre</code> y recibe pistas de género, radio de terror, velocidad, tipo de ataque, altura, origen y año de salida — la primera persona en acertar gana <strong style="color:var(--text);">100 puntos</strong>. Solo usa datos escritos — nunca imágenes ni audios oficiales. <span style="color:var(--yellow);">Función de prueba: solo disponible en canales seleccionados.</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;font-size:11px;color:var(--text-dim);line-height:1.8;">
+          💡 Comandos: <code style="color:var(--purple-light);">!dbdle</code> ver estado · <code style="color:var(--purple-light);">!dbdle nombre</code> adivinar (inglés, español o apodo) · <code style="color:var(--purple-light);">!dbdletop</code> ranking histórico<br>
+          🟩 igual · 🟨 parcial · 🟥 distinto · 🔼🔽 el año del secreto es mayor/menor
+        </div>
+        <div id="dbdleStatus" style="font-size:12px;color:var(--text-dim);margin-bottom:14px;"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🏆 Top DBDle histórico</div>
+        <div id="dbdleRanking"></div>
+      </div>
+    </div>` : ''}
   </div>
 
   <!-- ALERTAS MULTIMEDIA -->
@@ -5957,25 +5977,41 @@ function renderLevelsList() {
     </div>`).join('');
 }
 
-function renderPokedleRanking() {
-  const el = document.getElementById('pokedleRanking');
+function renderWinsRanking(elId, wins, emptyText) {
+  const el = document.getElementById(elId);
   if (!el) return;
-  const ranking = Object.entries(streamerData.pokedle_config?.wins || {}).sort(([,a],[,b]) => b-a);
+  const ranking = Object.entries(wins || {}).sort(([,a],[,b]) => b-a);
   const medals = ['🥇','🥈','🥉'];
   if (!ranking.length) {
-    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">Nadie ha ganado el Pokédle aún 🔴</div>`;
+    el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">${emptyText}</div>`;
     return;
   }
   const max = ranking[0][1];
-  el.innerHTML = ranking.map(([user, wins], i) => `
+  el.innerHTML = ranking.map(([user, count], i) => `
     <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:${i===0?'rgba(240,192,96,0.06)':'var(--bg3)'};border:1px solid ${i===0?'rgba(240,192,96,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius-sm);margin-bottom:6px;">
       <div style="font-size:${i<3?'18px':'12px'};width:24px;text-align:center;${i>=3?'color:var(--text-muted);font-weight:700;':''}">${i<3?medals[i]:i+1}</div>
       <div style="font-size:13px;font-weight:500;color:var(--text);flex:1;">@${user}</div>
-      <div style="font-size:12px;font-weight:600;color:var(--yellow);">${wins}x</div>
+      <div style="font-size:12px;font-weight:600;color:var(--yellow);">${count}x</div>
       <div style="width:80px;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;">
-        <div style="height:100%;width:${Math.round((wins/max)*100)}%;background:var(--yellow);border-radius:2px;"></div>
+        <div style="height:100%;width:${Math.round((count/max)*100)}%;background:var(--yellow);border-radius:2px;"></div>
       </div>
     </div>`).join('');
+}
+
+function renderPokedleRanking() {
+  renderWinsRanking('pokedleRanking', streamerData.pokedle_config?.wins, 'Nadie ha ganado el Pokédle aún 🔴');
+  renderDbdleRanking();
+}
+
+function renderDbdleRanking() {
+  renderWinsRanking('dbdleRanking', streamerData.dbdle_config?.wins, 'Nadie ha ganado el DBDle aún 🔪');
+  const st = document.getElementById('dbdleStatus');
+  if (!st) return;
+  const c = streamerData.dbdle_config || {};
+  if (!c.current_killer) { st.textContent = 'Aún no hay un reto activo — se crea con el primer !dbdle en el chat.'; return; }
+  st.innerHTML = c.solved_by
+    ? `Reto actual: <strong style="color:var(--green,#40d090);">resuelto por @${c.solved_by}</strong> en ${c.attempts} intento${c.attempts===1?'':'s'}.`
+    : `Reto actual: <strong style="color:var(--text);">en curso</strong> — ${c.attempts||0} intento${(c.attempts||0)===1?'':'s'} hasta ahora.`;
 }
 
 function renderPrimerinRanking() {
