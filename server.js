@@ -1047,11 +1047,11 @@ async function getTwitchAppToken() {
   return data.access_token;
 }
 
+// Solo se registran por EventSub las alertas que el bot realmente usa por ese camino.
+// Subs, regalos de subs y bits el bot los recibe directo del chat (tmi.js), no por EventSub —
+// registrarlos aquí exigiría permisos extra (channel:read:subscriptions, bits:read) y no aportaría nada.
 const EVENTSUB_LABELS = {
   'channel.follow': 'Seguidores',
-  'channel.subscribe': 'Suscripciones',
-  'channel.subscription.gift': 'Regalos de subs',
-  'channel.cheer': 'Bits',
   'channel.channel_points_custom_reward_redemption.add': 'Canjes de puntos',
 };
 
@@ -1060,9 +1060,6 @@ async function registerEventSub(broadcasterId, appToken) {
   const webhookUrl = `${BASE_URL}/webhook/twitch`;
   const subs = [
     { type: 'channel.follow', version: '2', condition: { broadcaster_user_id: broadcasterId, moderator_user_id: broadcasterId } },
-    { type: 'channel.subscribe', version: '1', condition: { broadcaster_user_id: broadcasterId } },
-    { type: 'channel.subscription.gift', version: '1', condition: { broadcaster_user_id: broadcasterId } },
-    { type: 'channel.cheer', version: '1', condition: { broadcaster_user_id: broadcasterId } },
     { type: 'channel.channel_points_custom_reward_redemption.add', version: '1', condition: { broadcaster_user_id: broadcasterId } },
   ];
   const results = [];
