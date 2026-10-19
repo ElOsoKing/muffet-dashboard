@@ -2231,8 +2231,11 @@ app.post('/api/youtube/queue/remove', async (req, res) => {
     const r = await ytMutate(username.toLowerCase(), (cfg) => {
       const idx = (cfg.queue || []).findIndex(q => q.videoId === videoId);
       if (idx < 0) return { abort: true, reason: 'gone' };
-      // Si es la que está sonando, mejor usar "saltar" para que el overlay la detenga
-      if (idx === 0) { cfg.player_command = 'skip'; cfg.player_command_ts = Date.now(); return { skipped: true }; }
+      // Si es la que está sonando AHORA en el overlay, se usa "saltar" para que la detenga.
+      // Si solo está esperando (suena la playlist o el overlay está cerrado), se quita directo de la cola.
+      const st = ytLiveStatus[username.toLowerCase()];
+      const playingNow = idx === 0 && st && Date.now() - st.ts < 12000 && st.source === 'viewer' && st.videoId === videoId;
+      if (playingNow) { cfg.player_command = 'skip'; cfg.player_command_ts = Date.now(); return { skipped: true }; }
       ytRemoveFromQueue(cfg, idx);
     });
     res.json({ ok: r.ok || r.reason === 'gone', skipped: !!r.skipped });
