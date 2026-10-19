@@ -904,6 +904,10 @@ async function saveYTPlaylist() {
     showToast('Ese link no es una playlist de YouTube', 'error');
     return;
   }
+  if (/[?&]list=(RD|LM|WL)/.test(url)) {
+    showToast('Los Mix, "Me gusta" y "Ver más tarde" no se pueden reproducir en el overlay. Usa una playlist normal (que empiece por PL) y que sea pública o no listada', 'error');
+    return;
+  }
   const yt = streamerData.youtube_config || {};
   streamerData.youtube_config = { ...yt, playlist_url: url || '' };
   await saveYouTubeConfig();
