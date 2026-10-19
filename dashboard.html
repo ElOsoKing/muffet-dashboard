@@ -696,17 +696,14 @@ function renderYouTubeConfig() {
         </div>
         <div style="flex:1;">
           <div style="font-size:20px;font-weight:800;color:var(--text);letter-spacing:-0.3px;">YouTube</div>
-          <div style="font-size:12px;color:rgba(255,100,100,0.9);margin-top:3px;display:flex;align-items:center;gap:6px;">
-            <span style="width:7px;height:7px;border-radius:50%;background:#FF0000;display:inline-block;box-shadow:0 0 6px rgba(255,0,0,0.8);"></span>
-            Listo para usar · Comando: <strong>!yt</strong>
-          </div>
+          <div id="ytStatusLine" style="font-size:12px;margin-top:3px;display:flex;align-items:center;gap:6px;">${ytStatusLineHtml()}</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button onclick="navigator.clipboard.writeText(window.location.origin+'/overlay/youtube/${userData.username}').then(()=>showToast('Link del overlay copiado ✓'))"
+          <button onclick="ytCopyOverlayLink()"
             style="display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 16px;border-radius:20px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-weight:600;font-family:var(--sans);transition:all 0.2s;">
             🎬 Copiar link OBS
           </button>
-          <button onclick="showOverlayPreview('${window.location.origin}/overlay/youtube/${userData.username}','YouTube')"
+          <button onclick="ytPreviewOverlay()"
             style="display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 16px;border-radius:20px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);cursor:pointer;font-weight:600;font-family:var(--sans);transition:all 0.2s;">
             👁️ Vista previa
           </button>
@@ -717,24 +714,30 @@ function renderYouTubeConfig() {
     <!-- 🎛️ Control de reproducción + 📋 Cola actual -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;" class="yt-np-grid">
       <div class="panel" style="margin-bottom:0;">
-        <div class="panel-header"><div class="panel-title">🎛️ Sonando ahora</div></div>
+        <div class="panel-header"><div class="panel-title">🎛️ Sonando ahora <span id="ytStateBadge" style="font-size:11px;font-weight:600;margin-left:6px;color:var(--text-muted);">…</span></div></div>
         <div class="panel-body">
-          <div id="ytNowPlayingCard" style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-            <img id="ytNowThumb" src="" style="width:64px;height:36px;border-radius:6px;object-fit:cover;background:var(--bg3);flex-shrink:0;" onerror="this.style.opacity=0">
+          <div id="ytNowPlayingCard" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+            <img id="ytNowThumb" src="" style="width:64px;height:36px;border-radius:6px;object-fit:cover;background:var(--bg3);flex-shrink:0;opacity:0;" onerror="this.style.opacity=0">
             <div style="flex:1;min-width:0;">
-              <div id="ytNowTitle" style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Sin información</div>
-              <div id="ytNowMeta" style="font-size:11px;color:var(--text-muted);">—</div>
+              <div id="ytNowTitle" style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Cargando…</div>
+              <div id="ytNowMeta" style="font-size:11px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">—</div>
             </div>
           </div>
+          <div style="margin-bottom:14px;">
+            <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;"><div id="ytProgFill" style="height:100%;width:0%;background:#FF0000;transition:width 0.9s linear;"></div></div>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:4px;"><span id="ytTimeCur">0:00</span><span id="ytTimeDur">0:00</span></div>
+          </div>
           <div style="display:flex;align-items:center;gap:10px;">
-            <button onclick="ytControl('pause')" style="width:38px;height:38px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">⏸</button>
-            <button onclick="ytControl('play')" style="width:44px;height:44px;border-radius:50%;background:#FF0000;border:none;color:white;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(255,0,0,0.4);transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">▶</button>
-            <button onclick="ytControl('skip')" style="width:38px;height:38px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">⏭</button>
-            <div style="flex:1;display:flex;align-items:center;gap:10px;margin-left:12px;">
-              <span style="font-size:13px;">🔊</span>
-              <input type="range" id="ytVolumeSlider" class="yt-volume-slider" min="0" max="100" value="${yt.volume??100}" oninput="ytSetVolume(this.value)" style="flex:1;--vol-pct:${yt.volume??100}%;">
-              <span id="ytVolumeLabel" style="font-size:11px;color:var(--text-muted);width:32px;text-align:right;">${yt.volume??100}%</span>
+            <button id="ytPlayPauseBtn" onclick="ytControl('toggle')" title="Pausar / reanudar" style="width:44px;height:44px;border-radius:50%;background:#FF0000;border:none;color:white;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(255,0,0,0.4);transition:transform 0.15s;flex-shrink:0;" onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">⏸</button>
+            <button onclick="ytControl('skip')" title="Saltar canción" style="width:38px;height:38px;border-radius:50%;background:var(--bg3);border:1px solid rgba(255,255,255,0.1);color:var(--text);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;flex-shrink:0;" onmouseover="this.style.background='var(--bg4)'" onmouseout="this.style.background='var(--bg3)'">⏭</button>
+            <div style="flex:1;display:flex;align-items:center;gap:8px;margin-left:8px;min-width:0;">
+              <button id="ytMuteBtn" onclick="ytToggleMute()" title="Silenciar / activar sonido" style="background:none;border:none;cursor:pointer;font-size:16px;padding:0;flex-shrink:0;">🔊</button>
+              <input type="range" id="ytVolumeSlider" class="yt-volume-slider" min="0" max="100" value="${yt.volume??100}" oninput="ytSetVolume(this.value)" style="flex:1;min-width:0;--vol-pct:${yt.volume??100}%;">
+              <span id="ytVolumeLabel" style="font-size:11px;color:var(--text-muted);width:34px;text-align:right;flex-shrink:0;">${yt.volume??100}%</span>
             </div>
+          </div>
+          <div id="ytOfflineNote" style="display:none;margin-top:12px;font-size:11px;color:#E8A33D;background:rgba(232,163,61,0.08);border:1px solid rgba(232,163,61,0.2);border-radius:8px;padding:8px 10px;">
+            El overlay no está abierto en OBS, así que los botones no tienen efecto todavía. Copia el link de arriba y agrégalo como fuente de navegador.
           </div>
         </div>
       </div>
@@ -744,20 +747,7 @@ function renderYouTubeConfig() {
           <div class="panel-title">📋 Próximas <span id="ytQueueCount" style="font-size:11px;color:var(--text-muted);font-weight:400;">${(yt.queue||[]).length} videos</span></div>
           <button onclick="clearYTQueue()" style="font-size:11px;color:var(--pink);background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.15);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--sans);">🗑 Limpiar</button>
         </div>
-        <div class="panel-body" id="ytQueueList" style="max-height:160px;overflow-y:auto;">
-          ${(yt.queue||[]).length === 0
-            ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">La cola está vacía 🎵</div>'
-            : (yt.queue||[]).map((v,i)=>`
-              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<(yt.queue.length-1)?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
-                <img src="https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;">
-                <div style="flex:1;min-width:0;">
-                  <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.title||'Sin título'}</div>
-                  <div style="font-size:10px;color:var(--text-muted);">@${v.requestedBy||'?'}</div>
-                </div>
-                ${i === 0 ? `<button onclick="ytPlayNow()" style="font-size:11px;padding:5px 10px;border-radius:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-family:var(--sans);white-space:nowrap;font-weight:600;">▶ Ahora</button>` : ''}
-              </div>`).join('')
-          }
-        </div>
+        <div class="panel-body" id="ytQueueList" style="max-height:220px;overflow-y:auto;">${ytQueueHtml(yt.queue||[])}</div>
       </div>
     </div>
 
@@ -865,12 +855,12 @@ function renderYouTubeConfig() {
     <div class="panel">
       <div class="panel-header"><div class="panel-title">🚫 Lista negra</div></div>
       <div class="panel-body" style="display:flex;flex-direction:column;gap:10px;">
-        <div style="font-size:12px;color:var(--text-dim);">Canciones o canales de YouTube bloqueados</div>
+        <div style="font-size:12px;color:var(--text-dim);">Palabras del título o canal, o el link de un video concreto, que el bot rechazará</div>
         <div id="ytBlacklist" style="display:flex;flex-wrap:wrap;gap:6px;min-height:32px;">
-          ${(yt.blacklist||[]).map(b=>`<span style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:20px;font-size:12px;color:var(--pink);">${b}<button onclick="removeYTBlacklist('${b}')" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:14px;padding:0;line-height:1;">×</button></span>`).join('')}
+          ${ytBlacklistHtml(yt.blacklist||[])}
         </div>
         <div style="display:flex;gap:8px;">
-          <input type="text" id="ytBlacklistInput" class="form-input" placeholder="Nombre del video o canal..." style="flex:1;" onkeydown="if(event.key==='Enter')addYTBlacklist()">
+          <input type="text" id="ytBlacklistInput" class="form-input" placeholder="Nombre, canal o link del video..." style="flex:1;" onkeydown="if(event.key==='Enter')addYTBlacklist()">
           <button onclick="addYTBlacklist()" class="btn btn-primary">+ Agregar</button>
         </div>
       </div>
@@ -883,19 +873,8 @@ function renderYouTubeConfig() {
         <div class="panel-title">📜 Historial</div>
         <button onclick="clearYTHistory()" style="font-size:11px;color:var(--pink);background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.15);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:var(--sans);">🗑 Limpiar</button>
       </div>
-      <div class="panel-body" id="ytHistoryList">
-        ${(yt.history||[]).length === 0
-          ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Sin historial aún 🎵</div>'
-          : (yt.history||[]).slice(0,5).map((h,i) => `
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<Math.min((yt.history||[]).length,5)-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
-              <img src="https://img.youtube.com/vi/${h.videoId}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">
-              <div style="flex:1;min-width:0;">
-                <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.title||'Sin título'}</div>
-                <div style="font-size:10px;color:var(--text-muted);">@${h.requestedBy||'?'} · ${new Date(h.playedAt||h.addedAt||Date.now()).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'})}</div>
-              </div>
-            </div>`).join('')
-        }
-      </div>
+      <div class="panel-body" id="ytHistoryList" style="max-height:300px;overflow-y:auto;">${ytHistoryHtml(yt.history||[])}</div>
+    </div>
     </div>
   `;
 }
@@ -940,27 +919,89 @@ async function removeYTPlaylist() {
   showToast('Playlist eliminada ✓');
 }
 
+// ── YouTube: helpers de pintado ──
+let _ytLive = { st: null, online: false, at: 0 };
+let _ytVolTimer = null, _ytVolHold = 0, _ytPrevVol = null;
+
+function ytEsc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function ytFmtTime(sec) { sec = Math.max(0, Math.floor(sec || 0)); return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0'); }
+
+function ytStatusLineHtml() {
+  const yt = (typeof streamerData !== 'undefined' && streamerData?.youtube_config) || {};
+  const dot = (c) => `<span style="width:7px;height:7px;border-radius:50%;background:${c};display:inline-block;box-shadow:0 0 6px ${c};"></span>`;
+  if (!yt.enabled) return `${dot('#888')}<span style="color:var(--text-muted);">Solicitudes desactivadas · actívalas en «Reproducción»</span>`;
+  if (!_ytLive.at) return `${dot('#888')}<span style="color:var(--text-muted);">Comprobando overlay…</span>`;
+  if (!_ytLive.online) return `${dot('#E8A33D')}<span style="color:#E8A33D;">Overlay desconectado — agrégalo en OBS · Comando: <strong>!yt</strong></span>`;
+  return `${dot('#3ECF8E')}<span style="color:#3ECF8E;">Overlay conectado · Comando: <strong>!yt</strong></span>`;
+}
+function ytUpdateStatusLine() { const el = document.getElementById('ytStatusLine'); if (el) el.innerHTML = ytStatusLineHtml(); }
+
+function ytQueueHtml(queue) {
+  if (!queue.length) return '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">La cola está vacía 🎵</div>';
+  const live = _ytLive.online && _ytLive.st;
+  return queue.map((v, i) => {
+    const dur = v.durationSec ? ' · ' + ytFmtTime(v.durationSec) : '';
+    const playingNow = i === 0 && live && live.source === 'viewer';
+    const id = ytEsc(v.videoId);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i < queue.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.04);' : ''}">
+      <img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.style.opacity=0">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ytEsc(v.title || 'Sin título')}</div>
+        <div style="font-size:10px;color:var(--text-muted);">${playingNow ? '<span style="color:#FF4444;font-weight:600;">▶ Sonando</span> · ' : ''}@${ytEsc(v.requestedBy || '?')}${dur}</div>
+      </div>
+      ${(i === 0 && !playingNow) ? `<button onclick="ytPlayNow()" style="font-size:11px;padding:5px 10px;border-radius:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-family:var(--sans);white-space:nowrap;font-weight:600;">▶ Ahora</button>` : ''}
+      <button onclick="ytRemoveItem('${id}')" title="${playingNow ? 'Saltar esta canción' : 'Quitar de la cola'}" style="font-size:13px;width:26px;height:26px;border-radius:6px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.15);color:var(--pink);cursor:pointer;flex-shrink:0;line-height:1;">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function ytHistoryHtml(history) {
+  if (!history.length) return '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Sin historial aún 🎵</div>';
+  return history.slice(0, 15).map((h, i, arr) => {
+    const id = ytEsc(h.videoId);
+    const t = new Date(h.playedAt || h.addedAt || Date.now()).toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i < arr.length - 1 ? 'border-bottom:1px solid rgba(255,255,255,0.04);' : ''}">
+      <img src="https://img.youtube.com/vi/${id}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ytEsc(h.title || 'Sin título')}</div>
+        <div style="font-size:10px;color:var(--text-muted);">@${ytEsc(h.requestedBy || '?')} · ${t}</div>
+      </div>
+      <button onclick="ytRequeue('${id}')" title="Volver a poner en cola" style="font-size:13px;width:28px;height:26px;border-radius:6px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);cursor:pointer;flex-shrink:0;">↻</button>
+    </div>`;
+  }).join('');
+}
+
+function ytBlacklistHtml(list) {
+  return list.map((b, i) => `<span style="display:flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(224,90,122,0.1);border:1px solid rgba(224,90,122,0.2);border-radius:20px;font-size:12px;color:var(--pink);max-width:100%;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px;">${ytEsc(b)}</span><button onclick="removeYTBlacklistAt(${i})" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:14px;padding:0;line-height:1;">×</button></span>`).join('');
+}
+
+// ── Guardar ajustes (solo los campos de configuración; la cola y el historial nunca se envían) ──
 async function saveYouTubeConfig() {
   const yt = streamerData.youtube_config || {};
-  const allowed = [...document.querySelectorAll('[data-ytperm]:checked')].map(el => el.dataset.ytperm);
-  const selectedPos = _ytSelectedPos || yt.card_position || 'bottom-left';
-  const updated = {
-    ...yt,
-    enabled: document.getElementById('ytEnabled')?.checked,
-    max_per_user: parseInt(document.getElementById('ytMaxPerUser')?.value) || 3,
-    max_duration_min: parseInt(document.getElementById('ytMaxDuration')?.value) || 10,
-    volume: parseInt(document.getElementById('ytVolume')?.value) ?? 100,
-    card_width: parseInt(document.getElementById('ytWidth')?.value) || 480,
-    card_height: parseInt(document.getElementById('ytHeight')?.value) || 300,
-    card_position: selectedPos,
-    accent_color: document.getElementById('ytAccentColor')?.value || '#FF0000',
+  const num = (id, fb) => { const el = document.getElementById(id); const n = el ? parseInt(el.value) : NaN; return isNaN(n) ? fb : n; };
+  const enabledEl = document.getElementById('ytEnabled');
+  const permEls = [...document.querySelectorAll('[data-ytperm]')];
+  const allowed = permEls.length ? permEls.filter(e => e.checked).map(e => e.dataset.ytperm) : (yt.allowed || ['everyone']);
+  const settings = {
+    enabled: enabledEl ? enabledEl.checked : !!yt.enabled,
+    max_per_user: num('ytMaxPerUser', yt.max_per_user || 3),
+    max_duration_min: num('ytMaxDuration', yt.max_duration_min || 10),
+    card_width: num('ytWidth', yt.card_width || 480),
+    card_height: num('ytHeight', yt.card_height || 300),
+    card_position: _ytSelectedPos || yt.card_position || 'bottom-left',
+    accent_color: document.getElementById('ytAccentColor')?.value || yt.accent_color || '#FF0000',
     allowed: allowed.length ? allowed : ['everyone'],
     playlist_url: yt.playlist_url || '',
+    blacklist: yt.blacklist || [],
   };
-  streamerData.youtube_config = updated;
-  const res = await fetch('/api/youtube/config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ youtube_config: updated }) });
-  if (res.ok) showToast('YouTube guardado ✓');
-  else showToast('Error al guardar', 'error');
+  streamerData.youtube_config = { ...yt, ...settings };
+  try {
+    const res = await fetch('/api/youtube/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ youtube_config: settings }) });
+    const j = await res.json().catch(() => ({}));
+    if (res.ok && j.ok) { showToast('YouTube guardado ✓'); ytUpdateStatusLine(); return true; }
+  } catch (e) {}
+  showToast('No se pudo guardar, intenta de nuevo', 'error');
+  return false;
 }
 
 async function addYTBlacklist() {
@@ -968,59 +1009,130 @@ async function addYTBlacklist() {
   const val = input.value.trim();
   if (!val) return;
   const yt = streamerData.youtube_config || {};
-  const blacklist = [...(yt.blacklist||[]), val];
-  streamerData.youtube_config = { ...yt, blacklist };
+  const cur = yt.blacklist || [];
+  if (cur.some(b => b.toLowerCase() === val.toLowerCase())) { showToast('Ya está en la lista negra', 'error'); return; }
+  streamerData.youtube_config = { ...yt, blacklist: [...cur, val] };
   input.value = '';
-  await saveYouTubeConfig();
-  renderYouTubeConfig();
+  if (await saveYouTubeConfig()) renderYouTubeConfig();
 }
 
-async function removeYTBlacklist(item) {
+async function removeYTBlacklistAt(i) {
   const yt = streamerData.youtube_config || {};
-  streamerData.youtube_config = { ...yt, blacklist: (yt.blacklist||[]).filter(b => b !== item) };
-  await saveYouTubeConfig();
-  renderYouTubeConfig();
+  streamerData.youtube_config = { ...yt, blacklist: (yt.blacklist || []).filter((_, idx) => idx !== i) };
+  if (await saveYouTubeConfig()) renderYouTubeConfig();
 }
 
-async function ytControl(action) {
+// ── Enlace del overlay con su clave ──
+async function ytGetOverlayUrl() {
   try {
-    await fetch('/api/youtube/control', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action }) });
-    showToast(action === 'pause' ? 'Pausado ⏸' : action === 'play' ? 'Reanudado ▶' : 'Canción saltada ⏭');
-  } catch(e) { showToast('Error', 'error'); }
+    const r = await fetch('/api/youtube/overlay-url');
+    const j = await r.json();
+    if (j.url) return j.url;
+  } catch (e) {}
+  return `${window.location.origin}/overlay/youtube/${(userData.username || '').toLowerCase()}?channel=${(userData.username || '').toLowerCase()}`;
+}
+async function ytCopyOverlayLink() {
+  const url = await ytGetOverlayUrl();
+  try { await navigator.clipboard.writeText(url); showToast('Link del overlay copiado ✓'); }
+  catch (e) { prompt('Copia este link:', url); }
+}
+async function ytPreviewOverlay() {
+  const url = await ytGetOverlayUrl();
+  showOverlayPreview(url + (url.includes('?') ? '&' : '?') + 'preview=1', 'YouTube');
 }
 
-let _ytVolumeDebounce = null;
+// ── Controles ──
+async function ytControl(action) {
+  if (_ytLive.at && !_ytLive.online) { showToast('El overlay no está abierto en OBS — no hay nada que controlar', 'error'); return; }
+  if (action === 'toggle') action = (_ytLive.st?.state === 'paused') ? 'play' : 'pause';
+  try {
+    const r = await fetch('/api/youtube/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j.ok) throw new Error('fail');
+    if (_ytLive.st) {
+      if (action === 'pause') _ytLive.st.state = 'paused';
+      if (action === 'play') _ytLive.st.state = 'playing';
+      _ytLive.at = Date.now();
+    }
+    updateYTNow();
+    showToast(action === 'pause' ? 'Pausado ⏸' : action === 'play' ? 'Reanudado ▶' : 'Saltando canción ⏭');
+    if (action === 'skip') setTimeout(ytPollOnce, 2500);
+  } catch (e) { showToast('No se pudo enviar el comando', 'error'); }
+}
+
 function ytSetVolume(value) {
-  document.getElementById('ytVolumeLabel').textContent = value + '%';
-  document.getElementById('ytVolumeSlider').style.setProperty('--vol-pct', value + '%');
-  clearTimeout(_ytVolumeDebounce);
-  _ytVolumeDebounce = setTimeout(async () => {
-    await fetch('/api/youtube/control', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'volume', value }) });
-  }, 400);
+  value = Math.max(0, Math.min(100, parseInt(value) || 0));
+  const lab = document.getElementById('ytVolumeLabel'); if (lab) lab.textContent = value + '%';
+  const sl = document.getElementById('ytVolumeSlider'); if (sl) { sl.value = value; sl.style.setProperty('--vol-pct', value + '%'); }
+  const mb = document.getElementById('ytMuteBtn'); if (mb) mb.textContent = value === 0 ? '🔇' : value < 50 ? '🔉' : '🔊';
+  _ytVolHold = Date.now() + 2500; // mientras se mueve, el sondeo no lo regresa
+  if (streamerData.youtube_config) streamerData.youtube_config.volume = value;
+  clearTimeout(_ytVolTimer);
+  _ytVolTimer = setTimeout(async () => {
+    try { await fetch('/api/youtube/control', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'volume', value }) }); }
+    catch (e) { showToast('No se pudo cambiar el volumen', 'error'); }
+  }, 250);
+}
+
+function ytToggleMute() {
+  const sl = document.getElementById('ytVolumeSlider'); if (!sl) return;
+  const cur = parseInt(sl.value) || 0;
+  if (cur > 0) { _ytPrevVol = cur; ytSetVolume(0); }
+  else ytSetVolume(_ytPrevVol || 50);
 }
 
 async function ytPlayNow() {
-  const res = await fetch('/api/youtube/queue/playnow', { method: 'POST', headers: {'Content-Type':'application/json'} });
-  if (res.ok) showToast('Reproduciendo canción del viewer ahora ✓');
+  const res = await fetch('/api/youtube/queue/playnow', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+  if (res.ok) { showToast('Reproduciendo la canción del viewer ahora ✓'); setTimeout(ytPollOnce, 2500); }
   else showToast('Error', 'error');
+}
+
+async function ytRemoveItem(videoId) {
+  try {
+    const r = await fetch('/api/youtube/queue/remove', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId }) });
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) throw new Error('fail');
+    showToast(j.skipped ? 'Saltando canción ⏭' : 'Quitada de la cola ✓');
+    setTimeout(ytPollOnce, j.skipped ? 2500 : 200);
+    // quitar de la vista al instante
+    const yt = streamerData.youtube_config || {};
+    if (!j.skipped) { yt.queue = (yt.queue || []).filter(q => q.videoId !== videoId); refreshYTQueue(); }
+  } catch (e) { showToast('No se pudo quitar', 'error'); }
+}
+
+async function ytRequeue(videoId) {
+  try {
+    const r = await fetch('/api/youtube/history/requeue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ videoId }) });
+    const j = await r.json().catch(() => ({}));
+    if (j.ok) { showToast(`Agregada a la cola (#${j.position}) ✓`); ytPollOnce(); }
+    else if (j.reason === 'dup') showToast('Esa canción ya está en la cola', 'error');
+    else showToast('No se pudo agregar', 'error');
+  } catch (e) { showToast('No se pudo agregar', 'error'); }
 }
 
 async function clearYTHistory() {
   if (!confirm('¿Limpiar el historial de YouTube?')) return;
-  const yt = streamerData.youtube_config || {};
-  streamerData.youtube_config = { ...yt, history: [] };
-  await saveYouTubeConfig();
-  renderYouTubeConfig();
-  showToast('Historial limpiado ✓');
+  try {
+    const r = await fetch('/api/youtube/history/clear', { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) throw new Error('fail');
+    (streamerData.youtube_config || {}).history = [];
+    refreshYTHistory();
+    showToast('Historial limpiado ✓');
+  } catch (e) { showToast('No se pudo limpiar', 'error'); }
 }
 
 async function clearYTQueue() {
-  if (!confirm('¿Limpiar la cola de YouTube?')) return;
-  const yt = streamerData.youtube_config || {};
-  streamerData.youtube_config = { ...yt, queue: [], song_limits: {} };
-  await saveYouTubeConfig();
-  renderYouTubeConfig();
-  showToast('Cola limpiada ✓');
+  if (!confirm('¿Limpiar la cola de YouTube? Se detendrá la canción que suene de la cola.')) return;
+  try {
+    const r = await fetch('/api/youtube/queue/clear', { method: 'POST' });
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) throw new Error('fail');
+    const yt = streamerData.youtube_config || {}; yt.queue = []; yt.song_limits = {};
+    refreshYTQueue();
+    showToast('Cola limpiada ✓');
+    setTimeout(ytPollOnce, 2500);
+  } catch (e) { showToast('No se pudo limpiar', 'error'); }
 }
 
 // ── Sticky Save Bar ──
@@ -5636,83 +5748,117 @@ let spotifyInterval = null;
 function startSpotifyPolling(){ stopSpotifyPolling(); spotifyInterval = setInterval(loadSpotifyStatus, 20000); loadSpotifyStatus(); }
 function stopSpotifyPolling(){ if(spotifyInterval){ clearInterval(spotifyInterval); spotifyInterval = null; } }
 
-// ── YouTube polling ──
-let ytPollInterval = null;
+// ── YouTube polling (cola + estado real del overlay) ──
+let ytPollInterval = null, ytTickInterval = null;
 function startYTPolling(){
   stopYTPolling();
-  ytPollInterval = setInterval(async () => {
-    try {
-      const res = await fetch('/api/streamer');
-      const data = await res.json();
-      if (data.streamer) {
-        streamerData.youtube_config = data.streamer.youtube_config || {};
-        // Solo re-renderizar la cola y el historial, no todo el panel
-        refreshYTQueue();
-        refreshYTHistory();
-      }
-    } catch(e) {}
-  }, 20000);
+  ytPollOnce();
+  ytPollInterval = setInterval(ytPollOnce, 4000);
+  ytTickInterval = setInterval(updateYTNow, 1000);
 }
-function stopYTPolling(){ if(ytPollInterval){ clearInterval(ytPollInterval); ytPollInterval = null; } }
+function stopYTPolling(){
+  if (ytPollInterval) { clearInterval(ytPollInterval); ytPollInterval = null; }
+  if (ytTickInterval) { clearInterval(ytTickInterval); ytTickInterval = null; }
+}
+
+async function ytPollOnce() {
+  if (!document.getElementById('ytQueueList')) return;
+  const u = ((userData && userData.username) || '').toLowerCase();
+  try {
+    const [q, s] = await Promise.all([
+      fetch(`/api/youtube/queue?channel=${encodeURIComponent(u)}`).then(r => r.json()),
+      fetch('/api/youtube/status').then(r => r.json()),
+    ]);
+    if (q && q.config) streamerData.youtube_config = q.config;
+    _ytLive = { st: s.online ? s.status : null, online: !!s.online, at: Date.now() };
+    refreshYTQueue();
+    refreshYTHistory();
+    updateYTNow();
+    ytUpdateStatusLine();
+  } catch (e) {}
+}
+
+// Tarjeta "Sonando ahora": usa el estado real que manda el overlay
+function updateYTNow() {
+  const titleEl = document.getElementById('ytNowTitle');
+  if (!titleEl) return;
+  const yt = streamerData.youtube_config || {};
+  const queue = yt.queue || [];
+  const st = _ytLive.online ? _ytLive.st : null;
+  const thumb = document.getElementById('ytNowThumb');
+  const meta = document.getElementById('ytNowMeta');
+  let vid = null;
+  if (st && st.title) {
+    titleEl.textContent = st.title;
+    meta.textContent = st.source === 'viewer' ? `Pedido por @${queue[0]?.requestedBy || '?'}` : `Playlist base${st.author ? ' · ' + st.author : ''}`;
+    vid = st.videoId;
+  } else if (queue.length) {
+    titleEl.textContent = queue[0].title || 'Sin título';
+    meta.textContent = `Primera en la cola · @${queue[0].requestedBy || '?'}`;
+    vid = queue[0].videoId;
+  } else if (yt.playlist_url) {
+    titleEl.textContent = '🎵 Playlist base';
+    meta.textContent = 'Se reproduce cuando no hay pedidos';
+  } else {
+    titleEl.textContent = 'Nada sonando';
+    meta.textContent = 'Los pedidos del chat aparecerán aquí';
+  }
+  if (thumb) { if (vid) { const u = `https://img.youtube.com/vi/${vid}/mqdefault.jpg`; if (thumb.getAttribute('src') !== u) thumb.src = u; thumb.style.opacity = 1; } else thumb.style.opacity = 0; }
+
+  // Progreso (se avanza localmente entre sondeos)
+  let cur = 0, dur = 0;
+  if (st && st.duration > 0) {
+    dur = st.duration;
+    cur = st.current + (st.state === 'playing' ? (Date.now() - _ytLive.at) / 1000 : 0);
+    cur = Math.min(cur, dur);
+  }
+  const fill = document.getElementById('ytProgFill'); if (fill) fill.style.width = dur ? (cur / dur * 100) + '%' : '0%';
+  const tc = document.getElementById('ytTimeCur'); if (tc) tc.textContent = ytFmtTime(cur);
+  const td = document.getElementById('ytTimeDur'); if (td) td.textContent = ytFmtTime(dur);
+
+  // Estado
+  const badge = document.getElementById('ytStateBadge');
+  const pp = document.getElementById('ytPlayPauseBtn');
+  const note = document.getElementById('ytOfflineNote');
+  const known = _ytLive.at > 0;
+  if (badge) {
+    if (!known) { badge.textContent = '…'; badge.style.color = 'var(--text-muted)'; }
+    else if (!_ytLive.online) { badge.textContent = '○ Sin overlay'; badge.style.color = '#E8A33D'; }
+    else if (!st || st.state === 'idle') { badge.textContent = '● Libre'; badge.style.color = 'var(--text-muted)'; }
+    else if (st.state === 'paused') { badge.textContent = '⏸ En pausa'; badge.style.color = '#E8A33D'; }
+    else if (st.state === 'buffering') { badge.textContent = '⏳ Cargando'; badge.style.color = 'var(--text-muted)'; }
+    else { badge.textContent = '▶ Sonando'; badge.style.color = '#3ECF8E'; }
+  }
+  if (pp) pp.textContent = (st && st.state === 'paused') ? '▶' : '⏸';
+  if (note) note.style.display = (known && !_ytLive.online) ? 'block' : 'none';
+
+  // Volumen: solo se sincroniza si el streamer no lo está moviendo
+  if (Date.now() > _ytVolHold) {
+    const sl = document.getElementById('ytVolumeSlider');
+    const v = yt.volume ?? 100;
+    if (sl && parseInt(sl.value) !== v) {
+      sl.value = v; sl.style.setProperty('--vol-pct', v + '%');
+      const lab = document.getElementById('ytVolumeLabel'); if (lab) lab.textContent = v + '%';
+      const mb = document.getElementById('ytMuteBtn'); if (mb) mb.textContent = v === 0 ? '🔇' : v < 50 ? '🔉' : '🔊';
+    }
+  }
+}
 
 function refreshYTQueue() {
   const yt = streamerData.youtube_config || {};
   const queue = yt.queue || [];
-
-  // Actualizar tarjeta "ahora sonando"
-  const nowThumb = document.getElementById('ytNowThumb');
-  const nowTitle = document.getElementById('ytNowTitle');
-  const nowMeta = document.getElementById('ytNowMeta');
-  if (nowTitle) {
-    if (queue.length > 0) {
-      const current = queue[0];
-      nowTitle.textContent = current.title || 'Sin título';
-      nowMeta.textContent = `Pedido por @${current.requestedBy||'?'}`;
-      if (nowThumb) { nowThumb.src = `https://img.youtube.com/vi/${current.videoId}/mqdefault.jpg`; nowThumb.style.opacity = 1; }
-    } else if (yt.playlist_url) {
-      nowTitle.textContent = '🎵 Playlist base';
-      nowMeta.textContent = 'Reproduciendo playlist del streamer';
-      if (nowThumb) nowThumb.style.opacity = 0;
-    } else {
-      nowTitle.textContent = 'Sin información';
-      nowMeta.textContent = '—';
-      if (nowThumb) nowThumb.style.opacity = 0;
-    }
-  }
-
   const queueEl = document.getElementById('ytQueueList');
   if (!queueEl) return;
-  queueEl.innerHTML = queue.length === 0
-    ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Cola vacía 🎵</div>'
-    : queue.map((v,i) => `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<queue.length-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
-        <img src="https://img.youtube.com/vi/${v.videoId}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;">
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.title||'Sin título'}</div>
-          <div style="font-size:10px;color:var(--text-muted);">@${v.requestedBy||'?'}</div>
-        </div>
-        ${i === 0 ? `<button onclick="ytPlayNow()" style="font-size:11px;padding:5px 10px;border-radius:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-family:var(--sans);white-space:nowrap;font-weight:600;">▶ Ahora</button>` : ''}
-      </div>`).join('');
-  // Actualizar contador en el header
+  queueEl.innerHTML = ytQueueHtml(queue);
   const countEl = document.getElementById('ytQueueCount');
-  if (countEl) countEl.textContent = queue.length + ' videos';
+  if (countEl) countEl.textContent = queue.length + (queue.length === 1 ? ' video' : ' videos');
 }
 
 function refreshYTHistory() {
-  const yt = streamerData.youtube_config || {};
-  const history = yt.history || [];
+  const history = (streamerData.youtube_config || {}).history || [];
   const histEl = document.getElementById('ytHistoryList');
   if (!histEl) return;
-  histEl.innerHTML = history.length === 0
-    ? '<div style="text-align:center;color:var(--text-muted);padding:20px;font-size:13px;">Sin historial aún 🎵</div>'
-    : history.slice(0,5).map((h,i) => `
-      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i<Math.min(history.length,5)-1?'border-bottom:1px solid rgba(255,255,255,0.04);':''}">
-        <img src="https://img.youtube.com/vi/${h.videoId}/mqdefault.jpg" style="width:56px;height:32px;border-radius:4px;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">
-        <div style="flex:1;min-width:0;">
-          <div style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${h.title||'Sin título'}</div>
-          <div style="font-size:10px;color:var(--text-muted);">@${h.requestedBy||'?'} · ${new Date(h.playedAt||h.addedAt).toLocaleTimeString('es-DO',{hour:'2-digit',minute:'2-digit'})}</div>
-        </div>
-      </div>`).join('');
+  histEl.innerHTML = ytHistoryHtml(history);
 }
 
 async function saveSpotifyCredentials() {
