@@ -4607,14 +4607,17 @@ function renderMain() {
       <div class="panel-header"><span class="panel-title-text">🔔 Alertas del canal</span></div>
       <div class="panel-body">
         <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
-          El bot agradecerá automáticamente los follows, suscripciones y bits con la personalidad de tu canal.
+          El bot agradece automáticamente los follows, suscripciones y bits con la personalidad de tu canal. Con los interruptores puedes apagar el agradecimiento de cada uno — el subatón sigue sumando tiempo aunque lo apagues.
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
-          ${[['🎉','Follows','Saluda a cada nuevo seguidor'],['⭐','Suscripciones','Agradece subs Tier 1, 2 y 3'],['🎁','Sub gifts','Celebra cuando regalan subs'],['💎','Bits','Agradece las donaciones de bits']].map(([icon,label,desc])=>`
+          ${[['alert_follow','🎉','Follows','Saluda a cada nuevo seguidor'],['alert_sub','⭐','Suscripciones','Agradece subs Tier 1, 2 y 3'],['alert_gift','🎁','Sub gifts','Celebra cuando regalan subs'],['alert_bits','💎','Bits','Agradece las donaciones de bits']].map(([id,icon,label,desc]) => `
             <div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg3);border-radius:var(--radius-sm);">
               <span style="font-size:20px;">${icon}</span>
               <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:var(--text);">${label}</div><div style="font-size:11px;color:var(--text-dim);">${desc}</div></div>
-              <span style="font-size:11px;color:var(--green);">✓</span>
+              <label class="toggle" style="flex-shrink:0;">
+                <input type="checkbox" ${(s.system_commands||{})[id] !== false ? 'checked' : ''} onchange="toggleSysCmd('${id}', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
             </div>`).join('')}
         </div>
         <button class="btn btn-primary" onclick="registerAlerts()">🔔 Activar alertas</button>
@@ -6358,7 +6361,8 @@ async function toggleSysCmd(id, active) {
     if (card) card.style.borderColor = active ? 'rgba(145,71,255,0.2)' : 'rgba(255,255,255,0.06)';
     if (icon) icon.style.background = active ? 'rgba(145,71,255,0.15)' : 'rgba(255,255,255,0.04)';
     if (name) name.style.color = active ? 'var(--purple-light)' : 'var(--text-muted)';
-    showToast(active ? `${id} activado ✓` : `${id} desactivado`);
+    const niceName = { alert_follow:'Agradecer follows', alert_sub:'Agradecer suscripciones', alert_gift:'Agradecer sub gifts', alert_bits:'Agradecer bits' }[id] || id;
+    showToast(active ? `${niceName} activado ✓` : `${niceName} desactivado`);
   } else showToast('Error','error');
 }
 
