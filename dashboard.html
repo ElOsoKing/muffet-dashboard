@@ -5216,15 +5216,28 @@ async function registerAlerts() {
   const btn = event.target;
   btn.textContent = 'Activando...';
   btn.disabled = true;
-  const res = await fetch('/api/eventsub/register', { method:'POST' });
-  if(res.ok) {
-    showToast('¡Alertas activadas! 🔔');
-    btn.textContent = '✅ Alertas activas';
-  } else {
-    showToast('Error al activar alertas','error');
+  let json = null;
+  try {
+    const res = await fetch('/api/eventsub/register', { method:'POST' });
+    json = await res.json().catch(() => null);
+    if (!res.ok && !json?.results) throw new Error(json?.error || 'Error del servidor');
+  } catch(e) {
+    showToast('Error al activar alertas: ' + e.message, 'error');
     btn.textContent = '🔔 Activar alertas';
     btn.disabled = false;
+    return;
   }
+  const failed = (json.results || []).filter(r => r.status === 'failed');
+  if (!failed.length) {
+    showToast('¡Alertas activadas! 🔔');
+    btn.textContent = '✅ Alertas activas';
+    return;
+  }
+  const names = failed.map(r => r.label).join(', ');
+  const detail = failed[0].message ? ` (${failed[0].message})` : '';
+  showToast(`Twitch rechazó: ${names}${detail}. Cierra sesión y vuelve a entrar con Twitch para renovar permisos.`, 'error');
+  btn.textContent = failed.length === (json.results||[]).length ? '🔔 Activar alertas' : '⚠️ Reintentar alertas';
+  btn.disabled = false;
 }
 
 // ── PALABRAS CLAVE ──
