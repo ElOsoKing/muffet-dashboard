@@ -62,7 +62,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
     <div id="videoZone"><div id="ytPlayer"></div></div>
     <div id="progressBar"><div id="progressFill"></div></div>
     <div id="infoPanel">
-      <div id="thumbWrap"><img id="thumb" src="" alt=""></div>
+      <div id="thumbWrap"><img id="thumb" src="" alt="" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'"></div>
       <div id="trackInfo">
         <div id="trackName">—</div>
         <div id="trackMeta">—</div>
@@ -91,6 +91,8 @@ let isPlaying = false;
 let isPlayingBasePlaylist = false;
 let basePlaylistId = null;
 let basePlaylistIndex = 0;
+let playlistErrors = 0;       // errores seguidos de la playlist base
+let playlistRetryAt = 0;      // si la playlist falla en serie, se reintenta más tarde
 
 function playBasePlaylist(playlistUrl, resumeFromIndex) {
   if (!ytPlayer || !ytPlayer.loadPlaylist) return;
@@ -226,6 +228,7 @@ function onPlayerStateChange(event) {
     }
   } else if (event.data === YT.PlayerState.PLAYING) {
     isPlaying = true;
+    playlistErrors = 0;
     if (isPlayingBasePlaylist && window._pendingViewerVideo && !window._switchingToViewer) {
       // Nueva canción de playlist empezó — guardar índice y poner viewer
       window._switchingToViewer = true;
@@ -255,6 +258,20 @@ function onPlayerStateChange(event) {
 
 // Detectar error de reproducción (video bloqueado, no disponible, etc.)
 function onPlayerError(event) {
+  // Playlist base: un video no disponible se salta; si fallan varios seguidos (playlist privada, mix o no embebible) se detiene y reintenta en 1 min
+  if (isPlayingBasePlaylist) {
+    playlistErrors++;
+    console.log('[yt] Error en playlist:', event.data, '— seguidos:', playlistErrors);
+    if (playlistErrors >= 4) {
+      try { ytPlayer.stopVideo(); } catch(e) {}
+      isPlayingBasePlaylist = false; basePlaylistId = null; playlistErrors = 0;
+      playlistRetryAt = Date.now() + 60000;
+      hideOverlay();
+    } else {
+      setTimeout(() => { try { ytPlayer.nextVideo(); } catch(e) {} }, 1200);
+    }
+    return;
+  }
   console.log('[yt] Error en video:', event.data, '— saltando al siguiente');
   setTimeout(() => markCurrentPlayed(), 1500);
 }
@@ -317,7 +334,9 @@ async function pollQueue() {
       // Si hay playlist base, reproducirla (y si el streamer cambió de playlist, cargar la nueva)
       const wantedList = (config.playlist_url || '').match(/[?&]list=([^&]+)/);
       const wantedId = wantedList ? wantedList[1] : null;
-      if (config.playlist_url && (!isPlayingBasePlaylist || (wantedId && basePlaylistId && wantedId !== basePlaylistId))) {
+      if (config.playlist_url && Date.now() < playlistRetryAt) {
+        hideOverlay();
+      } else if (config.playlist_url && (!isPlayingBasePlaylist || (wantedId && basePlaylistId && wantedId !== basePlaylistId))) {
         if (isPlayingBasePlaylist) basePlaylistIndex = 0;
         playBasePlaylist(config.playlist_url, isPlayingBasePlaylist ? 0 : undefined);
       } else if (!config.playlist_url) {
