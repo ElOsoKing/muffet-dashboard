@@ -104,8 +104,7 @@ function playBasePlaylist(playlistUrl, resumeFromIndex) {
   ytPlayer.setVolume((isPreview ? 0 : (config.volume ?? 100)));
   showOverlay();
   document.getElementById('queueCount').textContent = '🎵 Playlist';
-  const titleBar = document.getElementById('titleBar');
-  if (titleBar) titleBar.style.display = 'none';
+  // La barra de título se muestra igual que con canciones del chat (la llena updateBasePlaylistInfo)
   // Leer título real después de que cargue
   setTimeout(updateBasePlaylistInfo, 1500);
   console.log('[yt] Reproduciendo playlist base:', listId);
@@ -117,7 +116,12 @@ function updateBasePlaylistInfo() {
     const data = ytPlayer.getVideoData();
     if (data && data.title) {
       document.getElementById('trackName').textContent = data.title;
-      document.getElementById('trackMeta').textContent = data.author || 'Playlist del streamer';
+      document.getElementById('trackMeta').textContent = `${data.author || 'Playlist del streamer'} · playlist`;
+      const tb = document.getElementById('titleBar');
+      if (config.show_title !== false) {
+        tb.style.display = 'block';
+        document.getElementById('soTitle').textContent = '▶ ' + data.title;
+      } else tb.style.display = 'none';
       const videoId = data.video_id;
       if (videoId) {
         document.getElementById('thumb').src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
@@ -339,7 +343,8 @@ async function pollQueue() {
 
     // Actualizar contador
     const qc = document.getElementById('queueCount');
-    if (queue.length > 1) qc.textContent = `+${queue.length - 1} en cola`;
+    if (isPlayingBasePlaylist) qc.textContent = `🎵 Playlist · +${queue.length} en cola`;
+    else if (queue.length > 1) qc.textContent = `+${queue.length - 1} en cola`;
     else qc.textContent = '';
 
   } catch(e) {}
