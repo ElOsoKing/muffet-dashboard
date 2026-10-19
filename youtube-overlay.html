@@ -76,6 +76,9 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 const params = new URLSearchParams(location.search);
 const channel = params.get('channel') || 'elosoking1';
 const SERVER = '';
+const overlayKey = params.get('key') || '';
+const isPreview = params.get('preview') === '1'; // vista previa del dashboard: sin sonido y sin tocar la cola
+const keyQ = overlayKey ? `&key=${encodeURIComponent(overlayKey)}` : '';
 
 let ytPlayer = null;
 let currentVideo = null;
@@ -98,7 +101,7 @@ function playBasePlaylist(playlistUrl, resumeFromIndex) {
   basePlaylistId = listId;
   const startIndex = resumeFromIndex !== undefined ? resumeFromIndex : 0;
   ytPlayer.loadPlaylist({ listType: 'playlist', list: listId, index: startIndex });
-  ytPlayer.setVolume(config.volume ?? 100);
+  ytPlayer.setVolume((isPreview ? 0 : (config.volume ?? 100)));
   showOverlay();
   document.getElementById('queueCount').textContent = '🎵 Playlist';
   const titleBar = document.getElementById('titleBar');
@@ -150,16 +153,18 @@ function applyStyle() {
     'top-left':      { top: pad+'%',    left: pad+'%',    bottom:'auto', right:'auto', transform:'' },
     'top-center':    { top: pad+'%',    left: '50%',      bottom:'auto', right:'auto', transform:'translateX(-50%)' },
     'top-right':     { top: pad+'%',    right: pad+'%',   bottom:'auto', left:'auto',  transform:'' },
+    'middle-left':   { top: '50%',      left: pad+'%',    bottom:'auto', right:'auto', transform:'translateY(-50%)' },
+    'middle-right':  { top: '50%',      right: pad+'%',   bottom:'auto', left:'auto',  transform:'translateY(-50%)' },
     'center':        { top: '50%',      left: '50%',      bottom:'auto', right:'auto', transform:'translate(-50%,-50%)' },
     'bottom-left':   { bottom: pad+'%', left: pad+'%',    top:'auto',    right:'auto', transform:'' },
     'bottom-center': { bottom: pad+'%', left: '50%',      top:'auto',    right:'auto', transform:'translateX(-50%)' },
     'bottom-right':  { bottom: pad+'%', right: pad+'%',   top:'auto',    left:'auto',  transform:'' },
   };
-  const pos = posMap[config.card_position || 'bottom-left'];
+  const pos = posMap[config.card_position] || posMap['bottom-left'];
   Object.entries(pos).forEach(([k, v]) => overlay.style[k] = v);
 
   // Volumen
-  if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(config.volume ?? 100);
+  if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume((isPreview ? 0 : (config.volume ?? 100)));
 
   // Color acento
   document.getElementById('progressFill').style.background = config.accent_color || '#FF0000';
@@ -190,9 +195,11 @@ function onYouTubeIframeAPIReady() {
 }
 
 function onPlayerReady() {
-  ytPlayer.setVolume(config.volume ?? 100);
+  ytPlayer.setVolume((isPreview ? 0 : (config.volume ?? 100)));
   pollQueue();
-  pollInterval = setInterval(pollQueue, 5000);
+  pollInterval = setInterval(pollQueue, 3000);
+  setInterval(sendStatus, 3000);
+  sendStatus();
   progressInterval = setInterval(updateProgress, 1000);
 }
 
@@ -250,10 +257,13 @@ function onPlayerError(event) {
 
 // ── Cola ──
 let _lastCommandTs = 0;
+let _cmdInit = false;
 
 function handlePlayerCommand() {
   const cmdTs = config.player_command_ts || 0;
-  console.log('[control] cmdTs:', cmdTs, 'lastTs:', _lastCommandTs, 'cmd:', config.player_command, 'ytPlayer exists:', !!ytPlayer);
+  // Al abrir el overlay se ignora cualquier comando viejo (si no, un "saltar" de ayer saltaría la primera canción de hoy)
+  if (!_cmdInit) { _cmdInit = true; _lastCommandTs = cmdTs; return; }
+  if (isPreview) return;
   if (cmdTs <= _lastCommandTs) return; // ya procesado
   _lastCommandTs = cmdTs;
   const cmd = config.player_command;
@@ -265,6 +275,10 @@ function handlePlayerCommand() {
   } else if (cmd === 'play' && ytPlayer.playVideo) {
     ytPlayer.playVideo();
     console.log('[control] playVideo() llamado');
+  } else if (cmd === 'stop') {
+    try { ytPlayer.stopVideo(); } catch(e) {}
+    currentVideo = null; isPlaying = false; isPlayingBasePlaylist = false;
+    window._pendingViewerVideo = null;
   } else if (cmd === 'skip') {
     if (isPlayingBasePlaylist && ytPlayer.nextVideo) {
       ytPlayer.nextVideo();
@@ -284,6 +298,14 @@ async function pollQueue() {
     config = { ...config, ...(data.config || {}) };
     applyStyle();
     handlePlayerCommand();
+
+    // Si el streamer desactivó la música, se detiene y se oculta
+    if (config.enabled === false) {
+      if (currentVideo || isPlayingBasePlaylist) { try { ytPlayer.stopVideo(); } catch(e) {} }
+      isPlayingBasePlaylist = false; window._pendingViewerVideo = null;
+      hideOverlay();
+      return;
+    }
 
     if (queue.length === 0) {
       // Si hay playlist base, reproducirla
@@ -309,7 +331,7 @@ async function pollQueue() {
           isPlayingBasePlaylist = false;
           window._pendingViewerVideo = null;
           // Limpiar el flag en Supabase
-          fetch(`${SERVER}/api/youtube/queue/clearforce?channel=${channel}`, { method: 'POST' }).catch(()=>{});
+          if (!isPreview) fetch(`${SERVER}/api/youtube/queue/clearforce?channel=${channel}${keyQ}`, { method: 'POST' }).catch(()=>{});
         }
         if (!currentVideo || forceNext) playVideo(next);
       }
@@ -325,11 +347,12 @@ async function pollQueue() {
 
 async function markCurrentPlayed() {
   if (!currentVideo) return;
+  if (isPreview) return;
   try {
     await fetch(`${SERVER}/api/youtube/queue/next`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel, videoId: currentVideo.videoId })
+      body: JSON.stringify({ channel, key: overlayKey, videoId: currentVideo.videoId })
     });
     currentVideo = null;
     isPlaying = false;
@@ -357,7 +380,7 @@ function playVideo(item) {
   // Cargar video
   if (ytPlayer && ytPlayer.loadVideoById) {
     ytPlayer.loadVideoById(item.videoId);
-    ytPlayer.setVolume(config.volume ?? 100);
+    ytPlayer.setVolume((isPreview ? 0 : (config.volume ?? 100)));
   }
 
   // Info
@@ -384,8 +407,35 @@ function showOverlay() {
 function hideOverlay() {
   const overlay = document.getElementById('overlay');
   overlay.classList.remove('show');
+  if (isPlaying || currentVideo) { try { ytPlayer && ytPlayer.stopVideo && ytPlayer.stopVideo(); } catch(e) {} }
   isPlaying = false;
   currentVideo = null;
+}
+
+// ── Estado en vivo para el dashboard ──
+function sendStatus() {
+  if (isPreview) return;
+  try {
+    let state = 'idle', title = null, author = null, videoId = null, cur = 0, dur = 0, source = null;
+    if (ytPlayer && ytPlayer.getPlayerState && (currentVideo || isPlayingBasePlaylist)) {
+      const ps = ytPlayer.getPlayerState();
+      state = ps === 1 ? 'playing' : ps === 2 ? 'paused' : ps === 3 ? 'buffering' : 'idle';
+      cur = ytPlayer.getCurrentTime() || 0;
+      dur = ytPlayer.getDuration() || 0;
+      if (currentVideo && !isPlayingBasePlaylist) {
+        source = 'viewer'; title = currentVideo.title; author = currentVideo.channelTitle; videoId = currentVideo.videoId;
+      } else {
+        source = 'playlist';
+        const d = ytPlayer.getVideoData ? ytPlayer.getVideoData() : {};
+        title = d.title || null; author = d.author || null; videoId = d.video_id || null;
+      }
+    }
+    fetch(`${SERVER}/api/youtube/status`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channel, key: overlayKey, state, source, title, author, videoId, current: cur, duration: dur,
+        volume: ytPlayer && ytPlayer.getVolume ? ytPlayer.getVolume() : ((isPreview ? 0 : (config.volume ?? 100))) })
+    }).catch(() => {});
+  } catch(e) {}
 }
 
 function updateProgress() {
