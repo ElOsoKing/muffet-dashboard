@@ -2,7 +2,7 @@
 
 # 🐻🕷️ MuffetBot Dashboard
 
-**Panel de control web para MuffetBot** — conecta tu canal de Twitch, personaliza a Muffet y configura todas sus funciones sin tocar código.
+**Panel de control web para MuffetBot** — conecta tu canal de Twitch, personaliza a Muffet y configura todas sus funciones sin tocar código..
 
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Express](https://img.shields.io/badge/Express-4.x-000000?logo=express&logoColor=white)](https://expressjs.com)
