@@ -347,8 +347,9 @@ async function loadCanal() {
     // Grid Top + primerin
     const primerinRanking = Object.entries(data.primerin_config?.ranking || {}).sort(([,a],[,b])=>b-a).slice(0,5);
     const pokedleRanking = Object.entries(data.pokedle_config?.wins || {}).sort(([,a],[,b])=>b-a).slice(0,5);
+    const dbdleRanking = Object.entries(data.dbdle_config?.wins || {}).sort(([,a],[,b])=>b-a).slice(0,5);
 
-    if (topViewers.length || primerinRanking.length || pokedleRanking.length) {
+    if (topViewers.length || primerinRanking.length || pokedleRanking.length || dbdleRanking.length) {
       const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
       const maxPts = topViewers[0]?.xp || 1;
 
@@ -420,7 +421,7 @@ async function loadCanal() {
           <div class="panel">
             <div class="panel-header">
               <span class="panel-title">🔴 Top Pokédle</span>
-              <span class="panel-badge">diario</span>
+              <span class="panel-badge">cada 12 h</span>
             </div>
             <div class="panel-body">
               <div class="top-list">
@@ -429,10 +430,39 @@ async function loadCanal() {
                     <span class="top-medal">${medals[i]||`#${i+1}`}</span>
                     <div class="top-info">
                       <div class="top-name">${user}</div>
-                      <div class="top-level">adivinó el Pokémon del día</div>
+                      <div class="top-level">adivinó el Pokémon actual</div>
                     </div>
                     <div class="top-right">
                       <div class="top-pts">${wins}x 🔴</div>
+                      <div class="top-bar-wrap">
+                        <div class="top-bar" style="width:${Math.round((wins/maxWins)*100)}%;background:linear-gradient(90deg,var(--accent-light),var(--accent-dim));"></div>
+                      </div>
+                    </div>
+                  </div>`).join('')}
+              </div>
+            </div>
+          </div>`;
+      }
+
+      if (dbdleRanking.length) {
+        const maxWins = dbdleRanking[0][1] || 1;
+        mainHtml += `
+          <div class="panel">
+            <div class="panel-header">
+              <span class="panel-title">🔪 Top DBDle</span>
+              <span class="panel-badge">cada 12 h</span>
+            </div>
+            <div class="panel-body">
+              <div class="top-list">
+                ${dbdleRanking.map(([user,wins],i) => `
+                  <div class="top-item${i===0?' first':''}">
+                    <span class="top-medal">${medals[i]||`#${i+1}`}</span>
+                    <div class="top-info">
+                      <div class="top-name">${user}</div>
+                      <div class="top-level">adivinó el asesino del día</div>
+                    </div>
+                    <div class="top-right">
+                      <div class="top-pts">${wins}x 🔪</div>
                       <div class="top-bar-wrap">
                         <div class="top-bar" style="width:${Math.round((wins/maxWins)*100)}%;background:linear-gradient(90deg,var(--accent-light),var(--accent-dim));"></div>
                       </div>
