@@ -312,10 +312,16 @@ async function pollQueue() {
     }
 
     if (queue.length === 0) {
-      // Si hay playlist base, reproducirla
-      if (config.playlist_url && !isPlayingBasePlaylist) {
-        playBasePlaylist(config.playlist_url);
+      // Cola vacía: si había una canción "en espera" que ya no existe (la quitaron desde el dashboard), se descarta
+      window._pendingViewerVideo = null;
+      // Si hay playlist base, reproducirla (y si el streamer cambió de playlist, cargar la nueva)
+      const wantedList = (config.playlist_url || '').match(/[?&]list=([^&]+)/);
+      const wantedId = wantedList ? wantedList[1] : null;
+      if (config.playlist_url && (!isPlayingBasePlaylist || (wantedId && basePlaylistId && wantedId !== basePlaylistId))) {
+        if (isPlayingBasePlaylist) basePlaylistIndex = 0;
+        playBasePlaylist(config.playlist_url, isPlayingBasePlaylist ? 0 : undefined);
       } else if (!config.playlist_url) {
+        isPlayingBasePlaylist = false;
         hideOverlay();
       }
       return;
