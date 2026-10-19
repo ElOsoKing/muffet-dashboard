@@ -2201,10 +2201,11 @@ app.post('/api/youtube/control', async (req, res) => {
       if (action === 'volume') {
         const v = parseInt(value);
         cfg.volume = Math.max(0, Math.min(100, isNaN(v) ? 0 : v));
+        // OJO: el volumen NO toca player_command_ts; si no, el overlay repetiría el último comando (ej. "saltar") y el video desaparece
       } else {
         cfg.player_command = action;
+        cfg.player_command_ts = Date.now();
       }
-      cfg.player_command_ts = Date.now();
     });
     res.json({ ok: r.ok });
   } catch(e) { res.json({ ok: false }); }
@@ -2289,7 +2290,6 @@ app.post('/api/youtube/config', async (req, res) => {
     if (!Object.keys(settings).length) return res.json({ ok: false, error: 'vacio' });
     const r = await ytMutate(username.toLowerCase(), (cfg) => {
       Object.assign(cfg, settings);
-      if ('volume' in settings) cfg.player_command_ts = Date.now();
     });
     res.json({ ok: r.ok });
   } catch(e) { res.json({ ok: false }); }
