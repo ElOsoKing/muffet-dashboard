@@ -311,7 +311,7 @@ app.get('/canal/:username', async (req, res) => {
 app.get('/api/canal/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
-    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,public_name,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule,primerin_config,pokedle_config&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,public_name,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule,primerin_config,pokedle_config,dbdle_config&limit=1`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
     const streamer = data?.[0];
@@ -1047,6 +1047,15 @@ async function getTwitchAppToken() {
   return data.access_token;
 }
 
+const EVENTSUB_LABELS = {
+  'channel.follow': 'Seguidores',
+  'channel.subscribe': 'Suscripciones',
+  'channel.subscription.gift': 'Regalos de subs',
+  'channel.cheer': 'Bits',
+  'channel.channel_points_custom_reward_redemption.add': 'Canjes de puntos',
+};
+
+// Registra las alertas en Twitch y devuelve qué pasó con cada una (ok / ya estaba activa / falló)
 async function registerEventSub(broadcasterId, appToken) {
   const webhookUrl = `${BASE_URL}/webhook/twitch`;
   const subs = [
@@ -1056,22 +1065,36 @@ async function registerEventSub(broadcasterId, appToken) {
     { type: 'channel.cheer', version: '1', condition: { broadcaster_user_id: broadcasterId } },
     { type: 'channel.channel_points_custom_reward_redemption.add', version: '1', condition: { broadcaster_user_id: broadcasterId } },
   ];
+  const results = [];
   for (const sub of subs) {
+    const label = EVENTSUB_LABELS[sub.type] || sub.type;
     try {
-      await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
+      const r = await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...sub, transport: { method: 'webhook', callback: webhookUrl, secret: EVENTSUB_SECRET } })
       });
-    } catch(e) {}
+      if (r.status === 202 || r.ok) { results.push({ type: sub.type, label, status: 'ok' }); continue; }
+      if (r.status === 409) { results.push({ type: sub.type, label, status: 'exists' }); continue; } // ya estaba registrada
+      const data = await r.json().catch(() => ({}));
+      const message = data.message || data.error || `HTTP ${r.status}`;
+      console.error(`[eventsub] ${sub.type} rechazada por Twitch (${r.status}): ${message}`);
+      results.push({ type: sub.type, label, status: 'failed', message });
+    } catch(e) {
+      console.error(`[eventsub] ${sub.type} error de red: ${e.message}`);
+      results.push({ type: sub.type, label, status: 'failed', message: e.message });
+    }
   }
+  return results;
 }
 
 app.post('/api/eventsub/register', requireAuth, async (req, res) => {
   try {
     const appToken = await getTwitchAppToken();
-    await registerEventSub(req.session.user.id, appToken);
-    res.json({ success: true });
+    if (!appToken) return res.status(502).json({ error: 'No se pudo conectar con Twitch' });
+    const results = await registerEventSub(req.session.user.id, appToken);
+    const failed = results.filter(r => r.status === 'failed');
+    res.json({ success: failed.length === 0, results, failed: failed.length });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
