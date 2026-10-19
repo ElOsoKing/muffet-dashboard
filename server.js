@@ -2014,6 +2014,89 @@ app.get('/api/shoutout-followers/:username', async (req, res) => {
 
 // ── SHOUTOUT OVERLAY ──
 // ── YouTube Player Overlay ──
+// Clave del overlay: firma del usuario. Va en el link de OBS (?key=...) y protege los endpoints que modifican la cola.
+// Los links viejos (sin key) siguen funcionando mientras YT_OVERLAY_ENFORCE no sea "1".
+const YT_OVERLAY_SECRET = process.env.OVERLAY_SECRET || SESSION_SECRET || EVENTSUB_SECRET;
+function ytOverlayKey(username) {
+  return crypto.createHmac('sha256', YT_OVERLAY_SECRET).update('yt-overlay:' + String(username || '').toLowerCase()).digest('hex').slice(0, 24);
+}
+function ytOverlayKeyOk(channel, key) {
+  if (key) {
+    const a = Buffer.from(String(key)), b = Buffer.from(ytOverlayKey(channel));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
+  return process.env.YT_OVERLAY_ENFORCE !== '1';
+}
+
+// Escritura segura de youtube_config (compare-and-swap con el campo "rev") — evita que dos cambios simultáneos se pisen
+async function ytMutate(channel, mutator, tries = 6) {
+  for (let i = 0; i < tries; i++) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const d = await r.json();
+    if (!Array.isArray(d) || !d.length) return { ok: false, error: 'nochannel' };
+    const cur = d[0].youtube_config || {};
+    const draft = JSON.parse(JSON.stringify(cur));
+    const out = (await mutator(draft)) || {};
+    if (out.abort) return { ok: false, aborted: true, ...out };
+    draft.rev = (Number(cur.rev) || 0) + 1;
+    const filter = cur.rev == null ? 'youtube_config->>rev=is.null' : `youtube_config->>rev=eq.${encodeURIComponent(cur.rev)}`;
+    const pr = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&${filter}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify({ youtube_config: draft })
+    });
+    const pd = await pr.json().catch(() => null);
+    if (Array.isArray(pd) && pd.length) return { ok: true, config: draft, ...out };
+    if (!pr.ok) throw new Error('supabase ' + pr.status);
+    await new Promise(res => setTimeout(res, 40 + Math.random() * 120));
+  }
+  return { ok: false, error: 'conflict' };
+}
+
+// Quita el primer elemento de la cola (o el indicado), lo manda al historial y libera el límite del usuario
+function ytRemoveFromQueue(cfg, index) {
+  const queue = Array.isArray(cfg.queue) ? cfg.queue : [];
+  if (index < 0 || index >= queue.length) return null;
+  const [removed] = queue.splice(index, 1);
+  cfg.queue = queue;
+  const limits = cfg.song_limits || {};
+  const who = removed.requestedBy;
+  if (who && Array.isArray(limits[who])) {
+    const i = limits[who].findIndex(s => s.uri === removed.videoId);
+    if (i >= 0) limits[who].splice(i, 1);
+    if (limits[who].length === 0) delete limits[who];
+  }
+  cfg.song_limits = limits;
+  return removed;
+}
+
+// Campos que el dashboard SÍ puede cambiar desde "Guardar" (nunca la cola, el historial ni los límites)
+const YT_SETTINGS_KEYS = ['enabled','max_per_user','max_duration_min','volume','card_width','card_height','card_position','accent_color','show_title','allowed','playlist_url','blacklist'];
+function ytSanitizeSettings(src) {
+  const out = {};
+  if (!isValidObject(src)) return out;
+  for (const k of YT_SETTINGS_KEYS) {
+    if (!(k in src)) continue;
+    const v = src[k];
+    switch (k) {
+      case 'enabled': case 'show_title': out[k] = !!v; break;
+      case 'max_per_user': out[k] = Math.max(1, Math.min(20, parseInt(v) || 3)); break;
+      case 'max_duration_min': out[k] = Math.max(1, Math.min(180, parseInt(v) || 10)); break;
+      case 'volume': out[k] = Math.max(0, Math.min(100, parseInt(v))); if (isNaN(out[k])) delete out[k]; break;
+      case 'card_width': out[k] = Math.max(200, Math.min(1920, parseInt(v) || 480)); break;
+      case 'card_height': out[k] = Math.max(120, Math.min(1080, parseInt(v) || 300)); break;
+      case 'card_position': if (isValidString(v, 30)) out[k] = v; break;
+      case 'accent_color': if (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v)) out[k] = v; break;
+      case 'allowed': if (isValidArray(v)) out[k] = v.filter(x => ['everyone','sub','vip','mod'].includes(x)).slice(0, 4); break;
+      case 'playlist_url': if (v === '' || v === null) out[k] = ''; else if (isValidString(v, 300)) out[k] = v.trim(); break;
+      case 'blacklist': if (isValidArray(v)) out[k] = v.filter(x => isValidString(x, 200) && x.trim()).map(x => x.trim()).slice(0, 200); break;
+    }
+  }
+  return out;
+}
+
+// Estado en vivo del reproductor (lo manda el overlay cada pocos segundos; vive en memoria)
+const ytLiveStatus = {}; // { canal: { ...estado, ts } }
+
 app.get('/overlay/youtube/:username', (req, res) => {
   res.sendFile(path.join(__dirname, 'youtube-overlay.html'));
 });
@@ -2022,7 +2105,7 @@ app.get('/api/youtube/config', async (req, res) => {
   const channel = req.query.channel?.toLowerCase();
   if (!channel) return res.json({ config: {} });
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
     const data = await r.json();
     res.json({ config: data?.[0]?.youtube_config || {} });
   } catch(e) { res.json({ config: {} }); }
@@ -2032,122 +2115,183 @@ app.get('/api/youtube/queue', async (req, res) => {
   const channel = req.query.channel?.toLowerCase();
   if (!channel) return res.json({ queue: [], config: {} });
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
     const data = await r.json();
     const ytConfig = data?.[0]?.youtube_config || {};
     res.json({ queue: ytConfig.queue || [], config: ytConfig });
   } catch(e) { res.json({ queue: [], config: {} }); }
 });
 
+// El overlay avisa que terminó (o se saltó) la canción
 app.post('/api/youtube/queue/next', async (req, res) => {
-  const { channel, videoId } = req.body;
+  const channel = String(req.body?.channel || '').toLowerCase();
+  const { videoId } = req.body || {};
   if (!channel) return res.json({ ok: false });
+  if (!ytOverlayKeyOk(channel, req.body?.key || req.query.key)) return res.status(403).json({ ok: false, error: 'key' });
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}&select=youtube_config&limit=1`, { headers: sbHeaders });
-    const data = await r.json();
-    const ytConfig = data?.[0]?.youtube_config || {};
-    let queue = ytConfig.queue || [];
-    let removedItem = null;
-    // Quitar la canción que terminó
-    if (queue.length > 0 && queue[0].videoId === videoId) {
-      removedItem = queue.shift();
-    }
-    // Guardar en historial
-    if (removedItem) {
-      const history = ytConfig.history || [];
-      history.unshift({ ...removedItem, playedAt: new Date().toISOString() });
-      if (history.length > 20) history.pop();
-      ytConfig.history = history;
-    }
-
-    // Liberar slot del límite del usuario
-    const limits = ytConfig.song_limits || {};
-    if (removedItem?.requestedBy && limits[removedItem.requestedBy]) {
-      limits[removedItem.requestedBy] = limits[removedItem.requestedBy].filter(s => s.uri !== videoId);
-      if (limits[removedItem.requestedBy].length === 0) delete limits[removedItem.requestedBy];
-    }
-    // Actualizar en Supabase
-    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}`, {
-      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ youtube_config: { ...ytConfig, queue, song_limits: limits } })
+    const r = await ytMutate(channel, (cfg) => {
+      const queue = cfg.queue || [];
+      if (!queue.length || queue[0].videoId !== videoId) return { abort: true, reason: 'nohead' };
+      const removed = ytRemoveFromQueue(cfg, 0);
+      const history = Array.isArray(cfg.history) ? cfg.history : [];
+      history.unshift({ ...removed, playedAt: new Date().toISOString() });
+      cfg.history = history.slice(0, 30);
+      return { remaining: (cfg.queue || []).length };
     });
-    res.json({ ok: true, remaining: queue.length });
+    // Si ya no era la primera de la cola no es un error: otro proceso ya la quitó
+    res.json({ ok: r.ok || r.reason === 'nohead', remaining: r.remaining ?? null });
   } catch(e) { res.json({ ok: false }); }
 });
 
 // Limpiar flag force_next
 app.post('/api/youtube/queue/clearforce', async (req, res) => {
-  const channel = req.query.channel || req.body?.channel;
+  const channel = String(req.query.channel || req.body?.channel || '').toLowerCase();
   if (!channel) return res.json({ ok: false });
+  if (!ytOverlayKeyOk(channel, req.query.key || req.body?.key)) return res.status(403).json({ ok: false, error: 'key' });
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}&select=youtube_config&limit=1`, { headers: sbHeaders });
-    const data = await r.json();
-    const ytConfig = data?.[0]?.youtube_config || {};
-    delete ytConfig.force_next;
-    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${channel}`, {
-      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ youtube_config: ytConfig })
-    });
-    res.json({ ok: true });
+    const r = await ytMutate(channel, (cfg) => { if (!cfg.force_next) return { abort: true }; delete cfg.force_next; });
+    res.json({ ok: r.ok || !!r.aborted });
   } catch(e) { res.json({ ok: false }); }
 });
 
-// Forzar reproducción de la canción del viewer inmediatamente
-// Control de reproducción: pausar/reanudar/volumen
+// El overlay manda su estado real (qué suena, tiempo, pausa) para mostrarlo en el dashboard
+app.post('/api/youtube/status', (req, res) => {
+  const channel = String(req.body?.channel || '').toLowerCase();
+  if (!channel) return res.json({ ok: false });
+  if (!ytOverlayKeyOk(channel, req.body?.key || req.query.key)) return res.status(403).json({ ok: false });
+  const b = req.body || {};
+  ytLiveStatus[channel] = {
+    ts: Date.now(),
+    state: ['playing','paused','buffering','idle'].includes(b.state) ? b.state : 'idle',
+    source: b.source === 'playlist' ? 'playlist' : (b.source === 'viewer' ? 'viewer' : null),
+    videoId: isValidString(b.videoId, 20) ? b.videoId : null,
+    title: isValidString(b.title, 300) ? b.title : null,
+    author: isValidString(b.author, 200) ? b.author : null,
+    current: Math.max(0, Number(b.current) || 0),
+    duration: Math.max(0, Number(b.duration) || 0),
+    volume: Math.max(0, Math.min(100, Number(b.volume) || 0)),
+  };
+  res.json({ ok: true });
+});
+
+app.get('/api/youtube/status', (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const st = ytLiveStatus[username.toLowerCase()];
+  const online = !!st && Date.now() - st.ts < 12000;
+  res.json({ online, status: online ? st : null, lastSeen: st?.ts || null });
+});
+
+// Link del overlay con su clave (para copiar a OBS)
+app.get('/api/youtube/overlay-url', (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const u = username.toLowerCase();
+  res.json({ url: `${BASE_URL}/overlay/youtube/${u}?channel=${u}&key=${ytOverlayKey(u)}`, enforced: process.env.YT_OVERLAY_ENFORCE === '1' });
+});
+
+// Control de reproducción: pausar/reanudar/saltar/volumen
 app.post('/api/youtube/control', async (req, res) => {
   const username = req.session?.user?.username;
   if (!username) return res.status(401).json({ error: 'No autorizado' });
-  const { action, value } = req.body; // action: 'pause' | 'play' | 'skip' | 'volume'
+  const { action, value } = req.body || {};
+  if (!['pause','play','skip','volume'].includes(action)) return res.json({ ok: false, error: 'accion' });
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=youtube_config&limit=1`, { headers: sbHeaders });
-    const data = await r.json();
-    const ytConfig = data?.[0]?.youtube_config || {};
-    const updated = { ...ytConfig };
-
-    if (action === 'pause') updated.player_command = 'pause';
-    else if (action === 'play') updated.player_command = 'play';
-    else if (action === 'skip') updated.player_command = 'skip';
-    else if (action === 'volume') updated.volume = Math.max(0, Math.min(100, parseInt(value) || 0));
-
-    updated.player_command_ts = Date.now(); // timestamp para que el overlay sepa que es nuevo
-
-    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}`, {
-      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ youtube_config: updated })
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      if (action === 'volume') {
+        const v = parseInt(value);
+        cfg.volume = Math.max(0, Math.min(100, isNaN(v) ? 0 : v));
+      } else {
+        cfg.player_command = action;
+      }
+      cfg.player_command_ts = Date.now();
     });
-    res.json({ ok: true });
+    res.json({ ok: r.ok });
   } catch(e) { res.json({ ok: false }); }
 });
 
+// Reproducir ya la primera canción de la cola (salta la playlist base)
 app.post('/api/youtube/queue/playnow', async (req, res) => {
   const username = req.session?.user?.username;
   if (!username) return res.status(401).json({ error: 'No autorizado' });
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=youtube_config&limit=1`, { headers: sbHeaders });
-    const data = await r.json();
-    const ytConfig = data?.[0]?.youtube_config || {};
-    // Activar flag para que el overlay salte la playlist
-    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}`, {
-      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ youtube_config: { ...ytConfig, force_next: true } })
-    });
-    res.json({ ok: true });
+    const r = await ytMutate(username.toLowerCase(), (cfg) => { cfg.force_next = true; });
+    res.json({ ok: r.ok });
   } catch(e) { res.json({ ok: false }); }
 });
 
+// Quitar una canción concreta de la cola (libera el límite del usuario que la pidió)
+app.post('/api/youtube/queue/remove', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const { videoId } = req.body || {};
+  if (!isValidString(videoId, 20)) return res.json({ ok: false });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      const idx = (cfg.queue || []).findIndex(q => q.videoId === videoId);
+      if (idx < 0) return { abort: true, reason: 'gone' };
+      // Si es la que está sonando, mejor usar "saltar" para que el overlay la detenga
+      if (idx === 0) { cfg.player_command = 'skip'; cfg.player_command_ts = Date.now(); return { skipped: true }; }
+      ytRemoveFromQueue(cfg, idx);
+    });
+    res.json({ ok: r.ok || r.reason === 'gone', skipped: !!r.skipped });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Vaciar la cola completa (libera todos los límites) — la canción que suena se detiene
+app.post('/api/youtube/queue/clear', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      cfg.queue = []; cfg.song_limits = {}; cfg.force_next = false;
+      cfg.player_command = 'stop'; cfg.player_command_ts = Date.now();
+    });
+    res.json({ ok: r.ok });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+app.post('/api/youtube/history/clear', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => { cfg.history = []; });
+    res.json({ ok: r.ok });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Volver a poner en cola una canción del historial (a nombre de quien la pidió, respetando que no esté repetida)
+app.post('/api/youtube/history/requeue', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const { videoId } = req.body || {};
+  if (!isValidString(videoId, 20)) return res.json({ ok: false });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      const item = (cfg.history || []).find(h => h.videoId === videoId);
+      if (!item) return { abort: true, reason: 'gone' };
+      const queue = cfg.queue || [];
+      if (queue.some(q => q.videoId === videoId)) return { abort: true, reason: 'dup' };
+      queue.push({ videoId: item.videoId, title: item.title, channelTitle: item.channelTitle, requestedBy: username.toLowerCase(), addedAt: Date.now(), durationSec: item.durationSec });
+      cfg.queue = queue;
+      return { position: queue.length };
+    });
+    res.json({ ok: r.ok, reason: r.reason || null, position: r.position || null });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Guardar ajustes — solo los campos permitidos; la cola, el historial y los límites nunca se tocan desde aquí
 app.post('/api/youtube/config', async (req, res) => {
   const username = req.session?.user?.username;
   if (!username) return res.status(401).json({ error: 'No autorizado' });
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=youtube_config&limit=1`, { headers: sbHeaders });
-    const data = await r.json();
-    const current = data?.[0]?.youtube_config || {};
-    const updated = { ...current, ...req.body.youtube_config };
-    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}`, {
-      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ youtube_config: updated })
+    const settings = ytSanitizeSettings(req.body?.youtube_config);
+    if (!Object.keys(settings).length) return res.json({ ok: false, error: 'vacio' });
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      Object.assign(cfg, settings);
+      if ('volume' in settings) cfg.player_command_ts = Date.now();
     });
-    res.json({ ok: true });
+    res.json({ ok: r.ok });
   } catch(e) { res.json({ ok: false }); }
 });
 
