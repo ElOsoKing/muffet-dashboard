@@ -2087,7 +2087,7 @@ function ytSanitizeSettings(src) {
       case 'card_position': if (isValidString(v, 30)) out[k] = v; break;
       case 'accent_color': if (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v)) out[k] = v; break;
       case 'allowed': if (isValidArray(v)) out[k] = v.filter(x => ['everyone','sub','vip','mod'].includes(x)).slice(0, 4); break;
-      case 'playlist_url': if (v === '' || v === null) out[k] = ''; else if (isValidString(v, 300) && !/[?&]list=(RD|LM|WL)/.test(v)) out[k] = v.trim(); break; // los mixes (RD), "me gusta" (LM) y "ver más tarde" (WL) no se pueden embeber
+      case 'playlist_url': if (v === '' || v === null) out[k] = ''; else if (isValidString(v, 300) && !/[?&]list=(RDMM|LM|WL)/.test(v)) out[k] = v.trim(); break; // los mixes (RD), "me gusta" (LM) y "ver más tarde" (WL) no se pueden embeber
       case 'blacklist': if (isValidArray(v)) out[k] = v.filter(x => isValidString(x, 200) && x.trim()).map(x => x.trim()).slice(0, 200); break;
     }
   }
