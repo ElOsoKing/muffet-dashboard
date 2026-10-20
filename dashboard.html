@@ -923,8 +923,8 @@ async function saveYTPlaylist() {
     showToast('Ese link no es una playlist de YouTube', 'error');
     return;
   }
-  if (/[?&]list=(RD|LM|WL)/.test(url)) {
-    showToast('Ese link es un Mix/radio de YouTube: se llena solo con canciones recomendadas, no con las tuyas. Usa una playlist real (list=PL…) pública o no listada', 'error');
+  if (/[?&]list=(RDMM|LM|WL)/.test(url)) {
+    showToast('"Mi Mix", "Me gusta" y "Ver más tarde" no se pueden reproducir en el overlay. Usa una playlist real (PL…) o un mix de una sola canción', 'error');
     return;
   }
   const yt = streamerData.youtube_config || {};
@@ -5818,7 +5818,10 @@ function ytShowPlaylistInfo(pl) {
     vacia: 'La playlist no tiene canciones que se puedan reproducir en el overlay.',
     red: 'No se pudo contactar a YouTube; se reintenta.',
   };
-  if (pl.ok) {
+  if (pl.ok && pl.mix) {
+    el.style.color = 'var(--text-muted)';
+    el.textContent = '🎲 Mix de YouTube: las canciones las elige YouTube (pueden ser distintas a las que esperas) y no se puede mezclar ni limitar. Para solo tus canciones usa una playlist real (PL…).';
+  } else if (pl.ok) {
     el.style.color = '#3ECF8E';
     el.textContent = `✓ ${pl.total - (pl.skipped || 0)} canciones listas` + (pl.skipped ? ` · ${pl.skipped} omitidas (privadas, bloqueadas o directos)` : '');
   } else if (pl.error && pl.error !== 'sinplaylist') {
