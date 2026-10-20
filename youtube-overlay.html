@@ -45,6 +45,12 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 #progressBar{height:3px;background:rgba(255,255,255,0.1);}
 #progressFill{height:100%;background:#FF0000;width:0%;transition:width 0.5s linear;}
 
+
+/* Modo "solo título": sin video visible, tarjeta compacta (el reproductor sigue activo fuera de pantalla para que suene el audio) */
+#overlay.cardmode #videoZone{position:absolute;left:-3000px;top:0;width:320px;height:180px;flex:none;}
+#overlay.cardmode #thumb{width:52px;height:52px;}
+#overlay.cardmode #trackName{font-size:14px;}
+
 /* Title bar */
 #titleBar{
   background:rgba(0,0,0,0.85);
@@ -79,61 +85,86 @@ const SERVER = '';
 const overlayKey = params.get('key') || '';
 const isPreview = params.get('preview') === '1'; // vista previa del dashboard: sin sonido y sin tocar la cola
 const keyQ = overlayKey ? `&key=${encodeURIComponent(overlayKey)}` : '';
+const vol = () => (isPreview ? 0 : (config.volume ?? 100));
 
 let ytPlayer = null;
-let currentVideo = null;
+let currentVideo = null;          // lo que suena ahora (puede traer fromPlaylist:true)
 let queue = [];
 let pollInterval = null;
 let progressInterval = null;
 let config = {};
 let hideTimeout = null;
 let isPlaying = false;
-let isPlayingBasePlaylist = false;
-let basePlaylistId = null;
-let basePlaylistIndex = 0;
-let playlistErrors = 0;       // errores seguidos de la playlist base
-let playlistRetryAt = 0;      // si la playlist falla en serie, se reintenta más tarde
+let isPlayingBasePlaylist = false; // true cuando lo que suena viene de la playlist base
 
-function playBasePlaylist(playlistUrl, resumeFromIndex) {
-  if (!ytPlayer || !ytPlayer.loadPlaylist) return;
-  isPlayingBasePlaylist = true;
-  const match = playlistUrl.match(/[?&]list=([^&]+)/);
-  if (!match) return;
-  const listId = match[1];
-  basePlaylistId = listId;
-  const startIndex = resumeFromIndex !== undefined ? resumeFromIndex : 0;
-  ytPlayer.loadPlaylist({ listType: 'playlist', list: listId, index: startIndex });
-  ytPlayer.setVolume((isPreview ? 0 : (config.volume ?? 100)));
-  showOverlay();
-  document.getElementById('queueCount').textContent = '🎵 Playlist';
-  // La barra de título se muestra igual que con canciones del chat (la llena updateBasePlaylistInfo)
-  // Leer título real después de que cargue
-  setTimeout(updateBasePlaylistInfo, 1500);
-  console.log('[yt] Reproduciendo playlist base:', listId);
+// ── Playlist base: el servidor lee las canciones y aquí se reproducen una por una ──
+let baseItems = null;              // canciones de la playlist (null = sin cargar)
+let baseListId = null;
+let baseOrder = [];                // orden de reproducción (secuencial o aleatorio)
+let basePos = 0;
+let baseLoading = false;
+let baseShuffle = false;
+let baseFinished = false;          // terminó y "repetir" está apagado
+let playlistErrors = 0;            // errores seguidos
+let playlistRetryAt = 0;           // si falla, se reintenta más tarde
+
+const listIdFromUrl = (u) => { const m = String(u || '').match(/[?&]list=([A-Za-z0-9_-]+)/); return m ? m[1] : null; };
+
+async function loadBaseItems() {
+  if (baseLoading) return false;
+  baseLoading = true;
+  try {
+    const res = await fetch(`${SERVER}/api/youtube/playlist?channel=${channel}`);
+    const d = await res.json();
+    if (!d.ok || !d.items || !d.items.length) {
+      console.log('[yt] No se pudo leer la playlist:', d.error);
+      baseItems = null; playlistRetryAt = Date.now() + 60000;
+      return false;
+    }
+    baseItems = d.items; baseListId = d.listId; baseShuffle = !!config.playlist_shuffle; baseFinished = false;
+    buildOrder();
+    return true;
+  } catch (e) { baseItems = null; playlistRetryAt = Date.now() + 60000; return false; }
+  finally { baseLoading = false; }
 }
 
-function updateBasePlaylistInfo() {
-  if (!isPlayingBasePlaylist || !ytPlayer || !ytPlayer.getVideoData) return;
-  try {
-    const data = ytPlayer.getVideoData();
-    if (data && data.title) {
-      document.getElementById('trackName').textContent = data.title;
-      document.getElementById('trackMeta').textContent = `${data.author || 'Playlist del streamer'} · playlist`;
-      const tb = document.getElementById('titleBar');
-      if (config.show_title !== false) {
-        tb.style.display = 'block';
-        document.getElementById('soTitle').textContent = '▶ ' + data.title;
-      } else tb.style.display = 'none';
-      const videoId = data.video_id;
-      if (videoId) {
-        document.getElementById('thumb').src = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
-      }
+function buildOrder(lastId) {
+  baseOrder = baseItems.map((_, i) => i);
+  if (config.playlist_shuffle) {
+    for (let i = baseOrder.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [baseOrder[i], baseOrder[j]] = [baseOrder[j], baseOrder[i]]; }
+    // que la primera de la nueva vuelta no sea la última que sonó
+    if (lastId && baseOrder.length > 1 && baseItems[baseOrder[0]].videoId === lastId) {
+      const k = baseOrder.length - 1; [baseOrder[0], baseOrder[k]] = [baseOrder[k], baseOrder[0]];
     }
-  } catch(e) {}
-  // Seguir actualizando cada 5s por si cambia la canción en la playlist
-  if (isPlayingBasePlaylist) setTimeout(updateBasePlaylistInfo, 5000);
-  // Mostrar barra de progreso
-  updateProgress();
+  }
+  basePos = 0;
+}
+
+function nextBaseItem() {
+  if (!baseItems || !baseItems.length) return null;
+  if (basePos >= baseOrder.length) {
+    if (config.playlist_loop === false) return null;
+    buildOrder(currentVideo && currentVideo.videoId);
+  }
+  return baseItems[baseOrder[basePos++]];
+}
+
+async function playBasePlaylist() {
+  if (!ytPlayer || baseLoading) return;
+  const wantedId = listIdFromUrl(config.playlist_url);
+  if (!wantedId) return;
+  if (!baseItems || baseListId !== wantedId) { if (!(await loadBaseItems())) { hideOverlay(); return; } }
+  const item = nextBaseItem();
+  if (!item) { baseFinished = true; isPlayingBasePlaylist = false; currentVideo = null; hideOverlay(); return; }
+  playVideo({ ...item, fromPlaylist: true });
+}
+
+// Terminó (o se saltó/falló) una canción de la playlist: si hay un pedido del chat esperando suena ese; si no, la siguiente de la playlist
+function advanceFromPlaylist() {
+  const pending = window._pendingViewerVideo;
+  if (pending) { window._pendingViewerVideo = null; playVideo(pending); return; }
+  currentVideo = null;
+  playBasePlaylist();
 }
 
 // ── Cargar configuración ──
@@ -150,8 +181,10 @@ function applyStyle() {
   const overlay = document.getElementById('overlay');
   const w = config.card_width || 480;
   const h = config.card_height || 300;
+  const cardMode = config.display_mode === 'card';
+  overlay.classList.toggle('cardmode', cardMode);
   overlay.style.width = w + 'px';
-  overlay.style.height = h + 'px';
+  overlay.style.height = cardMode ? 'auto' : h + 'px';
 
   // Posición
   const pad = 2.5;
@@ -170,12 +203,14 @@ function applyStyle() {
   Object.entries(pos).forEach(([k, v]) => overlay.style[k] = v);
 
   // Volumen
-  if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume((isPreview ? 0 : (config.volume ?? 100)));
+  if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(vol());
 
   // Color acento
   document.getElementById('progressFill').style.background = config.accent_color || '#FF0000';
   document.getElementById('soTitle').style.color = config.accent_color || '#FF0000';
   document.getElementById('titleBar').style.borderBottomColor = config.accent_color || '#FF0000';
+  // Título visible (en modo "solo título" siempre se ve, es lo único que hay)
+  if (currentVideo) document.getElementById('titleBar').style.display = (cardMode || config.show_title !== false) ? 'block' : 'none';
 }
 
 // ── YouTube IFrame API ──
@@ -201,56 +236,28 @@ function onYouTubeIframeAPIReady() {
 }
 
 function onPlayerReady() {
-  ytPlayer.setVolume((isPreview ? 0 : (config.volume ?? 100)));
+  ytPlayer.setVolume(vol());
   pollQueue();
   pollInterval = setInterval(pollQueue, 3000);
-  setInterval(sendStatus, 3000);
+  setInterval(sendStatus, 5000);
   sendStatus();
   progressInterval = setInterval(updateProgress, 1000);
 }
 
 function onPlayerStateChange(event) {
   if (event.data === YT.PlayerState.ENDED) {
-    if (isPlayingBasePlaylist) {
-      // Verificar si hay canción de viewer esperando
-      if (window._pendingViewerVideo) {
-        const pending = window._pendingViewerVideo;
-        window._pendingViewerVideo = null;
-        isPlayingBasePlaylist = false;
-        playVideo(pending);
-      } else {
-        // Playlist base — YouTube avanza solo, solo actualizamos info
-        setTimeout(updateBasePlaylistInfo, 1000);
-      }
-    } else {
-      console.log('[yt] Video terminado — siguiente en cola');
-      markCurrentPlayed();
-    }
+    if (currentVideo && currentVideo.fromPlaylist) advanceFromPlaylist();
+    else markCurrentPlayed();
   } else if (event.data === YT.PlayerState.PLAYING) {
     isPlaying = true;
     playlistErrors = 0;
-    if (isPlayingBasePlaylist && window._pendingViewerVideo && !window._switchingToViewer) {
-      // Nueva canción de playlist empezó — guardar índice y poner viewer
-      window._switchingToViewer = true;
-      try { basePlaylistIndex = ytPlayer.getPlaylistIndex() || 0; } catch(e) {}
-      ytPlayer.stopVideo();
-      const pending = window._pendingViewerVideo;
-      window._pendingViewerVideo = null;
-      isPlayingBasePlaylist = false;
-      setTimeout(() => { 
-        window._switchingToViewer = false;
-        playVideo(pending); 
-      }, 500);
-      return;
-    }
-    if (isPlayingBasePlaylist) setTimeout(updateBasePlaylistInfo, 500);
   } else if (event.data === YT.PlayerState.PAUSED) {
     isPlaying = false;
   } else if (event.data === YT.PlayerState.UNSTARTED || event.data === 5) {
     setTimeout(() => {
       if (!isPlaying && currentVideo) {
         console.log('[yt] Video no disponible — saltando al siguiente');
-        markCurrentPlayed();
+        if (currentVideo.fromPlaylist) advanceFromPlaylist(); else markCurrentPlayed();
       }
     }, 3000);
   }
@@ -258,17 +265,17 @@ function onPlayerStateChange(event) {
 
 // Detectar error de reproducción (video bloqueado, no disponible, etc.)
 function onPlayerError(event) {
-  // Playlist base: un video no disponible se salta; si fallan varios seguidos (playlist privada, mix o no embebible) se detiene y reintenta en 1 min
-  if (isPlayingBasePlaylist) {
+  // Playlist base: un video que falla se salta; si fallan varios seguidos se detiene y se reintenta en 1 min
+  if (currentVideo && currentVideo.fromPlaylist) {
     playlistErrors++;
-    console.log('[yt] Error en playlist:', event.data, '— seguidos:', playlistErrors);
+    console.log('[yt] Error en video de playlist:', event.data, '— seguidos:', playlistErrors);
     if (playlistErrors >= 4) {
       try { ytPlayer.stopVideo(); } catch(e) {}
-      isPlayingBasePlaylist = false; basePlaylistId = null; playlistErrors = 0;
+      isPlayingBasePlaylist = false; currentVideo = null; playlistErrors = 0;
       playlistRetryAt = Date.now() + 60000;
       hideOverlay();
     } else {
-      setTimeout(() => { try { ytPlayer.nextVideo(); } catch(e) {} }, 1200);
+      setTimeout(advanceFromPlaylist, 800);
     }
     return;
   }
@@ -288,26 +295,19 @@ function handlePlayerCommand() {
   if (cmdTs <= _lastCommandTs) return; // ya procesado
   _lastCommandTs = cmdTs;
   const cmd = config.player_command;
-  if (!ytPlayer) { console.log('[control] ytPlayer no existe aún'); return; }
+  if (!ytPlayer) return;
   console.log('[control] Ejecutando comando:', cmd);
   if (cmd === 'pause' && ytPlayer.pauseVideo) {
     ytPlayer.pauseVideo();
-    console.log('[control] pauseVideo() llamado');
   } else if (cmd === 'play' && ytPlayer.playVideo) {
     ytPlayer.playVideo();
-    console.log('[control] playVideo() llamado');
   } else if (cmd === 'stop') {
     try { ytPlayer.stopVideo(); } catch(e) {}
     currentVideo = null; isPlaying = false; isPlayingBasePlaylist = false;
     window._pendingViewerVideo = null;
   } else if (cmd === 'skip') {
-    if (isPlayingBasePlaylist && ytPlayer.nextVideo) {
-      ytPlayer.nextVideo();
-      console.log('[control] nextVideo() llamado');
-    } else if (currentVideo) {
-      markCurrentPlayed();
-      console.log('[control] markCurrentPlayed() llamado');
-    }
+    if (currentVideo && currentVideo.fromPlaylist) advanceFromPlaylist();
+    else if (currentVideo) markCurrentPlayed();
   }
 }
 
@@ -322,26 +322,27 @@ async function pollQueue() {
 
     // Si el streamer desactivó la música, se detiene y se oculta
     if (config.enabled === false) {
-      if (currentVideo || isPlayingBasePlaylist) { try { ytPlayer.stopVideo(); } catch(e) {} }
+      if (currentVideo) { try { ytPlayer.stopVideo(); } catch(e) {} }
       isPlayingBasePlaylist = false; window._pendingViewerVideo = null;
       hideOverlay();
       return;
     }
 
+    // Cambios en la playlist base: otra playlist, aleatorio, repetir
+    const wantedId = listIdFromUrl(config.playlist_url);
+    if (baseListId && wantedId !== baseListId) {
+      baseItems = null; baseListId = null; baseFinished = false;
+      if (currentVideo && currentVideo.fromPlaylist) { try { ytPlayer.stopVideo(); } catch(e) {} currentVideo = null; isPlayingBasePlaylist = false; }
+    }
+    if (baseItems && !!config.playlist_shuffle !== baseShuffle) { baseShuffle = !!config.playlist_shuffle; buildOrder(currentVideo && currentVideo.videoId); }
+    if (baseFinished && config.playlist_loop !== false) baseFinished = false;
+
     if (queue.length === 0) {
-      // Cola vacía: si había una canción "en espera" que ya no existe (la quitaron desde el dashboard), se descarta
+      // Un pedido "en espera" que ya no existe (lo quitaron desde el dashboard) se descarta
       window._pendingViewerVideo = null;
-      // Si hay playlist base, reproducirla (y si el streamer cambió de playlist, cargar la nueva)
-      const wantedList = (config.playlist_url || '').match(/[?&]list=([^&]+)/);
-      const wantedId = wantedList ? wantedList[1] : null;
-      if (config.playlist_url && Date.now() < playlistRetryAt) {
-        hideOverlay();
-      } else if (config.playlist_url && (!isPlayingBasePlaylist || (wantedId && basePlaylistId && wantedId !== basePlaylistId))) {
-        if (isPlayingBasePlaylist) basePlaylistIndex = 0;
-        playBasePlaylist(config.playlist_url, isPlayingBasePlaylist ? 0 : undefined);
-      } else if (!config.playlist_url) {
-        isPlayingBasePlaylist = false;
-        hideOverlay();
+      if (!currentVideo) {
+        if (wantedId && !baseFinished && Date.now() >= playlistRetryAt) playBasePlaylist();
+        else if (!wantedId) hideOverlay();
       }
       return;
     }
@@ -351,18 +352,14 @@ async function pollQueue() {
 
     if (!currentVideo || currentVideo.videoId !== next.videoId) {
       if (isPlayingBasePlaylist && !forceNext) {
-        // Playlist sonando — marcar pendiente y esperar a que termine la canción actual
+        // Suena la playlist — el pedido espera a que termine la canción actual
         window._pendingViewerVideo = next;
-        console.log('[yt] Canción de viewer en espera — sonará cuando termine la actual');
-      } else {
-        // Forzar reproducción inmediata (force_next o no hay playlist)
+      } else if (!currentVideo || forceNext) {
         if (forceNext) {
-          isPlayingBasePlaylist = false;
           window._pendingViewerVideo = null;
-          // Limpiar el flag en Supabase
           if (!isPreview) fetch(`${SERVER}/api/youtube/queue/clearforce?channel=${channel}${keyQ}`, { method: 'POST' }).catch(()=>{});
         }
-        if (!currentVideo || forceNext) playVideo(next);
+        playVideo(next);
       }
     }
 
@@ -376,7 +373,7 @@ async function pollQueue() {
 }
 
 async function markCurrentPlayed() {
-  if (!currentVideo) return;
+  if (!currentVideo || currentVideo.fromPlaylist) return;
   if (isPreview) return;
   try {
     await fetch(`${SERVER}/api/youtube/queue/next`, {
@@ -390,10 +387,8 @@ async function markCurrentPlayed() {
     const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}`);
     const data = await res.json();
     const remaining = data.queue || [];
-    if (remaining.length === 0 && config.playlist_url) {
-      // Retomar playlist base desde donde estaba
-      console.log('[yt] Cola vacía — retomando playlist base en índice', basePlaylistIndex);
-      playBasePlaylist(config.playlist_url, basePlaylistIndex);
+    if (remaining.length === 0 && listIdFromUrl(config.playlist_url)) {
+      playBasePlaylist(); // sigue con la siguiente de la playlist
     } else {
       await pollQueue();
     }
@@ -403,6 +398,7 @@ async function markCurrentPlayed() {
 function playVideo(item) {
   currentVideo = item;
   isPlaying = true;
+  isPlayingBasePlaylist = !!item.fromPlaylist;
 
   // Mostrar overlay
   showOverlay();
@@ -410,17 +406,22 @@ function playVideo(item) {
   // Cargar video
   if (ytPlayer && ytPlayer.loadVideoById) {
     ytPlayer.loadVideoById(item.videoId);
-    ytPlayer.setVolume((isPreview ? 0 : (config.volume ?? 100)));
+    ytPlayer.setVolume(vol());
   }
 
   // Info
   document.getElementById('trackName').textContent = item.title || 'Sin título';
-  document.getElementById('trackMeta').textContent = `${item.channelTitle || ''} · pedido por @${item.requestedBy || '?'}`;
-  document.getElementById('thumb').src = `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`;
+  document.getElementById('trackMeta').textContent = item.fromPlaylist
+    ? `${item.channelTitle || ''} · playlist`
+    : `${item.channelTitle || ''} · pedido por @${item.requestedBy || '?'}`;
+  const th = document.getElementById('thumb');
+  th.style.visibility = 'visible';
+  th.src = `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`;
+  document.getElementById('queueCount').textContent = item.fromPlaylist ? '🎵 Playlist' : '';
 
   // Título
   const titleBar = document.getElementById('titleBar');
-  if (config.show_title !== false) {
+  if (config.display_mode === 'card' || config.show_title !== false) {
     titleBar.style.display = 'block';
     document.getElementById('soTitle').textContent = '▶ ' + (item.title || 'REPRODUCIENDO');
   } else {
@@ -440,6 +441,7 @@ function hideOverlay() {
   if (isPlaying || currentVideo) { try { ytPlayer && ytPlayer.stopVideo && ytPlayer.stopVideo(); } catch(e) {} }
   isPlaying = false;
   currentVideo = null;
+  isPlayingBasePlaylist = false;
 }
 
 // ── Estado en vivo para el dashboard ──
@@ -447,23 +449,18 @@ function sendStatus() {
   if (isPreview) return;
   try {
     let state = 'idle', title = null, author = null, videoId = null, cur = 0, dur = 0, source = null;
-    if (ytPlayer && ytPlayer.getPlayerState && (currentVideo || isPlayingBasePlaylist)) {
+    if (ytPlayer && ytPlayer.getPlayerState && currentVideo) {
       const ps = ytPlayer.getPlayerState();
       state = ps === 1 ? 'playing' : ps === 2 ? 'paused' : ps === 3 ? 'buffering' : 'idle';
       cur = ytPlayer.getCurrentTime() || 0;
       dur = ytPlayer.getDuration() || 0;
-      if (currentVideo && !isPlayingBasePlaylist) {
-        source = 'viewer'; title = currentVideo.title; author = currentVideo.channelTitle; videoId = currentVideo.videoId;
-      } else {
-        source = 'playlist';
-        const d = ytPlayer.getVideoData ? ytPlayer.getVideoData() : {};
-        title = d.title || null; author = d.author || null; videoId = d.video_id || null;
-      }
+      source = currentVideo.fromPlaylist ? 'playlist' : 'viewer';
+      title = currentVideo.title; author = currentVideo.channelTitle; videoId = currentVideo.videoId;
     }
     fetch(`${SERVER}/api/youtube/status`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ channel, key: overlayKey, state, source, title, author, videoId, current: cur, duration: dur,
-        volume: ytPlayer && ytPlayer.getVolume ? ytPlayer.getVolume() : ((isPreview ? 0 : (config.volume ?? 100))) })
+        volume: ytPlayer && ytPlayer.getVolume ? ytPlayer.getVolume() : (config.volume ?? 100) })
     }).catch(() => {});
   } catch(e) {}
 }
