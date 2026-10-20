@@ -105,6 +105,9 @@ let basePos = 0;
 let baseLoading = false;
 let baseShuffle = false;
 let baseFinished = false;          // terminó y "repetir" está apagado
+let isMix = false;                 // la playlist base es un Mix/radio de YouTube (lo reproduce el propio YouTube)
+let mixIndex = 0;
+let _mixTimer = null;
 let playlistErrors = 0;            // errores seguidos
 let playlistRetryAt = 0;           // si falla, se reintenta más tarde
 
@@ -116,6 +119,8 @@ async function loadBaseItems() {
   try {
     const res = await fetch(`${SERVER}/api/youtube/playlist?channel=${channel}`);
     const d = await res.json();
+    if (d.ok && d.mix) { baseItems = []; baseListId = d.listId; isMix = true; baseFinished = false; return true; }
+    isMix = false;
     if (!d.ok || !d.items || !d.items.length) {
       console.log('[yt] No se pudo leer la playlist:', d.error);
       baseItems = null; playlistRetryAt = Date.now() + 60000;
@@ -154,15 +159,46 @@ async function playBasePlaylist() {
   const wantedId = listIdFromUrl(config.playlist_url);
   if (!wantedId) return;
   if (!baseItems || baseListId !== wantedId) { if (!(await loadBaseItems())) { hideOverlay(); return; } }
+  if (isMix) { playBaseMix(); return; }
   const item = nextBaseItem();
   if (!item) { baseFinished = true; isPlayingBasePlaylist = false; currentVideo = null; hideOverlay(); return; }
   playVideo({ ...item, fromPlaylist: true });
+}
+
+// Mix/radio de YouTube: lo carga y avanza el propio reproductor de YouTube (las canciones las elige YouTube)
+function playBaseMix() {
+  if (!ytPlayer || !ytPlayer.loadPlaylist) return;
+  const listId = baseListId;
+  isPlayingBasePlaylist = true; isPlaying = true;
+  currentVideo = { videoId: '', title: 'Mix de YouTube', channelTitle: '', fromPlaylist: true, mix: true };
+  ytPlayer.loadPlaylist({ listType: 'playlist', list: listId, index: mixIndex });
+  ytPlayer.setVolume(vol());
+  showOverlay();
+  document.getElementById('queueCount').textContent = '🎵 Mix';
+  scheduleMixInfo(1500);
+}
+function scheduleMixInfo(ms) { clearTimeout(_mixTimer); _mixTimer = setTimeout(updateMixInfo, ms); }
+function updateMixInfo() {
+  if (!currentVideo || !currentVideo.mix || !ytPlayer || !ytPlayer.getVideoData) return;
+  try {
+    const d = ytPlayer.getVideoData();
+    if (d && d.title) {
+      currentVideo.title = d.title; currentVideo.channelTitle = d.author || ''; currentVideo.videoId = d.video_id || '';
+      document.getElementById('trackName').textContent = d.title;
+      document.getElementById('trackMeta').textContent = `${d.author || ''} · mix`;
+      if (d.video_id) { const th = document.getElementById('thumb'); th.style.visibility = 'visible'; th.src = `https://img.youtube.com/vi/${d.video_id}/mqdefault.jpg`; }
+      if (config.display_mode === 'card' || config.show_title !== false) { document.getElementById('titleBar').style.display = 'block'; document.getElementById('soTitle').textContent = '▶ ' + d.title; }
+    }
+    if (ytPlayer.getPlaylistIndex) mixIndex = Math.max(0, ytPlayer.getPlaylistIndex() || 0);
+  } catch(e) {}
+  scheduleMixInfo(4000);
 }
 
 // Terminó (o se saltó/falló) una canción de la playlist: si hay un pedido del chat esperando suena ese; si no, la siguiente de la playlist
 function advanceFromPlaylist() {
   const pending = window._pendingViewerVideo;
   if (pending) { window._pendingViewerVideo = null; playVideo(pending); return; }
+  if (currentVideo && currentVideo.mix) { try { ytPlayer.nextVideo(); } catch(e) {} scheduleMixInfo(1500); return; }
   currentVideo = null;
   playBasePlaylist();
 }
@@ -246,11 +282,18 @@ function onPlayerReady() {
 
 function onPlayerStateChange(event) {
   if (event.data === YT.PlayerState.ENDED) {
-    if (currentVideo && currentVideo.fromPlaylist) advanceFromPlaylist();
+    if (currentVideo && currentVideo.mix) {
+      // el Mix avanza solo; solo se interviene si hay un pedido esperando
+      if (window._pendingViewerVideo) { mixIndex++; advanceFromPlaylist(); } else scheduleMixInfo(1000);
+    }
+    else if (currentVideo && currentVideo.fromPlaylist) advanceFromPlaylist();
     else markCurrentPlayed();
   } else if (event.data === YT.PlayerState.PLAYING) {
     isPlaying = true;
     playlistErrors = 0;
+    // Mix: empezó una canción nueva y hay un pedido esperando → se cambia al pedido
+    if (currentVideo && currentVideo.mix && window._pendingViewerVideo) { try { mixIndex = ytPlayer.getPlaylistIndex() || 0; } catch(e) {} advanceFromPlaylist(); }
+    else if (currentVideo && currentVideo.mix) scheduleMixInfo(500);
   } else if (event.data === YT.PlayerState.PAUSED) {
     isPlaying = false;
   } else if (event.data === YT.PlayerState.UNSTARTED || event.data === 5) {
