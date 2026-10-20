@@ -2088,7 +2088,7 @@ function ytSanitizeSettings(src) {
       case 'card_position': if (isValidString(v, 30)) out[k] = v; break;
       case 'accent_color': if (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v)) out[k] = v; break;
       case 'allowed': if (isValidArray(v)) out[k] = v.filter(x => ['everyone','sub','vip','mod'].includes(x)).slice(0, 4); break;
-      case 'playlist_url': if (v === '' || v === null) out[k] = ''; else if (isValidString(v, 300) && !/[?&]list=(RD|LM|WL)/.test(v)) out[k] = v.trim(); break; // los mixes (RD), "me gusta" (LM) y "ver más tarde" (WL) no se pueden embeber
+      case 'playlist_url': if (v === '' || v === null) out[k] = ''; else if (isValidString(v, 300) && !/[?&]list=(RDMM|LM|WL)/.test(v)) out[k] = v.trim(); break; // los mixes (RD), "me gusta" (LM) y "ver más tarde" (WL) no se pueden embeber
       case 'blacklist': if (isValidArray(v)) out[k] = v.filter(x => isValidString(x, 200) && x.trim()).map(x => x.trim()).slice(0, 200); break;
     }
   }
@@ -2151,7 +2151,8 @@ app.get('/api/youtube/playlist', async (req, res) => {
     const m = url.match(/[?&]list=([A-Za-z0-9_-]+)/);
     if (!m) return note({ ok: false, error: 'sinplaylist' });
     const listId = m[1];
-    if (/^(RD|LM|WL)/.test(listId)) return note({ ok: false, error: 'mix' });
+    if (/^(RDMM|LM|WL)/.test(listId)) return note({ ok: false, error: 'mix' });
+    if (/^RD/.test(listId)) return note({ ok: true, mix: true, listId });  // Mix de una canción: lo reproduce YouTube, no hay lista que leer
     let c = ytPlaylistCache[listId];
     if (!c || Date.now() - c.ts > YT_PLAYLIST_TTL) {
       const f = await ytFetchPlaylist(listId, apiKey);
@@ -2263,7 +2264,7 @@ app.get('/api/youtube/status', (req, res) => {
   const st = ytLiveStatus[username.toLowerCase()];
   const online = !!st && Date.now() - st.ts < 12000;
   const pl = ytPlaylistInfo[username.toLowerCase()] || null;
-  res.json({ online, status: online ? st : null, lastSeen: st?.ts || null, playlist: pl ? { ok: pl.ok, error: pl.error || null, total: pl.total ?? null, skipped: pl.skipped ?? null } : null });
+  res.json({ online, status: online ? st : null, lastSeen: st?.ts || null, playlist: pl ? { ok: pl.ok, mix: !!pl.mix, error: pl.error || null, total: pl.total ?? null, skipped: pl.skipped ?? null } : null });
 });
 
 // Link del overlay con su clave (para copiar a OBS)
