@@ -313,7 +313,7 @@ function handlePlayerCommand() {
 
 async function pollQueue() {
   try {
-    const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}`);
+    const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}&lite=1`);
     const data = await res.json();
     queue = data.queue || [];
     config = { ...config, ...(data.config || {}) };
@@ -384,7 +384,7 @@ async function markCurrentPlayed() {
     currentVideo = null;
     isPlaying = false;
     // Verificar si hay más canciones en cola
-    const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}`);
+    const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}&lite=1`);
     const data = await res.json();
     const remaining = data.queue || [];
     if (remaining.length === 0 && listIdFromUrl(config.playlist_url)) {
