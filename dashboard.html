@@ -5788,7 +5788,7 @@ function stopYTPolling(){
 }
 
 async function ytPollOnce() {
-  if (!document.getElementById('ytQueueList')) return;
+  if (!document.getElementById('ytQueueList') || document.hidden) return;
   const u = ((userData && userData.username) || '').toLowerCase();
   try {
     const [q, s] = await Promise.all([
