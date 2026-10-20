@@ -773,6 +773,17 @@ function renderYouTubeConfig() {
             Playlist activa — el overlay la reproducirá cuando no haya canciones en cola
             <button onclick="removeYTPlaylist()" style="background:none;border:none;color:var(--pink);cursor:pointer;font-size:12px;margin-left:4px;">✕ Quitar</button>
           </div>` : ''}
+          <div id="ytPlaylistInfo" style="margin-top:6px;font-size:11px;color:var(--text-muted);"></div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;">
+            <div class="toggle-row">
+              <div><div class="toggle-label">Orden aleatorio</div><div class="toggle-sub">Mezcla las canciones de la playlist (solo suenan las que están en ella)</div></div>
+              <label class="toggle"><input type="checkbox" id="ytShuffle" ${yt.playlist_shuffle?'checked':''} onchange="saveYouTubeConfig()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-label">Repetir al terminar</div><div class="toggle-sub">Cuando se acaba la playlist, vuelve a empezar</div></div>
+              <label class="toggle"><input type="checkbox" id="ytLoop" ${yt.playlist_loop!==false?'checked':''} onchange="saveYouTubeConfig()"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
         </div>
 
         <!-- Permisos -->
@@ -814,6 +825,14 @@ function renderYouTubeConfig() {
     <div class="panel">
       <div class="panel-header"><div class="panel-title">🎨 Apariencia del overlay</div></div>
       <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Qué se muestra en el overlay</div>
+          <select id="ytDisplayMode" class="form-input" onchange="saveYouTubeConfig()">
+            <option value="video" ${yt.display_mode!=='card'?'selected':''}>🎬 Video + información</option>
+            <option value="card" ${yt.display_mode==='card'?'selected':''}>🏷️ Solo título (sin video)</option>
+          </select>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">«Solo título» muestra la portada, el nombre de la canción y la barra de progreso. La música suena igual. El alto de abajo solo cuenta en modo video.</div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Ancho del overlay (px)</div>
@@ -904,8 +923,8 @@ async function saveYTPlaylist() {
     showToast('Ese link no es una playlist de YouTube', 'error');
     return;
   }
-  if (/[?&]list=(RDMM|LM|WL)/.test(url)) {
-    showToast('"Mi Mix", "Me gusta" y "Ver más tarde" no se pueden reproducir en el overlay. Usa una playlist normal (PL…) pública o no listada, o un mix de una sola canción', 'error');
+  if (/[?&]list=(RD|LM|WL)/.test(url)) {
+    showToast('Ese link es un Mix/radio de YouTube: se llena solo con canciones recomendadas, no con las tuyas. Usa una playlist real (list=PL…) pública o no listada', 'error');
     return;
   }
   const yt = streamerData.youtube_config || {};
@@ -997,6 +1016,9 @@ async function saveYouTubeConfig() {
     allowed: allowed.length ? allowed : ['everyone'],
     playlist_url: yt.playlist_url || '',
     blacklist: yt.blacklist || [],
+    playlist_shuffle: document.getElementById('ytShuffle') ? document.getElementById('ytShuffle').checked : !!yt.playlist_shuffle,
+    playlist_loop: document.getElementById('ytLoop') ? document.getElementById('ytLoop').checked : yt.playlist_loop !== false,
+    display_mode: document.getElementById('ytDisplayMode')?.value || yt.display_mode || 'video',
   };
   streamerData.youtube_config = { ...yt, ...settings };
   try {
@@ -5775,11 +5797,34 @@ async function ytPollOnce() {
     ]);
     if (q && q.config) streamerData.youtube_config = q.config;
     _ytLive = { st: s.online ? s.status : null, online: !!s.online, at: Date.now() };
+    ytShowPlaylistInfo(s.playlist);
     refreshYTQueue();
     refreshYTHistory();
     updateYTNow();
     ytUpdateStatusLine();
   } catch (e) {}
+}
+
+function ytShowPlaylistInfo(pl) {
+  const el = document.getElementById('ytPlaylistInfo');
+  if (!el) return;
+  const hasList = !!((streamerData.youtube_config || {}).playlist_url);
+  if (!hasList || !pl) { el.textContent = ''; return; }
+  const msg = {
+    nokey: 'Falta agregar YOUTUBE_API_KEY en Render (la misma clave que usa el bot) para poder leer la playlist.',
+    mix: 'Ese link es un Mix/radio de YouTube; usa una playlist real (list=PL…).',
+    playlistNotFound: 'YouTube no encuentra esa playlist. ¿Es privada o el link está mal?',
+    quotaExceeded: 'Se agotó la cuota diaria de YouTube; se reintenta más tarde.',
+    vacia: 'La playlist no tiene canciones que se puedan reproducir en el overlay.',
+    red: 'No se pudo contactar a YouTube; se reintenta.',
+  };
+  if (pl.ok) {
+    el.style.color = '#3ECF8E';
+    el.textContent = `✓ ${pl.total - (pl.skipped || 0)} canciones listas` + (pl.skipped ? ` · ${pl.skipped} omitidas (privadas, bloqueadas o directos)` : '');
+  } else if (pl.error && pl.error !== 'sinplaylist') {
+    el.style.color = '#E8A33D';
+    el.textContent = '⚠ ' + (msg[pl.error] || 'No se pudo leer la playlist (' + pl.error + ').');
+  } else el.textContent = '';
 }
 
 // Tarjeta "Sonando ahora": usa el estado real que manda el overlay
