@@ -2070,7 +2070,7 @@ function ytRemoveFromQueue(cfg, index) {
 }
 
 // Campos que el dashboard SÍ puede cambiar desde "Guardar" (nunca la cola, el historial ni los límites)
-const YT_SETTINGS_KEYS = ['enabled','max_per_user','max_duration_min','volume','card_width','card_height','card_position','accent_color','show_title','allowed','playlist_url','blacklist'];
+const YT_SETTINGS_KEYS = ['enabled','max_per_user','max_duration_min','volume','card_width','card_height','card_position','accent_color','show_title','allowed','playlist_url','blacklist','playlist_shuffle','playlist_loop','display_mode'];
 function ytSanitizeSettings(src) {
   const out = {};
   if (!isValidObject(src)) return out;
@@ -2078,7 +2078,8 @@ function ytSanitizeSettings(src) {
     if (!(k in src)) continue;
     const v = src[k];
     switch (k) {
-      case 'enabled': case 'show_title': out[k] = !!v; break;
+      case 'enabled': case 'show_title': case 'playlist_shuffle': case 'playlist_loop': out[k] = !!v; break;
+      case 'display_mode': out[k] = v === 'card' ? 'card' : 'video'; break;
       case 'max_per_user': out[k] = Math.max(1, Math.min(20, parseInt(v) || 3)); break;
       case 'max_duration_min': out[k] = Math.max(1, Math.min(180, parseInt(v) || 10)); break;
       case 'volume': out[k] = Math.max(0, Math.min(100, parseInt(v))); if (isNaN(out[k])) delete out[k]; break;
@@ -2087,12 +2088,80 @@ function ytSanitizeSettings(src) {
       case 'card_position': if (isValidString(v, 30)) out[k] = v; break;
       case 'accent_color': if (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v)) out[k] = v; break;
       case 'allowed': if (isValidArray(v)) out[k] = v.filter(x => ['everyone','sub','vip','mod'].includes(x)).slice(0, 4); break;
-      case 'playlist_url': if (v === '' || v === null) out[k] = ''; else if (isValidString(v, 300) && !/[?&]list=(RDMM|LM|WL)/.test(v)) out[k] = v.trim(); break; // los mixes (RD), "me gusta" (LM) y "ver más tarde" (WL) no se pueden embeber
+      case 'playlist_url': if (v === '' || v === null) out[k] = ''; else if (isValidString(v, 300) && !/[?&]list=(RD|LM|WL)/.test(v)) out[k] = v.trim(); break; // los mixes (RD), "me gusta" (LM) y "ver más tarde" (WL) no se pueden embeber
       case 'blacklist': if (isValidArray(v)) out[k] = v.filter(x => isValidString(x, 200) && x.trim()).map(x => x.trim()).slice(0, 200); break;
     }
   }
   return out;
 }
+
+// ── Playlist base leída desde el servidor (solo trae lo que está en la playlist; el overlay la reproduce video por video) ──
+const ytPlaylistCache = {};  // listId -> { ts, items, total, skipped }
+const ytPlaylistInfo = {};   // canal -> { ts, ok, error, total, skipped } (lo muestra el dashboard)
+const YT_PLAYLIST_TTL = 15 * 60 * 1000;
+function ytIsoSeconds(iso) {
+  const m = String(iso || '').match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  return m ? (parseInt(m[1] || 0) * 3600) + (parseInt(m[2] || 0) * 60) + parseInt(m[3] || 0) : 0;
+}
+async function ytFetchPlaylist(listId, apiKey) {
+  const base = 'https://www.googleapis.com/youtube/v3';
+  const ids = []; let pageToken = '', pages = 0, total = 0;
+  do {
+    const r = await fetch(`${base}/playlistItems?part=snippet,contentDetails,status&maxResults=50&playlistId=${encodeURIComponent(listId)}${pageToken ? '&pageToken=' + pageToken : ''}&key=${apiKey}`);
+    const d = await r.json();
+    if (d.error) return { error: d.error.errors?.[0]?.reason || d.error.status || 'api' };
+    for (const it of (d.items || [])) {
+      total++;
+      const vid = it.contentDetails?.videoId;
+      const t = it.snippet?.title;
+      if (!vid || t === 'Private video' || t === 'Deleted video' || it.status?.privacyStatus === 'private') continue;
+      ids.push(vid);
+    }
+    pageToken = d.nextPageToken || ''; pages++;
+  } while (pageToken && pages < 6);
+  const items = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    const r = await fetch(`${base}/videos?part=snippet,contentDetails,status&id=${ids.slice(i, i + 50).join(',')}&key=${apiKey}`);
+    const d = await r.json();
+    if (d.error) return { error: d.error.errors?.[0]?.reason || d.error.status || 'api' };
+    for (const v of (d.items || [])) {
+      const sec = ytIsoSeconds(v.contentDetails?.duration);
+      const live = v.snippet?.liveBroadcastContent;
+      if (v.status?.embeddable === false) continue;
+      if (v.status?.privacyStatus && !['public', 'unlisted'].includes(v.status.privacyStatus)) continue;
+      if ((live && live !== 'none') || sec === 0) continue;
+      items.push({ videoId: v.id, title: v.snippet?.title || '', channelTitle: v.snippet?.channelTitle || '', durationSec: sec });
+    }
+  }
+  // mantener el orden original de la playlist
+  const pos = {}; ids.forEach((id, i) => pos[id] = i);
+  items.sort((a, b) => pos[a.videoId] - pos[b.videoId]);
+  return { items, total, skipped: total - items.length };
+}
+app.get('/api/youtube/playlist', async (req, res) => {
+  const channel = String(req.query.channel || '').toLowerCase();
+  if (!channel) return res.json({ ok: false, error: 'canal' });
+  const note = (o) => { ytPlaylistInfo[channel] = { ts: Date.now(), ...o }; return res.json(o); };
+  try {
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) return note({ ok: false, error: 'nokey' });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const d = await r.json();
+    const url = d?.[0]?.youtube_config?.playlist_url || '';
+    const m = url.match(/[?&]list=([A-Za-z0-9_-]+)/);
+    if (!m) return note({ ok: false, error: 'sinplaylist' });
+    const listId = m[1];
+    if (/^(RD|LM|WL)/.test(listId)) return note({ ok: false, error: 'mix' });
+    let c = ytPlaylistCache[listId];
+    if (!c || Date.now() - c.ts > YT_PLAYLIST_TTL) {
+      const f = await ytFetchPlaylist(listId, apiKey);
+      if (f.error) return note({ ok: false, error: f.error });
+      c = ytPlaylistCache[listId] = { ts: Date.now(), ...f };
+    }
+    if (!c.items.length) return note({ ok: false, error: 'vacia', total: c.total, skipped: c.skipped });
+    note({ ok: true, listId, items: c.items, total: c.total, skipped: c.skipped });
+  } catch (e) { note({ ok: false, error: 'red' }); }
+});
 
 // Estado en vivo del reproductor (lo manda el overlay cada pocos segundos; vive en memoria)
 const ytLiveStatus = {}; // { canal: { ...estado, ts } }
@@ -2179,7 +2248,8 @@ app.get('/api/youtube/status', (req, res) => {
   if (!username) return res.status(401).json({ error: 'No autorizado' });
   const st = ytLiveStatus[username.toLowerCase()];
   const online = !!st && Date.now() - st.ts < 12000;
-  res.json({ online, status: online ? st : null, lastSeen: st?.ts || null });
+  const pl = ytPlaylistInfo[username.toLowerCase()] || null;
+  res.json({ online, status: online ? st : null, lastSeen: st?.ts || null, playlist: pl ? { ok: pl.ok, error: pl.error || null, total: pl.total ?? null, skipped: pl.skipped ?? null } : null });
 });
 
 // Link del overlay con su clave (para copiar a OBS)
