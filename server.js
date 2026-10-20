@@ -2045,7 +2045,7 @@ async function ytMutate(channel, mutator, tries = 6) {
       body: JSON.stringify({ youtube_config: draft })
     });
     const pd = await pr.json().catch(() => null);
-    if (Array.isArray(pd) && pd.length) return { ok: true, config: draft, ...out };
+    if (Array.isArray(pd) && pd.length) { delete ytCfgCache[channel]; return { ok: true, config: draft, ...out }; }
     if (!pr.ok) throw new Error('supabase ' + pr.status);
     await new Promise(res => setTimeout(res, 40 + Math.random() * 120));
   }
@@ -2157,14 +2157,29 @@ app.get('/api/youtube/playlist', async (req, res) => {
       const f = await ytFetchPlaylist(listId, apiKey);
       if (f.error) return note({ ok: false, error: f.error });
       c = ytPlaylistCache[listId] = { ts: Date.now(), ...f };
+      const keys = Object.keys(ytPlaylistCache);
+      if (keys.length > 50) { keys.sort((x, y) => ytPlaylistCache[x].ts - ytPlaylistCache[y].ts).slice(0, keys.length - 50).forEach(k => delete ytPlaylistCache[k]); }
     }
     if (!c.items.length) return note({ ok: false, error: 'vacia', total: c.total, skipped: c.skipped });
     note({ ok: true, listId, items: c.items, total: c.total, skipped: c.skipped });
   } catch (e) { note({ ok: false, error: 'red' }); }
 });
 
+// Lectura de la config con caché corto (1.5 s): el overlay y el dashboard la piden cada pocos segundos y así no se golpea Supabase por cada petición
+const ytCfgCache = {}; // canal -> { ts, cfg }
+async function ytReadConfig(channel) {
+  const c = ytCfgCache[channel];
+  if (c && Date.now() - c.ts < 1500) return c.cfg;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
+  const d = await r.json();
+  const cfg = (Array.isArray(d) && d[0]?.youtube_config) || {};
+  ytCfgCache[channel] = { ts: Date.now(), cfg };
+  return cfg;
+}
+
 // Estado en vivo del reproductor (lo manda el overlay cada pocos segundos; vive en memoria)
 const ytLiveStatus = {}; // { canal: { ...estado, ts } }
+setInterval(() => { const lim = Date.now() - 10 * 60 * 1000; for (const k of Object.keys(ytLiveStatus)) if (ytLiveStatus[k].ts < lim) delete ytLiveStatus[k]; for (const k of Object.keys(ytCfgCache)) if (ytCfgCache[k].ts < lim) delete ytCfgCache[k]; }, 10 * 60 * 1000).unref();
 
 app.get('/overlay/youtube/:username', (req, res) => {
   res.sendFile(path.join(__dirname, 'youtube-overlay.html'));
@@ -2173,21 +2188,20 @@ app.get('/overlay/youtube/:username', (req, res) => {
 app.get('/api/youtube/config', async (req, res) => {
   const channel = req.query.channel?.toLowerCase();
   if (!channel) return res.json({ config: {} });
-  try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
-    const data = await r.json();
-    res.json({ config: data?.[0]?.youtube_config || {} });
-  } catch(e) { res.json({ config: {} }); }
+  try { res.json({ config: await ytReadConfig(channel) }); } catch(e) { res.json({ config: {} }); }
 });
 
 app.get('/api/youtube/queue', async (req, res) => {
   const channel = req.query.channel?.toLowerCase();
   if (!channel) return res.json({ queue: [], config: {} });
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
-    const data = await r.json();
-    const ytConfig = data?.[0]?.youtube_config || {};
-    res.json({ queue: ytConfig.queue || [], config: ytConfig });
+    const cfg = await ytReadConfig(channel);
+    // ?lite=1 (overlay): sin historial, límites ni lista negra, que el overlay no usa
+    if (req.query.lite === '1') {
+      const { history, song_limits, blacklist, ...lite } = cfg;
+      return res.json({ queue: cfg.queue || [], config: lite });
+    }
+    res.json({ queue: cfg.queue || [], config: cfg });
   } catch(e) { res.json({ queue: [], config: {} }); }
 });
 
