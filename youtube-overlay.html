@@ -83,7 +83,8 @@ const params = new URLSearchParams(location.search);
 const channel = params.get('channel') || 'elosoking1';
 const SERVER = '';
 const overlayKey = params.get('key') || '';
-const isPreview = params.get('preview') === '1'; // vista previa del dashboard: sin sonido y sin tocar la cola
+const isSnap = params.get('snap') === '1';       // modo "fijar mix": solo lee la lista del mix y se la manda al dashboard
+const isPreview = isSnap || params.get('preview') === '1'; // vista previa del dashboard: sin sonido y sin tocar la cola
 const keyQ = overlayKey ? `&key=${encodeURIComponent(overlayKey)}` : '';
 const vol = () => (isPreview ? 0 : (config.volume ?? 100));
 
@@ -105,6 +106,7 @@ let basePos = 0;
 let baseLoading = false;
 let baseShuffle = false;
 let baseFinished = false;          // terminó y "repetir" está apagado
+let baseMixTs = 0;                 // versión del mix fijado con la que se cargó la playlist
 let isMix = false;                 // la playlist base es un Mix/radio de YouTube (lo reproduce el propio YouTube)
 let mixIndex = 0;
 let _mixTimer = null;
@@ -119,13 +121,14 @@ async function loadBaseItems() {
   try {
     const res = await fetch(`${SERVER}/api/youtube/playlist?channel=${channel}`);
     const d = await res.json();
-    if (d.ok && d.mix) { baseItems = []; baseListId = d.listId; isMix = true; baseFinished = false; return true; }
+    if (d.ok && d.mix) { baseMixTs = config.mix_ts || 0; baseItems = []; baseListId = d.listId; isMix = true; baseFinished = false; return true; }
     isMix = false;
     if (!d.ok || !d.items || !d.items.length) {
       console.log('[yt] No se pudo leer la playlist:', d.error);
       baseItems = null; playlistRetryAt = Date.now() + 60000;
       return false;
     }
+    baseMixTs = config.mix_ts || 0;
     baseItems = d.items; baseListId = d.listId; baseShuffle = !!config.playlist_shuffle; baseFinished = false;
     buildOrder();
     return true;
@@ -271,7 +274,32 @@ function onYouTubeIframeAPIReady() {
   });
 }
 
+// Modo "fijar mix": carga el mix sin reproducirlo, lee las canciones que YouTube le dio a ESTE navegador y se las pasa al dashboard
+async function runSnapshot() {
+  const post = (m) => { try { parent.postMessage(Object.assign({ type: 'yt-mix-snapshot' }, m), location.origin); } catch(e) {} };
+  const sleepMs = (ms) => new Promise(r => setTimeout(r, ms));
+  try {
+    const listId = listIdFromUrl(config.playlist_url);
+    if (!listId || !/^RD/.test(listId)) return post({ ok: false, error: 'nomix' });
+    showOverlay();
+    ytPlayer.setVolume(0);
+    ytPlayer.cuePlaylist({ listType: 'playlist', list: listId, index: 0 });
+    for (let i = 0; i < 40; i++) {
+      await sleepMs(500);
+      let ids = [];
+      try { ids = ytPlayer.getPlaylist() || []; } catch(e) {}
+      if (ids.length > 1) {
+        await sleepMs(800); // dejar que termine de cargar la lista completa
+        try { ids = ytPlayer.getPlaylist() || ids; } catch(e) {}
+        return post({ ok: true, listId, ids });
+      }
+    }
+    post({ ok: false, error: 'timeout' });
+  } catch(e) { post({ ok: false, error: 'error' }); }
+}
+
 function onPlayerReady() {
+  if (isSnap) { runSnapshot(); return; }
   ytPlayer.setVolume(vol());
   pollQueue();
   pollInterval = setInterval(pollQueue, 3000);
@@ -375,6 +403,11 @@ async function pollQueue() {
     const wantedId = listIdFromUrl(config.playlist_url);
     if (baseListId && wantedId !== baseListId) {
       baseItems = null; baseListId = null; baseFinished = false;
+      if (currentVideo && currentVideo.fromPlaylist) { try { ytPlayer.stopVideo(); } catch(e) {} currentVideo = null; isPlayingBasePlaylist = false; }
+    }
+    // Si el streamer fijó (o volvió a fijar) el mix desde el dashboard, se recarga para usar esa lista exacta
+    if (baseListId && /^RD/.test(baseListId) && (config.mix_ts || 0) !== baseMixTs) {
+      baseItems = null; baseListId = null; baseFinished = false; isMix = false;
       if (currentVideo && currentVideo.fromPlaylist) { try { ytPlayer.stopVideo(); } catch(e) {} currentVideo = null; isPlayingBasePlaylist = false; }
     }
     if (baseItems && !!config.playlist_shuffle !== baseShuffle) { baseShuffle = !!config.playlist_shuffle; buildOrder(currentVideo && currentVideo.videoId); }
