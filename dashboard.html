@@ -5805,6 +5805,34 @@ async function ytPollOnce() {
   } catch (e) {}
 }
 
+// "Fijar mix": lee la lista real del mix en ESTE navegador (con tu sesión de YouTube) y la guarda para que OBS toque exactamente eso
+async function ytFixMix() {
+  const u = ((userData && userData.username) || '').toLowerCase();
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:24px;';
+  wrap.innerHTML = '<div style="color:#fff;font-size:14px;text-align:center;">Leyendo el mix desde tu navegador… (unos segundos)</div>' +
+    `<iframe src="/overlay/youtube/${u}?channel=${u}&preview=1&snap=1" style="width:420px;height:240px;border:1px solid rgba(255,255,255,0.15);border-radius:10px;background:#000;pointer-events:none;" allow="autoplay"></iframe>` +
+    '<button id="ytFixCancel" class="btn" style="font-size:12px;">Cancelar</button>';
+  document.body.appendChild(wrap);
+  let done = false;
+  const finish = () => { done = true; window.removeEventListener('message', onMsg); clearTimeout(t); wrap.remove(); };
+  const onMsg = async (e) => {
+    if (done || e.origin !== location.origin || !e.data || e.data.type !== 'yt-mix-snapshot') return;
+    finish();
+    if (!e.data.ok) { showToast(e.data.error === 'nomix' ? 'Primero guarda un link de mix (list=RD…) como playlist base' : 'No se pudo leer el mix. Prueba de nuevo', 'error'); return; }
+    try {
+      const r = await fetch('/api/youtube/mix-snapshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ listId: e.data.listId, ids: e.data.ids }) });
+      const j = await r.json();
+      if (!j.ok) throw new Error('fail');
+      showToast(`Mix fijado: ${j.count} canciones ✓ OBS usará esa lista`);
+      ytPollOnce();
+    } catch (err) { showToast('No se pudo guardar el mix', 'error'); }
+  };
+  window.addEventListener('message', onMsg);
+  const t = setTimeout(() => { if (!done) { finish(); showToast('Se tardó demasiado en leer el mix', 'error'); } }, 30000);
+  wrap.querySelector('#ytFixCancel').onclick = finish;
+}
+
 function ytShowPlaylistInfo(pl) {
   const el = document.getElementById('ytPlaylistInfo');
   if (!el) return;
@@ -5820,7 +5848,12 @@ function ytShowPlaylistInfo(pl) {
   };
   if (pl.ok && pl.mix) {
     el.style.color = 'var(--text-muted)';
-    el.textContent = '🎲 Mix de YouTube: las canciones las elige YouTube (pueden ser distintas a las que esperas) y no se puede mezclar ni limitar. Para solo tus canciones usa una playlist real (PL…).';
+    el.innerHTML = '🎲 Mix de YouTube sin fijar: YouTube se lo arma distinto a OBS que a tu navegador. ' +
+      '<button onclick="ytFixMix()" style="margin-left:4px;font-size:11px;padding:3px 10px;border-radius:12px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#FF4444;cursor:pointer;font-family:var(--sans);font-weight:600;">📌 Fijar este mix</button>';
+  } else if (pl.ok && pl.fixed) {
+    el.style.color = '#3ECF8E';
+    el.innerHTML = `📌 Mix fijado: ${pl.total - (pl.skipped || 0)} canciones, las mismas que ve tu navegador. ` +
+      '<button onclick="ytFixMix()" style="margin-left:4px;font-size:11px;padding:3px 10px;border-radius:12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.1);color:var(--text-dim);cursor:pointer;font-family:var(--sans);">Volver a fijar</button>';
   } else if (pl.ok) {
     el.style.color = '#3ECF8E';
     el.textContent = `✓ ${pl.total - (pl.skipped || 0)} canciones listas` + (pl.skipped ? ` · ${pl.skipped} omitidas (privadas, bloqueadas o directos)` : '');
