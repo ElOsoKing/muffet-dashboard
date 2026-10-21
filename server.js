@@ -2119,6 +2119,13 @@ async function ytFetchPlaylist(listId, apiKey) {
     }
     pageToken = d.nextPageToken || ''; pages++;
   } while (pageToken && pages < 6);
+  const items = await ytVideoDetails(ids, apiKey);
+  if (items.error) return items;
+  return { items, total, skipped: total - items.length };
+}
+// Detalles de una lista de videos (solo los reproducibles en un overlay), en el orden recibido
+async function ytVideoDetails(ids, apiKey) {
+  const base = 'https://www.googleapis.com/youtube/v3';
   const items = [];
   for (let i = 0; i < ids.length; i += 50) {
     const r = await fetch(`${base}/videos?part=snippet,contentDetails,status&id=${ids.slice(i, i + 50).join(',')}&key=${apiKey}`);
@@ -2133,10 +2140,9 @@ async function ytFetchPlaylist(listId, apiKey) {
       items.push({ videoId: v.id, title: v.snippet?.title || '', channelTitle: v.snippet?.channelTitle || '', durationSec: sec });
     }
   }
-  // mantener el orden original de la playlist
   const pos = {}; ids.forEach((id, i) => pos[id] = i);
   items.sort((a, b) => pos[a.videoId] - pos[b.videoId]);
-  return { items, total, skipped: total - items.length };
+  return items;
 }
 app.get('/api/youtube/playlist', async (req, res) => {
   const channel = String(req.query.channel || '').toLowerCase();
@@ -2147,12 +2153,26 @@ app.get('/api/youtube/playlist', async (req, res) => {
     if (!apiKey) return note({ ok: false, error: 'nokey' });
     const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
     const d = await r.json();
-    const url = d?.[0]?.youtube_config?.playlist_url || '';
+    const ycfg = d?.[0]?.youtube_config || {};
+    const url = ycfg.playlist_url || '';
     const m = url.match(/[?&]list=([A-Za-z0-9_-]+)/);
     if (!m) return note({ ok: false, error: 'sinplaylist' });
     const listId = m[1];
     if (/^(RDMM|LM|WL)/.test(listId)) return note({ ok: false, error: 'mix' });
-    if (/^RD/.test(listId)) return note({ ok: true, mix: true, listId });  // Mix de una canción: lo reproduce YouTube, no hay lista que leer
+    if (/^RD/.test(listId)) {
+      // Mix de una canción: si el streamer lo "fijó" desde su navegador (con su sesión), se reproduce esa lista exacta; si no, lo arma YouTube
+      const snap = ycfg.mix_snapshot;
+      if (!(snap && snap.listId === listId && Array.isArray(snap.ids) && snap.ids.length)) return note({ ok: true, mix: true, listId });
+      const key = 'snap:' + listId + ':' + snap.ts;
+      let cs = ytPlaylistCache[key];
+      if (!cs) {
+        const items = await ytVideoDetails(snap.ids, apiKey);
+        if (items.error) return note({ ok: false, error: items.error });
+        cs = ytPlaylistCache[key] = { ts: Date.now(), items, total: snap.ids.length, skipped: snap.ids.length - items.length };
+      }
+      if (!cs.items.length) return note({ ok: false, error: 'vacia', total: cs.total, skipped: cs.skipped });
+      return note({ ok: true, listId, items: cs.items, total: cs.total, skipped: cs.skipped, fixed: true });
+    }
     let c = ytPlaylistCache[listId];
     if (!c || Date.now() - c.ts > YT_PLAYLIST_TTL) {
       const f = await ytFetchPlaylist(listId, apiKey);
@@ -2199,7 +2219,8 @@ app.get('/api/youtube/queue', async (req, res) => {
     const cfg = await ytReadConfig(channel);
     // ?lite=1 (overlay): sin historial, límites ni lista negra, que el overlay no usa
     if (req.query.lite === '1') {
-      const { history, song_limits, blacklist, ...lite } = cfg;
+      const { history, song_limits, blacklist, mix_snapshot, ...lite } = cfg;
+      lite.mix_ts = mix_snapshot?.ts || 0; // el overlay solo necesita saber si el mix fijado cambió
       return res.json({ queue: cfg.queue || [], config: lite });
     }
     res.json({ queue: cfg.queue || [], config: cfg });
@@ -2264,7 +2285,7 @@ app.get('/api/youtube/status', (req, res) => {
   const st = ytLiveStatus[username.toLowerCase()];
   const online = !!st && Date.now() - st.ts < 12000;
   const pl = ytPlaylistInfo[username.toLowerCase()] || null;
-  res.json({ online, status: online ? st : null, lastSeen: st?.ts || null, playlist: pl ? { ok: pl.ok, mix: !!pl.mix, error: pl.error || null, total: pl.total ?? null, skipped: pl.skipped ?? null } : null });
+  res.json({ online, status: online ? st : null, lastSeen: st?.ts || null, playlist: pl ? { ok: pl.ok, mix: !!pl.mix, fixed: !!pl.fixed, error: pl.error || null, total: pl.total ?? null, skipped: pl.skipped ?? null } : null });
 });
 
 // Link del overlay con su clave (para copiar a OBS)
@@ -2366,6 +2387,22 @@ app.post('/api/youtube/history/requeue', async (req, res) => {
       return { position: queue.length };
     });
     res.json({ ok: r.ok, reason: r.reason || null, position: r.position || null });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// "Fijar mix": el dashboard lee la lista real del mix en el navegador del streamer (con su sesión de YouTube) y la guarda,
+// para que el overlay de OBS reproduzca exactamente esas canciones
+app.post('/api/youtube/mix-snapshot', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const { listId, ids } = req.body || {};
+  if (!isValidString(listId, 60) || !/^RD[A-Za-z0-9_-]+$/.test(listId) || !isValidArray(ids)) return res.json({ ok: false, error: 'datos' });
+  const clean = [...new Set(ids.filter(x => typeof x === 'string' && /^[A-Za-z0-9_-]{11}$/.test(x)))].slice(0, 200);
+  if (!clean.length) return res.json({ ok: false, error: 'vacio' });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => { cfg.mix_snapshot = { listId, ids: clean, ts: Date.now() }; });
+    if (r.ok) ytPlaylistInfo[username.toLowerCase()] = { ts: Date.now(), ok: true, fixed: true, total: clean.length, skipped: 0 };
+    res.json({ ok: r.ok, count: clean.length });
   } catch(e) { res.json({ ok: false }); }
 });
 
