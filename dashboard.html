@@ -1744,19 +1744,16 @@ function renderMain() {
       </div>
       <div class="panel-body" style="padding:0;">
         ${(() => { const update = {
-            version: 'v3.0',
-            date: '18 Agosto 2026',
+            version: 'v3.1',
+            date: '25 Octubre 2026',
             badge: 'nuevo',
             items: [
-              '🔊 Alertas multimedia — tus viewers canjean puntos y suena un audio o video (meme) en tu stream',
-              '⏱️ Subatón — un contador en pantalla que suma tiempo con cada sub, gift sub y bits',
-              '🎰 Nuevo comando !slots — tragamonedas con premio mayor en 7️⃣7️⃣7️⃣',
-              '🎲 !apostar ahora tiene niveles de riesgo — facil, arriesgado y extremo',
-              '⚔️ !duelo ya no se resuelve al instante — el retado debe usar !aceptar o !rechazar',
-              '🎬 Emoji Game: pistas progresivas, racha de victorias, reto automático y !emojitop',
-              '💸 Nuevo comando !donar — muestra tu link de donaciones',
-              '🛡️ Corregido un bug donde el bot duplicaba comandos en canales con bot personalizado',
-            ]
+              '🎵 Música de YouTube renovada — pedidos con !yt, cola, playlists con aleatorio y repetir, mixes de YouTube, modo "solo título" y controles en vivo desde el dashboard (volumen, pausa, saltar)',
+              '🎨 14 estilos para los overlays de Spotify y YouTube — Cristal, Píldora, Synthwave, Neon City, Cyber, Telaraña, Rey Pixel y más, con vista previa y colores que siguen la portada',
+              '🎬 Emoji Game: el bot ahora sí respeta tu configuración del dashboard (puntos, pistas, tiempo y reto automático)',
+              '⭐ Corregido un bug donde parte del XP por mensaje se podía perder, y las apuestas y !slots ahora guardan los puntos en orden',
+              '⚡ Overlays y servidor más ligeros — menos consultas y sin efectos que gastaban GPU en OBS',
+                        ]
           }; return `
           <div style="padding:16px 20px;">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
