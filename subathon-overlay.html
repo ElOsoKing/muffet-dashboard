@@ -141,7 +141,7 @@ async function syncState() {
 }
 
 syncState();
-setInterval(syncState, 5000); // sincroniza con el servidor cada 5s (por si suman tiempo o pausan)
+setInterval(syncState, 10000); // sincroniza con el servidor cada 10s (el contador corre local cada segundo)
 setInterval(tick, 1000); // countdown local suave cada segundo
 </script>
 </body>
