@@ -6831,8 +6831,10 @@ function setSpotifyBgOpacity(val) {
 const SPOTIFY_THEME_GROUPS = [
   ['Esenciales', [['classic','Clásico','El de siempre, verde'],['glass','Cristal','Colores de la portada'],['pill','Píldora','Cápsula con ▶/⏸'],['macos','macOS','Ventana con puntitos'],['minimal','Minimal','Oscuro y sobrio'],['line','Línea','Negro con rayas blancas']]],
   ['Neón y arcade', [['synthwave','Synthwave','Atardecer de neón'],['neoncity','Neon City','Ciudad nocturna'],['cyber','Cyber','Panel HUD cian/magenta'],['glitch','Glitch','Efecto VHS'],['retro','Retro','Papel viejo y arcoíris']]],
-  ['Exclusivos MuffetBot ✨', [['muffet','Telaraña','Morado, rosa y arañita'],['osoking','Rey Pixel','Pixel art con corona'],['undertale','Diálogo retro','Caja blanca y negra']]]
+  ['Exclusivos MuffetBot ✨', [['muffet','Telaraña','Morado, rosa y arañita'],['osoking','Rey Pixel','Pixel art con corona'],['undertale','Diálogo retro','Caja blanca y negra']]],
+  ['Exclusivo de Wolf 🐺', [['wolf','Lobo Rey','Glitch rojo con el lobo coronado']]]
 ];
+const WOLF_THEME_CHANNELS = ['lordlonelywolf', 'elosoking1']; // diseño hecho a medida: solo se ofrece a estos canales (y solo en Spotify por ahora)
 function spotifyThemeName(id) {
   for (const [, items] of SPOTIFY_THEME_GROUPS) { const f = items.find(t => t[0] === id); if (f) return f[1]; }
   return 'Clásico';
@@ -6855,7 +6857,8 @@ function openThemeGallery(kind) {
   const vert = lookOn && lk?.layout === 'vertical';
   const demoQs = lookOn ? `&layout=${vert ? 'vertical' : 'horizontal'}&cover=${lk?.cover === 'disc' ? 'disc' : 'square'}` : '';
   const user = (typeof userData !== 'undefined' && userData.username) ? userData.username : '';
-  const cards = SPOTIFY_THEME_GROUPS.map(([group, items]) => `
+  const wolfOk = kind === 'spotify' && WOLF_THEME_CHANNELS.includes(String(user).toLowerCase());
+  const cards = SPOTIFY_THEME_GROUPS.filter(([group]) => wolfOk || !group.startsWith('Exclusivo de Wolf')).map(([group, items]) => `
     <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.6px;margin:18px 0 8px;">${group}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">
       ${items.map(([id, name, desc]) => {
