@@ -3397,11 +3397,12 @@ function renderMain() {
           ⚠️ Tu conexión con Spotify expiró (Spotify caduca los tokens cada 6 meses). Dale a <strong>Conectar</strong> para reactivar las solicitudes de canciones.
         </div>` : ''}
         ${s.spotify_token ? `
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <a href="/auth/spotify" style="font-size:12px;padding:6px 14px;border-radius:20px;text-decoration:none;background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.3);color:#1ed760;font-weight:500;transition:all 0.15s;">↻ Reconectar</a>
           <button onclick="disconnectSpotify()" style="font-size:12px;padding:6px 14px;border-radius:20px;background:rgba(224,90,122,0.08);border:1px solid rgba(224,90,122,0.2);color:var(--pink);cursor:pointer;font-weight:500;">Desconectar</button>
           <button onclick="navigator.clipboard.writeText(window.location.origin+'/overlay/spotify/${userData.username}').then(()=>showToast('Link del overlay copiado ✓'))" style="font-size:12px;padding:6px 14px;border-radius:20px;background:rgba(145,71,255,0.1);border:1px solid rgba(145,71,255,0.2);color:var(--purple-light);cursor:pointer;font-weight:500;">🎬 Overlay OBS</button>
           <button onclick="showOverlayPreview('${window.location.origin}/overlay/spotify/${userData.username}','Spotify')" style="font-size:12px;padding:6px 14px;border-radius:20px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);cursor:pointer;font-weight:500;">👁️ Vista previa</button>
+          <button onclick="ytOpenDockModal()" style="font-size:12px;padding:6px 14px;border-radius:20px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);cursor:pointer;font-weight:500;">🎛️ Dock de OBS</button>
         </div>
         <div style="margin-top:14px;">
           <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">🌫️ Opacidad del overlay</div>
