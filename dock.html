@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>MuffetBot — Dock de música</title>
+<style>
+:root { --bg:#14151c; --bg2:#1b1d27; --line:rgba(255,255,255,0.08); --text:#eceef4; --dim:#9aa0b4; --red:#ff3b3b; --green:#1ed760; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font: 13px/1.35 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+button:disabled { opacity: .45; cursor: default; }
+
+.banner { display: none; padding: 8px 12px; font-size: 12px; text-align: center; }
+.banner.show { display: block; }
+.banner.warn { background: rgba(255,170,0,.14); color: #ffc447; }
+.banner.err { background: rgba(255,59,59,.14); color: #ff8a8a; }
+
+.now { display: flex; gap: 12px; padding: 12px; align-items: center; border-bottom: 1px solid var(--line); }
+.thumb { width: 64px; height: 64px; border-radius: 10px; background: var(--bg2) center / cover no-repeat; flex-shrink: 0; }
+.info { min-width: 0; flex: 1; }
+.src { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--red); font-weight: 700; display: flex; align-items: center; gap: 5px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); }
+.dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.title { font-weight: 700; font-size: 14px; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.author { color: var(--dim); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.prog { padding: 0 12px; margin-top: 10px; }
+.bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
+.fill { height: 100%; width: 0; background: var(--red); }
+.times { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+.ctrl { display: flex; align-items: center; gap: 10px; padding: 10px 12px 12px; border-bottom: 1px solid var(--line); }
+.btn { width: 42px; height: 42px; border-radius: 50%; background: var(--bg2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 16px; transition: transform .08s, background .15s; flex-shrink: 0; }
+.btn:hover:not(:disabled) { background: #262938; } .btn:active:not(:disabled) { transform: scale(.94); }
+.btn.main { width: 48px; height: 48px; background: var(--red); border-color: transparent; color: #fff; font-size: 18px; }
+.btn.main:hover:not(:disabled) { background: #ff5555; }
+.vol { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 90px; }
+.vol input { flex: 1; min-width: 0; accent-color: var(--red); }
+.vol span { width: 34px; text-align: right; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
+
+.qhead { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 6px; }
+.qhead b { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+.clear { font-size: 11px; color: var(--dim); padding: 4px 9px; border-radius: 12px; border: 1px solid var(--line); }
+.clear:hover:not(:disabled) { color: #ff8a8a; border-color: rgba(255,59,59,.4); }
+.clear.sure { background: rgba(255,59,59,.18); color: #ff8a8a; border-color: rgba(255,59,59,.5); }
+.queue { flex: 1; overflow-y: auto; padding: 0 8px 12px; min-height: 60px; }
+.empty { color: var(--dim); font-size: 12px; text-align: center; padding: 18px 10px; }
+.item { display: flex; align-items: center; gap: 9px; padding: 6px 6px; border-radius: 8px; }
+.item:hover { background: rgba(255,255,255,.04); }
+.item img { width: 44px; height: 25px; border-radius: 4px; object-fit: cover; background: var(--bg2); flex-shrink: 0; }
+.item .t { min-width: 0; flex: 1; }
+.item .t div:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; font-weight: 600; }
+.item .t div:last-child { font-size: 10px; color: var(--dim); }
+.item button { width: 26px; height: 26px; border-radius: 50%; font-size: 12px; color: var(--dim); flex-shrink: 0; }
+.item button:hover { background: rgba(255,255,255,.1); color: var(--text); }
+.toast { position: fixed; left: 50%; bottom: 10px; transform: translateX(-50%); background: #2a2d3c; border: 1px solid var(--line); padding: 7px 14px; border-radius: 16px; font-size: 12px; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="banner" class="banner"></div>
+
+<div class="now">
+  <div id="thumb" class="thumb"></div>
+  <div class="info">
+    <div class="src"><span id="dot" class="dot"></span><span id="srcTxt">Conectando…</span></div>
+    <div id="title" class="title">—</div>
+    <div id="author" class="author"></div>
+  </div>
+</div>
+<div class="prog">
+  <div class="bar"><div id="fill" class="fill"></div></div>
+  <div class="times"><span id="tCur">0:00</span><span id="tDur">0:00</span></div>
+</div>
+
+<div class="ctrl">
+  <button id="bPlay" class="btn main" title="Pausar / Reanudar" disabled>⏸</button>
+  <button id="bSkip" class="btn" title="Saltar canción" disabled>⏭</button>
+  <div class="vol"><span style="font-size:14px">🔊</span><input id="vol" type="range" min="0" max="100" step="1" value="100" disabled><span id="volTxt">100%</span></div>
+</div>
+
+<div class="qhead"><b id="qTitle">Cola</b><button id="bClear" class="clear" disabled>Vaciar cola</button></div>
+<div id="queue" class="queue"><div class="empty">Cargando…</div></div>
+<div id="toast" class="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const qs = new URLSearchParams(location.search);
+const key = qs.get('key') || '';
+const channel = decodeURIComponent(location.pathname.split('/dock/')[1] || '').split('/')[0].toLowerCase();
+const API = `/api/dock/${encodeURIComponent(channel)}`;
+
+let S = null;            // último estado del servidor
+let T0 = 0;              // cuándo (hora local) llegó
+let draggingVol = false, volTimer = null, pendingVol = null;
+let clearArmed = 0;
+let failures = 0;
+
+const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (sec) => { sec = Math.max(0, Math.floor(sec || 0)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
+let toastTimer;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+function banner(kind, msg) { const b = $('banner'); if (!msg) { b.className = 'banner'; return; } b.className = 'banner show ' + kind; b.textContent = msg; }
+
+async function poll() {
+  if (document.hidden) return;
+  try {
+    const r = await fetch(`${API}/state?key=${encodeURIComponent(key)}`, { cache: 'no-store' });
+    if (r.status === 403) { fatal('Este link ya no es válido. Copia uno nuevo desde el dashboard de MuffetBot.'); return; }
+    const j = await r.json();
+    if (!j.ok) throw new Error('state');
+    failures = 0; S = j; T0 = Date.now();
+    banner('', '');
+    render();
+  } catch (e) {
+    failures++;
+    if (failures >= 2) banner('err', 'Sin conexión con MuffetBot… reintentando');
+  }
+}
+let dead = false;
+function fatal(msg) { dead = true; banner('err', msg); ['bPlay', 'bSkip', 'vol', 'bClear'].forEach(id => $(id).disabled = true); $('srcTxt').textContent = 'Desconectado'; $('dot').className = 'dot'; }
+
+function render() {
+  if (!S) return;
+  const st = S.status, on = S.online && st;
+  $('dot').className = 'dot' + (on && st.state === 'playing' ? ' on' : '');
+  if (!S.online) banner('warn', 'El overlay de YouTube no está abierto en OBS: no hay nada que controlar todavía.');
+  $('srcTxt').textContent = !on ? 'Sin overlay' : (st.state === 'paused' ? 'En pausa' : (st.source === 'viewer' ? 'Pedido del chat' : 'Playlist'));
+  $('title').textContent = on && st.title ? st.title : (S.online ? 'Nada sonando' : '—');
+  $('author').textContent = on ? (st.author || '') : '';
+  $('thumb').style.backgroundImage = on && st.videoId ? `url(https://img.youtube.com/vi/${encodeURIComponent(st.videoId)}/mqdefault.jpg)` : '';
+  $('bPlay').textContent = on && st.state === 'paused' ? '▶' : '⏸';
+  const can = !!S.online && !dead;
+  $('bPlay').disabled = !can; $('bSkip').disabled = !can; $('vol').disabled = !can;
+  if (!draggingVol) { $('vol').value = S.volume; $('volTxt').textContent = S.volume + '%'; }
+  $('qTitle').textContent = `Cola${S.total ? ' · ' + S.total : ''}`;
+  $('bClear').disabled = !S.total || dead;
+  if (!S.total) { clearArmed = 0; $('bClear').classList.remove('sure'); $('bClear').textContent = 'Vaciar cola'; }
+  const q = S.queue || [];
+  $('queue').innerHTML = q.length ? q.map((v, i) => `
+    <div class="item">
+      <img loading="lazy" src="https://img.youtube.com/vi/${encodeURIComponent(v.videoId)}/default.jpg" alt="">
+      <div class="t"><div title="${esc(v.title)}">${esc(v.title || v.videoId)}</div><div>@${esc(v.requestedBy || '?')}${v.durationSec ? ' · ' + fmt(v.durationSec) : ''}</div></div>
+      ${i === 0 && !(on && st.source === 'viewer' && st.videoId === v.videoId) ? `<button data-act="playnow" title="Reproducir ya">▶</button>` : ''}
+      <button data-act="remove" data-id="${esc(v.videoId)}" title="Quitar de la cola">✕</button>
+    </div>`).join('') + (S.total > q.length ? `<div class="empty">… y ${S.total - q.length} más</div>` : '')
+    : '<div class="empty">La cola está vacía. Los pedidos del chat aparecen aquí.</div>';
+  tick();
+}
+
+// El tiempo avanza solo entre consulta y consulta
+function tick() {
+  if (!S) return;
+  const st = S.status;
+  if (!S.online || !st) { $('fill').style.width = '0%'; $('tCur').textContent = '0:00'; $('tDur').textContent = '0:00'; return; }
+  let cur = st.current || 0;
+  if (st.state === 'playing') cur += (Date.now() - T0) / 1000 + Math.max(0, (S.now - st.ts)) / 1000;
+  if (st.duration) cur = Math.min(cur, st.duration);
+  $('fill').style.width = st.duration ? (cur / st.duration * 100).toFixed(1) + '%' : '0%';
+  $('tCur').textContent = fmt(cur); $('tDur').textContent = st.duration ? fmt(st.duration) : '--:--';
+}
+
+async function control(action, extra) {
+  if (dead) return false;
+  try {
+    const r = await fetch(`${API}/control`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, action, ...extra }) });
+    if (r.status === 403) { fatal('Este link ya no es válido. Copia uno nuevo desde el dashboard de MuffetBot.'); return false; }
+    if (r.status === 429) { toast('Demasiado rápido, espera un momento'); return false; }
+    const j = await r.json().catch(() => ({}));
+    if (!j.ok) { toast('No se pudo, intenta de nuevo'); return false; }
+    return true;
+  } catch (e) { toast('Sin conexión'); return false; }
+}
+
+$('bPlay').onclick = async () => {
+  const st = S && S.status; if (!st) return;
+  const act = st.state === 'paused' ? 'play' : 'pause';
+  $('bPlay').textContent = act === 'play' ? '⏸' : '▶'; // respuesta inmediata; el overlay confirma en ~3 s
+  if (await control(act)) { st.state = act === 'play' ? 'playing' : 'paused'; T0 = Date.now(); S.now = st.ts; render(); }
+  else render();
+};
+$('bSkip').onclick = async () => { if (await control('skip')) toast('Saltando…'); };
+$('vol').addEventListener('pointerdown', () => { draggingVol = true; });
+window.addEventListener('pointerup', () => { draggingVol = false; });
+$('vol').oninput = () => {
+  const v = parseInt($('vol').value); $('volTxt').textContent = v + '%'; pendingVol = v;
+  clearTimeout(volTimer);
+  volTimer = setTimeout(async () => { const x = pendingVol; await control('volume', { value: x }); if (S) S.volume = x; }, 250);
+};
+$('bClear').onclick = async () => {
+  const b = $('bClear');
+  if (!clearArmed || Date.now() - clearArmed > 3000) { clearArmed = Date.now(); b.classList.add('sure'); b.textContent = '¿Seguro?'; setTimeout(() => { if (Date.now() - clearArmed >= 2900) { clearArmed = 0; b.classList.remove('sure'); b.textContent = 'Vaciar cola'; } }, 3000); return; }
+  clearArmed = 0; b.classList.remove('sure'); b.textContent = 'Vaciar cola';
+  if (await control('clear')) { toast('Cola vaciada'); poll(); }
+};
+$('queue').onclick = async (e) => {
+  const btn = e.target.closest('button[data-act]'); if (!btn) return;
+  btn.disabled = true;
+  const ok = btn.dataset.act === 'playnow' ? await control('playnow') : await control('remove', { videoId: btn.dataset.id });
+  if (ok) { toast(btn.dataset.act === 'playnow' ? 'Sonará enseguida' : 'Quitada'); poll(); } else btn.disabled = false;
+};
+
+if (!channel || !key) fatal('Falta el link completo. Copia el link del dock desde el dashboard de MuffetBot.');
+else { poll(); setInterval(poll, 2500); setInterval(tick, 500); document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); }); }
+</script>
+</body>
+</html>
