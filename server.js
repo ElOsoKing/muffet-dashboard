@@ -2387,6 +2387,97 @@ app.post('/api/youtube/control', async (req, res) => {
   } catch(e) { res.json({ ok: false }); }
 });
 
+// ── Dock de OBS: panel de control para "Docks → Docks de navegador personalizados" ──
+// Su propia clave (distinta a la del overlay) va en el link del dock; se puede regenerar (dock_rev) si se filtra.
+function dockKey(channel, rev) {
+  return crypto.createHmac('sha256', YT_OVERLAY_SECRET).update(`dock:${String(channel || '').toLowerCase()}:${Number(rev) || 0}`).digest('hex').slice(0, 32);
+}
+async function dockAuth(channel, key) {
+  if (!channel || !isValidString(key, 80)) return null;
+  const cfg = await ytReadConfig(channel);
+  const a = Buffer.from(String(key)), b = Buffer.from(dockKey(channel, cfg.dock_rev));
+  return (a.length === b.length && crypto.timingSafeEqual(a, b)) ? cfg : null;
+}
+const _dockHits = {};
+function dockRateOk(channel) { // tope por canal: 40 acciones cada 10 s
+  const now = Date.now(), arr = (_dockHits[channel] || []).filter(t => now - t < 10000);
+  if (arr.length >= 40) { _dockHits[channel] = arr; return false; }
+  arr.push(now); _dockHits[channel] = arr; return true;
+}
+app.get('/dock/:channel', (req, res) => {
+  res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' });
+  res.sendFile(path.join(__dirname, 'dock.html'));
+});
+app.get('/api/dock/url', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const u = username.toLowerCase();
+  try {
+    const cfg = await ytReadConfig(u);
+    res.json({ ok: true, url: `${BASE_URL}/dock/${u}?key=${dockKey(u, cfg.dock_rev)}` });
+  } catch (e) { res.json({ ok: false }); }
+});
+app.post('/api/dock/regenerate', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const u = username.toLowerCase();
+  try {
+    const r = await ytMutate(u, (cfg) => { cfg.dock_rev = (Number(cfg.dock_rev) || 0) + 1; });
+    if (!r.ok) return res.json({ ok: false });
+    res.json({ ok: true, url: `${BASE_URL}/dock/${u}?key=${dockKey(u, r.config.dock_rev)}` });
+  } catch (e) { res.json({ ok: false }); }
+});
+app.get('/api/dock/:channel/state', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const channel = String(req.params.channel || '').toLowerCase();
+  try {
+    const cfg = await dockAuth(channel, req.query.key);
+    if (!cfg) return res.status(403).json({ ok: false, error: 'key' });
+    const st = ytLiveStatus[channel];
+    const online = !!st && Date.now() - st.ts < 12000;
+    const queue = (Array.isArray(cfg.queue) ? cfg.queue : []).slice(0, 25).map(q => ({
+      videoId: q.videoId, title: String(q.title || '').slice(0, 200), requestedBy: q.requestedBy || null, durationSec: q.durationSec || null
+    }));
+    res.json({
+      ok: true, now: Date.now(), online, status: online ? st : null,
+      queue, total: (cfg.queue || []).length, volume: cfg.volume ?? 100,
+      shuffle: !!cfg.playlist_shuffle, loop: cfg.playlist_loop !== false
+    });
+  } catch (e) { res.status(500).json({ ok: false }); }
+});
+app.post('/api/dock/:channel/control', async (req, res) => {
+  const channel = String(req.params.channel || '').toLowerCase();
+  try {
+    const cfg0 = await dockAuth(channel, req.body?.key || req.query.key);
+    if (!cfg0) return res.status(403).json({ ok: false, error: 'key' });
+    if (!dockRateOk(channel)) return res.status(429).json({ ok: false, error: 'rate' });
+    const { action, value, videoId } = req.body || {};
+    if (!['pause', 'play', 'skip', 'volume', 'playnow', 'remove', 'clear'].includes(action)) return res.json({ ok: false, error: 'accion' });
+    if (action === 'remove' && !isValidString(videoId, 20)) return res.json({ ok: false, error: 'videoId' });
+    const r = await ytMutate(channel, (cfg) => {
+      if (action === 'volume') {
+        const v = parseInt(value);
+        cfg.volume = Math.max(0, Math.min(100, isNaN(v) ? 0 : v)); // el volumen no toca player_command_ts (si no, el overlay repetiría el último comando)
+      } else if (action === 'playnow') {
+        cfg.force_next = true;
+      } else if (action === 'clear') {
+        cfg.queue = []; cfg.song_limits = {}; cfg.force_next = false;
+        cfg.player_command = 'stop'; cfg.player_command_ts = Date.now();
+      } else if (action === 'remove') {
+        const idx = (cfg.queue || []).findIndex(q => q.videoId === videoId);
+        if (idx < 0) return { abort: true, reason: 'gone' };
+        const st = ytLiveStatus[channel];
+        const playingNow = idx === 0 && st && Date.now() - st.ts < 12000 && st.source === 'viewer' && st.videoId === videoId;
+        if (playingNow) { cfg.player_command = 'skip'; cfg.player_command_ts = Date.now(); return { skipped: true }; }
+        ytRemoveFromQueue(cfg, idx);
+      } else {
+        cfg.player_command = action; cfg.player_command_ts = Date.now();
+      }
+    });
+    res.json({ ok: r.ok || r.reason === 'gone', skipped: !!r.skipped });
+  } catch (e) { res.json({ ok: false }); }
+});
+
 // Reproducir ya la primera canción de la cola (salta la playlist base)
 app.post('/api/youtube/queue/playnow', async (req, res) => {
   const username = req.session?.user?.username;
