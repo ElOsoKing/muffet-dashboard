@@ -840,6 +840,8 @@ function renderYouTubeConfig() {
             <button type="button" onclick="openYouTubeThemeGallery()" style="padding:7px 16px;background:#1ed760;border:none;border-radius:16px;color:#000;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);">🎨 Ver estilos</button>
           </div>
           <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Funciona con el video y con «solo título». Con un estilo activo, la barra de progreso y el título van dentro de la tarjeta.</div>
+          <div data-look-kind="youtube" style="margin-top:12px;">${overlayLookControls('youtube', yt)}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Vertical y disco se ven mejor con «solo título». Con video a la vista, la miniatura se oculta (el video ya es la imagen) y el texto queda centrado debajo.</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
@@ -1028,6 +1030,8 @@ async function saveYouTubeConfig() {
     playlist_loop: document.getElementById('ytLoop') ? document.getElementById('ytLoop').checked : yt.playlist_loop !== false,
     display_mode: document.getElementById('ytDisplayMode')?.value || yt.display_mode || 'video',
     theme: yt.theme || 'classic',
+    layout: yt.layout || 'horizontal',
+    cover: yt.cover || 'square',
   };
   streamerData.youtube_config = { ...yt, ...settings };
   try {
@@ -6834,7 +6838,7 @@ const SPOTIFY_THEME_GROUPS = [
   ['Exclusivos MuffetBot ✨', [['muffet','Telaraña','Morado, rosa y arañita'],['osoking','Rey Pixel','Pixel art con corona'],['undertale','Diálogo retro','Caja blanca y negra']]],
   ['Exclusivo de Wolf 🐺', [['wolf','Lobo Rey','Glitch rojo con el lobo coronado']]]
 ];
-const WOLF_THEME_CHANNELS = ['lordlonelywolf', 'elosoking1']; // diseño hecho a medida: solo se ofrece a estos canales (y solo en Spotify por ahora)
+const WOLF_THEME_CHANNELS = ['lordlonelywolf', 'elosoking1']; // diseño hecho a medida: solo se ofrece a estos canales
 function spotifyThemeName(id) {
   for (const [, items] of SPOTIFY_THEME_GROUPS) { const f = items.find(t => t[0] === id); if (f) return f[1]; }
   return 'Clásico';
@@ -6853,11 +6857,11 @@ function openThemeGallery(kind) {
   const g = THEME_GALLERY[kind];
   const current = g.current();
   const lk = kind === 'youtube' ? streamerData.youtube_config : streamerData.spotify_config;
-  const lookOn = kind === 'spotify'; // YouTube todavía no tiene vertical/disco
-  const vert = lookOn && lk?.layout === 'vertical';
+  const lookOn = true;
+  const vert = lk?.layout === 'vertical';
   const demoQs = lookOn ? `&layout=${vert ? 'vertical' : 'horizontal'}&cover=${lk?.cover === 'disc' ? 'disc' : 'square'}` : '';
   const user = (typeof userData !== 'undefined' && userData.username) ? userData.username : '';
-  const wolfOk = kind === 'spotify' && WOLF_THEME_CHANNELS.includes(String(user).toLowerCase());
+  const wolfOk = WOLF_THEME_CHANNELS.includes(String(user).toLowerCase());
   const cards = SPOTIFY_THEME_GROUPS.filter(([group]) => wolfOk || !group.startsWith('Exclusivo de Wolf')).map(([group, items]) => `
     <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.6px;margin:18px 0 8px;">${group}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">
