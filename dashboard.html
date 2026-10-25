@@ -514,7 +514,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
       <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin <span class="pro-badge" id="badge-primerin" style="display:none;">PRO</span></div>
-      <div class="nav-item" onclick="showSection('emojigame')"><span class="nav-icon">🎬</span> Emoji Game <span class="pro-badge" id="badge-emojigame" style="display:none;">PRO</span></div>
+      <div class="nav-item" onclick="showSection('emojigame')"><span class="nav-icon">🎮</span> Mini juegos <span class="pro-badge" id="badge-emojigame" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('mediaalerts')"><span class="nav-icon">🔊</span> Alertas multimedia <span class="pro-badge" id="badge-mediaalerts" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('subathon')"><span class="nav-icon">⏱️</span> Subatón <span class="pro-badge" id="badge-subathon" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
@@ -3002,17 +3002,17 @@ function renderMain() {
     ${s.plan!=='pro'&&s.plan!=='admin'?`
     <div class="pro-lock-overlay">
       <div class="pro-lock-badge">⭐ Función Pro</div>
-      <div class="pro-lock-text">El Emoji Game es exclusivo del plan Pro.</div>
+      <div class="pro-lock-text">Los mini juegos son exclusivos del plan Pro.</div>
       <a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
     </div>`:''}
     <div class="page-header">
-      <div class="page-title">🎬 Emoji Game & 🔴 Pokédle</div>
-      <div class="page-subtitle">La IA genera retos de adivinar con emojis, y el Pokédle diario reta a todo el chat a adivinar el Pokémon del día</div>
+      <div class="page-title">🎮 Mini juegos</div>
+      <div class="page-subtitle">Juegos para que el chat compita: Emoji Game (retos con emojis generados por IA), Pokédle (Pokémon cada 12 horas)${DBDLE_CHANNELS.includes((s.twitch_username||'').toLowerCase())?' y DBDle (asesino cada 12 horas)':''}</div>
     </div>
 
     <!-- Ejemplo visual -->
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">👀 Cómo se ve en el chat</span></div>
+      <div class="panel-header"><span class="panel-title-text">👀 Emoji Game — cómo se ve en el chat</span></div>
       <div class="panel-body">
         <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px 16px;font-family:var(--mono,monospace);font-size:13px;line-height:1.8;">
           <div style="color:var(--text-dim);">Viewer1: <span style="color:var(--text);">!emojigame</span></div>
@@ -3026,7 +3026,7 @@ function renderMain() {
 
     <!-- Configuración -->
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
+      <div class="panel-header"><span class="panel-title-text">⚙️ Emoji Game — configuración</span></div>
       <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
         <div class="toggle-row">
           <div><div class="toggle-label">Emoji Game activo</div><div class="toggle-sub">Permite que el chat use !emojigame</div></div>
