@@ -833,6 +833,14 @@ function renderYouTubeConfig() {
           </select>
           <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">«Solo título» muestra la portada, el nombre de la canción y la barra de progreso. La música suena igual. El alto de abajo solo cuenta en modo video.</div>
         </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Estilo del overlay</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span id="youtubeThemeCurrent" style="font-size:13px;font-weight:700;color:var(--text);padding:6px 12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:16px;">${spotifyThemeName(yt.theme || 'classic')}</span>
+            <button type="button" onclick="openYouTubeThemeGallery()" style="padding:7px 16px;background:#1ed760;border:none;border-radius:16px;color:#000;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);">🎨 Ver estilos</button>
+          </div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Funciona con el video y con «solo título». Con un estilo activo, la barra de progreso y el título van dentro de la tarjeta.</div>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Ancho del overlay (px)</div>
@@ -1019,6 +1027,7 @@ async function saveYouTubeConfig() {
     playlist_shuffle: document.getElementById('ytShuffle') ? document.getElementById('ytShuffle').checked : !!yt.playlist_shuffle,
     playlist_loop: document.getElementById('ytLoop') ? document.getElementById('ytLoop').checked : yt.playlist_loop !== false,
     display_mode: document.getElementById('ytDisplayMode')?.value || yt.display_mode || 'video',
+    theme: yt.theme || 'classic',
   };
   streamerData.youtube_config = { ...yt, ...settings };
   try {
@@ -6831,19 +6840,27 @@ function spotifyThemeName(id) {
   return 'Clásico';
 }
 
-// Galería de estilos en una ventana aparte (las vistas previas solo se cargan al abrirla)
-function openSpotifyThemeGallery() {
+// Galería de estilos en una ventana aparte (las vistas previas solo se cargan al abrirla).
+// kind: 'spotify' | 'youtube' — cada overlay tiene su propio modo demo (?demo=estilo)
+const THEME_GALLERY = {
+  spotify: { title: 'Spotify', current: () => streamerData.spotify_config?.theme || 'classic', demo: u => `/overlay/spotify/${u}?demo=` },
+  youtube: { title: 'YouTube', current: () => streamerData.youtube_config?.theme || 'classic', demo: u => `/overlay/youtube/${u}?demo=` }
+};
+function openSpotifyThemeGallery() { openThemeGallery('spotify'); }
+function openYouTubeThemeGallery() { openThemeGallery('youtube'); }
+function openThemeGallery(kind) {
   closeSpotifyThemeGallery();
-  const current = streamerData.spotify_config?.theme || 'classic';
+  const g = THEME_GALLERY[kind];
+  const current = g.current();
   const user = (typeof userData !== 'undefined' && userData.username) ? userData.username : '';
   const cards = SPOTIFY_THEME_GROUPS.map(([group, items]) => `
     <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.6px;margin:18px 0 8px;">${group}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">
       ${items.map(([id, name, desc]) => {
         const on = current === id;
-        return `<button type="button" data-theme-id="${id}" onclick="saveSpotifyTheme('${id}')" style="text-align:left;padding:0;border-radius:12px;cursor:pointer;font-family:var(--sans);overflow:hidden;background:var(--bg3);border:2px solid ${on ? '#1ed760' : 'rgba(255,255,255,0.08)'};color:var(--text);">
+        return `<button type="button" data-theme-id="${id}" onclick="saveOverlayTheme('${kind}','${id}')" style="text-align:left;padding:0;border-radius:12px;cursor:pointer;font-family:var(--sans);overflow:hidden;background:var(--bg3);border:2px solid ${on ? '#1ed760' : 'rgba(255,255,255,0.08)'};color:var(--text);">
           <div style="position:relative;width:100%;height:96px;overflow:hidden;background:linear-gradient(135deg,#2a2d3a,#14151c);">
-            <iframe loading="lazy" tabindex="-1" src="/overlay/spotify/${user}?demo=${id}" style="position:absolute;left:50%;top:50%;width:460px;height:150px;border:0;transform:translate(-50%,-50%) scale(0.52);pointer-events:none;background:transparent;" title="${name}"></iframe>
+            <iframe loading="lazy" tabindex="-1" src="${g.demo(user)}${id}" style="position:absolute;left:50%;top:50%;width:460px;height:150px;border:0;transform:translate(-50%,-50%) scale(0.52);pointer-events:none;background:transparent;" title="${name}"></iframe>
           </div>
           <div style="padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
             <div><div style="font-size:12px;font-weight:700;">${name}</div><div style="font-size:10px;color:var(--text-dim);margin-top:1px;">${desc}</div></div>
@@ -6857,7 +6874,7 @@ function openSpotifyThemeGallery() {
   wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:20px;';
   wrap.innerHTML = `<div style="background:var(--bg2, #181a22);border:1px solid rgba(255,255,255,0.1);border-radius:16px;width:100%;max-width:960px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);">
-      <div><div style="font-size:15px;font-weight:800;">🎨 Estilos del overlay de Spotify</div>
+      <div><div style="font-size:15px;font-weight:800;">🎨 Estilos del overlay de ${g.title}</div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Toca uno para activarlo. Los de color toman los tonos de la portada de cada canción.</div></div>
       <button type="button" onclick="closeSpotifyThemeGallery()" style="background:transparent;border:none;color:var(--text);font-size:22px;cursor:pointer;line-height:1;">✕</button>
     </div>
@@ -6873,25 +6890,33 @@ function closeSpotifyThemeGallery() {
   document.removeEventListener('keydown', spotifyThemeEsc);
 }
 
-async function saveSpotifyTheme(theme) {
-  const current = streamerData.spotify_config || {};
-  const config = { ...current, theme };
-  const res = await fetch('/api/spotify/config', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ spotify_config: config })
-  });
-  if (!res.ok) { showToast('Error al guardar el estilo', 'error'); return; }
-  streamerData.spotify_config = config;
+async function saveOverlayTheme(kind, theme) {
+  let ok = false;
+  if (kind === 'youtube') {
+    streamerData.youtube_config = { ...(streamerData.youtube_config || {}), theme };
+    ok = await saveYouTubeConfig();
+  } else {
+    const config = { ...(streamerData.spotify_config || {}), theme };
+    const res = await fetch('/api/spotify/config', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ spotify_config: config })
+    });
+    ok = res.ok;
+    if (ok) streamerData.spotify_config = config;
+    else showToast('Error al guardar el estilo', 'error');
+  }
+  if (!ok) return;
   document.querySelectorAll('#spotifyThemeModal [data-theme-id]').forEach(b => {
     const on = b.dataset.themeId === theme;
     b.style.borderColor = on ? '#1ed760' : 'rgba(255,255,255,0.08)';
     const chk = b.querySelector('.theme-check');
     if (chk) chk.textContent = on ? '✓ Activo' : '';
   });
-  const cur = document.getElementById('spotifyThemeCurrent');
+  const cur = document.getElementById(kind === 'youtube' ? 'youtubeThemeCurrent' : 'spotifyThemeCurrent');
   if (cur) cur.textContent = spotifyThemeName(theme);
-  showToast('Estilo guardado ✓ (el overlay lo aplica en unos segundos)');
+  if (kind === 'spotify') showToast('Estilo guardado ✓ (el overlay lo aplica en unos segundos)');
 }
+async function saveSpotifyTheme(theme) { return saveOverlayTheme('spotify', theme); }
 
 async function saveSpotifyBgOpacity() {
   const bgOpacity = parseInt(document.getElementById('spotifyBgOpacity')?.value) ?? 75;
