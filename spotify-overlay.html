@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spotify Overlay</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Mr+Dafoe&family=Orbitron:wght@500;700&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Mr+Dafoe&family=Orbitron:wght@500;700&family=VT323&family=Press+Start+2P&family=Cinzel:wght@700&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -394,6 +394,71 @@ body[data-theme="line"] .deco .grid { left: auto; right: 10px; }
 body[data-theme="line"] .artist-name, body[data-theme="line"] .label { color: rgba(255, 255, 255, 0.75); }
 body[data-theme="line"] .label-dot { background: #fff; }
 body[data-theme="line"] .progress-bar { background: #fff; box-shadow: none; }
+
+/* ══════════ Estilos propios de MuffetBot ══════════ */
+body[data-theme="muffet"] .deco, body[data-theme="osoking"] .deco, body[data-theme="undertale"] .deco { display: block; }
+body[data-theme="muffet"] .widget::before, body[data-theme="muffet"] .widget::after,
+body[data-theme="osoking"] .widget::before, body[data-theme="osoking"] .widget::after,
+body[data-theme="undertale"] .widget::before, body[data-theme="undertale"] .widget::after,
+body[data-theme="muffet"] .spotify-badge, body[data-theme="osoking"] .spotify-badge, body[data-theme="undertale"] .spotify-badge { display: none; }
+body[data-theme="muffet"] .widget, body[data-theme="osoking"] .widget, body[data-theme="undertale"] .widget {
+  width: 400px; min-height: 100px; padding: 14px 20px 14px 14px; gap: 16px; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+
+/* Telaraña: morado y rosa, telarañas en las esquinas y una arañita en la barra */
+body[data-theme="muffet"] { --track: rgba(255, 140, 200, 0.18); }
+body[data-theme="muffet"] .widget {
+  background: linear-gradient(135deg, rgba(36, 10, 58, var(--bg-opacity, 0.9)), rgba(86, 22, 92, var(--bg-opacity, 0.9)));
+  border: 1.5px solid rgba(197, 139, 255, 0.75); border-radius: 18px;
+  box-shadow: 0 8px 26px rgba(0,0,0,.4), inset 0 0 18px rgba(197, 139, 255, 0.25);
+}
+body[data-theme="muffet"] .deco .city { display: block; top: 0; right: 0; width: 86px; height: 86px; transform: scaleX(-1); background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='none' stroke='%23e0b3ff' stroke-width='1.2' stroke-linecap='round'><path d='M0 0L100 0M0 0L92 38M0 0L72 72M0 0L38 92M0 0L0 100'/><path d='M24 0Q21 21 0 24M46 0Q39 39 0 46M70 0Q58 58 0 70M94 0Q76 76 0 94'/></g></svg>") center / contain no-repeat; opacity: 0.5; }
+body[data-theme="muffet"] .deco .grid { display: block; bottom: 0; left: 0; width: 70px; height: 70px; transform: scaleY(-1); background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='none' stroke='%23e0b3ff' stroke-width='1.2' stroke-linecap='round'><path d='M0 0L100 0M0 0L92 38M0 0L72 72M0 0L38 92M0 0L0 100'/><path d='M24 0Q21 21 0 24M46 0Q39 39 0 46M70 0Q58 58 0 70M94 0Q76 76 0 94'/></g></svg>") center / contain no-repeat; opacity: 0.32; }
+body[data-theme="muffet"] .album-art { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 0 0 2px #ff8cc8, 0 0 16px rgba(255, 110, 190, 0.55); }
+body[data-theme="muffet"] .track-name { font-family: "Cinzel", "Inter", serif; font-size: 16px; font-weight: 700; color: #fff; text-shadow: 0 0 10px rgba(255, 140, 200, 0.55); }
+body[data-theme="muffet"] .artist-name { color: #e8c7ff; font-size: 12px; }
+body[data-theme="muffet"] .label { color: #ff8cc8; } body[data-theme="muffet"] .label-dot { background: #ff8cc8; }
+body[data-theme="muffet"] .progress-wrap { height: 2px; background: rgba(255, 140, 200, 0.28); overflow: visible; margin-top: 6px; }
+body[data-theme="muffet"] .progress-bar { position: relative; background: #ff8cc8; box-shadow: 0 0 6px #ff8cc8; }
+body[data-theme="muffet"] .progress-bar::after { content: "\1F577\FE0F"; position: absolute; right: -9px; top: -9px; font-size: 16px; line-height: 1; filter: invert(1) drop-shadow(0 0 4px rgba(255,140,200,.9)); }
+
+/* Rey Pixel: borde de píxeles dorado, osito con corona y barra de bloques */
+body[data-theme="osoking"] { --track: rgba(255, 204, 51, 0.16); }
+body[data-theme="osoking"] .widget {
+  background: rgba(20, 16, 42, var(--bg-opacity, 0.92)); border: none; border-radius: 0; margin: 4px;
+  box-shadow: 0 -4px 0 0 #ffcc33, 0 4px 0 0 #ffcc33, -4px 0 0 0 #ffcc33, 4px 0 0 0 #ffcc33, 0 0 0 8px rgba(0,0,0,0.35);
+  font-family: "Press Start 2P", "Courier New", monospace; image-rendering: pixelated; padding-top: 26px;
+}
+body[data-theme="osoking"] .deco { background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 4px); }
+body[data-theme="osoking"] .deco .stripes { display: block; right: 10px; top: 8px; width: 38px; height: 38px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect x='4' y='1' width='1' height='1' fill='%23ffcc33'/><rect x='7' y='0' width='2' height='2' fill='%23ffcc33'/><rect x='11' y='1' width='1' height='1' fill='%23ffcc33'/><rect x='4' y='2' width='8' height='2' fill='%23ffcc33'/><rect x='2' y='4' width='3' height='3' fill='%238a5a3b'/><rect x='11' y='4' width='3' height='3' fill='%238a5a3b'/><rect x='3' y='5' width='10' height='8' fill='%238a5a3b'/><rect x='6' y='9' width='4' height='3' fill='%23d7a97a'/><rect x='7' y='9' width='2' height='1' fill='%23111'/><rect x='5' y='7' width='1' height='1' fill='%23111'/><rect x='10' y='7' width='1' height='1' fill='%23111'/></svg>") center / contain no-repeat; image-rendering: pixelated; }
+body[data-theme="osoking"] .album-art { width: 72px; height: 72px; border-radius: 0; image-rendering: pixelated; box-shadow: 0 0 0 4px #ffcc33, 4px 4px 0 4px rgba(0,0,0,.45); }
+body[data-theme="osoking"] .album-art-wrap::before { content: ""; position: absolute; top: -20px; left: 50%; margin-left: -16px; width: 32px; height: 22px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' shape-rendering='crispEdges'><rect x='0' y='1' width='2' height='2' fill='%23ffcc33'/><rect x='5' y='0' width='2' height='3' fill='%23ffcc33'/><rect x='10' y='1' width='2' height='2' fill='%23ffcc33'/><rect x='1' y='3' width='10' height='4' fill='%23ffcc33'/><rect x='2' y='4' width='1' height='1' fill='%23d9822b'/><rect x='5' y='4' width='2' height='1' fill='%23d9822b'/><rect x='9' y='4' width='1' height='1' fill='%23d9822b'/><rect x='1' y='7' width='10' height='1' fill='%23d9822b'/></svg>") center / contain no-repeat; z-index: 3; image-rendering: pixelated; }
+body[data-theme="osoking"] .label { font-size: 7px; color: #ffcc33; letter-spacing: 0; margin-bottom: 8px; } body[data-theme="osoking"] .label-dot { background: #ffcc33; border-radius: 0; }
+body[data-theme="osoking"] .track-name { font-size: 11px; line-height: 1.4; color: #fff; font-weight: 400; margin-bottom: 6px; }
+body[data-theme="osoking"] .artist-name { font-size: 8px; color: #b9a6ff; font-weight: 400; margin-bottom: 10px; }
+body[data-theme="osoking"] .info { margin-right: 36px; }
+body[data-theme="osoking"] .progress-wrap { height: 10px; border-radius: 0; background: repeating-linear-gradient(90deg, rgba(255,204,51,.16) 0 8px, transparent 8px 10px); }
+body[data-theme="osoking"] .progress-bar { border-radius: 0; background: repeating-linear-gradient(90deg, #ffcc33 0 8px, transparent 8px 10px); box-shadow: none; transition: width 1s steps(8, end); }
+
+/* Diálogo retro: caja blanca y negra, título "hablado", barra de vida */
+body[data-theme="undertale"] { --track: #b3001b; }
+body[data-theme="undertale"] .widget {
+  background: rgba(0, 0, 0, var(--bg-opacity, 0.95)); border: 4px solid #fff; border-radius: 0;
+  font-family: "VT323", "Courier New", monospace; image-rendering: pixelated; box-shadow: none;
+}
+body[data-theme="undertale"] .deco { display: none; }
+body[data-theme="undertale"] .album-art { width: 72px; height: 72px; border-radius: 0; border: 4px solid #fff; image-rendering: pixelated; }
+body[data-theme="undertale"] .label { font-size: 15px; font-weight: 400; color: #fff; letter-spacing: 0.06em; margin-bottom: 4px; }
+body[data-theme="undertale"] .label-dot { width: 10px; height: 9px; border-radius: 0; background: #ff1f2d; animation: none;
+  clip-path: polygon(0 20%%, 20%% 20%%, 20%% 0, 40%% 0, 40%% 20%%, 60%% 20%%, 60%% 0, 80%% 0, 80%% 20%%, 100%% 20%%, 100%% 60%%, 80%% 60%%, 80%% 80%%, 60%% 80%%, 60%% 100%%, 40%% 100%%, 40%% 80%%, 20%% 80%%, 20%% 60%%, 0 60%%); }
+body[data-theme="undertale"] .track-name { font-size: 25px; font-weight: 400; color: #fff; line-height: 1.05; margin-bottom: 2px; }
+body[data-theme="undertale"] .track-name::before { content: "* "; }
+body[data-theme="undertale"] .artist-name { font-size: 19px; font-weight: 400; color: #ffe94d; margin-bottom: 8px; }
+body[data-theme="undertale"] .track-name.animate { animation: typing 0.9s steps(18, end) forwards; }
+body[data-theme="undertale"] .artist-name.animate { animation: typing 0.7s steps(14, end) 0.5s both; }
+@keyframes typing { from { clip-path: inset(0 100%% 0 0); } to { clip-path: inset(0 0 0 0); } }
+body[data-theme="undertale"] .progress-wrap { height: 14px; border-radius: 0; background: #b3001b; }
+body[data-theme="undertale"] .progress-bar { border-radius: 0; background: #ffe94d; box-shadow: none; }
 </style>
 </head>
 <body>
@@ -431,7 +496,7 @@ let currentTrack = '';
 let progressInterval = null;
 
 
-const THEMES = ['classic', 'glass', 'pill', 'macos', 'minimal', 'synthwave', 'neoncity', 'cyber', 'glitch', 'retro', 'line'];
+const THEMES = ['classic', 'glass', 'pill', 'macos', 'minimal', 'synthwave', 'neoncity', 'cyber', 'glitch', 'retro', 'line', 'muffet', 'osoking', 'undertale'];
 function applyTheme(name) {
   const t = THEMES.includes(name) ? name : 'classic';
   if (document.body.dataset.theme !== t) document.body.dataset.theme = t;
