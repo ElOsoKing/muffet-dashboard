@@ -3363,16 +3363,29 @@ function renderMain() {
             <div style="min-width:44px;text-align:center;font-size:14px;font-weight:800;color:#1ed760;" id="spotifyBgOpacityLabel">${s.spotify_config?.bg_opacity ?? 75}%</div>
             <button onclick="saveSpotifyBgOpacity()" style="padding:6px 14px;background:#1ed760;border:none;border-radius:16px;color:#000;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);">💾</button>
           </div>
-          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-top:18px;margin-bottom:6px;">🎨 Estilo del overlay</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Los estilos con color toman los tonos de la portada de cada canción. Se aplica solo en el overlay, sin tocar OBS.</div>
-          <div id="spotifyThemeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;max-width:520px;">
-            ${[['classic','Clásico','El de siempre, verde'],['glass','Cristal','Colores de la portada'],['pill','Píldora','Cápsula con ▶/⏸'],['macos','macOS','Ventana con puntitos'],['minimal','Minimal','Oscuro y sobrio'],['line','Línea','Negro con rayas blancas'],['retro','Retro','Papel viejo y arcoíris'],['synthwave','Synthwave','Atardecer de neón'],['neoncity','Neon City','Ciudad nocturna'],['cyber','Cyber','Panel HUD cian/magenta'],['glitch','Glitch','Efecto VHS'],['muffet','Telaraña ✨','Morado, rosa y arañita'],['osoking','Rey Pixel ✨','Pixel art con corona'],['undertale','Diálogo retro ✨','Caja blanca y negra']].map(([id,name,desc]) => {
-              const on = (s.spotify_config?.theme || 'classic') === id;
-              return `<button type="button" data-theme-id="${id}" onclick="saveSpotifyTheme('${id}')" style="text-align:left;padding:10px 12px;border-radius:10px;cursor:pointer;font-family:var(--sans);background:${on?'rgba(30,215,96,0.12)':'var(--bg3)'};border:1px solid ${on?'#1ed760':'rgba(255,255,255,0.08)'};color:var(--text);">
-                <div style="font-size:12px;font-weight:700;">${name}</div>
-                <div style="font-size:10px;color:var(--text-dim);margin-top:2px;">${desc}</div>
-              </button>`;
-            }).join('')}
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-top:18px;margin-bottom:6px;">🎨 Galería de estilos del overlay</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:12px;">Toca un estilo para activarlo. Se ve igual que en tu stream; los marcados con color toman los tonos de la portada de cada canción.</div>
+          <div id="spotifyThemeGrid">
+            ${[
+              ['Esenciales', [['classic','Clásico','El de siempre, verde'],['glass','Cristal','Colores de la portada'],['pill','Píldora','Cápsula con ▶/⏸'],['macos','macOS','Ventana con puntitos'],['minimal','Minimal','Oscuro y sobrio'],['line','Línea','Negro con rayas blancas']]],
+              ['Neón y arcade', [['synthwave','Synthwave','Atardecer de neón'],['neoncity','Neon City','Ciudad nocturna'],['cyber','Cyber','Panel HUD cian/magenta'],['glitch','Glitch','Efecto VHS'],['retro','Retro','Papel viejo y arcoíris']]],
+              ['Exclusivos MuffetBot ✨', [['muffet','Telaraña','Morado, rosa y arañita'],['osoking','Rey Pixel','Pixel art con corona'],['undertale','Diálogo retro','Caja blanca y negra']]]
+            ].map(([group, items]) => `
+              <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.6px;margin:14px 0 8px;">${group}</div>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;">
+                ${items.map(([id,name,desc]) => {
+                  const on = (s.spotify_config?.theme || 'classic') === id;
+                  return `<button type="button" data-theme-id="${id}" onclick="saveSpotifyTheme('${id}')" style="text-align:left;padding:0;border-radius:12px;cursor:pointer;font-family:var(--sans);overflow:hidden;background:var(--bg3);border:2px solid ${on?'#1ed760':'rgba(255,255,255,0.08)'};color:var(--text);transition:border-color .15s,transform .15s;">
+                    <div style="position:relative;width:100%;height:96px;overflow:hidden;background:linear-gradient(135deg,#2a2d3a,#14151c);">
+                      <iframe loading="lazy" tabindex="-1" src="/overlay/spotify/${userData.username}?demo=${id}" style="position:absolute;left:50%;top:50%;width:460px;height:150px;border:0;transform:translate(-50%,-50%) scale(0.52);pointer-events:none;background:transparent;" title="${name}"></iframe>
+                    </div>
+                    <div style="padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                      <div><div style="font-size:12px;font-weight:700;">${name}</div><div style="font-size:10px;color:var(--text-dim);margin-top:1px;">${desc}</div></div>
+                      <span class="theme-check" style="font-size:11px;font-weight:800;color:#1ed760;white-space:nowrap;">${on?'✓ Activo':''}</span>
+                    </div>
+                  </button>`;
+                }).join('')}
+              </div>`).join('')}
           </div>
         </div>` : `
         <a href="/auth/spotify" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;background:#1ed760;color:black;font-weight:700;font-size:13px;padding:10px 22px;border-radius:24px;transition:all 0.15s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">
@@ -6838,8 +6851,9 @@ async function saveSpotifyTheme(theme) {
   streamerData.spotify_config = config;
   document.querySelectorAll('#spotifyThemeGrid [data-theme-id]').forEach(b => {
     const on = b.dataset.themeId === theme;
-    b.style.background = on ? 'rgba(30,215,96,0.12)' : 'var(--bg3)';
     b.style.borderColor = on ? '#1ed760' : 'rgba(255,255,255,0.08)';
+    const chk = b.querySelector('.theme-check');
+    if (chk) chk.textContent = on ? '✓ Activo' : '';
   });
   showToast('Estilo guardado ✓ (el overlay lo aplica en unos segundos)');
 }
