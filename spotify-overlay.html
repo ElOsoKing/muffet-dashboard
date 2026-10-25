@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spotify Overlay</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Mr+Dafoe&family=Orbitron:wght@500;700&family=VT323&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -276,11 +276,130 @@ body[data-theme="minimal"] .label { color: rgba(255,255,255,0.55); }
 body[data-theme="minimal"] .label-dot { background: #fff; }
 body[data-theme="minimal"] .progress-bar { background: #fff; box-shadow: none; }
 body[data-theme="minimal"] .eq-icon { display: flex; }
+
+/* ══════════ Estilos con diseño propio (colores fijos, decoración animada) ══════════ */
+:root { --skyline: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60'><path d='M0 60V33h12V60zM12 60V8h8V60zM15 8v-8h2V8zM20 60V29h16V60zM27 29v-7h2V29zM38 60V27h8V60zM41 27v-7h2V27zM46 60V35h16V60zM62 60V5h16V60zM78 60V7h8V60zM87 60V33h14V60zM102 60V31h16V60zM109 31v-8h2V31zM118 60V36h12V60zM130 60V39h16V60zM148 60V8h18V60zM167 60V5h14V60zM182 60V27h12V60zM194 60V6h8V60zM204 60V14h12V60zM209 14v-4h2V14zM216 60V16h16V60zM223 16v-6h2V16zM232 60V16h14V60zM238 16v-9h2V16z'/></svg>"); }
+.deco, .deco i { position: absolute; pointer-events: none; }
+.deco { inset: 0; z-index: 0; overflow: hidden; border-radius: inherit; display: none; }
+.deco i { display: none; }
+.widget > .album-art-wrap, .widget > .info, .widget > .pill-btn { position: relative; z-index: 1; }
+body[data-theme="synthwave"] .deco, body[data-theme="neoncity"] .deco, body[data-theme="cyber"] .deco,
+body[data-theme="retro"] .deco, body[data-theme="glitch"] .deco, body[data-theme="line"] .deco { display: block; }
+body[data-theme="synthwave"] .widget::before, body[data-theme="synthwave"] .widget::after,
+body[data-theme="neoncity"] .widget::before, body[data-theme="neoncity"] .widget::after,
+body[data-theme="cyber"] .widget::before, body[data-theme="cyber"] .widget::after,
+body[data-theme="retro"] .widget::before, body[data-theme="retro"] .widget::after,
+body[data-theme="glitch"] .widget::before, body[data-theme="glitch"] .widget::after,
+body[data-theme="line"] .widget::before, body[data-theme="line"] .widget::after { display: none; }
+body[data-theme="synthwave"] .spotify-badge, body[data-theme="neoncity"] .spotify-badge, body[data-theme="cyber"] .spotify-badge,
+body[data-theme="retro"] .spotify-badge, body[data-theme="glitch"] .spotify-badge, body[data-theme="line"] .spotify-badge { display: none; }
+body[data-theme="synthwave"] .widget, body[data-theme="neoncity"] .widget, body[data-theme="cyber"] .widget,
+body[data-theme="retro"] .widget, body[data-theme="glitch"] .widget, body[data-theme="line"] .widget {
+  width: 390px; min-height: 104px; padding: 14px 18px 14px 14px; gap: 16px; backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+body[data-theme="synthwave"] .album-art, body[data-theme="neoncity"] .album-art, body[data-theme="cyber"] .album-art,
+body[data-theme="retro"] .album-art, body[data-theme="glitch"] .album-art, body[data-theme="line"] .album-art {
+  width: 72px; height: 72px; border-radius: 50%; box-shadow: 0 0 0 3px var(--ring, #fff), 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.widget .progress-wrap { background: var(--track, rgba(255,255,255,0.12)); }
+
+/* Synthwave: atardecer de neón con piso cuadriculado y título cursivo */
+body[data-theme="synthwave"] { --ring: #2b0a3d; --track: rgba(255, 43, 214, 0.18); }
+body[data-theme="synthwave"] .widget { background: rgba(18, 4, 34, var(--bg-opacity, 0.85)); border: 2px solid #ff2bd6; box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 14px rgba(255, 43, 214, 0.55); }
+body[data-theme="synthwave"] .deco { background: linear-gradient(to bottom, rgba(40, 6, 70, 0.6), rgba(90, 10, 90, 0.5)); }
+body[data-theme="synthwave"] .deco .sun {
+  display: block; width: 118px; height: 118px; left: 84px; top: -26px; border-radius: 50%;
+  background: linear-gradient(to bottom, #ffd23f 10%, #ff7b2e 45%, #ff2a8a 80%);
+  -webkit-mask: linear-gradient(#000 52%, transparent 52%), repeating-linear-gradient(to bottom, #000 0 7%, transparent 7% 11%);
+  filter: drop-shadow(0 0 10px rgba(255, 90, 140, 0.6));
+}
+body[data-theme="synthwave"] .deco .grid {
+  display: block; left: -40%; right: -40%; bottom: -2px; height: 55%;
+  background: repeating-linear-gradient(90deg, rgba(255, 43, 214, 0.75) 0 1px, transparent 1px 26px), repeating-linear-gradient(0deg, rgba(255, 43, 214, 0.75) 0 1px, transparent 1px 13px);
+  transform: perspective(90px) rotateX(48deg); transform-origin: bottom;
+  -webkit-mask: linear-gradient(to top, #000 10%, transparent 95%);
+}
+body[data-theme="synthwave"] .track-name { font-family: "Mr Dafoe", "Brush Script MT", cursive; font-weight: 400; font-size: 28px; line-height: 1.1; color: #ff3fdc; text-shadow: 0 0 10px rgba(255, 43, 214, 0.85); padding-right: 6px; }
+body[data-theme="synthwave"] .artist-name { color: #35e0ff; text-shadow: 0 0 6px rgba(53, 224, 255, 0.6); font-size: 12px; }
+body[data-theme="synthwave"] .label { color: #35e0ff; } body[data-theme="synthwave"] .label-dot { background: #35e0ff; }
+body[data-theme="synthwave"] .progress-wrap { height: 6px; border: 1px solid rgba(255, 43, 214, 0.7); border-radius: 4px; }
+body[data-theme="synthwave"] .progress-bar { background: #ff2bd6; box-shadow: 0 0 8px #ff2bd6; }
+
+/* Neon City: noche morada con sol de rayas y edificios */
+body[data-theme="neoncity"] { --ring: #ff3fd8; --track: rgba(47, 224, 255, 0.25); }
+body[data-theme="neoncity"] .widget { background: linear-gradient(115deg, rgba(14, 10, 52, var(--bg-opacity, 0.85)), rgba(36, 10, 72, var(--bg-opacity, 0.85))); border: 1.5px solid rgba(160, 90, 255, 0.85); box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 14px rgba(140, 70, 255, 0.4); }
+body[data-theme="neoncity"] .deco .sun {
+  display: block; width: 104px; height: 104px; right: 40px; top: -6px; border-radius: 50%;
+  background: linear-gradient(to bottom, #ff3f8e 20%, #ff7a45 75%);
+  -webkit-mask: linear-gradient(#000 45%, transparent 45%), repeating-linear-gradient(to bottom, #000 0 8%, transparent 8% 12%);
+  filter: drop-shadow(0 0 12px rgba(255, 70, 140, 0.55));
+}
+body[data-theme="neoncity"] .deco .city { display: block; right: 0; bottom: 18%; width: 62%; height: 68%; background: linear-gradient(to top, #120a2e, #2b145a); -webkit-mask: var(--skyline) right bottom / auto 100% repeat-x; }
+body[data-theme="neoncity"] .deco .grid { display: block; right: 0; bottom: 0; width: 62%; height: 18%; background: repeating-linear-gradient(to bottom, rgba(255, 63, 216, 0.45) 0 1px, transparent 1px 4px), linear-gradient(to bottom, rgba(90, 30, 140, 0.6), transparent); }
+body[data-theme="neoncity"] .track-name { color: #ff4fe0; text-shadow: 0 0 8px rgba(255, 63, 216, 0.6); }
+body[data-theme="neoncity"] .artist-name, body[data-theme="neoncity"] .label { color: #2fe0ff; }
+body[data-theme="neoncity"] .label-dot { background: #2fe0ff; }
+body[data-theme="neoncity"] .progress-bar { background: #ff3fd8; box-shadow: 0 0 8px #ff3fd8; }
+
+/* Cyber: panel HUD con esquinas cortadas y borde cian→magenta */
+body[data-theme="cyber"] { --ring: #22d3ff; --track: rgba(255, 43, 214, 0.25); --cut: 16px; font-family: "Orbitron", "Eurostile", system-ui, sans-serif; }
+body[data-theme="cyber"] .widget {
+  background: linear-gradient(115deg, #22d3ff, #3a6bff 50%, #ff2bd6); border: none; border-radius: 0; box-shadow: none;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+}
+body[data-theme="cyber"] .deco {
+  inset: 2px; border-radius: 0; background: linear-gradient(120deg, rgba(5, 12, 40, var(--bg-opacity, 0.9)), rgba(20, 8, 50, var(--bg-opacity, 0.9)));
+  clip-path: polygon(calc(var(--cut) - 1px) 0, 100% 0, 100% calc(100% - var(--cut) + 1px), calc(100% - var(--cut) + 1px) 100%, 0 100%, 0 calc(var(--cut) - 1px));
+}
+body[data-theme="cyber"] .deco .city { display: block; right: 0; bottom: 0; width: 60%; height: 80%; opacity: 0.35; background: linear-gradient(to top, #ff2bd6, #3a3bff 60%, #1a1f6b); -webkit-mask: var(--skyline) right bottom / auto 100% repeat-x; }
+body[data-theme="cyber"] .deco .stripes { display: block; top: 6px; right: 26px; width: 46px; height: 5px; background: repeating-linear-gradient(115deg, #22d3ff 0 5px, transparent 5px 9px); }
+body[data-theme="cyber"] .track-name { font-size: 15px; letter-spacing: 0.02em; color: #eaf6ff; text-shadow: 0 0 8px rgba(34, 228, 255, 0.7); }
+body[data-theme="cyber"] .artist-name { font-size: 11px; color: #ff3fd8; text-shadow: 0 0 6px rgba(255, 63, 216, 0.6); }
+body[data-theme="cyber"] .label { color: #22e4ff; letter-spacing: 0.14em; } body[data-theme="cyber"] .label-dot { background: #22e4ff; }
+body[data-theme="cyber"] .album-art { box-shadow: 0 0 0 2px #22d3ff, 0 0 14px rgba(34, 211, 255, 0.7); }
+body[data-theme="cyber"] .progress-wrap { height: 5px; border-radius: 0; }
+body[data-theme="cyber"] .progress-bar { background: #22e4ff; border-radius: 0; box-shadow: 0 0 8px #22e4ff; }
+
+/* Retro: papel viejo con franjas de arcoíris */
+body[data-theme="retro"] { --ring: #1aa3a3; --track: #1c1a17; --rainbow: #d8452f 0 20%, #ec8a2d 20% 40%, #f2c14b 40% 60%, #4aa36c 60% 80%, #2b6f9a 80%; }
+body[data-theme="retro"] .widget { background: rgba(238, 228, 205, var(--bg-opacity, 0.9)); border-radius: 12px; border: none; box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 22px rgba(120, 90, 40, 0.35); }
+body[data-theme="retro"] .deco { background: radial-gradient(circle at 18% 30%, rgba(140, 110, 60, 0.12), transparent 30%), radial-gradient(circle at 70% 80%, rgba(140, 110, 60, 0.1), transparent 35%), radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.3), transparent 30%), repeating-radial-gradient(circle at 40% 60%, rgba(90, 70, 40, 0.05) 0 1px, transparent 1px 4px); }
+body[data-theme="retro"] .deco .stripes { display: block; top: 0; bottom: 0; right: 0; width: 44px; background: linear-gradient(90deg, var(--rainbow)); }
+body[data-theme="retro"] .info { margin-right: 40px; }
+body[data-theme="retro"] .track-name { color: #1c1a17; font-weight: 800; letter-spacing: -0.01em; }
+body[data-theme="retro"] .artist-name { color: #2c2925; font-weight: 600; }
+body[data-theme="retro"] .label { color: #b0412c; } body[data-theme="retro"] .label-dot { background: #b0412c; }
+body[data-theme="retro"] .progress-wrap { height: 7px; border-radius: 4px; border: 1.5px solid #1c1a17; background: transparent; }
+body[data-theme="retro"] .progress-bar { background: #1aa3a3; box-shadow: none; }
+
+/* Glitch / VHS: líneas de barrido, colores corridos y saltos de imagen */
+body[data-theme="glitch"] { --ring: rgba(255, 255, 255, 0.85); --track: rgba(80, 220, 230, 0.25); font-family: "VT323", "Courier New", monospace; }
+body[data-theme="glitch"] .widget { background: rgba(18, 18, 20, var(--bg-opacity, 0.85)); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 12px; }
+body[data-theme="glitch"] .deco { background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.45)); }
+body[data-theme="glitch"] .track-name { font-size: 23px; font-weight: 400; color: #f2f2f2; text-shadow: -2px 0 rgba(255, 40, 80, 0.85), 2px 0 rgba(40, 230, 255, 0.85); animation: glitch 4s steps(1) infinite; }
+body[data-theme="glitch"] .artist-name { font-size: 17px; color: #e6e6e6; text-shadow: -1px 0 rgba(255, 40, 80, 0.7), 1px 0 rgba(40, 230, 255, 0.7); }
+body[data-theme="glitch"] .label { color: #50e6f0; font-size: 13px; font-weight: 400; } body[data-theme="glitch"] .label-dot { background: #50e6f0; }
+body[data-theme="glitch"] .album-art { box-shadow: -3px 0 0 rgba(255, 40, 80, 0.75), 3px 0 0 rgba(40, 230, 255, 0.75), 0 0 0 2px rgba(255, 255, 255, 0.7); animation: glitch-clip 5s steps(1) infinite -1.3s; }
+body[data-theme="glitch"] .progress-wrap { border: 1px solid rgba(80, 220, 230, 0.7); height: 6px; }
+body[data-theme="glitch"] .progress-bar { background: #50e6f0; box-shadow: none; }
+@keyframes glitch-clip { 0%, 91%, 100% { clip-path: none; } 92% { clip-path: inset(10% 0 55% 0); } 94% { clip-path: inset(60% 0 8% 0); } }
+@keyframes glitch { 0%, 91%, 100% { transform: none; clip-path: none; } 92% { transform: translateX(-3px); clip-path: inset(10% 0 55% 0); } 94% { transform: translateX(3px); clip-path: inset(60% 0 8% 0); } 96% { transform: translateX(-1px); } }
+
+/* Line: barra negra con borde blanco y rayas laterales */
+body[data-theme="line"] { --ring: #fff; --track: rgba(255, 255, 255, 0.18); }
+body[data-theme="line"] .widget { background: rgba(0, 0, 0, var(--bg-opacity, 0.85)); border: 2px solid #fff; border-radius: 18px; padding-left: 34px; padding-right: 34px; }
+body[data-theme="line"] .deco .stripes, body[data-theme="line"] .deco .grid { display: block; top: 22%; bottom: 22%; left: 10px; width: 10px; background: repeating-linear-gradient(-55deg, #fff 0 3px, transparent 3px 9px); }
+body[data-theme="line"] .deco .grid { left: auto; right: 10px; }
+body[data-theme="line"] .artist-name, body[data-theme="line"] .label { color: rgba(255, 255, 255, 0.75); }
+body[data-theme="line"] .label-dot { background: #fff; }
+body[data-theme="line"] .progress-bar { background: #fff; box-shadow: none; }
 </style>
 </head>
 <body>
 
 <div class="widget" id="widget">
+  <div class="deco"><i class="sun"></i><i class="grid"></i><i class="city"></i><i class="stripes"></i></div>
   <div class="mac-dots"><span></span><span></span><span></span></div>
   <div class="eq-icon"><i></i><i></i><i></i></div>
   <div class="album-art-wrap">
@@ -312,7 +431,7 @@ let currentTrack = '';
 let progressInterval = null;
 
 
-const THEMES = ['classic', 'glass', 'pill', 'macos', 'minimal'];
+const THEMES = ['classic', 'glass', 'pill', 'macos', 'minimal', 'synthwave', 'neoncity', 'cyber', 'glitch', 'retro', 'line'];
 function applyTheme(name) {
   const t = THEMES.includes(name) ? name : 'classic';
   if (document.body.dataset.theme !== t) document.body.dataset.theme = t;
