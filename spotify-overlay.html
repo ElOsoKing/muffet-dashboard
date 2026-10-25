@@ -457,6 +457,57 @@ body[data-theme="undertale"] .artist-name.animate { animation: typing 0.7s steps
 @keyframes typing { from { clip-path: inset(0 100%% 0 0); } to { clip-path: inset(0 0 0 0); } }
 body[data-theme="undertale"] .progress-wrap { height: 14px; border-radius: 0; background: #b3001b; }
 body[data-theme="undertale"] .progress-bar { border-radius: 0; background: #ffe94d; box-shadow: none; }
+/* ══════════ Distribución vertical y portada de disco (opciones aparte del estilo) ══════════
+   data-layout="vertical": tarjeta alta (portada arriba, textos centrados).
+   data-cover="disc": la portada es la etiqueta de un vinilo que gira mientras suena. */
+.vinyl { display: none; }
+@keyframes disc-spin { to { transform: rotate(360deg); } }
+
+body[data-layout="vertical"] .widget { flex-direction: column; align-items: center; width: 270px; min-height: 0; padding: 18px 18px 16px; gap: 12px; text-align: center; }
+body[data-layout="vertical"][data-theme="pill"] .widget { border-radius: 30px; }
+body[data-layout="vertical"][data-theme="macos"] .widget { padding-top: 30px; }
+body[data-layout="vertical"][data-theme="osoking"] .widget { padding-top: 32px; }
+body[data-layout="vertical"][data-theme="line"] .widget { padding: 18px 34px 16px; }
+body[data-layout="vertical"][data-theme="retro"] .widget { padding-bottom: 30px; }
+body[data-layout="vertical"] .album-art-wrap { width: 76%; }
+body[data-layout="vertical"] .album-art { width: 100%; height: auto; aspect-ratio: 1; }
+body[data-layout="vertical"] .info { flex: none; width: 100%; margin-right: 0; padding-left: 0; }
+body[data-layout="vertical"] .label { justify-content: center; }
+body[data-layout="vertical"] .track-name-wrap, body[data-layout="vertical"] .artist-name-wrap { text-align: center; }
+body[data-layout="vertical"] .pill-btn { display: none; }
+body[data-layout="vertical"][data-theme="minimal"] .album-art-wrap::after { display: none; }
+/* decoración de cada estilo, reacomodada para la tarjeta alta */
+body[data-layout="vertical"][data-theme="synthwave"] .deco .sun { left: 50%; margin-left: -110px; width: 220px; height: 220px; top: -58px; }
+body[data-layout="vertical"][data-theme="neoncity"] .deco .sun { right: auto; left: 50%; margin-left: -100px; width: 200px; height: 200px; top: -52px; bottom: auto; }
+body[data-layout="vertical"][data-theme="neoncity"] .deco .city { width: 100%; height: 34%; bottom: 8%; }
+body[data-layout="vertical"][data-theme="neoncity"] .deco .grid { width: 100%; height: 8%; }
+body[data-layout="vertical"][data-theme="cyber"] .deco .city { width: 100%; height: 34%; }
+body[data-layout="vertical"][data-theme="retro"] .deco .stripes { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 14px; background: linear-gradient(90deg, var(--rainbow)); }
+body[data-layout="vertical"][data-theme="osoking"] .deco .stripes { right: 8px; top: 6px; width: 30px; height: 30px; }
+
+/* Portada de disco */
+body[data-cover="disc"] .spotify-badge { display: none; }
+body[data-cover="disc"] .album-art-wrap { width: 88px; height: 88px; display: grid; place-items: center; }
+body[data-cover="disc"][data-layout="vertical"] .album-art-wrap { width: 76%; height: auto; aspect-ratio: 1; }
+body[data-cover="disc"] .vinyl {
+  display: block; position: absolute; inset: 0; border-radius: 50%; will-change: transform;
+  background:
+    conic-gradient(rgba(255,255,255,0) 0 6%, rgba(255,255,255,0.20) 12%, rgba(255,255,255,0) 20% 50%, rgba(255,255,255,0.20) 62%, rgba(255,255,255,0) 70%),
+    repeating-radial-gradient(circle, #0c0c0d 0 2px, #1b1b1d 2px 3px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.1);
+  animation: disc-spin 5s linear infinite;
+}
+body[data-cover="disc"] .album-art-wrap .album-art {
+  position: relative; z-index: 1; width: 40%; height: 40%; aspect-ratio: 1; border: 0; border-radius: 50%;
+  box-shadow: 0 0 0 2px #0b0b0c; will-change: transform; animation: disc-spin 5s linear infinite;
+}
+body[data-cover="disc"] .album-art-wrap::after {
+  content: ""; display: block; position: absolute; z-index: 2; left: 50%; top: 50%; right: auto; bottom: auto; width: 7%; height: 7%;
+  transform: translate(-50%, -50%); border-radius: 50%; background: #0b0b0c; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.28);
+}
+/* en pausa el disco se queda donde estaba; sin canción no gasta nada */
+.widget.paused .vinyl, .widget.paused .album-art-wrap .album-art,
+.widget.hidden .vinyl, .widget.hidden .album-art-wrap .album-art { animation-play-state: paused; }
 body.demo { align-items: center; justify-content: center; min-height: 100vh; padding: 10px; overflow: hidden; }
 </style>
 </head>
@@ -467,6 +518,7 @@ body.demo { align-items: center; justify-content: center; min-height: 100vh; pad
   <div class="mac-dots"><span></span><span></span><span></span></div>
   <div class="eq-icon"><i></i><i></i><i></i></div>
   <div class="album-art-wrap">
+    <div class="vinyl"></div>
     <img class="album-art" id="albumArt" src="" alt="Album Art">
     <div class="spotify-badge">
       <svg width="10" height="10" viewBox="0 0 24 24" fill="black">
@@ -496,9 +548,17 @@ let progressInterval = null;
 
 
 const THEMES = ['classic', 'glass', 'pill', 'macos', 'minimal', 'synthwave', 'neoncity', 'cyber', 'glitch', 'retro', 'line', 'muffet', 'osoking', 'undertale'];
-function applyTheme(name) {
-  const t = THEMES.includes(name) ? name : 'classic';
-  if (document.body.dataset.theme !== t) document.body.dataset.theme = t;
+// Estilo + distribución (horizontal/vertical) + portada (cuadrada/disco). Devuelve true si cambió la distribución o la portada.
+function applyLook(data) {
+  const b = document.body.dataset;
+  const t = THEMES.includes(data.theme) ? data.theme : 'classic';
+  const l = data.layout === 'vertical' ? 'vertical' : 'horizontal';
+  const c = data.cover === 'disc' ? 'disc' : 'square';
+  const changed = b.layout !== l || b.cover !== c;
+  if (b.theme !== t) b.theme = t;
+  if (b.layout !== l) b.layout = l;
+  if (b.cover !== c) b.cover = c;
+  return changed;
 }
 
 // Color dominante de la portada (saturación pesa más; se oscurece para que el texto blanco se lea)
@@ -589,7 +649,7 @@ function updateWidget(data) {
     return;
   }
 
-  applyTheme(data.theme);
+  const lookChanged = applyLook(data);
   widget.classList.remove('hidden');
   widget.classList.add('visible');
   const opacityVal = (data.overlay_opacity ?? 100) / 100;
@@ -626,6 +686,8 @@ function updateWidget(data) {
     setTimeout(() => setupMarquee(artistEl), 600);
   }
 
+  else if (lookChanged) { setTimeout(() => setupMarquee(trackEl), 700); setTimeout(() => setupMarquee(artistEl), 700); }
+
   // Progreso
   clearInterval(progressInterval);
   let progress = data.progress_ms || 0;
@@ -648,7 +710,7 @@ const demoTheme = new URLSearchParams(location.search).get('demo');
 if (demoTheme) {
   document.body.classList.add('demo');
   const cover = "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff5c8a'/><stop offset='1' stop-color='#6a3cff'/></linearGradient></defs><rect width='100' height='100' fill='url(#g)'/><circle cx='50' cy='46' r='22' fill='#ffd36b'/><rect y='72' width='100' height='28' fill='#1b1f4b'/></svg>");
-  updateWidget({ playing: true, is_playing: true, track: 'Tu canción', artist: 'Tu artista', image: cover, progress_ms: 95000, duration_ms: 240000, overlay_opacity: 100, bg_opacity: 85, theme: demoTheme });
+  updateWidget({ playing: true, is_playing: true, track: 'Tu canción', artist: 'Tu artista', image: cover, progress_ms: 95000, duration_ms: 240000, overlay_opacity: 100, bg_opacity: 85, theme: demoTheme, layout: new URLSearchParams(location.search).get('layout'), cover: new URLSearchParams(location.search).get('cover') });
 } else {
   // Iniciar
   fetchStatus();
