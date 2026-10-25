@@ -133,11 +133,29 @@ const sbHeaders = {
   'Content-Type': 'application/json',
 };
 
-async function sbSelect(table, filters = {}) {
+// cols: columnas a pedir (por defecto todas). Los endpoints que se consultan seguido piden solo las que usan;
+// si Supabase rechaza alguna columna, se reintenta pidiendo todas para no dejar el endpoint sin respuesta.
+async function sbSelect(table, filters = {}, cols = '*') {
   const query = Object.entries(filters).map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}&limit=1`, { headers: sbHeaders });
-  const data = await res.json();
+  const run = async (c) => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}&select=${c}&limit=1`, { headers: sbHeaders });
+    return res.json();
+  };
+  let data = await run(cols);
+  if (!Array.isArray(data) && cols !== '*') data = await run('*');
   return Array.isArray(data) ? data[0] || null : null;
+}
+
+// Caché corta con "una sola consulta a la vez": muchos overlays abiertos preguntando lo mismo comparten una respuesta
+const _ttlCache = new Map(); // key -> { ts, promise }
+function ttlCache(key, ttlMs, fn) {
+  const hit = _ttlCache.get(key);
+  if (hit && Date.now() - hit.ts < ttlMs) return hit.promise;
+  const promise = Promise.resolve().then(fn);
+  _ttlCache.set(key, { ts: Date.now(), promise });
+  promise.catch(() => { if (_ttlCache.get(key)?.promise === promise) _ttlCache.delete(key); }); // los errores no se guardan
+  if (_ttlCache.size > 500) { const lim = Date.now() - 60000; for (const [k, v] of _ttlCache) if (v.ts < lim) _ttlCache.delete(k); }
+  return promise;
 }
 
 async function sbInsert(table, row) {
@@ -1167,37 +1185,49 @@ app.get('/overlay/spotify/:username', async (req, res) => {
 
 app.get('/api/overlay/spotify/:username', async (req, res) => {
   try {
-    const { username } = req.params;
-    const streamer = await sbSelect('streamers', { twitch_username: username.toLowerCase() });
-    if (!streamer?.spotify_token) return res.json({ playing: false });
+    const username = req.params.username.toLowerCase();
+    // Varios overlays/pestañas abiertos comparten una consulta cada 4 s (cuida a Supabase y los límites de Spotify)
+    const { payload, ts } = await ttlCache('spotify:' + username, 4000, async () => {
+      const streamer = await sbSelect('streamers', { twitch_username: username }, 'spotify_token,spotify_refresh,spotify_client_id,spotify_client_secret,spotify_config');
+      if (!streamer?.spotify_token) return { payload: { playing: false }, ts: Date.now() };
 
-    let token = streamer.spotify_token;
-    let r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (r.status === 401 && streamer.spotify_refresh) {
-      token = await refreshSpotifyToken(streamer.spotify_refresh, streamer.spotify_client_id, streamer.spotify_client_secret);
-      if (token) {
-        await sbUpdate('streamers', { spotify_token: token }, { twitch_username: username.toLowerCase() });
-        r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': `Bearer ${token}` } });
+      let token = streamer.spotify_token;
+      let r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (r.status === 401 && streamer.spotify_refresh) {
+        token = await refreshSpotifyToken(streamer.spotify_refresh, streamer.spotify_client_id, streamer.spotify_client_secret);
+        if (token) {
+          await sbUpdate('streamers', { spotify_token: token }, { twitch_username: username });
+          r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': `Bearer ${token}` } });
+        }
       }
-    }
-    if (r.status === 204 || !r.ok) return res.json({ playing: false });
-    const data = await r.json();
-    if (!data.item) return res.json({ playing: false });
-    res.json({
-      playing: true,
-      track: data.item.name,
-      artist: data.item.artists.map(a => a.name).join(', '),
-      album: data.item.album.name,
-      image: data.item.album.images?.[1]?.url || data.item.album.images?.[0]?.url || '',
-      progress_ms: data.progress_ms,
-      duration_ms: data.item.duration_ms,
-      is_playing: data.is_playing,
-      overlay_opacity: streamer.spotify_config?.overlay_opacity ?? 100,
-      bg_opacity: streamer.spotify_config?.bg_opacity ?? 75,
-      theme: streamer.spotify_config?.theme || 'classic'
+      if (r.status === 204 || !r.ok) return { payload: { playing: false }, ts: Date.now() };
+      const data = await r.json();
+      if (!data.item) return { payload: { playing: false }, ts: Date.now() };
+      return {
+        ts: Date.now(),
+        payload: {
+          playing: true,
+          track: data.item.name,
+          artist: data.item.artists.map(a => a.name).join(', '),
+          album: data.item.album.name,
+          image: data.item.album.images?.[1]?.url || data.item.album.images?.[0]?.url || '',
+          progress_ms: data.progress_ms,
+          duration_ms: data.item.duration_ms,
+          is_playing: data.is_playing,
+          overlay_opacity: streamer.spotify_config?.overlay_opacity ?? 100,
+          bg_opacity: streamer.spotify_config?.bg_opacity ?? 75,
+          theme: streamer.spotify_config?.theme || 'classic'
+        }
+      };
     });
+    // Si la respuesta viene de la caché, el progreso se adelanta lo que pasó desde que se leyó
+    if (payload.playing && payload.is_playing) {
+      const elapsed = Date.now() - ts;
+      return res.json({ ...payload, progress_ms: Math.min((payload.progress_ms || 0) + elapsed, payload.duration_ms || Infinity) });
+    }
+    res.json(payload);
   } catch(err) { res.json({ playing: false }); }
 });
 
@@ -1383,7 +1413,8 @@ app.post('/api/subathon/control', requireAuth, async (req, res) => {
 // Estado público — usado por el overlay y el panel del dashboard (polling, sin auth para que el overlay de OBS pueda leerlo)
 app.get('/api/subathon/state/:username', async (req, res) => {
   try {
-    const streamer = await sbSelect('streamers', { twitch_username: req.params.username.toLowerCase() });
+    const u = req.params.username.toLowerCase();
+    const streamer = await ttlCache('subathon:' + u, 2000, () => sbSelect('streamers', { twitch_username: u }, 'subathon_config'));
     const cfg = streamer?.subathon_config || {};
     res.json({
       enabled: !!cfg.enabled,
@@ -1402,7 +1433,8 @@ app.get('/api/counters/state/:username', async (req, res) => {
   try {
     const name = (req.query.name || '').toLowerCase().trim();
     if (!name) return res.status(400).json({ error: 'Falta el nombre del contador' });
-    const streamer = await sbSelect('streamers', { twitch_username: req.params.username.toLowerCase() });
+    const u = req.params.username.toLowerCase();
+    const streamer = await ttlCache('counters:' + u, 2000, () => sbSelect('streamers', { twitch_username: u }, 'counters'));
     const counters = streamer?.counters || {};
     if (counters[name] === undefined) return res.json({ exists: false, value: null, name });
     res.json({ exists: true, value: counters[name], name });
@@ -1677,10 +1709,12 @@ app.get('/overlay/sorteo/:username', async (req, res) => {
 app.get('/api/raffle/overlay/:username', async (req, res) => {
   try {
     const username = req.params.username.toLowerCase();
-    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=raffle_active,raffle_settings&limit=1`;
-    const result = await fetch(url, { headers: sbHeaders });
-    const data = await result.json();
-    const streamer = data?.[0];
+    const streamer = await ttlCache('raffle:' + username, 1000, async () => {
+      const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=raffle_active,raffle_settings&limit=1`;
+      const result = await fetch(url, { headers: sbHeaders });
+      const data = await result.json();
+      return data?.[0] || null;
+    });
     if (!streamer) return res.status(404).json({ error: 'Canal no encontrado' });
     const raffle = streamer.raffle_active || {};
     const join_cmd = streamer.raffle_settings?.join_cmd || '!entrar';
@@ -1996,20 +2030,31 @@ app.get('/api/shoutout-config-public/:username', async (req, res) => {
 });
 
 // ── FOLLOWERS PARA OVERLAY ──
+// Token de app de Twitch: se reutiliza hasta que esté por vencer (antes se pedía uno nuevo en cada consulta)
+let _twitchAppTokenCache = { token: null, exp: 0 };
+async function getCachedTwitchAppToken() {
+  if (_twitchAppTokenCache.token && Date.now() < _twitchAppTokenCache.exp) return _twitchAppTokenCache.token;
+  const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`, { method: 'POST' });
+  const tokenData = await tokenRes.json();
+  if (!tokenData.access_token) return null;
+  _twitchAppTokenCache = { token: tokenData.access_token, exp: Date.now() + Math.max(60, (tokenData.expires_in || 3600) - 300) * 1000 };
+  return _twitchAppTokenCache.token;
+}
 app.get('/api/shoutout-followers/:username', async (req, res) => {
   try {
-    const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`, { method:'POST' });
-    const tokenData = await tokenRes.json();
-    const appToken = tokenData.access_token;
-    const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${req.params.username}`,
-      { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
-    const userData = await userRes.json();
-    const userId = userData?.data?.[0]?.id;
-    if (!userId) return res.json({ followers: null });
-    const followRes = await fetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${userId}`,
-      { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
-    const followData = await followRes.json();
-    res.json({ followers: followData?.total ?? null });
+    const login = String(req.params.username || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30);
+    if (!login) return res.json({ followers: null });
+    const followers = await ttlCache('followers:' + login, 60000, async () => {
+      const appToken = await getCachedTwitchAppToken();
+      if (!appToken) return null;
+      const h = { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID };
+      const userData = await (await fetch(`https://api.twitch.tv/helix/users?login=${login}`, { headers: h })).json();
+      const userId = userData?.data?.[0]?.id;
+      if (!userId) return null;
+      const followData = await (await fetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${userId}`, { headers: h })).json();
+      return followData?.total ?? null;
+    });
+    res.json({ followers });
   } catch(e) { res.json({ followers: null }); }
 });
 
