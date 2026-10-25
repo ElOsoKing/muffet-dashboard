@@ -19,6 +19,15 @@ button:disabled { opacity: .45; cursor: default; }
 .banner.warn { background: rgba(255,170,0,.14); color: #ffc447; }
 .banner.err { background: rgba(255,59,59,.14); color: #ff8a8a; }
 
+.tabs { display: none; padding: 8px 12px 0; gap: 6px; }
+.tabs.show { display: flex; }
+.tab { padding: 5px 14px; border-radius: 14px; font-size: 12px; font-weight: 700; color: var(--dim); border: 1px solid var(--line); background: var(--bg2); }
+.tab.on { color: #fff; border-color: transparent; }
+.tab[data-m="yt"].on { background: var(--red); } .tab[data-m="sp"].on { background: #1db954; color: #04130a; }
+.spnote { display: none; padding: 14px 16px; color: var(--dim); font-size: 12px; line-height: 1.6; }
+body.sp .spnote { display: block; } body.sp .qhead, body.sp .queue { display: none; }
+body.sp .src { color: #1ed760; } body.sp .fill { background: #1ed760; } body.sp .btn.main { background: #1db954; color: #04130a; } body.sp .btn.main:hover:not(:disabled) { background: #22d760; } body.sp .vol input { accent-color: #1ed760; }
+#bPrev { display: none; } body.sp #bPrev { display: flex; }
 .now { display: flex; gap: 12px; padding: 12px; align-items: center; border-bottom: 1px solid var(--line); }
 .thumb { width: 64px; height: 64px; border-radius: 10px; background: var(--bg2) center / cover no-repeat; flex-shrink: 0; }
 .info { min-width: 0; flex: 1; }
@@ -64,6 +73,8 @@ button:disabled { opacity: .45; cursor: default; }
 <body>
 <div id="banner" class="banner"></div>
 
+<div id="tabs" class="tabs"><button class="tab on" data-m="yt">▶ YouTube</button><button class="tab" data-m="sp">🎧 Spotify</button></div>
+
 <div class="now">
   <div id="thumb" class="thumb"></div>
   <div class="info">
@@ -78,10 +89,13 @@ button:disabled { opacity: .45; cursor: default; }
 </div>
 
 <div class="ctrl">
+  <button id="bPrev" class="btn" title="Canción anterior" disabled>⏮</button>
   <button id="bPlay" class="btn main" title="Pausar / Reanudar" disabled>⏸</button>
   <button id="bSkip" class="btn" title="Saltar canción" disabled>⏭</button>
   <div class="vol"><span style="font-size:14px">🔊</span><input id="vol" type="range" min="0" max="100" step="1" value="100" disabled><span id="volTxt">100%</span></div>
 </div>
+
+<div id="spnote" class="spnote"></div>
 
 <div class="qhead"><b id="qTitle">Cola</b><button id="bClear" class="clear" disabled>Vaciar cola</button></div>
 <div id="queue" class="queue"><div class="empty">Cargando…</div></div>
@@ -99,22 +113,34 @@ let T0 = 0;              // cuándo (hora local) llegó
 let draggingVol = false, volTimer = null, pendingVol = null;
 let clearArmed = 0;
 let failures = 0;
+let mode = 'yt', modeChosen = false;
+try { const m = localStorage.getItem('dockMode'); if (m === 'yt' || m === 'sp') { mode = m; modeChosen = true; } } catch (e) {}
 
 const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmt = (sec) => { sec = Math.max(0, Math.floor(sec || 0)); const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
 let toastTimer;
-function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800); }
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600); }
 function banner(kind, msg) { const b = $('banner'); if (!msg) { b.className = 'banner'; return; } b.className = 'banner show ' + kind; b.textContent = msg; }
+const SP_ERR = {
+  premium: 'Spotify solo deja controlar la reproducción desde aquí con una cuenta Premium.',
+  nodevice: 'No hay un dispositivo de Spotify activo. Abre Spotify y dale play una vez.',
+  reconnect: 'Vuelve a conectar Spotify desde el dashboard de MuffetBot.',
+  scope: 'Vuelve a conectar Spotify desde el dashboard (faltan permisos de control).',
+  notconnected: 'Spotify no está conectado en el dashboard.',
+  forbidden: 'Spotify no permitió esa acción.',
+  rate: 'Spotify pide ir más despacio, espera un momento.'
+};
 
 async function poll() {
-  if (document.hidden) return;
+  if (document.hidden || dead) return;
   try {
-    const r = await fetch(`${API}/state?key=${encodeURIComponent(key)}`, { cache: 'no-store' });
+    const r = await fetch(`${API}/state?key=${encodeURIComponent(key)}${mode === 'sp' ? '&spotify=1' : ''}`, { cache: 'no-store' });
     if (r.status === 403) { fatal('Este link ya no es válido. Copia uno nuevo desde el dashboard de MuffetBot.'); return; }
     const j = await r.json();
     if (!j.ok) throw new Error('state');
     failures = 0; S = j; T0 = Date.now();
     banner('', '');
+    if (!modeChosen) { modeChosen = true; if (!j.online && j.spotify && j.spotify.connected && mode !== 'sp') { setMode('sp', false); return; } }
     render();
   } catch (e) {
     failures++;
@@ -122,10 +148,31 @@ async function poll() {
   }
 }
 let dead = false;
-function fatal(msg) { dead = true; banner('err', msg); ['bPlay', 'bSkip', 'vol', 'bClear'].forEach(id => $(id).disabled = true); $('srcTxt').textContent = 'Desconectado'; $('dot').className = 'dot'; }
+function fatal(msg) { dead = true; banner('err', msg); ['bPlay', 'bSkip', 'bPrev', 'vol', 'bClear'].forEach(id => $(id).disabled = true); $('srcTxt').textContent = 'Desconectado'; $('dot').className = 'dot'; }
+
+function setMode(m, remember = true) {
+  mode = m; S = null;
+  if (remember) { modeChosen = true; try { localStorage.setItem('dockMode', m); } catch (e) {} }
+  document.body.classList.toggle('sp', m === 'sp');
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.m === m));
+  $('title').textContent = '—'; $('author').textContent = ''; $('thumb').style.backgroundImage = '';
+  banner('', '');
+  poll();
+}
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => { if (t.dataset.m !== mode) setMode(t.dataset.m); });
 
 function render() {
   if (!S) return;
+  const hasSp = !!(S.spotify && S.spotify.connected);
+  $('tabs').classList.toggle('show', hasSp);
+  if (!hasSp && mode === 'sp') { setMode('yt', false); return; }
+  document.body.classList.toggle('sp', mode === 'sp');
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.m === mode));
+  if (mode === 'sp') renderSp(); else renderYt();
+  tick();
+}
+
+function renderYt() {
   const st = S.status, on = S.online && st;
   $('dot').className = 'dot' + (on && st.state === 'playing' ? ' on' : '');
   if (!S.online) banner('warn', 'El overlay de YouTube no está abierto en OBS: no hay nada que controlar todavía.');
@@ -149,19 +196,45 @@ function render() {
       <button data-act="remove" data-id="${esc(v.videoId)}" title="Quitar de la cola">✕</button>
     </div>`).join('') + (S.total > q.length ? `<div class="empty">… y ${S.total - q.length} más</div>` : '')
     : '<div class="empty">La cola está vacía. Los pedidos del chat aparecen aquí.</div>';
-  tick();
+}
+
+function renderSp() {
+  const sp = S.spotify || {};
+  const ok = !sp.error && sp.active;
+  if (sp.error === 'reconnect') banner('err', SP_ERR.reconnect);
+  else if (sp.error) banner('warn', 'No se pudo leer Spotify, reintentando…');
+  else if (!sp.active) banner('warn', SP_ERR.nodevice);
+  $('dot').className = 'dot' + (ok && sp.playing ? ' on' : '');
+  $('srcTxt').textContent = !ok ? 'Spotify' : (sp.playing ? 'Spotify' : 'En pausa');
+  $('title').textContent = ok ? (sp.track || 'Nada sonando') : '—';
+  $('author').textContent = ok ? (sp.artist || '') : '';
+  $('thumb').style.backgroundImage = ok && sp.image ? `url("${String(sp.image).replace(/"/g, '%22')}")` : '';
+  $('bPlay').textContent = ok && !sp.playing ? '▶' : '⏸';
+  $('bPlay').disabled = !ok; $('bSkip').disabled = !ok; $('bPrev').disabled = !ok;
+  const volOk = ok && sp.volume != null && sp.volume_ok;
+  $('vol').disabled = !volOk;
+  if (!draggingVol && sp.volume != null) { $('vol').value = sp.volume; $('volTxt').textContent = sp.volume + '%'; }
+  if (ok && !volOk) $('volTxt').textContent = '—';
+  $('spnote').innerHTML = ok
+    ? `Dispositivo: <b>${esc(sp.device || '?')}</b>${volOk ? '' : '<br>Este dispositivo no permite cambiar el volumen desde aquí.'}<br>Pausa, saltar y volumen necesitan Spotify Premium.`
+    : 'Pausa, saltar y volumen necesitan Spotify Premium y un dispositivo con Spotify abierto.';
 }
 
 // El tiempo avanza solo entre consulta y consulta
 function tick() {
   if (!S) return;
-  const st = S.status;
-  if (!S.online || !st) { $('fill').style.width = '0%'; $('tCur').textContent = '0:00'; $('tDur').textContent = '0:00'; return; }
-  let cur = st.current || 0;
-  if (st.state === 'playing') cur += (Date.now() - T0) / 1000 + Math.max(0, (S.now - st.ts)) / 1000;
-  if (st.duration) cur = Math.min(cur, st.duration);
-  $('fill').style.width = st.duration ? (cur / st.duration * 100).toFixed(1) + '%' : '0%';
-  $('tCur').textContent = fmt(cur); $('tDur').textContent = st.duration ? fmt(st.duration) : '--:--';
+  let cur = 0, dur = 0;
+  if (mode === 'sp') {
+    const sp = S.spotify || {};
+    if (sp.error || !sp.active) { cur = 0; dur = 0; }
+    else { dur = (sp.duration_ms || 0) / 1000; cur = (sp.progress_ms || 0) / 1000; if (sp.playing) cur += (Date.now() - T0) / 1000 + Math.max(0, (S.now - (sp.ts || S.now))) / 1000; }
+  } else {
+    const st = S.status;
+    if (S.online && st) { dur = st.duration || 0; cur = st.current || 0; if (st.state === 'playing') cur += (Date.now() - T0) / 1000 + Math.max(0, (S.now - st.ts)) / 1000; }
+  }
+  if (dur) cur = Math.min(cur, dur);
+  $('fill').style.width = dur ? (cur / dur * 100).toFixed(1) + '%' : '0%';
+  $('tCur').textContent = fmt(cur); $('tDur').textContent = dur ? fmt(dur) : '0:00';
 }
 
 async function control(action, extra) {
@@ -171,25 +244,41 @@ async function control(action, extra) {
     if (r.status === 403) { fatal('Este link ya no es válido. Copia uno nuevo desde el dashboard de MuffetBot.'); return false; }
     if (r.status === 429) { toast('Demasiado rápido, espera un momento'); return false; }
     const j = await r.json().catch(() => ({}));
-    if (!j.ok) { toast('No se pudo, intenta de nuevo'); return false; }
+    if (!j.ok) { toast(SP_ERR[j.error] || 'No se pudo, intenta de nuevo'); return false; }
     return true;
   } catch (e) { toast('Sin conexión'); return false; }
 }
 
 $('bPlay').onclick = async () => {
+  if (mode === 'sp') {
+    const sp = S && S.spotify; if (!sp || !sp.active) return;
+    const act = sp.playing ? 'spotify_pause' : 'spotify_play';
+    $('bPlay').textContent = sp.playing ? '▶' : '⏸';
+    if (await control(act)) { sp.playing = !sp.playing; sp.progress_ms = (sp.progress_ms || 0) + (Date.now() - T0); T0 = Date.now(); sp.ts = S.now; render(); setTimeout(poll, 700); }
+    else render();
+    return;
+  }
   const st = S && S.status; if (!st) return;
   const act = st.state === 'paused' ? 'play' : 'pause';
   $('bPlay').textContent = act === 'play' ? '⏸' : '▶'; // respuesta inmediata; el overlay confirma en ~3 s
   if (await control(act)) { st.state = act === 'play' ? 'playing' : 'paused'; T0 = Date.now(); S.now = st.ts; render(); }
   else render();
 };
-$('bSkip').onclick = async () => { if (await control('skip')) toast('Saltando…'); };
+$('bSkip').onclick = async () => {
+  if (mode === 'sp') { if (await control('spotify_next')) { toast('Siguiente…'); setTimeout(poll, 900); } return; }
+  if (await control('skip')) toast('Saltando…');
+};
+$('bPrev').onclick = async () => { if (await control('spotify_prev')) { toast('Anterior…'); setTimeout(poll, 900); } };
 $('vol').addEventListener('pointerdown', () => { draggingVol = true; });
 window.addEventListener('pointerup', () => { draggingVol = false; });
 $('vol').oninput = () => {
   const v = parseInt($('vol').value); $('volTxt').textContent = v + '%'; pendingVol = v;
   clearTimeout(volTimer);
-  volTimer = setTimeout(async () => { const x = pendingVol; await control('volume', { value: x }); if (S) S.volume = x; }, 250);
+  volTimer = setTimeout(async () => {
+    const x = pendingVol;
+    await control(mode === 'sp' ? 'spotify_volume' : 'volume', { value: x });
+    if (S) { if (mode === 'sp' && S.spotify) S.spotify.volume = x; else S.volume = x; }
+  }, 250);
 };
 $('bClear').onclick = async () => {
   const b = $('bClear');
@@ -205,7 +294,7 @@ $('queue').onclick = async (e) => {
 };
 
 if (!channel || !key) fatal('Falta el link completo. Copia el link del dock desde el dashboard de MuffetBot.');
-else { poll(); setInterval(poll, 2500); setInterval(tick, 500); document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); }); }
+else { document.body.classList.toggle('sp', mode === 'sp'); document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.m === mode)); poll(); setInterval(poll, 2500); setInterval(tick, 500); document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); }); }
 </script>
 </body>
 </html>
