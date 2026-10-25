@@ -2387,6 +2387,65 @@ app.post('/api/youtube/control', async (req, res) => {
   } catch(e) { res.json({ ok: false }); }
 });
 
+// ── Spotify desde el dock: llamadas a la API del streamer (refresca el token si caducó) ──
+async function spotifyApi(username, method, urlPath) {
+  const st = await sbSelect('streamers', { twitch_username: username }, 'spotify_token,spotify_refresh,spotify_client_id,spotify_client_secret');
+  if (!st?.spotify_token) return { notConnected: true };
+  const call = (tok) => fetch('https://api.spotify.com/v1' + urlPath, { method, headers: { 'Authorization': `Bearer ${tok}` } });
+  let r = await call(st.spotify_token);
+  if (r.status === 401 && st.spotify_refresh) {
+    const tok = await refreshSpotifyToken(st.spotify_refresh, st.spotify_client_id, st.spotify_client_secret);
+    if (tok) { await sbUpdate('streamers', { spotify_token: tok }, { twitch_username: username }); r = await call(tok); }
+  }
+  return { r };
+}
+function spotifyConnected(channel) { // ¿tiene Spotify conectado? (cacheado 30 s)
+  return ttlCache('spotifyconn:' + channel, 30000, async () => {
+    const st = await sbSelect('streamers', { twitch_username: channel }, 'spotify_token');
+    return !!st?.spotify_token;
+  });
+}
+function spotifyDockState(channel) { // lo que suena en Spotify (cacheado 2.5 s; varios docks comparten la consulta)
+  return ttlCache('spotifydock:' + channel, 2500, async () => {
+    const x = await spotifyApi(channel, 'GET', '/me/player');
+    if (x.notConnected) return { connected: false };
+    const r = x.r;
+    if (r.status === 204) return { connected: true, active: false };
+    if (r.status === 401 || r.status === 403) return { connected: true, error: 'reconnect' };
+    if (!r.ok) return { connected: true, error: 'fail' };
+    const d = await r.json().catch(() => null);
+    if (!d) return { connected: true, active: false };
+    const it = d.item;
+    return {
+      connected: true, active: !!d.device, playing: !!d.is_playing,
+      track: it?.name || null, artist: it?.artists?.map(a => a.name).join(', ') || null,
+      image: it?.album?.images?.[1]?.url || it?.album?.images?.[0]?.url || '',
+      progress_ms: d.progress_ms || 0, duration_ms: it?.duration_ms || 0, ts: Date.now(),
+      volume: d.device?.volume_percent ?? null, volume_ok: d.device?.supports_volume !== false, device: d.device?.name || null
+    };
+  });
+}
+const SPOTIFY_DOCK_ACTIONS = { spotify_pause: ['PUT', '/me/player/pause'], spotify_play: ['PUT', '/me/player/play'], spotify_next: ['POST', '/me/player/next'], spotify_prev: ['POST', '/me/player/previous'] };
+async function spotifyDockControl(channel, action, value) {
+  let m = SPOTIFY_DOCK_ACTIONS[action];
+  if (action === 'spotify_volume') {
+    const v = parseInt(value);
+    m = ['PUT', `/me/player/volume?volume_percent=${Math.max(0, Math.min(100, isNaN(v) ? 0 : v))}`];
+  }
+  if (!m) return { ok: false, error: 'accion' };
+  const x = await spotifyApi(channel, m[0], m[1]);
+  if (x.notConnected) return { ok: false, error: 'notconnected' };
+  const r = x.r;
+  if (r.ok || r.status === 204) { _ttlCache.delete('spotifydock:' + channel); return { ok: true }; }
+  const body = await r.json().catch(() => null);
+  const reason = body?.error?.reason, msg = String(body?.error?.message || '');
+  if (r.status === 404) return { ok: false, error: 'nodevice' };
+  if (r.status === 401) return { ok: false, error: 'reconnect' };
+  if (r.status === 429) return { ok: false, error: 'rate' };
+  if (r.status === 403) return { ok: false, error: reason === 'PREMIUM_REQUIRED' ? 'premium' : (/scope/i.test(msg) ? 'scope' : 'forbidden') };
+  return { ok: false, error: 'fail' };
+}
+
 // ── Dock de OBS: panel de control para "Docks → Docks de navegador personalizados" ──
 // Su propia clave (distinta a la del overlay) va en el link del dock; se puede regenerar (dock_rev) si se filtra.
 function dockKey(channel, rev) {
@@ -2438,10 +2497,14 @@ app.get('/api/dock/:channel/state', async (req, res) => {
     const queue = (Array.isArray(cfg.queue) ? cfg.queue : []).slice(0, 25).map(q => ({
       videoId: q.videoId, title: String(q.title || '').slice(0, 200), requestedBy: q.requestedBy || null, durationSec: q.durationSec || null
     }));
+    let spotify = { connected: false };
+    try {
+      spotify = req.query.spotify === '1' ? await spotifyDockState(channel) : { connected: await spotifyConnected(channel) };
+    } catch (e) { spotify = { connected: true, error: 'fail' }; }
     res.json({
       ok: true, now: Date.now(), online, status: online ? st : null,
       queue, total: (cfg.queue || []).length, volume: cfg.volume ?? 100,
-      shuffle: !!cfg.playlist_shuffle, loop: cfg.playlist_loop !== false
+      shuffle: !!cfg.playlist_shuffle, loop: cfg.playlist_loop !== false, spotify
     });
   } catch (e) { res.status(500).json({ ok: false }); }
 });
@@ -2452,6 +2515,7 @@ app.post('/api/dock/:channel/control', async (req, res) => {
     if (!cfg0) return res.status(403).json({ ok: false, error: 'key' });
     if (!dockRateOk(channel)) return res.status(429).json({ ok: false, error: 'rate' });
     const { action, value, videoId } = req.body || {};
+    if (typeof action === 'string' && action.startsWith('spotify_')) return res.json(await spotifyDockControl(channel, action, value));
     if (!['pause', 'play', 'skip', 'volume', 'playnow', 'remove', 'clear'].includes(action)) return res.json({ ok: false, error: 'accion' });
     if (action === 'remove' && !isValidString(videoId, 20)) return res.json({ ok: false, error: 'videoId' });
     const r = await ytMutate(channel, (cfg) => {
