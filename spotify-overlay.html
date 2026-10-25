@@ -459,6 +459,7 @@ body[data-theme="undertale"] .artist-name.animate { animation: typing 0.7s steps
 @keyframes typing { from { clip-path: inset(0 100%% 0 0); } to { clip-path: inset(0 0 0 0); } }
 body[data-theme="undertale"] .progress-wrap { height: 14px; border-radius: 0; background: #b3001b; }
 body[data-theme="undertale"] .progress-bar { border-radius: 0; background: #ffe94d; box-shadow: none; }
+body.demo { align-items: center; justify-content: center; min-height: 100vh; padding: 10px; overflow: hidden; }
 </style>
 </head>
 <body>
@@ -644,9 +645,17 @@ function updateWidget(data) {
   }
 }
 
-// Iniciar
-fetchStatus();
-setInterval(fetchStatus, 10000);
+// Modo demo (?demo=<estilo>): lo usa la galería del dashboard para mostrar cada estilo con una canción de ejemplo
+const demoTheme = new URLSearchParams(location.search).get('demo');
+if (demoTheme) {
+  document.body.classList.add('demo');
+  const cover = "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff5c8a'/><stop offset='1' stop-color='#6a3cff'/></linearGradient></defs><rect width='100' height='100' fill='url(#g)'/><circle cx='50' cy='46' r='22' fill='#ffd36b'/><rect y='72' width='100' height='28' fill='#1b1f4b'/></svg>");
+  updateWidget({ playing: true, is_playing: true, track: 'Tu canción', artist: 'Tu artista', image: cover, progress_ms: 95000, duration_ms: 240000, overlay_opacity: 100, bg_opacity: 85, theme: demoTheme });
+} else {
+  // Iniciar
+  fetchStatus();
+  setInterval(fetchStatus, 10000);
+}
 </script>
 </body>
 </html>
