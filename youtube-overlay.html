@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>MuffetBot — YouTube Player</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Mr+Dafoe&family=Orbitron:wght@500;700&family=VT323&family=Press+Start+2P&family=Cinzel:wght@700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:'Inter',sans-serif;}
@@ -59,6 +60,181 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
   display:none;
 }
 #soTitle{font-size:14px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#FF0000;}
+
+/* ══════════ ESTILOS (se eligen en el dashboard; "classic" = el diseño de siempre) ══════════
+   Los estilos con diseño propio se inspiran en alejox/obs-music-player (MIT). */
+@property --c1r { syntax: '<number>'; inherits: true; initial-value: 40; }
+@property --c1g { syntax: '<number>'; inherits: true; initial-value: 40; }
+@property --c1b { syntax: '<number>'; inherits: true; initial-value: 48; }
+@property --c2r { syntax: '<number>'; inherits: true; initial-value: 18; }
+@property --c2g { syntax: '<number>'; inherits: true; initial-value: 18; }
+@property --c2b { syntax: '<number>'; inherits: true; initial-value: 24; }
+:root { transition: --c1r 1s, --c1g 1s, --c1b 1s, --c2r 1s, --c2g 1s, --c2b 1s; --skyline: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60'><path d='M0 60V33h12V60zM12 60V8h8V60zM15 8v-8h2V8zM20 60V29h16V60zM27 29v-7h2V29zM38 60V27h8V60zM41 27v-7h2V27zM46 60V35h16V60zM62 60V5h16V60zM78 60V7h8V60zM87 60V33h14V60zM102 60V31h16V60zM109 31v-8h2V31zM118 60V36h12V60zM130 60V39h16V60zM148 60V8h18V60zM167 60V5h14V60zM182 60V27h12V60zM194 60V6h8V60zM204 60V14h12V60zM209 14v-4h2V14zM216 60V16h16V60zM223 16v-6h2V16zM232 60V16h14V60zM238 16v-9h2V16z'/></svg>"); }
+.deco, .deco i, .mac-dots, .eq-icon { position: absolute; pointer-events: none; }
+.deco, .deco i, .label, .mac-dots, .pill-btn, .eq-icon { display: none; }
+.deco { inset: 0; z-index: 0; overflow: hidden; }
+.label { align-items: center; gap: 5px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px; }
+.label-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; display: inline-block; }
+.mac-dots span { width: 11px; height: 11px; border-radius: 50%; display: block; }
+.mac-dots span:nth-child(1) { background: #ff5f57; } .mac-dots span:nth-child(2) { background: #febc2e; } .mac-dots span:nth-child(3) { background: #28c840; }
+.pill-btn { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; align-items: center; justify-content: center; background: rgba(255,255,255,0.14); color: #fff; font-size: 13px; }
+.eq-icon { width: 14px; height: 14px; align-items: flex-end; gap: 2px; top: 12px; right: 14px; }
+.eq-icon i { display: block; width: 3px; background: rgba(255,255,255,0.85); border-radius: 1px; }
+.eq-icon i:nth-child(1) { height: 6px; } .eq-icon i:nth-child(2) { height: 13px; } .eq-icon i:nth-child(3) { height: 9px; }
+
+/* Base común de los estilos (todos menos classic) */
+#overlay[data-theme] #titleBar, #overlay[data-theme] #queueCount { display: none !important; }
+#overlay[data-theme] .label { display: flex; }
+#overlay[data-theme] #infoPanel { position: relative; overflow: hidden; background: transparent; border-top: none; gap: 16px; padding: 14px 20px 14px 14px; min-height: 100px; }
+#overlay[data-theme] .deco { display: block; }
+#overlay[data-theme] #infoPanel > :not(.deco):not(.mac-dots):not(.eq-icon) { position: relative; z-index: 1; }
+#overlay[data-theme] #thumb { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; }
+#overlay[data-theme] #trackInfo { min-width: 0; }
+#overlay[data-theme] #trackName { font-size: 15px; line-height: 1.25; margin-bottom: 3px; }
+#overlay[data-theme] #trackMeta { font-size: 12px; margin: 0 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#overlay[data-theme] #progressBar { height: 4px; border-radius: 2px; overflow: hidden; }
+#overlay[data-theme] #progressFill { border-radius: 2px; box-shadow: none; }
+#overlay[data-theme="glass"], #overlay[data-theme="pill"], #overlay[data-theme="macos"],
+#overlay[data-theme="synthwave"], #overlay[data-theme="neoncity"], #overlay[data-theme="cyber"], #overlay[data-theme="retro"],
+#overlay[data-theme="glitch"], #overlay[data-theme="line"], #overlay[data-theme="muffet"], #overlay[data-theme="osoking"], #overlay[data-theme="undertale"], #overlay[data-theme="minimal"] { border: none; }
+
+/* Colores de la portada (cristal, píldora, macOS) */
+#overlay[data-theme="glass"], #overlay[data-theme="pill"], #overlay[data-theme="macos"] {
+  background: linear-gradient(135deg, rgba(var(--c1r), var(--c1g), var(--c1b), 0.92), rgba(var(--c2r), var(--c2g), var(--c2b), 0.92));
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255,255,255,0.16);
+}
+#overlay[data-theme="glass"] .label, #overlay[data-theme="pill"] .label, #overlay[data-theme="macos"] .label { color: rgba(255,255,255,0.78); }
+#overlay[data-theme="glass"] #trackName, #overlay[data-theme="pill"] #trackName, #overlay[data-theme="macos"] #trackName { color: #fff; }
+#overlay[data-theme="glass"] #trackMeta, #overlay[data-theme="pill"] #trackMeta, #overlay[data-theme="macos"] #trackMeta { color: rgba(255,255,255,0.72); }
+#overlay[data-theme="glass"] #progressBar, #overlay[data-theme="pill"] #progressBar, #overlay[data-theme="macos"] #progressBar { background: rgba(255,255,255,0.22); }
+#overlay[data-theme="glass"] #progressFill, #overlay[data-theme="pill"] #progressFill, #overlay[data-theme="macos"] #progressFill { background: #fff !important; }
+#overlay[data-theme="glass"] #thumb { border-radius: 12px; }
+#overlay[data-theme="pill"] { border-radius: 999px; }
+#overlay[data-theme="pill"] #thumb { border: 2px solid rgba(255,255,255,0.35); }
+#overlay[data-theme="pill"] .pill-btn { display: flex; }
+#overlay[data-theme="macos"] { border-radius: 14px; }
+#overlay[data-theme="macos"] #infoPanel { padding-top: 24px; }
+#overlay[data-theme="macos"] .mac-dots { display: flex; gap: 6px; top: 9px; right: 12px; }
+#overlay[data-theme="macos"] #thumb { border: 2px solid rgba(255,255,255,0.3); }
+
+/* Minimal */
+#overlay[data-theme="minimal"] { background: rgba(34, 34, 36, 0.94); border-radius: 14px; box-shadow: 0 6px 22px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.06); }
+#overlay[data-theme="minimal"] #thumb { border: 2px solid rgba(255,255,255,0.85); }
+#overlay[data-theme="minimal"] #thumbWrap { position: relative; padding-right: 2px; }
+#overlay[data-theme="minimal"] #thumbWrap::after { content: ''; position: absolute; top: 4px; bottom: 4px; right: -9px; width: 1px; background: rgba(255,255,255,0.18); }
+#overlay[data-theme="minimal"] .label { color: rgba(255,255,255,0.55); }
+#overlay[data-theme="minimal"] #trackName { color: #fff; } #overlay[data-theme="minimal"] #trackMeta { color: rgba(255,255,255,0.6); }
+#overlay[data-theme="minimal"] #progressBar { background: rgba(255,255,255,0.16); } #overlay[data-theme="minimal"] #progressFill { background: #fff !important; }
+#overlay[data-theme="minimal"] .eq-icon { display: flex; }
+
+/* Synthwave */
+#overlay[data-theme="synthwave"] { background: rgba(18, 4, 34, 0.94); border: 2px solid #ff2bd6; box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 14px rgba(255, 43, 214, 0.55); }
+#overlay[data-theme="synthwave"] .deco { background: linear-gradient(to bottom, rgba(40, 6, 70, 0.6), rgba(90, 10, 90, 0.5)); }
+#overlay[data-theme="synthwave"] .deco .sun { display: block; width: 118px; height: 118px; left: 84px; top: -26px; border-radius: 50%; background: linear-gradient(to bottom, #ffd23f 10%, #ff7b2e 45%, #ff2a8a 80%); -webkit-mask: linear-gradient(#000 52%, transparent 52%), repeating-linear-gradient(to bottom, #000 0 7%, transparent 7% 11%); filter: drop-shadow(0 0 10px rgba(255, 90, 140, 0.6)); }
+#overlay[data-theme="synthwave"] .deco .grid { display: block; left: -40%; right: -40%; bottom: -2px; height: 55%; background: repeating-linear-gradient(90deg, rgba(255, 43, 214, 0.75) 0 1px, transparent 1px 26px), repeating-linear-gradient(0deg, rgba(255, 43, 214, 0.75) 0 1px, transparent 1px 13px); transform: perspective(90px) rotateX(48deg); transform-origin: bottom; -webkit-mask: linear-gradient(to top, #000 10%, transparent 95%); }
+#overlay[data-theme="synthwave"] #thumb { box-shadow: 0 0 0 3px #2b0a3d, 0 4px 16px rgba(0,0,0,.35); }
+#overlay[data-theme="synthwave"] #trackName { font-family: "Mr Dafoe", "Brush Script MT", cursive; font-weight: 400; font-size: 26px; line-height: 1.15; color: #ff3fdc; text-shadow: 0 0 10px rgba(255, 43, 214, 0.85); padding-right: 6px; }
+#overlay[data-theme="synthwave"] #trackMeta, #overlay[data-theme="synthwave"] .label { color: #35e0ff; }
+#overlay[data-theme="synthwave"] #trackMeta { text-shadow: 0 0 6px rgba(53, 224, 255, 0.6); }
+#overlay[data-theme="synthwave"] #progressBar { height: 6px; border: 1px solid rgba(255, 43, 214, 0.7); border-radius: 4px; background: rgba(255, 43, 214, 0.18); }
+#overlay[data-theme="synthwave"] #progressFill { background: #ff2bd6 !important; box-shadow: 0 0 8px #ff2bd6; }
+
+/* Neon City */
+#overlay[data-theme="neoncity"] { background: linear-gradient(115deg, rgba(14, 10, 52, 0.95), rgba(36, 10, 72, 0.95)); border: 1.5px solid rgba(160, 90, 255, 0.85); box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 14px rgba(140, 70, 255, 0.4); }
+#overlay[data-theme="neoncity"] .deco .sun { display: block; width: 104px; height: 104px; right: 40px; top: -6px; border-radius: 50%; background: linear-gradient(to bottom, #ff3f8e 20%, #ff7a45 75%); -webkit-mask: linear-gradient(#000 45%, transparent 45%), repeating-linear-gradient(to bottom, #000 0 8%, transparent 8% 12%); filter: drop-shadow(0 0 12px rgba(255, 70, 140, 0.55)); }
+#overlay[data-theme="neoncity"] .deco .city { display: block; right: 0; bottom: 18%; width: 62%; height: 68%; background: linear-gradient(to top, #120a2e, #2b145a); -webkit-mask: var(--skyline) right bottom / auto 100% repeat-x; }
+#overlay[data-theme="neoncity"] .deco .grid { display: block; right: 0; bottom: 0; width: 62%; height: 18%; background: repeating-linear-gradient(to bottom, rgba(255, 63, 216, 0.45) 0 1px, transparent 1px 4px), linear-gradient(to bottom, rgba(90, 30, 140, 0.6), transparent); }
+#overlay[data-theme="neoncity"] #thumb { box-shadow: 0 0 0 3px #ff3fd8, 0 0 16px rgba(255, 63, 216, 0.6); }
+#overlay[data-theme="neoncity"] #trackName { color: #ff4fe0; text-shadow: 0 0 8px rgba(255, 63, 216, 0.6); }
+#overlay[data-theme="neoncity"] #trackMeta, #overlay[data-theme="neoncity"] .label { color: #2fe0ff; }
+#overlay[data-theme="neoncity"] #progressBar { background: rgba(47, 224, 255, 0.25); }
+#overlay[data-theme="neoncity"] #progressFill { background: #ff3fd8 !important; box-shadow: 0 0 8px #ff3fd8; }
+
+/* Cyber */
+#overlay[data-theme="cyber"] { --cut: 16px; font-family: "Orbitron", "Eurostile", system-ui, sans-serif; border: 2px solid transparent;
+  background: linear-gradient(120deg, rgba(5, 12, 40, 0.96), rgba(20, 8, 50, 0.96)) padding-box, linear-gradient(115deg, #22d3ff, #3a6bff 50%, #ff2bd6) border-box;
+  border-radius: 0; box-shadow: none; clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); }
+#overlay[data-theme="cyber"] .deco .city { display: block; right: 0; bottom: 0; width: 60%; height: 80%; opacity: 0.35; background: linear-gradient(to top, #ff2bd6, #3a3bff 60%, #1a1f6b); -webkit-mask: var(--skyline) right bottom / auto 100% repeat-x; }
+#overlay[data-theme="cyber"] .deco .stripes { display: block; top: 8px; right: 26px; width: 46px; height: 5px; background: repeating-linear-gradient(115deg, #22d3ff 0 5px, transparent 5px 9px); }
+#overlay[data-theme="cyber"] #thumb { box-shadow: 0 0 0 2px #22d3ff, 0 0 14px rgba(34, 211, 255, 0.7); }
+#overlay[data-theme="cyber"] #trackName { font-size: 14px; letter-spacing: 0.02em; color: #eaf6ff; text-shadow: 0 0 8px rgba(34, 228, 255, 0.7); }
+#overlay[data-theme="cyber"] #trackMeta { font-size: 11px; color: #ff3fd8; text-shadow: 0 0 6px rgba(255, 63, 216, 0.6); }
+#overlay[data-theme="cyber"] .label { color: #22e4ff; letter-spacing: 0.14em; }
+#overlay[data-theme="cyber"] #progressBar { height: 5px; border-radius: 0; background: rgba(255, 43, 214, 0.25); } #overlay[data-theme="cyber"] #progressFill { border-radius: 0; background: #22e4ff !important; box-shadow: 0 0 8px #22e4ff; }
+
+/* Retro */
+#overlay[data-theme="retro"] { background: rgba(238, 228, 205, 0.97); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 22px rgba(120, 90, 40, 0.35); --rainbow: #d8452f 0 20%, #ec8a2d 20% 40%, #f2c14b 40% 60%, #4aa36c 60% 80%, #2b6f9a 80%; }
+#overlay[data-theme="retro"] .deco { background: radial-gradient(circle at 18% 30%, rgba(140, 110, 60, 0.12), transparent 30%), radial-gradient(circle at 70% 80%, rgba(140, 110, 60, 0.1), transparent 35%), radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.3), transparent 30%), repeating-radial-gradient(circle at 40% 60%, rgba(90, 70, 40, 0.05) 0 1px, transparent 1px 4px); }
+#overlay[data-theme="retro"] .deco .stripes { display: block; top: 0; bottom: 0; right: 0; width: 44px; background: linear-gradient(90deg, var(--rainbow)); }
+#overlay[data-theme="retro"] #infoPanel { padding-right: 60px; }
+#overlay[data-theme="retro"] #thumb { box-shadow: 0 0 0 3px #1aa3a3, 0 4px 16px rgba(0,0,0,.35); }
+#overlay[data-theme="retro"] #trackName { color: #1c1a17; font-weight: 800; letter-spacing: -0.01em; } #overlay[data-theme="retro"] #trackMeta { color: #2c2925; font-weight: 600; }
+#overlay[data-theme="retro"] .label { color: #b0412c; }
+#overlay[data-theme="retro"] #progressBar { height: 7px; border-radius: 4px; border: 1.5px solid #1c1a17; background: transparent; } #overlay[data-theme="retro"] #progressFill { background: #1aa3a3 !important; }
+
+/* Glitch */
+#overlay[data-theme="glitch"] { background: rgba(18, 18, 20, 0.95); border-radius: 12px; font-family: "VT323", "Courier New", monospace; box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,0.14); }
+#overlay[data-theme="glitch"] .deco { background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.45)); }
+#overlay[data-theme="glitch"] #thumb { box-shadow: -3px 0 0 rgba(255, 40, 80, 0.75), 3px 0 0 rgba(40, 230, 255, 0.75), 0 0 0 2px rgba(255, 255, 255, 0.7); animation: glitch-clip 5s steps(1) infinite -1.3s; }
+#overlay[data-theme="glitch"] #trackName { font-size: 22px; font-weight: 400; color: #f2f2f2; text-shadow: -2px 0 rgba(255, 40, 80, 0.85), 2px 0 rgba(40, 230, 255, 0.85); animation: glitch 4s steps(1) infinite; }
+#overlay[data-theme="glitch"] #trackMeta { font-size: 17px; color: #e6e6e6; text-shadow: -1px 0 rgba(255, 40, 80, 0.7), 1px 0 rgba(40, 230, 255, 0.7); }
+#overlay[data-theme="glitch"] .label { color: #50e6f0; font-size: 13px; font-weight: 400; }
+#overlay[data-theme="glitch"] #progressBar { border: 1px solid rgba(80, 220, 230, 0.7); height: 6px; border-radius: 0; background: rgba(80, 220, 230, 0.25); } #overlay[data-theme="glitch"] #progressFill { background: #50e6f0 !important; border-radius: 0; }
+@keyframes glitch-clip { 0%, 91%, 100% { clip-path: none; } 92% { clip-path: inset(10% 0 55% 0); } 94% { clip-path: inset(60% 0 8% 0); } }
+@keyframes glitch { 0%, 91%, 100% { transform: none; clip-path: none; } 92% { transform: translateX(-3px); clip-path: inset(10% 0 55% 0); } 94% { transform: translateX(3px); clip-path: inset(60% 0 8% 0); } 96% { transform: translateX(-1px); } }
+
+/* Line */
+#overlay[data-theme="line"] { background: #000; border: 2px solid #fff; border-radius: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
+#overlay[data-theme="line"] #infoPanel { padding-left: 34px; padding-right: 34px; }
+#overlay[data-theme="line"] .deco .stripes, #overlay[data-theme="line"] .deco .grid { display: block; top: 22%; bottom: 22%; left: 10px; width: 10px; background: repeating-linear-gradient(-55deg, #fff 0 3px, transparent 3px 9px); }
+#overlay[data-theme="line"] .deco .grid { left: auto; right: 10px; }
+#overlay[data-theme="line"] #thumb { box-shadow: 0 0 0 3px #fff; }
+#overlay[data-theme="line"] #trackName { color: #fff; } #overlay[data-theme="line"] #trackMeta, #overlay[data-theme="line"] .label { color: rgba(255, 255, 255, 0.75); }
+#overlay[data-theme="line"] #progressBar { background: rgba(255, 255, 255, 0.18); } #overlay[data-theme="line"] #progressFill { background: #fff !important; }
+
+/* Telaraña (MuffetBot) */
+#overlay[data-theme="muffet"] { background: linear-gradient(135deg, rgba(36, 10, 58, 0.96), rgba(86, 22, 92, 0.96)); border-radius: 18px; box-shadow: 0 8px 26px rgba(0,0,0,.4), inset 0 0 0 1.5px rgba(197, 139, 255, 0.75), inset 0 0 18px rgba(197, 139, 255, 0.25); }
+#overlay[data-theme="muffet"] .deco .city { display: block; top: 0; right: 0; width: 86px; height: 86px; transform: scaleX(-1); background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='none' stroke='%23e0b3ff' stroke-width='1.2' stroke-linecap='round'><path d='M0 0L100 0M0 0L92 38M0 0L72 72M0 0L38 92M0 0L0 100'/><path d='M24 0Q21 21 0 24M46 0Q39 39 0 46M70 0Q58 58 0 70M94 0Q76 76 0 94'/></g></svg>") center / contain no-repeat; opacity: 0.5; }
+#overlay[data-theme="muffet"] .deco .grid { display: block; bottom: 0; left: 0; width: 70px; height: 70px; transform: scaleY(-1); background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='none' stroke='%23e0b3ff' stroke-width='1.2' stroke-linecap='round'><path d='M0 0L100 0M0 0L92 38M0 0L72 72M0 0L38 92M0 0L0 100'/><path d='M24 0Q21 21 0 24M46 0Q39 39 0 46M70 0Q58 58 0 70M94 0Q76 76 0 94'/></g></svg>") center / contain no-repeat; opacity: 0.32; }
+#overlay[data-theme="muffet"] #thumb { border-radius: 16px; box-shadow: 0 0 0 2px #ff8cc8, 0 0 16px rgba(255, 110, 190, 0.55); }
+#overlay[data-theme="muffet"] #trackName { font-family: "Cinzel", "Inter", serif; font-size: 16px; font-weight: 700; color: #fff; text-shadow: 0 0 10px rgba(255, 140, 200, 0.55); }
+#overlay[data-theme="muffet"] #trackMeta { color: #e8c7ff; } #overlay[data-theme="muffet"] .label { color: #ff8cc8; }
+#overlay[data-theme="muffet"] #progressBar { height: 2px; background: rgba(255, 140, 200, 0.28); overflow: visible; margin-top: 6px; border-radius: 0; }
+#overlay[data-theme="muffet"] #progressFill { position: relative; background: #ff8cc8 !important; box-shadow: 0 0 6px #ff8cc8; }
+#overlay[data-theme="muffet"] #progressFill::after { content: "\1F577\FE0F"; position: absolute; right: -9px; top: -9px; font-size: 16px; line-height: 1; filter: invert(1) drop-shadow(0 0 4px rgba(255,140,200,.9)); }
+
+/* Rey Pixel (MuffetBot) */
+#overlay[data-theme="osoking"] { background: rgba(20, 16, 42, 0.96); border-radius: 0; margin: 4px; overflow: visible;
+  box-shadow: 0 -4px 0 0 #ffcc33, 0 4px 0 0 #ffcc33, -4px 0 0 0 #ffcc33, 4px 0 0 0 #ffcc33, 0 0 0 8px rgba(0,0,0,0.35); font-family: "Press Start 2P", "Courier New", monospace; }
+#overlay[data-theme="osoking"] .deco { background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 4px); }
+#overlay[data-theme="osoking"] .deco .stripes { display: block; right: 10px; top: 8px; width: 38px; height: 38px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect x='4' y='1' width='1' height='1' fill='%23ffcc33'/><rect x='7' y='0' width='2' height='2' fill='%23ffcc33'/><rect x='11' y='1' width='1' height='1' fill='%23ffcc33'/><rect x='4' y='2' width='8' height='2' fill='%23ffcc33'/><rect x='2' y='4' width='3' height='3' fill='%238a5a3b'/><rect x='11' y='4' width='3' height='3' fill='%238a5a3b'/><rect x='3' y='5' width='10' height='8' fill='%238a5a3b'/><rect x='6' y='9' width='4' height='3' fill='%23d7a97a'/><rect x='7' y='9' width='2' height='1' fill='%23111'/><rect x='5' y='7' width='1' height='1' fill='%23111'/><rect x='10' y='7' width='1' height='1' fill='%23111'/></svg>") center / contain no-repeat; image-rendering: pixelated; }
+#overlay[data-theme="osoking"] #infoPanel { padding-top: 26px; padding-right: 56px; }
+#overlay[data-theme="osoking"] #thumb { border-radius: 0; image-rendering: pixelated; box-shadow: 0 0 0 4px #ffcc33, 4px 4px 0 4px rgba(0,0,0,.45); }
+#overlay[data-theme="osoking"] #thumbWrap { position: relative; }
+#overlay[data-theme="osoking"] #thumbWrap::before { content: ""; position: absolute; top: -20px; left: 50%; margin-left: -16px; width: 32px; height: 22px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' shape-rendering='crispEdges'><rect x='0' y='1' width='2' height='2' fill='%23ffcc33'/><rect x='5' y='0' width='2' height='3' fill='%23ffcc33'/><rect x='10' y='1' width='2' height='2' fill='%23ffcc33'/><rect x='1' y='3' width='10' height='4' fill='%23ffcc33'/><rect x='2' y='4' width='1' height='1' fill='%23d9822b'/><rect x='5' y='4' width='2' height='1' fill='%23d9822b'/><rect x='9' y='4' width='1' height='1' fill='%23d9822b'/><rect x='1' y='7' width='10' height='1' fill='%23d9822b'/></svg>") center / contain no-repeat; z-index: 3; image-rendering: pixelated; }
+#overlay[data-theme="osoking"] .label { font-size: 7px; color: #ffcc33; letter-spacing: 0; margin-bottom: 8px; } #overlay[data-theme="osoking"] .label-dot { border-radius: 0; }
+#overlay[data-theme="osoking"] #trackName { font-size: 11px; line-height: 1.4; color: #fff; font-weight: 400; margin-bottom: 6px; }
+#overlay[data-theme="osoking"] #trackMeta { font-size: 8px; color: #b9a6ff; margin-bottom: 10px; }
+#overlay[data-theme="osoking"] #progressBar { height: 10px; border-radius: 0; background: repeating-linear-gradient(90deg, rgba(255,204,51,.16) 0 8px, transparent 8px 10px); }
+#overlay[data-theme="osoking"] #progressFill { border-radius: 0; background: repeating-linear-gradient(90deg, #ffcc33 0 8px, transparent 8px 10px) !important; transition: width 1s steps(8, end); }
+
+/* Diálogo retro (MuffetBot) */
+#overlay[data-theme="undertale"] { background: #000; box-shadow: inset 0 0 0 4px #fff; border-radius: 0; font-family: "VT323", "Courier New", monospace; }
+#overlay[data-theme="undertale"] #infoPanel { padding: 18px 22px 18px 18px; }
+#overlay[data-theme="undertale"] .deco { display: none !important; }
+#overlay[data-theme="undertale"] #thumb { border-radius: 0; border: 4px solid #fff; image-rendering: pixelated; }
+#overlay[data-theme="undertale"] .label { font-size: 15px; font-weight: 400; color: #fff; letter-spacing: 0.06em; }
+#overlay[data-theme="undertale"] .label-dot { width: 10px; height: 9px; border-radius: 0; background: #ff1f2d; clip-path: polygon(0 20%, 20% 20%, 20% 0, 40% 0, 40% 20%, 60% 20%, 60% 0, 80% 0, 80% 20%, 100% 20%, 100% 60%, 80% 60%, 80% 80%, 60% 80%, 60% 100%, 40% 100%, 40% 80%, 20% 80%, 20% 60%, 0 60%); }
+#overlay[data-theme="undertale"] #trackName { font-size: 24px; font-weight: 400; color: #fff; line-height: 1.05; }
+#overlay[data-theme="undertale"] #trackName::before { content: "* "; }
+#overlay[data-theme="undertale"] #trackMeta { font-size: 19px; color: #ffe94d; }
+#overlay[data-theme="undertale"] #progressBar { height: 14px; border-radius: 0; background: #b3001b; } #overlay[data-theme="undertale"] #progressFill { border-radius: 0; background: #ffe94d !important; }
+
+/* Modo demo (?demo=estilo): lo usa la galería del dashboard */
+html.demo, html.demo body { width: 100vw; height: 100vh; }
+html.demo #scene { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+html.demo #overlay { position: relative; inset: auto; transform: none; width: 430px !important; height: auto !important; }
+html.demo #videoZone { display: none; }
 </style>
 </head>
 <body>
@@ -68,11 +244,16 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
     <div id="videoZone"><div id="ytPlayer"></div></div>
     <div id="progressBar"><div id="progressFill"></div></div>
     <div id="infoPanel">
-      <div id="thumbWrap"><img id="thumb" src="" alt="" onerror="this.style.visibility='hidden'" onload="this.style.visibility='visible'"></div>
+      <div class="deco"><i class="sun"></i><i class="grid"></i><i class="city"></i><i class="stripes"></i></div>
+      <div class="mac-dots"><span></span><span></span><span></span></div>
+      <div class="eq-icon"><i></i><i></i><i></i></div>
+      <div id="thumbWrap"><img id="thumb" src="" alt=""></div>
       <div id="trackInfo">
+        <div class="label"><span class="label-dot"></span>Sonando ahora</div>
         <div id="trackName">—</div>
         <div id="trackMeta">—</div>
       </div>
+      <div class="pill-btn">&#10074;&#10074;</div>
       <div id="queueCount"></div>
     </div>
   </div>
@@ -189,7 +370,7 @@ function updateMixInfo() {
       currentVideo.title = d.title; currentVideo.channelTitle = d.author || ''; currentVideo.videoId = d.video_id || '';
       document.getElementById('trackName').textContent = d.title;
       document.getElementById('trackMeta').textContent = `${d.author || ''} · mix`;
-      if (d.video_id) { const th = document.getElementById('thumb'); th.style.visibility = 'visible'; th.src = `https://img.youtube.com/vi/${d.video_id}/mqdefault.jpg`; }
+      if (d.video_id) setThumb(`https://img.youtube.com/vi/${d.video_id}/mqdefault.jpg`);
       if (config.display_mode === 'card' || config.show_title !== false) { document.getElementById('titleBar').style.display = 'block'; document.getElementById('soTitle').textContent = '▶ ' + d.title; }
     }
     if (ytPlayer.getPlaylistIndex) mixIndex = Math.max(0, ytPlayer.getPlaylistIndex() || 0);
@@ -216,12 +397,85 @@ async function loadConfig() {
   } catch(e) {}
 }
 
+
+// ── Estilos: color de la portada y aplicación del estilo ──
+const THEMES = ['classic','glass','pill','macos','minimal','line','synthwave','neoncity','cyber','glitch','retro','muffet','osoking','undertale'];
+const $ = (id) => document.getElementById(id);
+function hexToRgb(h) {
+  let x = String(h || '').replace('#', '');
+  if (x.length === 3) x = x.split('').map(c => c + c).join('');
+  const n = parseInt(x.slice(0, 6), 16);
+  return isNaN(n) ? [200, 30, 30] : [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function darkenForText(col) { // oscurece para que el texto blanco se lea
+  const lum = 0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2];
+  const k = lum > 95 ? 95 / lum : 1;
+  return col.map(v => Math.round(v * k));
+}
+function accentColors() { // plan B cuando la miniatura no deja leer sus colores: se usa el color acento
+  const c1 = darkenForText(hexToRgb(config.accent_color || '#FF0000'));
+  return { c1, c2: c1.map(v => Math.round(v * 0.55)) };
+}
+function extractCoverColors(img) {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 24;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, 24, 24);
+    const d = ctx.getImageData(0, 0, 24, 24).data;
+    let r = 0, g = 0, b = 0, w = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const R = d[i], G = d[i + 1], B = d[i + 2];
+      const max = Math.max(R, G, B), min = Math.min(R, G, B);
+      const lum = (R + G + B) / 3;
+      if (lum < 25 || lum > 235) continue;
+      const sat = max ? (max - min) / max : 0;
+      const wt = 0.15 + sat * sat * 2;
+      r += R * wt; g += G * wt; b += B * wt; w += wt;
+    }
+    if (!w) return null;
+    const col = darkenForText([r / w, g / w, b / w].map(Math.round));
+    return { c1: col, c2: col.map(v => Math.round(v * 0.55)) };
+  } catch (e) { return null; }
+}
+function setCoverColors(cols) {
+  const root = document.documentElement.style;
+  const c = cols || accentColors();
+  root.setProperty('--c1r', c.c1[0]); root.setProperty('--c1g', c.c1[1]); root.setProperty('--c1b', c.c1[2]);
+  root.setProperty('--c2r', c.c2[0]); root.setProperty('--c2g', c.c2[1]); root.setProperty('--c2b', c.c2[2]);
+}
+function setThumb(url) {
+  const th = $('thumb');
+  th.style.visibility = 'visible';
+  th.onload = () => { setCoverColors(extractCoverColors(th)); th.style.visibility = 'visible'; };
+  th.onerror = () => {
+    if (th.crossOrigin) { // la miniatura no permite leer sus colores: se muestra igual
+      th.crossOrigin = null;
+      th.onload = () => { setCoverColors(null); th.style.visibility = 'visible'; };
+      th.onerror = () => { th.style.visibility = 'hidden'; };
+      th.src = url;
+    } else th.style.visibility = 'hidden';
+  };
+  th.crossOrigin = 'anonymous';
+  th.src = url;
+}
+function applyTheme(overlay) {
+  const t = THEMES.includes(config.theme) ? config.theme : 'classic';
+  if (t === 'classic') {
+    if (overlay.hasAttribute('data-theme')) overlay.removeAttribute('data-theme');
+    if ($('progressBar').parentElement !== overlay) overlay.insertBefore($('progressBar'), $('infoPanel')); // como siempre: entre el video y la info
+  } else {
+    if (overlay.dataset.theme !== t) overlay.dataset.theme = t;
+    if ($('progressBar').parentElement !== $('trackInfo')) $('trackInfo').appendChild($('progressBar')); // dentro de la tarjeta, bajo el título
+  }
+}
+
 function applyStyle() {
   const overlay = document.getElementById('overlay');
   const w = config.card_width || 480;
   const h = config.card_height || 300;
   const cardMode = config.display_mode === 'card';
   overlay.classList.toggle('cardmode', cardMode);
+  applyTheme(overlay);
   overlay.style.width = w + 'px';
   overlay.style.height = cardMode ? 'auto' : h + 'px';
 
@@ -490,9 +744,7 @@ function playVideo(item) {
   document.getElementById('trackMeta').textContent = item.fromPlaylist
     ? `${item.channelTitle || ''} · playlist`
     : `${item.channelTitle || ''} · pedido por @${item.requestedBy || '?'}`;
-  const th = document.getElementById('thumb');
-  th.style.visibility = 'visible';
-  th.src = `https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`;
+  setThumb(`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`);
   document.getElementById('queueCount').textContent = item.fromPlaylist ? '🎵 Playlist' : '';
 
   // Título
@@ -561,7 +813,22 @@ async function init() {
   document.head.appendChild(tag);
 }
 
-init();
+// Modo demo (?demo=estilo): lo usa la galería del dashboard; muestra una tarjeta de ejemplo sin reproductor
+const demoTheme = params.get('demo');
+if (demoTheme) {
+  document.documentElement.classList.add('demo');
+  config = { theme: demoTheme, accent_color: '#FF0000' };
+  const ov = $('overlay');
+  applyTheme(ov);
+  ov.classList.add('cardmode', 'show');
+  $('trackName').textContent = 'Tu canción';
+  $('trackMeta').textContent = 'Tu canal · pedido por @viewer';
+  $('progressFill').style.width = '40%';
+  const svg = "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 90'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff5c8a'/><stop offset='1' stop-color='#6a3cff'/></linearGradient></defs><rect width='160' height='90' fill='url(#g)'/><circle cx='80' cy='40' r='24' fill='#ffd36b'/><rect y='64' width='160' height='26' fill='#1b1f4b'/></svg>");
+  setThumb(svg);
+} else {
+  init();
+}
 </script>
 </body>
 </html>
