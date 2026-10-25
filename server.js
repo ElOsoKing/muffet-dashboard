@@ -2136,8 +2136,8 @@ function ytRemoveFromQueue(cfg, index) {
 }
 
 // Campos que el dashboard SÍ puede cambiar desde "Guardar" (nunca la cola, el historial ni los límites)
-const YT_SETTINGS_KEYS = ['enabled','max_per_user','max_duration_min','volume','card_width','card_height','card_position','accent_color','show_title','allowed','playlist_url','blacklist','playlist_shuffle','playlist_loop','display_mode','theme'];
-const YT_THEMES = ['classic','glass','pill','macos','minimal','line','synthwave','neoncity','cyber','glitch','retro','muffet','osoking','undertale'];
+const YT_SETTINGS_KEYS = ['enabled','max_per_user','max_duration_min','volume','card_width','card_height','card_position','accent_color','show_title','allowed','playlist_url','blacklist','playlist_shuffle','playlist_loop','display_mode','theme','layout','cover'];
+const YT_THEMES = ['classic','glass','pill','macos','minimal','line','synthwave','neoncity','cyber','glitch','retro','muffet','osoking','undertale','wolf'];
 function ytSanitizeSettings(src) {
   const out = {};
   if (!isValidObject(src)) return out;
@@ -2148,6 +2148,8 @@ function ytSanitizeSettings(src) {
       case 'enabled': case 'show_title': case 'playlist_shuffle': case 'playlist_loop': out[k] = !!v; break;
       case 'display_mode': out[k] = v === 'card' ? 'card' : 'video'; break;
       case 'theme': out[k] = YT_THEMES.includes(v) ? v : 'classic'; break;
+      case 'layout': out[k] = v === 'vertical' ? 'vertical' : 'horizontal'; break;
+      case 'cover': out[k] = v === 'disc' ? 'disc' : 'square'; break;
       case 'max_per_user': out[k] = Math.max(1, Math.min(20, parseInt(v) || 3)); break;
       case 'max_duration_min': out[k] = Math.max(1, Math.min(180, parseInt(v) || 10)); break;
       case 'volume': out[k] = Math.max(0, Math.min(100, parseInt(v))); if (isNaN(out[k])) delete out[k]; break;
