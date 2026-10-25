@@ -1,6 +1,7 @@
 const express = require('express');
 const session = require('express-session');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 
@@ -414,6 +415,23 @@ app.get('/api/admin/streamers', requireAdmin, async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// API admin — última novedad, leída directo de dashboard.html (una sola fuente)
+let _clCache = { mtime: 0, data: null };
+app.get('/api/admin/changelog/latest', requireAdmin, (req, res) => {
+  try {
+    const file = path.join(__dirname, 'dashboard.html');
+    const mtime = fs.statSync(file).mtimeMs;
+    if (_clCache.data && _clCache.mtime === mtime) return res.json(_clCache.data);
+    const html = fs.readFileSync(file, 'utf8');
+    const m = html.match(/const update = (\{[\s\S]*?\n\s*\});\s*return/);
+    if (!m) return res.status(404).json({ error: 'No se encontró la novedad en dashboard.html' });
+    const u = require('vm').runInNewContext('(' + m[1] + ')', {}, { timeout: 200 });
+    const data = { version: String(u.version), date: String(u.date), items: (u.items || []).map(String) };
+    _clCache = { mtime, data };
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // API admin — publicar novedades en Discord
