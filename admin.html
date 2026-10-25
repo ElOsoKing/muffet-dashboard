@@ -640,24 +640,22 @@ document.getElementById('changelogModal').addEventListener('click', function(e){
   if(e.target===this) this.style.display='none';
 });
 
-// Novedades más recientes — sincronizado con dashboard.html
-const LATEST_CHANGELOG = {
-  version: 'v3.0',
-  date: '18 Agosto 2026',
-  items: [
-    '🔊 Alertas multimedia — tus viewers canjean puntos y suena un audio o video (meme) en tu stream, configurable desde el dashboard',
-    '⏱️ Subatón — un contador en pantalla que suma tiempo con cada sub, gift sub y bits, ideal para streams maratón',
-    '🎰 Nuevo comando !slots — tragamonedas con premio mayor en 7️⃣7️⃣7️⃣',
-    '🎲 !apostar ahora tiene niveles de riesgo — facil, arriesgado y extremo, con distintas probabilidades y pagos',
-    '⚔️ !duelo ya no se resuelve al instante — el retado debe usar !aceptar o !rechazar',
-    '🎬 Emoji Game: pistas progresivas, racha de victorias, reto automático y ranking con !emojitop',
-    '💸 Nuevo comando !donar — muestra tu link de donaciones si lo configuraste en Redes',
-    '🛡️ Corregido un bug donde el bot principal duplicaba comandos y respuestas en canales con bot personalizado',
-    '🎵 !yt (YouTube) ahora respeta el plan Pro y ya no se pierden canciones si piden varias a la vez',
-  ]
-};
+// Novedad más reciente — se lee de dashboard.html (no hay que sincronizar a mano)
+let LATEST_CHANGELOG = null;
 
-function openChangelogModal() {
+async function openChangelogModal() {
+  document.getElementById('changelogModal').style.display = 'flex';
+  document.getElementById('changelogVersion').textContent = 'Cargando...';
+  try {
+    const r = await fetch('/api/admin/changelog/latest', { cache: 'no-store' });
+    if (!r.ok) throw new Error((await r.json()).error || 'Error');
+    LATEST_CHANGELOG = await r.json();
+  } catch (e) {
+    LATEST_CHANGELOG = null;
+    document.getElementById('changelogVersion').textContent = '';
+    document.getElementById('changelogPreview').innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No se pudo cargar la novedad: ' + e.message + '</div>';
+    return;
+  }
   document.getElementById('changelogVersion').textContent = `${LATEST_CHANGELOG.version} — ${LATEST_CHANGELOG.date}`;
   document.getElementById('changelogPreview').innerHTML = `
     <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:14px;">
@@ -668,10 +666,10 @@ function openChangelogModal() {
           <span>${item}</span>
         </div>`).join('')}
     </div>`;
-  document.getElementById('changelogModal').style.display = 'flex';
 }
 
 async function publishChangelog() {
+  if (!LATEST_CHANGELOG) return showToast('No hay novedad cargada', 'error');
   const btn = document.querySelector('#changelogModal button[onclick="publishChangelog()"]');
   btn.textContent = '⏳ Publicando...';
   btn.disabled = true;
