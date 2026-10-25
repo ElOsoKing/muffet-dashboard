@@ -707,6 +707,10 @@ function renderYouTubeConfig() {
             style="display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 16px;border-radius:20px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);cursor:pointer;font-weight:600;font-family:var(--sans);transition:all 0.2s;">
             👁️ Vista previa
           </button>
+          <button onclick="ytOpenDockModal()"
+            style="display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 16px;border-radius:20px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);cursor:pointer;font-weight:600;font-family:var(--sans);transition:all 0.15s;">
+            🎛️ Dock de OBS
+          </button>
         </div>
       </div>
     </div>
@@ -1078,6 +1082,63 @@ async function ytCopyOverlayLink() {
 async function ytPreviewOverlay() {
   const url = await ytGetOverlayUrl();
   showOverlayPreview(url + (url.includes('?') ? '&' : '?') + 'preview=1', 'YouTube');
+}
+
+// ── Dock de OBS (panel de control para Docks de navegador personalizados) ──
+async function ytOpenDockModal() {
+  document.getElementById('ytDockModal')?.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'ytDockModal';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:20px;';
+  wrap.innerHTML = `<div style="background:var(--bg2, #181a22);border:1px solid rgba(255,255,255,0.1);border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08);">
+      <div><div style="font-size:15px;font-weight:800;">🎛️ Dock de OBS</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Pausa, salta canciones, cambia el volumen y maneja la cola sin salir de OBS.</div></div>
+      <button type="button" onclick="document.getElementById('ytDockModal').remove()" style="background:transparent;border:none;color:var(--text);font-size:22px;cursor:pointer;line-height:1;">✕</button>
+    </div>
+    <div style="padding:16px 20px 20px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.6px;margin-bottom:6px;">TU LINK DEL DOCK</div>
+      <div style="display:flex;gap:8px;">
+        <input id="ytDockUrl" readonly value="Cargando…" style="flex:1;min-width:0;padding:9px 12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.1);border-radius:10px;color:var(--text);font-size:12px;font-family:monospace;" onfocus="this.select()">
+        <button type="button" onclick="ytDockCopy()" style="padding:9px 16px;background:#FF3B3B;border:none;border-radius:10px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);">Copiar</button>
+      </div>
+      <div style="font-size:11px;color:#ffc447;margin-top:8px;">⚠️ No lo compartas: quien tenga este link puede controlar tu música.</div>
+
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.6px;margin:18px 0 8px;">CÓMO PONERLO EN OBS</div>
+      <ol style="margin:0;padding-left:20px;font-size:12px;line-height:1.9;color:var(--text);">
+        <li>Copia el link de arriba.</li>
+        <li>En OBS abre el menú <b>Docks → Docks de navegador personalizados</b>.</li>
+        <li>Ponle un nombre (por ejemplo «Música»), pega el link en la columna <b>URL</b> y dale a <b>Aplicar</b>.</li>
+        <li>Aparece un panel que puedes arrastrar y acomodar junto a tus escenas.</li>
+      </ol>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:10px;">Controla el reproductor de YouTube (el overlay tiene que estar abierto en OBS). El control de Spotify llegará después.</div>
+
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <div style="font-size:11px;color:var(--text-dim);flex:1;min-width:200px;">¿Se filtró el link? Genera uno nuevo y el anterior deja de funcionar.</div>
+        <button type="button" id="ytDockRegen" onclick="ytDockRegen()" style="padding:7px 14px;background:var(--bg3);border:1px solid rgba(255,255,255,0.1);border-radius:16px;color:var(--text);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);">🔄 Regenerar link</button>
+      </div>
+    </div>
+  </div>`;
+  wrap.addEventListener('click', e => { if (e.target === wrap) wrap.remove(); });
+  document.body.appendChild(wrap);
+  try {
+    const r = await fetch('/api/dock/url'); const j = await r.json();
+    document.getElementById('ytDockUrl').value = j.ok ? j.url : 'No se pudo generar el link';
+  } catch (e) { document.getElementById('ytDockUrl').value = 'No se pudo generar el link'; }
+}
+async function ytDockCopy() {
+  const el = document.getElementById('ytDockUrl'); if (!el || !el.value.startsWith('http')) return;
+  try { await navigator.clipboard.writeText(el.value); showToast('Link del dock copiado ✓'); } catch (e) { el.select(); showToast('Selecciónalo y copia con Ctrl+C'); }
+}
+let _ytDockRegenAt = 0;
+async function ytDockRegen() {
+  const btn = document.getElementById('ytDockRegen');
+  if (Date.now() - _ytDockRegenAt > 4000) { _ytDockRegenAt = Date.now(); btn.textContent = '¿Seguro? El link viejo dejará de servir'; setTimeout(() => { if (btn && Date.now() - _ytDockRegenAt >= 3900) { _ytDockRegenAt = 0; btn.textContent = '🔄 Regenerar link'; } }, 4000); return; }
+  _ytDockRegenAt = 0; btn.textContent = '🔄 Regenerar link';
+  try {
+    const r = await fetch('/api/dock/regenerate', { method: 'POST' }); const j = await r.json();
+    if (j.ok) { document.getElementById('ytDockUrl').value = j.url; showToast('Link nuevo listo. Actualízalo en OBS ✓'); } else showToast('No se pudo regenerar', 'error');
+  } catch (e) { showToast('No se pudo regenerar', 'error'); }
 }
 
 // ── Controles ──
