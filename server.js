@@ -1195,7 +1195,8 @@ app.get('/api/overlay/spotify/:username', async (req, res) => {
       duration_ms: data.item.duration_ms,
       is_playing: data.is_playing,
       overlay_opacity: streamer.spotify_config?.overlay_opacity ?? 100,
-      bg_opacity: streamer.spotify_config?.bg_opacity ?? 75
+      bg_opacity: streamer.spotify_config?.bg_opacity ?? 75,
+      theme: streamer.spotify_config?.theme || 'classic'
     });
   } catch(err) { res.json({ playing: false }); }
 });
