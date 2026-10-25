@@ -206,11 +206,83 @@ body {
 /* Paused state */
 .widget.paused .label-dot { animation: none; opacity: 0.3; }
 .widget.paused .progress-bar { box-shadow: none; }
+
+/* ══════════════ TEMAS (se eligen desde el dashboard) ══════════════
+   Estilos inspirados en alejox/obs-music-player (MIT). "classic" = el diseño de siempre. */
+@property --c1r { syntax: '<number>'; inherits: true; initial-value: 40; }
+@property --c1g { syntax: '<number>'; inherits: true; initial-value: 40; }
+@property --c1b { syntax: '<number>'; inherits: true; initial-value: 48; }
+@property --c2r { syntax: '<number>'; inherits: true; initial-value: 18; }
+@property --c2g { syntax: '<number>'; inherits: true; initial-value: 18; }
+@property --c2b { syntax: '<number>'; inherits: true; initial-value: 24; }
+:root { transition: --c1r 1s, --c1g 1s, --c1b 1s, --c2r 1s, --c2g 1s, --c2b 1s; }
+
+.mac-dots, .pill-btn, .eq-icon { display: none; }
+.mac-dots span { width: 11px; height: 11px; border-radius: 50%; display: block; }
+.mac-dots span:nth-child(1) { background: #ff5f57; }
+.mac-dots span:nth-child(2) { background: #febc2e; }
+.mac-dots span:nth-child(3) { background: #28c840; }
+.pill-btn { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; align-items: center; justify-content: center; background: rgba(255,255,255,0.14); color: #fff; font-size: 13px; }
+.pill-btn .ico-play { display: none; }
+.widget.paused .pill-btn .ico-play { display: inline; }
+.widget.paused .pill-btn .ico-pause { display: none; }
+.eq-icon { width: 14px; height: 14px; align-items: flex-end; gap: 2px; position: absolute; top: 12px; right: 14px; }
+.eq-icon i { display: block; width: 3px; background: rgba(255,255,255,0.85); border-radius: 1px; }
+.eq-icon i:nth-child(1) { height: 6px; } .eq-icon i:nth-child(2) { height: 13px; } .eq-icon i:nth-child(3) { height: 9px; }
+
+/* Colores sacados de la portada (glass, pill, macos) */
+body[data-theme="glass"] .widget,
+body[data-theme="pill"] .widget,
+body[data-theme="macos"] .widget {
+  background: linear-gradient(135deg,
+    rgba(var(--c1r), var(--c1g), var(--c1b), var(--bg-opacity, 0.75)),
+    rgba(var(--c2r), var(--c2g), var(--c2b), var(--bg-opacity, 0.75)));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+body[data-theme="glass"] .widget::before, body[data-theme="glass"] .widget::after,
+body[data-theme="pill"] .widget::before, body[data-theme="pill"] .widget::after,
+body[data-theme="macos"] .widget::before, body[data-theme="macos"] .widget::after,
+body[data-theme="minimal"] .widget::before, body[data-theme="minimal"] .widget::after { display: none; }
+body[data-theme="glass"] .label, body[data-theme="pill"] .label, body[data-theme="macos"] .label { color: rgba(255,255,255,0.78); }
+body[data-theme="glass"] .label-dot, body[data-theme="pill"] .label-dot, body[data-theme="macos"] .label-dot { background: #fff; }
+body[data-theme="glass"] .progress-bar, body[data-theme="pill"] .progress-bar, body[data-theme="macos"] .progress-bar { background: #fff; box-shadow: none; }
+body[data-theme="glass"] .progress-wrap, body[data-theme="pill"] .progress-wrap, body[data-theme="macos"] .progress-wrap { background: rgba(255,255,255,0.22); }
+body[data-theme="glass"] .artist-name, body[data-theme="pill"] .artist-name, body[data-theme="macos"] .artist-name { color: rgba(255,255,255,0.72); }
+body[data-theme="glass"] .spotify-badge, body[data-theme="pill"] .spotify-badge, body[data-theme="macos"] .spotify-badge,
+body[data-theme="minimal"] .spotify-badge { display: none; }
+body[data-theme="glass"] .widget { width: 340px; }
+body[data-theme="glass"] .album-art { width: 64px; height: 64px; border-radius: 12px; }
+
+/* Pill: cápsula con indicador de reproducción */
+body[data-theme="pill"] .widget { width: 380px; border-radius: 999px; padding: 12px 16px 12px 12px; }
+body[data-theme="pill"] .album-art { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); }
+body[data-theme="pill"] .pill-btn { display: flex; }
+
+/* macOS: ventana con los tres puntitos */
+body[data-theme="macos"] .widget { width: 360px; border-radius: 14px; padding-top: 22px; }
+body[data-theme="macos"] .mac-dots { display: flex; gap: 6px; position: absolute; top: 9px; right: 12px; }
+body[data-theme="macos"] .album-art { width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); }
+
+/* Minimal: oscuro y sobrio, con barrita separadora */
+body[data-theme="minimal"] .widget {
+  width: 360px; border-radius: 14px; background: rgba(34, 34, 36, var(--bg-opacity, 0.75));
+  border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 6px 22px rgba(0,0,0,0.35);
+}
+body[data-theme="minimal"] .album-art { width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.85); }
+body[data-theme="minimal"] .album-art-wrap::after { content: ''; position: absolute; top: 4px; bottom: 4px; right: -9px; width: 1px; background: rgba(255,255,255,0.18); }
+body[data-theme="minimal"] .info { padding-left: 8px; }
+body[data-theme="minimal"] .label { color: rgba(255,255,255,0.55); }
+body[data-theme="minimal"] .label-dot { background: #fff; }
+body[data-theme="minimal"] .progress-bar { background: #fff; box-shadow: none; }
+body[data-theme="minimal"] .eq-icon { display: flex; }
 </style>
 </head>
 <body>
 
 <div class="widget" id="widget">
+  <div class="mac-dots"><span></span><span></span><span></span></div>
+  <div class="eq-icon"><i></i><i></i><i></i></div>
   <div class="album-art-wrap">
     <img class="album-art" id="albumArt" src="" alt="Album Art">
     <div class="spotify-badge">
@@ -231,12 +303,67 @@ body {
       <div class="progress-bar" id="progressBar" style="width:0%"></div>
     </div>
   </div>
+  <div class="pill-btn"><span class="ico-pause">&#10074;&#10074;</span><span class="ico-play">&#9654;</span></div>
 </div>
 
 <script>
 const username = window.location.pathname.split('/overlay/spotify/')[1];
 let currentTrack = '';
 let progressInterval = null;
+
+
+const THEMES = ['classic', 'glass', 'pill', 'macos', 'minimal'];
+function applyTheme(name) {
+  const t = THEMES.includes(name) ? name : 'classic';
+  if (document.body.dataset.theme !== t) document.body.dataset.theme = t;
+}
+
+// Color dominante de la portada (saturación pesa más; se oscurece para que el texto blanco se lea)
+function extractCoverColors(img) {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 24;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, 24, 24);
+    const d = ctx.getImageData(0, 0, 24, 24).data;
+    let r = 0, g = 0, b = 0, w = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const R = d[i], G = d[i + 1], B = d[i + 2];
+      const max = Math.max(R, G, B), min = Math.min(R, G, B);
+      const lum = (R + G + B) / 3;
+      if (lum < 25 || lum > 235) continue;
+      const sat = max ? (max - min) / max : 0;
+      const wt = 0.15 + sat * sat * 2;
+      r += R * wt; g += G * wt; b += B * wt; w += wt;
+    }
+    if (!w) return null;
+    let col = [r / w, g / w, b / w];
+    const lum = 0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2];
+    const k = lum > 95 ? 95 / lum : 1;
+    col = col.map(v => Math.round(v * k));
+    return { c1: col, c2: col.map(v => Math.round(v * 0.55)) };
+  } catch (e) { return null; } // portada sin CORS → colores por defecto
+}
+function setCoverColors(cols) {
+  const root = document.documentElement.style;
+  const c1 = cols ? cols.c1 : [40, 40, 48], c2 = cols ? cols.c2 : [18, 18, 24];
+  root.setProperty('--c1r', c1[0]); root.setProperty('--c1g', c1[1]); root.setProperty('--c1b', c1[2]);
+  root.setProperty('--c2r', c2[0]); root.setProperty('--c2g', c2[1]); root.setProperty('--c2b', c2[2]);
+}
+// Carga la portada con CORS (para leer sus colores); si el servidor de imágenes no lo permite, la muestra igual sin colores
+function loadCover(artEl, url) {
+  const done = () => artEl.classList.remove('fade');
+  artEl.onload = () => { setCoverColors(extractCoverColors(artEl)); done(); };
+  artEl.onerror = () => {
+    if (artEl.crossOrigin) {
+      artEl.crossOrigin = null;
+      artEl.onerror = done;
+      artEl.onload = () => { setCoverColors(null); done(); };
+      artEl.src = url;
+    } else done();
+  };
+  artEl.crossOrigin = 'anonymous';
+  artEl.src = url || '';
+}
 
 function setupMarquee(el) {
   el.classList.remove('marquee');
@@ -279,6 +406,7 @@ function updateWidget(data) {
     return;
   }
 
+  applyTheme(data.theme);
   widget.classList.remove('hidden');
   widget.classList.add('visible');
   const opacityVal = (data.overlay_opacity ?? 100) / 100;
@@ -299,11 +427,7 @@ function updateWidget(data) {
 
     // Fade out portada y animar texto
     artEl.classList.add('fade');
-    setTimeout(() => {
-      artEl.src = data.image || '';
-      artEl.onload = () => artEl.classList.remove('fade');
-      artEl.onerror = () => artEl.classList.remove('fade');
-    }, 400);
+    setTimeout(() => loadCover(artEl, data.image || ''), 400);
 
     // Animar texto
     trackEl.classList.remove('animate');
