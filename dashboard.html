@@ -1812,16 +1812,17 @@ function renderMain() {
       </div>
       <div class="panel-body" style="padding:0;">
         ${(() => { const update = {
-            version: 'v3.1',
-            date: '25 Octubre 2026',
+            version: 'v3.2',
+            date: '26 Octubre 2026',
             badge: 'nuevo',
             items: [
-              '🎵 Música de YouTube renovada — pedidos con !yt, cola, playlists con aleatorio y repetir, mixes de YouTube, modo "solo título" y controles en vivo desde el dashboard (volumen, pausa, saltar)',
-              '🎨 14 estilos para los overlays de Spotify y YouTube — Cristal, Píldora, Synthwave, Neon City, Cyber, Telaraña, Rey Pixel y más, con vista previa y colores que siguen la portada',
-              '🎬 Emoji Game: el bot ahora sí respeta tu configuración del dashboard (puntos, pistas, tiempo y reto automático)',
-              '⭐ Corregido un bug donde parte del XP por mensaje se podía perder, y las apuestas y !slots ahora guardan los puntos en orden',
-              '⚡ Overlays y servidor más ligeros — menos consultas y sin efectos que gastaban GPU en OBS',
-                        ]
+              '🎛️ Dock de OBS — controla la música (YouTube y Spotify) desde un panel dentro de OBS: pausa, saltar, volumen, cola y volver a empezar la canción. Se copia el link desde el dashboard',
+              '📱 Overlays de música en vertical y con portada de disco giratorio — se elige en la galería de estilos, para Spotify y YouTube',
+              '🎮 La sección Emoji Game ahora se llama Mini juegos',
+              '🚀 Subatón: las raids pueden sumar tiempo (opcional), con minutos y mínimo de personas configurables',
+              '🛠️ Correcciones en sorteos, encuestas, duelos, canjes, Pokédle y subatón: ya no se pierden entradas, votos ni puntos cuando varios participan a la vez',
+              '🎨 Estilos exclusivos hechos a medida para algunos canales, con animaciones nuevas',
+            ]
           }; return `
           <div style="padding:16px 20px;">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
