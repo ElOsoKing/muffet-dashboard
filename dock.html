@@ -27,7 +27,8 @@ button:disabled { opacity: .45; cursor: default; }
 .spnote { display: none; padding: 14px 16px; color: var(--dim); font-size: 12px; line-height: 1.6; }
 body.sp .spnote { display: block; } body.sp .qhead, body.sp .queue { display: none; }
 body.sp .src { color: #1ed760; } body.sp .fill { background: #1ed760; } body.sp .btn.main { background: #1db954; color: #04130a; } body.sp .btn.main:hover:not(:disabled) { background: #22d760; } body.sp .vol input { accent-color: #1ed760; }
-#bPrev { display: none; } body.sp #bPrev { display: flex; }
+#bPrev, #bRep { display: none; } body.sp #bPrev, body.sp #bRep { display: flex; }
+#bRep.on { background: #1db954; color: #04130a; border-color: transparent; }
 .now { display: flex; gap: 12px; padding: 12px; align-items: center; border-bottom: 1px solid var(--line); }
 .thumb { width: 64px; height: 64px; border-radius: 10px; background: var(--bg2) center / cover no-repeat; flex-shrink: 0; }
 .info { min-width: 0; flex: 1; }
@@ -92,6 +93,7 @@ body.sp .src { color: #1ed760; } body.sp .fill { background: #1ed760; } body.sp 
   <button id="bPrev" class="btn" title="Canción anterior" disabled>⏮</button>
   <button id="bPlay" class="btn main" title="Pausar / Reanudar" disabled>⏸</button>
   <button id="bSkip" class="btn" title="Saltar canción" disabled>⏭</button>
+  <button id="bRep" class="btn" title="Volver a empezar la canción que suena" disabled>↺</button>
   <div class="vol"><span style="font-size:14px">🔊</span><input id="vol" type="range" min="0" max="100" step="1" value="100" disabled><span id="volTxt">100%</span></div>
 </div>
 
@@ -123,7 +125,7 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 function banner(kind, msg) { const b = $('banner'); if (!msg) { b.className = 'banner'; return; } b.className = 'banner show ' + kind; b.textContent = msg; }
 const SP_ERR = {
   premium: 'Spotify solo deja controlar la reproducción desde aquí con una cuenta Premium.',
-  nodevice: 'No hay un dispositivo de Spotify activo. Abre Spotify y dale play una vez.',
+  nodevice: 'No encuentro Spotify abierto. Abre la app de Spotify (puede estar en pausa) y vuelve a intentar.',
   reconnect: 'Vuelve a conectar Spotify desde el dashboard de MuffetBot.',
   scope: 'Vuelve a conectar Spotify desde el dashboard (faltan permisos de control).',
   notconnected: 'Spotify no está conectado en el dashboard.',
@@ -148,7 +150,7 @@ async function poll() {
   }
 }
 let dead = false;
-function fatal(msg) { dead = true; banner('err', msg); ['bPlay', 'bSkip', 'bPrev', 'vol', 'bClear'].forEach(id => $(id).disabled = true); $('srcTxt').textContent = 'Desconectado'; $('dot').className = 'dot'; }
+function fatal(msg) { dead = true; banner('err', msg); ['bPlay', 'bSkip', 'bPrev', 'bRep', 'vol', 'bClear'].forEach(id => $(id).disabled = true); $('srcTxt').textContent = 'Desconectado'; $('dot').className = 'dot'; }
 
 function setMode(m, remember = true) {
   mode = m; S = null;
@@ -203,14 +205,17 @@ function renderSp() {
   const ok = !sp.error && sp.active;
   if (sp.error === 'reconnect') banner('err', SP_ERR.reconnect);
   else if (sp.error) banner('warn', 'No se pudo leer Spotify, reintentando…');
-  else if (!sp.active) banner('warn', SP_ERR.nodevice);
+  else if (!sp.active) banner('warn', 'Spotify está dormido. Toca ▶ para despertarlo.');
   $('dot').className = 'dot' + (ok && sp.playing ? ' on' : '');
   $('srcTxt').textContent = !ok ? 'Spotify' : (sp.playing ? 'Spotify' : 'En pausa');
   $('title').textContent = ok ? (sp.track || 'Nada sonando') : '—';
   $('author').textContent = ok ? (sp.artist || '') : '';
   $('thumb').style.backgroundImage = ok && sp.image ? `url("${String(sp.image).replace(/"/g, '%22')}")` : '';
   $('bPlay').textContent = ok && !sp.playing ? '▶' : '⏸';
-  $('bPlay').disabled = !ok; $('bSkip').disabled = !ok; $('bPrev').disabled = !ok;
+  const canWake = !sp.error && !sp.active; // inactivo por mucho rato: ▶ intenta despertar Spotify
+  if (canWake) $('bPlay').textContent = '▶';
+  $('bPlay').disabled = !ok && !canWake; $('bSkip').disabled = !ok; $('bPrev').disabled = !ok;
+  $('bRep').disabled = !ok;
   const volOk = ok && sp.volume != null && sp.volume_ok;
   $('vol').disabled = !volOk;
   if (!draggingVol && sp.volume != null) { $('vol').value = sp.volume; $('volTxt').textContent = sp.volume + '%'; }
@@ -251,7 +256,8 @@ async function control(action, extra) {
 
 $('bPlay').onclick = async () => {
   if (mode === 'sp') {
-    const sp = S && S.spotify; if (!sp || !sp.active) return;
+    const sp = S && S.spotify; if (!sp) return;
+    if (!sp.active) { if (await control('spotify_play')) { toast('Despertando Spotify…'); setTimeout(poll, 1200); setTimeout(poll, 3000); } return; }
     const act = sp.playing ? 'spotify_pause' : 'spotify_play';
     $('bPlay').textContent = sp.playing ? '▶' : '⏸';
     if (await control(act)) { sp.playing = !sp.playing; sp.progress_ms = (sp.progress_ms || 0) + (Date.now() - T0); T0 = Date.now(); sp.ts = S.now; render(); setTimeout(poll, 700); }
@@ -267,6 +273,10 @@ $('bPlay').onclick = async () => {
 $('bSkip').onclick = async () => {
   if (mode === 'sp') { if (await control('spotify_next')) { toast('Siguiente…'); setTimeout(poll, 900); } return; }
   if (await control('skip')) toast('Saltando…');
+};
+$('bRep').onclick = async () => {
+  const sp = S && S.spotify; if (!sp || !sp.active) return;
+  if (await control('spotify_restart')) { sp.playing = true; sp.progress_ms = 0; T0 = Date.now(); sp.ts = S.now; render(); toast('Desde el principio ↺'); setTimeout(poll, 900); }
 };
 $('bPrev').onclick = async () => { if (await control('spotify_prev')) { toast('Anterior…'); setTimeout(poll, 900); } };
 $('vol').addEventListener('pointerdown', () => { draggingVol = true; });
