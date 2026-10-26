@@ -1527,6 +1527,9 @@ async function saveSubathonConfig() {
     bits_unit: parseInt(document.getElementById('subathonBitsUnit')?.value) || 100,
     minutes_per_bits_unit: parseFloat(document.getElementById('subathonBitsMin')?.value) || 0,
     max_minutes: Math.round((parseFloat(document.getElementById('subathonMax')?.value) || 0) * 60),
+    raid_enabled: document.getElementById('subathonRaidOn')?.checked || false,
+    minutes_per_raid: parseFloat(document.getElementById('subathonRaidMin')?.value) || 0,
+    raid_min_viewers: Math.max(0, parseInt(document.getElementById('subathonRaidViewers')?.value) || 0),
     announce: document.getElementById('subathonAnnounce')?.checked !== false,
   };
   try {
@@ -3326,6 +3329,20 @@ function renderMain() {
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Minutos por esos bits</div>
             <input type="number" id="subathonBitsMin" class="form-input" min="0" step="0.5" value="${s.subathon_config?.minutes_per_bits_unit??1}" onchange="saveSubathonConfig()">
+          </div>
+        </div>
+        <div class="toggle-row" style="margin-bottom:12px;">
+          <div><div class="toggle-label">🚀 Las raids suman tiempo</div><div class="toggle-sub">Opcional. Solo suma si la raid trae al menos el mínimo de personas que pongas abajo</div></div>
+          <label class="toggle"><input type="checkbox" id="subathonRaidOn" ${s.subathon_config?.raid_enabled?'checked':''} onchange="saveSubathonConfig()"><span class="toggle-slider"></span></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Minutos por raid</div>
+            <input type="number" id="subathonRaidMin" class="form-input" min="0" step="0.5" value="${s.subathon_config?.minutes_per_raid??5}" onchange="saveSubathonConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Mínimo de personas en la raid</div>
+            <input type="number" id="subathonRaidViewers" class="form-input" min="0" step="1" value="${s.subathon_config?.raid_min_viewers??10}" onchange="saveSubathonConfig()">
           </div>
         </div>
         <div>
