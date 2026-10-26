@@ -2388,10 +2388,10 @@ app.post('/api/youtube/control', async (req, res) => {
 });
 
 // ── Spotify desde el dock: llamadas a la API del streamer (refresca el token si caducó) ──
-async function spotifyApi(username, method, urlPath) {
+async function spotifyApi(username, method, urlPath, body) {
   const st = await sbSelect('streamers', { twitch_username: username }, 'spotify_token,spotify_refresh,spotify_client_id,spotify_client_secret');
   if (!st?.spotify_token) return { notConnected: true };
-  const call = (tok) => fetch('https://api.spotify.com/v1' + urlPath, { method, headers: { 'Authorization': `Bearer ${tok}` } });
+  const call = (tok) => fetch('https://api.spotify.com/v1' + urlPath, { method, headers: body ? { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' } : { 'Authorization': `Bearer ${tok}` }, body: body ? JSON.stringify(body) : undefined });
   let r = await call(st.spotify_token);
   if (r.status === 401 && st.spotify_refresh) {
     const tok = await refreshSpotifyToken(st.spotify_refresh, st.spotify_client_id, st.spotify_client_secret);
@@ -2421,13 +2421,25 @@ function spotifyDockState(channel) { // lo que suena en Spotify (cacheado 2.5 s;
       track: it?.name || null, artist: it?.artists?.map(a => a.name).join(', ') || null,
       image: it?.album?.images?.[1]?.url || it?.album?.images?.[0]?.url || '',
       progress_ms: d.progress_ms || 0, duration_ms: it?.duration_ms || 0, ts: Date.now(),
-      volume: d.device?.volume_percent ?? null, volume_ok: d.device?.supports_volume !== false, device: d.device?.name || null
+      repeat: d.repeat_state || 'off', volume: d.device?.volume_percent ?? null, volume_ok: d.device?.supports_volume !== false, device: d.device?.name || null
     };
   });
 }
 const SPOTIFY_DOCK_ACTIONS = { spotify_pause: ['PUT', '/me/player/pause'], spotify_play: ['PUT', '/me/player/play'], spotify_next: ['POST', '/me/player/next'], spotify_prev: ['POST', '/me/player/previous'] };
+// Tras un rato en pausa Spotify marca el dispositivo como inactivo (404): lo despertamos transfiriendo la reproducción al último dispositivo visible
+async function spotifyWake(channel) {
+  const x = await spotifyApi(channel, 'GET', '/me/player/devices');
+  if (x.notConnected || !x.r?.ok) return false;
+  const j = await x.r.json().catch(() => null);
+  const devs = (j?.devices || []).filter(d => d.id && !d.is_restricted);
+  const dev = devs.find(d => d.is_active) || devs.find(d => d.type === 'Computer') || devs[0];
+  if (!dev) return false;
+  const t = await spotifyApi(channel, 'PUT', '/me/player', { device_ids: [dev.id], play: true });
+  return !!t.r && (t.r.ok || t.r.status === 204);
+}
 async function spotifyDockControl(channel, action, value) {
   let m = SPOTIFY_DOCK_ACTIONS[action];
+  if (action === 'spotify_restart') m = ['PUT', '/me/player/seek?position_ms=0'];
   if (action === 'spotify_volume') {
     const v = parseInt(value);
     m = ['PUT', `/me/player/volume?volume_percent=${Math.max(0, Math.min(100, isNaN(v) ? 0 : v))}`];
@@ -2435,7 +2447,11 @@ async function spotifyDockControl(channel, action, value) {
   if (!m) return { ok: false, error: 'accion' };
   const x = await spotifyApi(channel, m[0], m[1]);
   if (x.notConnected) return { ok: false, error: 'notconnected' };
-  const r = x.r;
+  let r = x.r;
+  if (r.status === 404 && (action === 'spotify_play' || action === 'spotify_next' || action === 'spotify_prev')) {
+    if (await spotifyWake(channel)) { _ttlCache.delete('spotifydock:' + channel); return { ok: true, woke: true }; }
+  }
+  if (action === 'spotify_restart' && (r.ok || r.status === 204)) await spotifyApi(channel, 'PUT', '/me/player/play'); // si estaba en pausa, que suene de nuevo
   if (r.ok || r.status === 204) { _ttlCache.delete('spotifydock:' + channel); return { ok: true }; }
   const body = await r.json().catch(() => null);
   const reason = body?.error?.reason, msg = String(body?.error?.message || '');
