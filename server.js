@@ -2137,7 +2137,7 @@ function ytRemoveFromQueue(cfg, index) {
 
 // Campos que el dashboard SÍ puede cambiar desde "Guardar" (nunca la cola, el historial ni los límites)
 const YT_SETTINGS_KEYS = ['enabled','max_per_user','max_duration_min','volume','card_width','card_height','card_position','accent_color','show_title','allowed','playlist_url','blacklist','playlist_shuffle','playlist_loop','display_mode','theme','layout','cover'];
-const YT_THEMES = ['classic','glass','pill','macos','minimal','line','synthwave','neoncity','cyber','glitch','retro','muffet','osoking','undertale','wolf'];
+const YT_THEMES = ['classic','glass','pill','macos','minimal','line','synthwave','neoncity','cyber','glitch','retro','muffet','osoking','undertale','wolf','oso'];
 function ytSanitizeSettings(src) {
   const out = {};
   if (!isValidObject(src)) return out;
