@@ -255,6 +255,25 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 #overlay[data-theme="classic"] #progressBar { background: rgba(255,255,255,0.12); }
 #overlay[data-theme="classic"] #progressFill { box-shadow: 0 0 6px rgba(255, 0, 0, 0.55); }
 
+/* ══════════ Exclusivo de ElOsoKing: Rey Oso ══════════ */
+#overlay[data-theme="oso"] { --track: rgba(255, 204, 51, 0.16); background: linear-gradient(180deg, rgba(26, 15, 12, 0.96), rgba(48, 24, 14, 0.96)); border: none; border-radius: 0; font-family: "Press Start 2P", "Courier New", monospace; image-rendering: pixelated; box-shadow: 0 -4px 0 0 #ffcc33, 0 4px 0 0 #ffcc33, -4px 0 0 0 #ffcc33, 4px 0 0 0 #ffcc33, 0 0 0 8px rgba(0,0,0,.4), inset 0 0 0 3px #5a2f12; }
+#overlay[data-theme="oso"] #infoPanel { padding: 24px 18px 14px 16px; }
+#overlay[data-theme="oso"] .deco { background: linear-gradient(to top, rgba(255, 110, 40, 0.28), transparent 48%), repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 4px); }
+#overlay[data-theme="oso"] .deco .stripes { display: block; right: 12px; top: 50%; width: 58px; height: 68px; margin-top: -32px; image-rendering: pixelated; background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAAnCAYAAACBvSFyAAACjklEQVR42s2YMUgcQRSG/122UxHugpwSEMWY44oLJKlypLGxiIJWYmEIwS5NIFcKIZAiZZp0QQQJwUohpLUJHimOAw9Z5AyCEMIh5zXab5rMMvtm3uzM3h5x4Iqbe+9/3773ZmbngAFHtTQa4X+Oamk0in4+ioYGkiYsAMTHxp77zeccjg/u26W6vG71QCY93+TMOQrRrLZOECivK+ImURdbewgibiPqYusEIcRdhou979LFtsImO51+QA02Fqbd1vLpV2tTob17eBG1uzeekgktwL8AvXoRvXpREV1sNbHYairznL0MI2fE1wE8e7g8lA1Q1pVBPA6gj8+5QxSwCQD43voWz+0eXiQbc1gZMGVEaUwddeeyMXDQ+Ykn2feJPABsdBIQolady0ZuADKI0JR7AgA8ujru3S0OvSfOfl/FTdnu3nge3SfSIISAadhoCABjY7oG5uxtMhukidW/nAAAJsdH8GZpxhqE+plgAtoT9Kknx0cy1Z36Ud2Nhen4DPFxC8atgAiyOr56/1aZ+7T1LpOWxx3jT+88SHz/0Ttmg3MwnIZ8eMX7BIWgzgBQfb2S+L75/AMAoBF2AABhc1vxaX88UOZkEAGRqRyVxy/ZOR1MLo1Js2B9i7P000LQ2uU1OF3P5iWXa0a5LFwZuBUjnx3xO2atUnB+MhE4Sx/UKoX4HTNRjvPutdbhz6/T1MbUzVM/Lk4AQKQlqlUKOO9eY7Y0xoJMzZURNrcTq4GuDC64DHAU9uNyePTyI5dFhll9sZYQm5orp2Zsf2dP+/QygALB9YeAoSCmIQBo6imAFkK+L+qadbY0ZoTZ39nT9tZR2IdUeqRCcJdXlxUkgsZbuCa4FcQg/9SZgtLxF1G/ZQEc/PEWAAAAAElFTkSuQmCC") center / contain no-repeat; animation: oso-bob 4.2s steps(1) infinite; }
+@keyframes oso-bob { 0%, 55%, 100% { transform: translateY(0) scale(1, 1); } 8% { transform: translateY(0) scale(1.06, .92); } 16% { transform: translateY(-9px) scale(.96, 1.06); } 26% { transform: translateY(-9px) scale(.96, 1.06); } 36% { transform: translateY(0) scale(1.07, .9); } 44% { transform: translateY(0) scale(1, 1); } 70% { transform: translateY(-3px) scale(1, 1); } 85% { transform: translateY(0) scale(1, 1); } }
+@keyframes oso-glint { 0%, 62% { transform: translateX(-140%) skewX(-20deg); } 100% { transform: translateX(520%) skewX(-20deg); } }
+@keyframes oso-twinkle { 0%, 100% { opacity: 0; } 20%, 40% { opacity: 1; } 60% { opacity: 0; } }
+#overlay[data-theme="oso"] .deco .grid { display: block; left: 14px; bottom: 6px; width: 3px; height: 3px; background: #ff9a3c; box-shadow: 46px -4px 0 #ffb347, 98px -1px 0 #ff7a2c, 152px -8px 0 #ffcc33, 206px -3px 0 #ff9a3c, 262px -7px 0 #ffb347, 318px -2px 0 #ff7a2c; animation: oso-rise 3s steps(8) infinite; }
+@keyframes oso-rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-64px); opacity: 0; } }
+#overlay[data-theme="oso"] #trackInfo { margin-right: 74px; }
+#overlay[data-theme="oso"] #thumb { border-radius: 0; box-shadow: 0 0 0 4px #ffcc33, 4px 4px 0 4px rgba(0,0,0,.5); }
+#overlay[data-theme="oso"] #trackName { font-size: 14px; line-height: 1.4; font-weight: 400; color: #fff3d6; text-shadow: 2px 2px 0 #2e180c; }
+#overlay[data-theme="oso"] #trackMeta { font-size: 10px; color: #e0a96a; text-shadow: 1px 1px 0 #2e180c; }
+#overlay[data-theme="oso"] .label { font-size: 8px; font-weight: 400; color: #ffcc33; letter-spacing: 0; }
+#overlay[data-theme="oso"] .label-dot { background: #ff7a2c; border-radius: 0; box-shadow: none; }
+#overlay[data-theme="oso"] #progressBar { height: 10px; border-radius: 0; background: repeating-linear-gradient(90deg, rgba(255,204,51,.16) 0 8px, transparent 8px 10px); }
+#overlay[data-theme="oso"] #progressFill { border-radius: 0; background: repeating-linear-gradient(90deg, #ffcc33 0 8px, transparent 8px 10px) !important; box-shadow: none; }
+
 /* ══════════ Distribución vertical y portada de disco (opciones aparte del estilo) ══════════ */
 .vinyl { display: none; }
 @keyframes disc-spin { to { transform: rotate(360deg); } }
@@ -286,6 +305,17 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 #overlay[data-layout="vertical"][data-theme="osoking"] .deco .stripes { right: 8px; top: 6px; width: 30px; height: 30px; }
 #overlay[data-layout="vertical"][data-theme="wolf"] .deco .city { top: 12px; right: 10px; margin-top: 0; width: 44px; height: 56px; }
 #overlay[data-layout="vertical"][data-theme="wolf"] .deco .grid { top: 26px; margin-top: 0; left: -22px; width: 190px; height: 190px; }
+
+/* brillo dorado que cruza el marco + destellos de la corona */
+#overlay[data-theme="oso"] .deco .sun { display: block; left: 0; top: 0; bottom: 0; width: 22%; background: linear-gradient(90deg, transparent, rgba(255, 224, 130, .22) 45%, rgba(255, 255, 255, .34) 50%, rgba(255, 224, 130, .22) 55%, transparent); animation: oso-glint 5s steps(28) infinite; }
+#overlay[data-theme="oso"] .deco .city { display: block; right: 12px; top: 50%; margin-top: -32px; width: 58px; height: 68px; }
+#overlay[data-theme="oso"] .deco .city::before, #overlay[data-theme="oso"] .deco .city::after { content: ""; position: absolute; width: 4px; height: 4px; background: #fff3b0; box-shadow: 0 -4px 0 #ffd84a, 0 4px 0 #ffd84a, -4px 0 0 #ffd84a, 4px 0 0 #ffd84a; animation: oso-twinkle 1.6s steps(1) infinite; }
+#overlay[data-theme="oso"] .deco .city::before { left: 8px; top: 2px; }
+#overlay[data-theme="oso"] .deco .city::after { right: 4px; top: 14px; animation-delay: .8s; }
+#overlay[data-layout="vertical"][data-theme="oso"] .deco .city { top: 8px; right: 10px; margin-top: 0; width: 42px; height: 50px; }
+#overlay[data-layout="vertical"][data-theme="oso"] #infoPanel { padding: 34px 18px 14px; }
+#overlay[data-layout="vertical"][data-theme="oso"] #trackInfo { margin-right: 0; }
+#overlay[data-layout="vertical"][data-theme="oso"] .deco .stripes { top: 8px; right: 10px; margin-top: 0; width: 42px; height: 50px; }
 
 /* Portada de disco: la miniatura llena un vinilo que gira mientras suena */
 #overlay[data-cover="disc"][data-theme] #thumbWrap { position: relative; width: 88px; height: 88px; display: grid; place-items: center; }
@@ -472,7 +502,7 @@ async function loadConfig() {
 
 
 // ── Estilos: color de la portada y aplicación del estilo ──
-const THEMES = ['classic','glass','pill','macos','minimal','line','synthwave','neoncity','cyber','glitch','retro','muffet','osoking','undertale','wolf'];
+const THEMES = ['classic','glass','pill','macos','minimal','line','synthwave','neoncity','cyber','glitch','retro','muffet','osoking','undertale','wolf','oso'];
 const $ = (id) => document.getElementById(id);
 function hexToRgb(h) {
   let x = String(h || '').replace('#', '');
