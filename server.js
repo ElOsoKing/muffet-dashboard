@@ -217,9 +217,50 @@ app.get('/auth/twitch', (req, res) => {
   res.redirect(url);
 });
 
+// ── Autorizar la cuenta del bot (ej. MuffetBot_) con ESTA app de Twitch ──
+// Es lo que permite que Muffet envíe por la API y muestre la insignia de bot.
+// Solo el admin lo inicia; el login normal y la sesión no se tocan. No se guarda ningún token: la autorización queda registrada en Twitch.
+app.get('/auth/twitch/bot', requireAdmin, (req, res) => {
+  const state = require('crypto').randomBytes(16).toString('hex');
+  req.session.botAuthState = state;
+  const redirectUri = BASE_URL + '/auth/twitch/callback';
+  const scopes = 'user:read:chat user:write:chat user:bot';
+  // force_verify: Twitch pregunta con qué cuenta entrar, así puedes elegir la cuenta del bot en vez de la tuya
+  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${state}&force_verify=true`;
+  req.session.save(() => res.redirect(url));
+});
+
+async function handleBotAuthCallback(req, res, code) {
+  const page = (ok, title, body) => res.status(ok ? 200 : 400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui,sans-serif;background:#0e0e12;color:#eee;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0"><div style="max-width:520px;padding:28px;background:#1a1a22;border-radius:14px;border:1px solid ${ok ? '#3ecf8e' : '#e05a7a'}"><h2 style="margin-top:0">${title}</h2>${body}<p><a style="color:#b794ff" href="/admin">← Volver al panel</a></p></div>`);
+  try {
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET, code, grant_type: 'authorization_code', redirect_uri: BASE_URL + '/auth/twitch/callback' }).toString()
+    });
+    const t = await tokenRes.json();
+    if (!t.access_token) return page(false, 'No se pudo autorizar', '<p>Twitch no aceptó el código. Intenta de nuevo desde el panel.</p>');
+    const v = await (await fetch('https://id.twitch.tv/oauth2/validate', { headers: { Authorization: `OAuth ${t.access_token}` } })).json();
+    const scopes = v.scopes || [];
+    const missing = ['user:write:chat', 'user:bot'].filter(sc => !scopes.includes(sc));
+    await setSetting('main_bot_auth', { login: v.login, user_id: v.user_id, scopes, authorized_at: new Date().toISOString() });
+    adminLog(req, 'autorizar bot en la app', v.login, missing.length ? `faltan: ${missing.join(', ')}` : 'ok');
+    // El token recién creado no se guarda ni se usa (lo único que importa es la autorización registrada en Twitch); caduca solo.
+    if (missing.length) return page(false, 'Faltaron permisos', `<p>La cuenta <b>@${v.login}</b> autorizó, pero faltan: <code>${missing.join(', ')}</code>.</p>`);
+    return page(true, '✅ Bot autorizado', `<p>La cuenta <b>@${v.login}</b> ya autorizó la app de Muffet.</p><p style="color:#9a96ad;font-size:13px">Siguiente: en Railway agrega <code>HELIX_SEND=test</code> y <code>HELIX_SEND_CHANNELS=elosoking1</code>, y en tu chat escribe <code>!helixcheck</code>.</p>`);
+  } catch (err) {
+    console.error('bot auth callback:', err.message);
+    return page(false, 'Error', '<p>Algo falló al autorizar. Revisa el log del servidor.</p>');
+  }
+}
+
 app.get('/auth/twitch/callback', async (req, res) => {
   const { code, error } = req.query;
   if (error || !code) return res.redirect('/?error=auth');
+  // ¿Viene del flujo "autorizar al bot"? (el state coincide con el que guardamos en tu sesión de admin)
+  if (req.query.state && req.session.botAuthState && req.query.state === req.session.botAuthState) {
+    delete req.session.botAuthState;
+    return handleBotAuthCallback(req, res, code);
+  }
 
   try {
     const redirectUri = BASE_URL + '/auth/twitch/callback';
