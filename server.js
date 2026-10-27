@@ -212,7 +212,7 @@ app.get('/login', (req, res) => {
 
 app.get('/auth/twitch', (req, res) => {
   const redirectUri = BASE_URL + '/auth/twitch/callback';
-  const scopes = 'user:read:email channel:manage:broadcast clips:edit channel:read:redemptions channel:manage:redemptions moderator:read:followers';
+  const scopes = 'user:read:email channel:manage:broadcast clips:edit channel:read:redemptions channel:manage:redemptions moderator:read:followers channel:bot';
     const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
   res.redirect(url);
 });
@@ -220,21 +220,48 @@ app.get('/auth/twitch', (req, res) => {
 // ── Autorizar la cuenta del bot (ej. MuffetBot_) con ESTA app de Twitch ──
 // Es lo que permite que Muffet envíe por la API y muestre la insignia de bot.
 // Solo el admin lo inicia; el login normal y la sesión no se tocan. No se guarda ningún token: la autorización queda registrada en Twitch.
-function startBotAuth(kind) {
+function startBotAuth(kind, extraScopes) {
   return (req, res) => {
   const state = require('crypto').randomBytes(16).toString('hex');
   req.session.botAuthState = state;
   req.session.botAuthKind = kind;
   const redirectUri = BASE_URL + '/auth/twitch/callback';
-  const scopes = 'user:read:chat user:write:chat user:bot';
+  const scopes = extraScopes || 'user:read:chat user:write:chat user:bot';
   // force_verify: Twitch pregunta con qué cuenta entrar, así puedes elegir la cuenta del bot en vez de la tuya
-  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${state}&force_verify=true`;
+  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${state}${kind === 'channelbot' ? '' : '&force_verify=true'}`;
   req.session.save(() => res.redirect(url));
   };
 }
 app.get('/auth/twitch/bot', requireAdmin, startBotAuth('main'));
 // Cada streamer con bot propio autoriza la cuenta de SU bot con la app de Muffet (para la insignia de bot)
 app.get('/auth/twitch/custom-bot', requireAuth, startBotAuth('custom'));
+// El streamer da permiso a Muffet (channel:bot) con SU cuenta: así el bot principal puede enviar con insignia sin ser moderador
+app.get('/auth/twitch/channel-bot', requireAuth, startBotAuth('channelbot', 'channel:bot'));
+app.get('/api/channel-bot-status', requireAuth, async (req, res) => {
+  const g = await getSetting('channel_bot:' + String(req.session.user.username).toLowerCase());
+  res.json({ authorized: !!g, at: g?.authorized_at || null });
+});
+
+async function handleChannelBotCallback(req, res, code) {
+  const page = (ok, title, body) => res.status(ok ? 200 : 400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui,sans-serif;background:#0e0e12;color:#eee;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0"><div style="max-width:520px;padding:28px;background:#1a1a22;border-radius:14px;border:1px solid ${ok ? '#3ecf8e' : '#e05a7a'}"><h2 style="margin-top:0">${title}</h2>${body}<p><a style="color:#b794ff" href="/dashboard">← Volver al dashboard</a></p></div>`);
+  try {
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET, code, grant_type: 'authorization_code', redirect_uri: BASE_URL + '/auth/twitch/callback' }).toString()
+    });
+    const t = await tokenRes.json();
+    if (!t.access_token) return page(false, 'No se pudo autorizar', '<p>Twitch no aceptó el código. Inténtalo de nuevo desde el dashboard.</p>');
+    const v = await (await fetch('https://id.twitch.tv/oauth2/validate', { headers: { Authorization: `OAuth ${t.access_token}` } })).json();
+    if (!(v.scopes || []).includes('channel:bot')) return page(false, 'Faltó el permiso', '<p>No se aceptó el permiso. Vuelve a intentarlo y pulsa Autorizar.</p>');
+    if (String(v.user_id) !== String(req.session.user.id)) return page(false, 'Cuenta distinta', `<p>Autorizaste con <b>@${v.login}</b>, pero tu sesión del dashboard es <b>@${req.session.user.username}</b>. Entra a Twitch con tu cuenta de streamer e inténtalo otra vez.</p>`);
+    await setSetting('channel_bot:' + String(v.login).toLowerCase(), { login: v.login, user_id: v.user_id, authorized_at: new Date().toISOString() });
+    adminLog(req, 'permiso de bot a Muffet (channel:bot)', v.login, 'ok');
+    return page(true, '✅ Muffet autorizada', `<p>Listo, <b>@${v.login}</b>. Muffet ya puede mostrar la insignia de bot en tu chat sin que tengas que darle moderador.</p><p style="color:#9a96ad;font-size:13px">Si quieres que modere (borrar mensajes, timeouts), sigue siendo necesario darle moderador: <code>/mod MuffetBot_</code>.</p>`);
+  } catch (err) {
+    console.error('channel-bot callback:', err.message);
+    return page(false, 'Error', '<p>Algo falló al autorizar. Inténtalo de nuevo.</p>');
+  }
+}
 // Enlace firmado (sin depender de la sesión): se puede abrir en una ventana de incógnito, donde Twitch pide
 // iniciar sesión directamente con la cuenta del bot, sin cerrar la sesión del streamer. Caduca en 30 min.
 function signBotState(ownerId, kind = 'custom') {
@@ -353,6 +380,7 @@ app.get('/auth/twitch/callback', async (req, res) => {
   if (req.query.state && req.session.botAuthState && req.query.state === req.session.botAuthState) {
     delete req.session.botAuthState;
     const kind = req.session.botAuthKind || 'main'; delete req.session.botAuthKind;
+    if (kind === 'channelbot') return handleChannelBotCallback(req, res, code);
     return handleBotAuthCallback(req, res, code, kind);
   }
   // Flujo con enlace firmado (ventana de incógnito, sin sesión)
@@ -381,6 +409,11 @@ app.get('/auth/twitch/callback', async (req, res) => {
     const userData = await userRes.json();
     const twitchUser = userData?.data?.[0];
     if (!twitchUser) { console.error('No user data'); return res.redirect('/?error=auth'); }
+    // Si en este login el streamer dio el permiso channel:bot, lo registramos (para mostrar "Muffet autorizada" en su dashboard)
+    if ((tokenData.scope || []).includes('channel:bot')) {
+      const key = 'channel_bot:' + String(twitchUser.login).toLowerCase();
+      getSetting(key).then(g => g || setSetting(key, { login: twitchUser.login, user_id: twitchUser.id, authorized_at: new Date().toISOString(), via: 'login' })).catch(() => {});
+    }
 
     let streamer = await sbSelect('streamers', { twitch_id: twitchUser.id });
 
