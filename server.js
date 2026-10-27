@@ -235,8 +235,32 @@ function startBotAuth(kind) {
 app.get('/auth/twitch/bot', requireAdmin, startBotAuth('main'));
 // Cada streamer con bot propio autoriza la cuenta de SU bot con la app de Muffet (para la insignia de bot)
 app.get('/auth/twitch/custom-bot', requireAuth, startBotAuth('custom'));
+// Enlace firmado (sin depender de la sesión): se puede abrir en una ventana de incógnito, donde Twitch pide
+// iniciar sesión directamente con la cuenta del bot, sin cerrar la sesión del streamer. Caduca en 30 min.
+function signBotState(ownerId) {
+  const payload = Buffer.from(JSON.stringify({ k: 'custom', o: String(ownerId), e: Date.now() + 30 * 60 * 1000, n: require('crypto').randomBytes(6).toString('hex') })).toString('base64url');
+  const sig = require('crypto').createHmac('sha256', SESSION_SECRET).update('botauth.' + payload).digest('base64url');
+  return payload + '.' + sig;
+}
+function verifyBotState(st) {
+  try {
+    const [payload, sig] = String(st || '').split('.');
+    if (!payload || !sig) return null;
+    const exp = require('crypto').createHmac('sha256', SESSION_SECRET).update('botauth.' + payload).digest('base64url');
+    if (sig.length !== exp.length || !require('crypto').timingSafeEqual(Buffer.from(sig), Buffer.from(exp))) return null;
+    const d = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    if (d.k !== 'custom' || !d.o || d.e < Date.now()) return null;
+    return d;
+  } catch { return null; }
+}
+app.get('/api/custom-bot-auth-link', requireAuth, (req, res) => {
+  const state = signBotState(req.session.user.id);
+  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(BASE_URL + '/auth/twitch/callback')}&response_type=code&scope=${encodeURIComponent('user:read:chat user:write:chat user:bot')}&state=${encodeURIComponent(state)}&force_verify=true`;
+  res.json({ url });
+});
 
-async function handleBotAuthCallback(req, res, code, kind) {
+async function handleBotAuthCallback(req, res, code, kind, ownerId) {
+  ownerId = ownerId || req.session?.user?.id;
   const backHref = kind === 'custom' ? '/dashboard' : '/admin';
   const backText = kind === 'custom' ? 'Volver al dashboard' : 'Volver al panel';
   const page = (ok, title, body) => res.status(ok ? 200 : 400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui,sans-serif;background:#0e0e12;color:#eee;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0"><div style="max-width:520px;padding:28px;background:#1a1a22;border-radius:14px;border:1px solid ${ok ? '#3ecf8e' : '#e05a7a'}"><h2 style="margin-top:0">${title}</h2>${body}<p><a style="color:#b794ff" href="${backHref}">← ${backText}</a></p></div>`);
@@ -254,7 +278,7 @@ async function handleBotAuthCallback(req, res, code, kind) {
     _ttlCache.delete('botauth');
     adminLog(req, kind === 'custom' ? 'bot propio autorizado en la app' : 'autorizar bot en la app', v.login, missing.length ? `faltan: ${missing.join(', ')}` : 'ok');
     if (kind === 'custom') {
-      const owner = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'custom_bot_username,twitch_username');
+      const owner = await sbSelect('streamers', { twitch_id: ownerId }, 'custom_bot_username,twitch_username');
       const expected = String(owner?.custom_bot_username || '').toLowerCase();
       if (!missing.length && expected && expected !== String(v.login).toLowerCase()) {
         return page(false, 'Cuenta distinta', `<p>Autorizaste con <b>@${v.login}</b>, pero tu bot configurado es <b>@${owner.custom_bot_username}</b>. Vuelve a intentarlo y, cuando Twitch pregunte, entra con la cuenta de tu bot.</p>`);
@@ -280,6 +304,9 @@ app.get('/auth/twitch/callback', async (req, res) => {
     const kind = req.session.botAuthKind || 'main'; delete req.session.botAuthKind;
     return handleBotAuthCallback(req, res, code, kind);
   }
+  // Flujo con enlace firmado (ventana de incógnito, sin sesión)
+  const signed = req.query.state ? verifyBotState(req.query.state) : null;
+  if (signed) return handleBotAuthCallback(req, res, code, 'custom', signed.o);
 
   try {
     const redirectUri = BASE_URL + '/auth/twitch/callback';
