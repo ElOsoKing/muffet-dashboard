@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex">
 <meta name="referrer" content="no-referrer">
-<title>MuffetBot — Dock de música</title>
+<title>SilklyBot — Dock de música</title>
 <style>
 :root { --bg:#14151c; --bg2:#1b1d27; --line:rgba(255,255,255,0.08); --text:#eceef4; --dim:#9aa0b4; --red:#ff3b3b; --green:#1ed760; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -127,7 +127,7 @@ function banner(kind, msg) { const b = $('banner'); if (!msg) { b.className = 'b
 const SP_ERR = {
   premium: 'Spotify solo deja controlar la reproducción desde aquí con una cuenta Premium.',
   nodevice: 'No encuentro Spotify abierto. Abre la app de Spotify (puede estar en pausa) y vuelve a intentar.',
-  reconnect: 'Vuelve a conectar Spotify desde el dashboard de MuffetBot.',
+  reconnect: 'Vuelve a conectar Spotify desde el dashboard de SilklyBot.',
   scope: 'Vuelve a conectar Spotify desde el dashboard (faltan permisos de control).',
   notconnected: 'Spotify no está conectado en el dashboard.',
   forbidden: 'Spotify no permitió esa acción.',
@@ -138,7 +138,7 @@ async function poll() {
   if (document.hidden || dead) return;
   try {
     const r = await fetch(`${API}/state?key=${encodeURIComponent(key)}${mode === 'sp' ? '&spotify=1' : ''}`, { cache: 'no-store' });
-    if (r.status === 403) { fatal('Este link ya no es válido. Copia uno nuevo desde el dashboard de MuffetBot.'); return; }
+    if (r.status === 403) { fatal('Este link ya no es válido. Copia uno nuevo desde el dashboard de SilklyBot.'); return; }
     const j = await r.json();
     if (!j.ok) throw new Error('state');
     failures = 0; S = j; T0 = Date.now();
@@ -147,7 +147,7 @@ async function poll() {
     render();
   } catch (e) {
     failures++;
-    if (failures >= 2) banner('err', 'Sin conexión con MuffetBot… reintentando');
+    if (failures >= 2) banner('err', 'Sin conexión con SilklyBot… reintentando');
   }
 }
 let dead = false;
@@ -247,7 +247,7 @@ async function control(action, extra) {
   if (dead) return false;
   try {
     const r = await fetch(`${API}/control`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, action, ...extra }) });
-    if (r.status === 403) { fatal('Este link ya no es válido. Copia uno nuevo desde el dashboard de MuffetBot.'); return false; }
+    if (r.status === 403) { fatal('Este link ya no es válido. Copia uno nuevo desde el dashboard de SilklyBot.'); return false; }
     if (r.status === 429) { toast('Demasiado rápido, espera un momento'); return false; }
     const j = await r.json().catch(() => ({}));
     if (!j.ok) { toast(SP_ERR[j.error] || 'No se pudo, intenta de nuevo'); return false; }
@@ -304,7 +304,7 @@ $('queue').onclick = async (e) => {
   if (ok) { toast(btn.dataset.act === 'playnow' ? 'Sonará enseguida' : 'Quitada'); poll(); } else btn.disabled = false;
 };
 
-if (!channel || !key) fatal('Falta el link completo. Copia el link del dock desde el dashboard de MuffetBot.');
+if (!channel || !key) fatal('Falta el link completo. Copia el link del dock desde el dashboard de SilklyBot.');
 else { document.body.classList.toggle('sp', mode === 'sp'); document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.m === mode)); poll(); setInterval(poll, 2500); setInterval(tick, 500); document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); }); }
 </script>
 </body>
