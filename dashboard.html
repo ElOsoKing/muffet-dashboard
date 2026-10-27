@@ -550,6 +550,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
   <div class="loading">Cargando tu panel...</div>
 </div>
 
+<div id="announceBanner" style="display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9998;max-width:min(560px,92vw);background:var(--bg2,#1a1a24);border:1px solid var(--purple,#9146ff);border-radius:12px;padding:12px 40px 12px 16px;box-shadow:0 8px 30px rgba(0,0,0,.5);font-size:13px;line-height:1.45;color:var(--text,#fff);"><span id="announceText"></span><button onclick="dismissAnnouncement()" aria-label="Cerrar" style="position:absolute;top:6px;right:8px;background:none;border:none;color:inherit;font-size:20px;cursor:pointer;opacity:.7;">×</button></div>
 <div class="toast" id="toast"></div>
 
 <!-- BOTTOM NAVIGATION BAR -->
@@ -580,6 +581,21 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
 
 <script>
 let streamerData = null;
+async function loadAnnouncement(){
+  try{
+    const a=await (await fetch('/api/announcement')).json();
+    if(!a||!a.text) return;
+    let seen=null; try{ seen=localStorage.getItem('announce_seen'); }catch(e){}
+    if(seen===String(a.id||a.text)) return;
+    window._announceId=String(a.id||a.text);
+    document.getElementById('announceText').textContent='📣 '+a.text;
+    document.getElementById('announceBanner').style.display='block';
+  }catch(e){}
+}
+function dismissAnnouncement(){
+  document.getElementById('announceBanner').style.display='none';
+  try{ localStorage.setItem('announce_seen', window._announceId||''); }catch(e){}
+}
 let userData = null;
 
 function toggleSidebar() {
@@ -615,6 +631,7 @@ async function loadData() {
   streamerData = json.streamer;
   userData = json.user;
   viewingAsChannel = json.viewingAs || null;
+  loadAnnouncement();
   accessRole = json.accessRole || 'owner';
 
   // Mostrar banner si estamos viendo el canal de otro streamer
@@ -2238,7 +2255,7 @@ function renderMain() {
           { id:'top',      icon:'📊', name:'!top',      desc:'Top 5 viewers con más puntos',              who:'Todos' },
           { id:'slots',    icon:'🎰', name:'!slots',    desc:'Tragamonedas — 3 símbolos, triple da premio grande',   who:'Todos' },
           { id:'pokedle',  icon:'🔴', name:'!pokedle',  desc:'Pokémon cada 12 horas — todo el chat compite, el primero en acertar gana',   who:'Todos' },
-          ...(true ? [{ id:'dbdle', icon:'🔪', name:'!dbdle', desc:'Asesino de DBD cada 12 horas — pistas por atributos (en prueba)', who:'Todos' }] : []),
+          ...(streamerData?.feature_flags?.dbdle !== false ? [{ id:'dbdle', icon:'🔪', name:'!dbdle', desc:'Asesino de DBD cada 12 horas — pistas por atributos (en prueba)', who:'Todos' }] : []),
           { id:'apostar',  icon:'🎲', name:'!apostar',  desc:'Apostar puntos con niveles de riesgo (facil/arriesgado/extremo)', who:'Todos' },
           { id:'duelo',    icon:'⚔️', name:'!duelo',    desc:'Retar a otro viewer a un duelo de puntos (requiere aceptar)',  who:'Todos' },
           { id:'canjear',  icon:'🎁', name:'!canjear',  desc:'Canjear puntos por premios',                who:'Todos' },
@@ -3079,7 +3096,7 @@ function renderMain() {
     </div>`:''}
     <div class="page-header">
       <div class="page-title">🎮 Mini juegos</div>
-      <div class="page-subtitle">Juegos para que el chat compita: Emoji Game (retos con emojis generados por IA), Pokédle (Pokémon cada 12 horas)${true?' y DBDle (asesino cada 12 horas)':''}</div>
+      <div class="page-subtitle">Juegos para que el chat compita: Emoji Game (retos con emojis generados por IA), Pokédle (Pokémon cada 12 horas)${streamerData?.feature_flags?.dbdle !== false?' y DBDle (asesino cada 12 horas)':''}</div>
     </div>
 
     <!-- Ejemplo visual -->
@@ -3172,7 +3189,7 @@ function renderMain() {
       </div>
     </div>
 
-    ${true ? `
+    ${streamerData?.feature_flags?.dbdle !== false ? `
     <!-- DBDle -->
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🔪 DBDle — un asesino nuevo cada 12 horas</span></div>
@@ -6947,7 +6964,7 @@ function openThemeGallery(kind) {
   const demoQs = lookOn ? `&layout=${vert ? 'vertical' : 'horizontal'}&cover=${lk?.cover === 'disc' ? 'disc' : 'square'}` : '';
   const user = (typeof userData !== 'undefined' && userData.username) ? userData.username : '';
   const userLc = String(user).toLowerCase();
-  const cards = SPOTIFY_THEME_GROUPS.filter(([group]) => { const k = Object.keys(EXCLUSIVE_THEME_CHANNELS).find(n => group.startsWith(n)); return !k || EXCLUSIVE_THEME_CHANNELS[k].includes(userLc); }).map(([group, items]) => `
+  const cards = SPOTIFY_THEME_GROUPS.filter(([group]) => { const k = Object.keys(EXCLUSIVE_THEME_CHANNELS).find(n => group.startsWith(n)); return !k || EXCLUSIVE_THEME_CHANNELS[k].includes(userLc) || (streamerData?.feature_flags?.themes || []).includes(k.includes('Wolf') ? 'wolf' : 'oso'); }).map(([group, items]) => `
     <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.6px;margin:18px 0 8px;">${group}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">
       ${items.map(([id, name, desc]) => {
