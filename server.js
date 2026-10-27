@@ -511,6 +511,7 @@ app.post('/api/admin/role/:id', requireAdmin, async (req, res) => {
 //  RUTAS PROTEGIDAS
 // ══════════════════════════════════════════
 app.get('/plans', (req, res) => res.sendFile(path.join(__dirname, 'plans.html')));
+app.get('/guia', (req, res) => res.sendFile(path.join(__dirname, 'guia.html'))); // guía rápida para streamers nuevos (pública)
 app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
 
 // API admin — activar plan pro
