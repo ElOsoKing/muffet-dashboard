@@ -1310,7 +1310,20 @@ function setBottomNav(section) {
   if (btn) btn.classList.add('active');
 }
 
+async function loadCustomBotBadgeStatus() {
+  const el = document.getElementById('cbBadgeStatus');
+  if (!el) return;
+  try {
+    const j = await (await fetch('/api/custom-bot-status')).json();
+    if (!j.configured) return;
+    el.innerHTML = j.authorized
+      ? '<span style="color:var(--green);">✅ Autorizado — la insignia se activa sola en unos minutos</span>'
+      : '<span style="color:var(--yellow);">⚠️ Falta autorizar — tu bot todavía no muestra la insignia de bot</span>';
+  } catch(e) {}
+}
+
 function showSection(name) {
+  if (document.getElementById('cbBadgeStatus')) loadCustomBotBadgeStatus();
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
   const clicked = event?.target?.closest('.nav-item');
@@ -4891,7 +4904,7 @@ function renderMain() {
           ${s.custom_bot_username?`<button class="btn btn-danger" onclick="removeCustomBot()">Quitar bot</button>`:''}
         </div>
         ${s.custom_bot_username?`<div style="margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-dim);line-height:1.6;">
-          🤖 <strong style="color:var(--text);">Insignia de bot (opcional)</strong><br>Autoriza la cuenta de tu bot con la app de Muffet para que Twitch le muestre la insignia de bot en el chat. Cuando Twitch te pregunte, entra con la cuenta de tu bot, <strong>no con la tuya</strong>. Tu bot sigue funcionando igual.
+          <div id="cbBadgeStatus" style="margin-bottom:6px;font-weight:600;"></div>🤖 <strong style="color:var(--text);">Insignia de bot (opcional)</strong><br>Autoriza la cuenta de tu bot con la app de Muffet para que Twitch le muestre la insignia de bot en el chat. Cuando Twitch te pregunte, entra con la cuenta de tu bot, <strong>no con la tuya</strong>. Tu bot sigue funcionando igual.
           <div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" onclick="if(confirm('Vas a ir a Twitch. Entra con la cuenta de tu BOT (${s.custom_bot_username}), no con la tuya. ¿Continuar?')) location.href='/auth/twitch/custom-bot'">🏅 Autorizar para la insignia</button></div>
         </div>`:''}
         ${s.custom_bot_username?`<div style="margin-top:12px;padding:12px;background:rgba(64,208,144,0.08);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);font-size:13px;color:var(--green);">✅ Bot activo: <strong>${s.custom_bot_username}</strong> — aparece con este nombre en tu chat</div>`:''}
