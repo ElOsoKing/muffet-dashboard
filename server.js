@@ -515,6 +515,8 @@ app.post('/api/admin/approve/:id', requireAdmin, async (req, res) => {
 app.post('/api/admin/revoke/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
+    const target = await sbSelect('streamers', { id }, 'twitch_id');
+    if (target && String(target.twitch_id) === String(req.session.user.id)) return res.status(400).json({ error: 'No puedes revocarte a ti mismo: perderías el acceso al panel' });
     const r = await patchStreamerReturning(id, { approved: false, role: 'blocked' });
     adminLog(req, 'revocar', r.name, null);
     res.json({ success: true });
