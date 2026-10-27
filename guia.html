@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía rápida de MuffetBot</title>
+<meta name="description" content="Todo lo que necesitas para empezar con MuffetBot: bot, comandos, puntos, música, overlays, subatón y moderación.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{
+  --purple:#8b5cf6;--purple-dim:rgba(139,92,246,0.15);--purple-border:rgba(139,92,246,0.28);
+  --purple-light:#b794ff;--pink:#e05a7a;--green:#3ecf8e;--yellow:#f0c060;
+  --gold:#c9a876;--gold-dim:rgba(201,168,118,0.14);--gold-border:rgba(201,168,118,0.3);
+  --bg:#0b0a10;--bg2:#131118;--bg3:#181620;--bg4:#0e0c13;
+  --text:#e8dfff;--text-dim:#a39cbb;--text-muted:#6b6585;
+  --line:rgba(255,255,255,0.07);--radius:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;scroll-padding-top:20px}
+body{font-family:'Inter',system-ui,sans-serif;color:var(--text);line-height:1.65;font-size:15px;
+  background:radial-gradient(ellipse 900px 500px at 15% -10%,rgba(139,92,246,0.12),transparent 60%),
+             radial-gradient(ellipse 700px 500px at 100% 10%,rgba(201,168,118,0.06),transparent 55%),var(--bg);
+  min-height:100vh}
+a{color:var(--purple-light)}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em;background:var(--purple-dim);border:1px solid var(--purple-border);color:var(--purple-light);padding:1px 7px;border-radius:6px;white-space:nowrap}
+.layout{display:grid;grid-template-columns:250px minmax(0,1fr);gap:0;max-width:1180px;margin:0 auto}
+/* índice */
+.toc{position:sticky;top:0;height:100vh;overflow-y:auto;padding:28px 18px 28px 24px;border-right:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.brand .logo{font-size:30px}
+.brand b{font-family:'VT323',monospace;font-size:26px;letter-spacing:.5px;color:var(--gold)}
+.toc small{display:block;color:var(--text-muted);font-size:12px;margin-bottom:18px}
+.toc a{display:block;text-decoration:none;color:var(--text-dim);font-size:13.5px;padding:7px 10px;border-radius:8px;margin-bottom:2px}
+.toc a:hover{background:rgba(139,92,246,0.08);color:var(--text)}
+.toc a.on{background:var(--purple-dim);color:var(--text)}
+.toc .sep{height:1px;background:var(--line);margin:12px 0}
+.toc .back{color:var(--gold);font-weight:600}
+main{padding:36px 40px 80px;min-width:0}
+.hero h1{font-size:34px;line-height:1.15;margin-bottom:10px}
+.hero h1 span{color:var(--gold)}
+.hero p{color:var(--text-dim);max-width:640px;font-size:16px}
+.quick{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:26px 0 8px}
+.quick a{display:block;text-decoration:none;color:var(--text);background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.quick a:hover{border-color:var(--purple-border);background:var(--bg3)}
+.quick a b{display:block;font-size:14px;margin-bottom:2px}
+.quick a span{font-size:12.5px;color:var(--text-dim)}
+section{margin-top:46px}
+h2{font-size:23px;margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+h2 .ic{font-size:24px}
+.lead{color:var(--text-dim);margin-bottom:18px;max-width:680px}
+h3{font-size:15px;margin:22px 0 8px;color:var(--gold);text-transform:uppercase;letter-spacing:.7px;font-size:12px}
+.card{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin-bottom:12px}
+.card p+p{margin-top:8px}
+ol.steps{list-style:none;counter-reset:s;margin:0}
+ol.steps li{counter-increment:s;position:relative;padding:0 0 14px 40px;color:var(--text-dim)}
+ol.steps li:last-child{padding-bottom:0}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:var(--purple-dim);border:1px solid var(--purple-border);color:var(--purple-light);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+ol.steps li b{color:var(--text)}
+ul.dots{margin:0;padding-left:0;list-style:none}
+ul.dots li{position:relative;padding-left:18px;color:var(--text-dim);margin-bottom:6px}
+ul.dots li::before{content:'';position:absolute;left:4px;top:.7em;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+ul.dots li b{color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted);font-weight:600}
+tr:last-child td{border-bottom:none}
+td:first-child{white-space:nowrap}
+td{color:var(--text-dim)}
+.tbl{overflow-x:auto;background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:6px 12px;margin-bottom:12px}
+.pro{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.8px;padding:2px 8px;border-radius:20px;background:var(--gold-dim);border:1px solid var(--gold-border);color:var(--gold);vertical-align:middle}
+.note{border-radius:var(--radius);padding:13px 16px;margin:12px 0;font-size:14px;border:1px solid;display:flex;gap:10px}
+.note .e{flex-shrink:0}
+.note.tip{background:rgba(62,207,142,0.06);border-color:rgba(62,207,142,0.22);color:#bfe9d4}
+.note.warn{background:rgba(240,192,96,0.07);border-color:rgba(240,192,96,0.26);color:#ecd9ae}
+.note b{color:var(--text)}
+details{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:8px}
+summary{cursor:pointer;padding:13px 18px;font-weight:600;font-size:14.5px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:'＋';color:var(--gold);margin-right:10px}
+details[open] summary::before{content:'－'}
+details .body{padding:0 18px 16px;color:var(--text-dim);font-size:14px}
+details .body p+p{margin-top:8px}
+footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:var(--text-muted);font-size:13px}
+@media(max-width:860px){
+  .layout{grid-template-columns:1fr}
+  .toc{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);padding:18px 16px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+  .toc .brand,.toc small{width:100%}
+  .toc .sep{display:none}
+  .toc a{display:inline-block;margin:0;background:var(--bg2);border:1px solid var(--line);padding:6px 11px;font-size:12.5px}
+  main{padding:26px 16px 70px}
+  .hero h1{font-size:27px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" id="toc">
+  <div class="brand"><span class="logo">🕷️</span><b>MuffetBot</b></div>
+  <small>Guía rápida para empezar</small>
+  <a href="#inicio">🚀 Primeros pasos</a>
+  <a href="#comandos">⚡ Comandos propios</a>
+  <a href="#puntos">🏆 Puntos y juegos</a>
+  <a href="#sorteos">🎉 Sorteos y encuestas</a>
+  <a href="#musica">🎵 Música</a>
+  <a href="#overlays">🎨 Overlays y OBS</a>
+  <a href="#subaton">⏱️ Subatón</a>
+  <a href="#moderacion">🛡️ Moderación</a>
+  <a href="#perfil">🌐 Perfil público</a>
+  <a href="#planes">⭐ Free y Pro</a>
+  <a href="#problemas">🔧 Si algo falla</a>
+  <div class="sep"></div>
+  <a class="back" href="/dashboard">← Volver al dashboard</a>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>Empieza con <span>MuffetBot</span> en 10 minutos</h1>
+  <p>Muffet es un bot de chat para Twitch con personalidad propia: responde, modera, reparte puntos, pone música y anima tus streams. Esta guía te lleva de cero a tener lo básico funcionando.</p>
+  <div class="quick">
+    <a href="#inicio"><b>🚀 Quiero empezar ya</b><span>Entrar, darle mod al bot y probarlo</span></a>
+    <a href="#musica"><b>🎵 Quiero música</b><span>YouTube, Spotify y el panel de OBS</span></a>
+    <a href="#moderacion"><b>🛡️ Quiero moderación</b><span>Links, palabras, spam y más</span></a>
+    <a href="#problemas"><b>🔧 Algo no funciona</b><span>Las causas más comunes</span></a>
+  </div>
+</header>
+
+<!-- ───────── PRIMEROS PASOS ───────── -->
+<section id="inicio">
+  <h2><span class="ic">🚀</span> Primeros pasos</h2>
+  <p class="lead">Cuatro pasos y Muffet ya está viviendo en tu chat.</p>
+  <div class="card">
+    <ol class="steps">
+      <li><b>Inicia sesión con Twitch</b> en el dashboard. Si tu cuenta es nueva, puede que tengas que esperar a que se apruebe; en cuanto esté lista, Muffet entra sola a tu chat.</li>
+      <li><b>Dale moderador al bot.</b> Escribe en tu chat <code>/mod MuffetBot_</code> (o el nombre de tu bot personalizado si usas uno). Sin esto no puede borrar mensajes ni dar timeouts.</li>
+      <li><b>Compruébalo:</b> escribe <code>!modcheck</code> en tu chat. Muffet responde si puede moderar. Si sale ❌ te dice qué falta.</li>
+      <li><b>Dale personalidad.</b> En <b>Personalidad</b> escribe cómo quieres que hable: bromista, tierna, sarcástica… Es lo que usa para responder y agradecer subs, follows y raids.</li>
+    </ol>
+  </div>
+  <div class="note tip"><span class="e">💡</span><div>Cuando hables con ella en el chat, usa <code>!ask tu pregunta</code>. Puedes apagar o encender a Muffet cuando quieras desde el dashboard.</div></div>
+  <h3>Qué hace sola desde el primer momento</h3>
+  <div class="card">
+    <ul class="dots">
+      <li><b>Saluda</b> a los viewers nuevos (una vez por stream) y recibe a las raids.</li>
+      <li><b>Agradece</b> follows, subs, regalos de subs y bits. Cada alerta se puede encender o apagar en <b>Configuración</b>.</li>
+      <li><b>Reparte puntos y niveles</b> por participar en el chat (más abajo).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ───────── COMANDOS ───────── -->
+<section id="comandos">
+  <h2><span class="ic">⚡</span> Tus propios comandos</h2>
+  <p class="lead">En <b>Comandos</b> creas respuestas a medida: <code>!discord</code>, <code>!reglas</code>, <code>!horario</code>… Lo que escribas, Muffet lo responde.</p>
+  <div class="card">
+    <p>Puedes meter <b>variables</b> en la respuesta y se reemplazan solas:</p>
+  </div>
+  <div class="tbl"><table>
+    <tr><th>Variable</th><th>Qué pone</th></tr>
+    <tr><td><code>{user}</code></td><td>Quien escribió el comando</td></tr>
+    <tr><td><code>{touser}</code></td><td>El usuario mencionado (<code>!so @alguien</code>)</td></tr>
+    <tr><td><code>{channel}</code></td><td>El nombre de tu canal</td></tr>
+    <tr><td><code>{redes}</code></td><td>Tus redes sociales (las que guardes en Perfil público)</td></tr>
+    <tr><td><code>{random}</code></td><td>Un número al azar. También <code>{random:10}</code> o <code>{random:5-20}</code></td></tr>
+    <tr><td><code>{count:nombre}</code></td><td>El valor de un contador tuyo (muertes, victorias…)</td></tr>
+    <tr><td><code>{game:{touser}}</code></td><td>El juego que está jugando otro canal (útil en <code>!so</code>)</td></tr>
+  </table></div>
+  <h3>Y también</h3>
+  <div class="card"><ul class="dots">
+    <li><b>Auto mensajes:</b> frases que Muffet repite cada cierto tiempo mientras el chat está activo.</li>
+    <li><b>Shoutout:</b> <code>!so @usuario</code> para recomendar a otro streamer, con su propio overlay.</li>
+    <li><b>Comandos del sistema:</b> en Comandos puedes apagar cualquiera de los que ya trae Muffet si no los quieres.</li>
+  </ul></div>
+</section>
+
+<!-- ───────── PUNTOS ───────── -->
+<section id="puntos">
+  <h2><span class="ic">🏆</span> Puntos, niveles y mini juegos</h2>
+  <p class="lead">Actívalo en <b>Puntos</b>. Tus viewers ganan puntos por chatear, suben de nivel y los gastan en juegos y premios. Tú eliges el nombre y el emoji de la moneda.</p>
+  <div class="tbl"><table>
+    <tr><th>Comando</th><th>Qué hace</th></tr>
+    <tr><td><code>!puntos</code></td><td>Ver tus puntos y nivel (o los de otro con <code>!puntos @usuario</code>)</td></tr>
+    <tr><td><code>!top</code></td><td>Los 5 con más puntos</td></tr>
+    <tr><td><code>!slots 100</code></td><td>Tragamonedas. Tres iguales pagan premio; el 7️⃣ es el jackpot</td></tr>
+    <tr><td><code>!apostar 100 facil</code></td><td>Apuesta con riesgo a elegir: <code>facil</code> (50% x2), <code>arriesgado</code> (25% x4) o <code>extremo</code> (10% x9)</td></tr>
+    <tr><td><code>!duelo @usuario 100</code> <span class="pro">PRO</span></td><td>Reta a otro viewer. Tiene 60 segundos para <code>!aceptar</code> o <code>!rechazar</code></td></tr>
+    <tr><td><code>!canjear</code></td><td>Ver los premios y canjear uno con puntos. Las solicitudes te llegan al dashboard</td></tr>
+    <tr><td><code>!dar 100 @usuario</code></td><td>Solo mods: regalar puntos</td></tr>
+  </table></div>
+  <div class="note tip"><span class="e">💡</span><div>Puedes limitar la apuesta máxima, crear los premios que se canjean y cambiar los niveles desde la misma sección <b>Puntos</b>.</div></div>
+  <h3>Mini juegos</h3>
+  <p class="lead" style="margin-bottom:10px">Todo el chat compite y el primero en acertar gana puntos. Se configuran en <b>Mini juegos</b>.</p>
+  <div class="card"><ul class="dots">
+    <li><b>Emoji Game</b> <span class="pro">PRO</span> — retos con emojis generados por IA, con pistas y tiempo límite. Puede lanzarse solo cada cierto rato.</li>
+    <li><b>Pokédle</b> <span class="pro">PRO</span> — adivina el Pokémon del día (de los primeros 151) con <code>!pokedle nombre</code>. El ranking se ve con <code>!pokedletop</code>.</li>
+    <li><b>DBDle</b> — adivina el asesino de Dead by Daylight con <code>!dbdle nombre</code>. Las pistas indican qué atributos coinciden. Ranking: <code>!dbdletop</code>.</li>
+  </ul></div>
+</section>
+
+<!-- ───────── SORTEOS ───────── -->
+<section id="sorteos">
+  <h2><span class="ic">🎉</span> Sorteos y encuestas</h2>
+  <h3>Sorteos</h3>
+  <div class="card">
+    <p>Desde la sección <b>Sorteos</b> configuras quién puede entrar, cuántas entradas tienen subs, VIPs y mods, y el comando para entrar. También hay un overlay para mostrar el sorteo en pantalla <span class="pro">PRO</span>.</p>
+    <p style="margin-top:10px">Los mods pueden manejarlo desde el chat:</p>
+    <ul class="dots" style="margin-top:8px">
+      <li><code>!sorteo crear Premio</code> — abre el sorteo</li>
+      <li><code>!entrar</code> — los viewers entran (puedes cambiar este comando)</li>
+      <li><code>!sorteo info</code> — cuántos participan</li>
+      <li><code>!sorteo end</code> — elige y anuncia al ganador</li>
+      <li><code>!sorteo cancel</code> — lo cancela</li>
+    </ul>
+  </div>
+  <h3>Encuestas <span class="pro">PRO</span></h3>
+  <div class="card">
+    <p>Un mod escribe <code>!poll ¿Pregunta? Opcion1 Opcion2 Opcion3</code> (hasta 5 opciones, de una palabra cada una). El chat vota escribiendo el <b>número</b> de la opción. Se cierra sola a los 2 minutos, o antes con <code>!endpoll</code>.</p>
+  </div>
+</section>
+
+<!-- ───────── MÚSICA ───────── -->
+<section id="musica">
+  <h2><span class="ic">🎵</span> Música <span class="pro">PRO</span></h2>
+  <p class="lead">Muffet puede poner la música de tu stream con YouTube o Spotify, mostrarla en un overlay y dejarte controlarla desde OBS.</p>
+  <div class="tbl"><table>
+    <tr><th>Quieres…</th><th>Usa</th></tr>
+    <tr><td>Que el chat pida música de YouTube</td><td><code>!yt nombre o link</code> — entra en una cola, con playlists, aleatorio y repetir. Lo configuras en <b>Música</b></td></tr>
+    <tr><td>Pedir canciones de Spotify</td><td><code>!cancion nombre</code> (o <code>!sr</code>) — conecta tu Spotify en <b>Música</b></td></tr>
+    <tr><td>Mostrar lo que suena</td><td>El overlay de Spotify o el de YouTube (ver <a href="#overlays">Overlays y OBS</a>)</td></tr>
+  </table></div>
+  <h3>Controlar la música desde OBS (Dock)</h3>
+  <p class="lead" style="margin-bottom:10px">Un panel dentro de OBS con botones de pausa, siguiente, anterior, volumen, cola y <b>↺ volver a empezar</b> la canción. Sirve para YouTube y para Spotify.</p>
+  <div class="card">
+    <ol class="steps">
+      <li>En el dashboard, en <b>Música</b>, pulsa <b>🎛️ Dock de OBS</b> y copia el link.</li>
+      <li>En OBS ve a <b>Docks → Docks de navegador personalizados</b>.</li>
+      <li>Ponle un nombre (por ejemplo “Música”), pega el link y pulsa <b>Aplicar</b>.</li>
+      <li>Arriba del panel cambia entre <b>YouTube</b> y <b>Spotify</b>.</li>
+    </ol>
+  </div>
+  <div class="note warn"><span class="e">⚠️</span><div><b>Spotify:</b> para controlarlo desde el dock hace falta <b>cuenta Premium</b> y tener la app de Spotify abierta (puede estar en pausa). Si lleva mucho rato pausada y el dock se ve dormido, toca <b>▶</b> y Muffet la despierta.</div></div>
+  <div class="note tip"><span class="e">💡</span><div><b>OBS en Linux (Flatpak con Wayland):</b> si no ves la opción de docks de navegador, abre OBS con <code>QT_QPA_PLATFORM=xcb</code>.</div></div>
+  <div class="note warn"><span class="e">🔒</span><div>El link del dock da control de tu música: <b>no lo compartas</b>. Si se filtra, regenera uno nuevo desde el mismo botón y el viejo deja de funcionar.</div></div>
+</section>
+
+<!-- ───────── OVERLAYS ───────── -->
+<section id="overlays">
+  <h2><span class="ic">🎨</span> Overlays y OBS</h2>
+  <p class="lead">Un overlay es una página que pones en OBS como <b>Fuente de navegador</b> para mostrar cosas en pantalla: la canción actual, el sorteo, el subatón, los shoutouts y las alertas.</p>
+  <div class="card">
+    <ol class="steps">
+      <li>En el dashboard abre la sección del overlay (Música, Sorteos, Subatón, Shoutout…) y <b>copia su link</b>.</li>
+      <li>En OBS: <b>Fuentes → + → Navegador</b>, pega el link en <b>URL</b> y ajusta el ancho y el alto.</li>
+      <li>Coloca la fuente donde quieras en tu escena. Se actualiza sola.</li>
+    </ol>
+  </div>
+  <div class="note warn"><span class="e">🔒</span><div>Cada link lleva tu clave personal. <b>No lo muestres en pantalla ni lo compartas</b>.</div></div>
+  <h3>Estilos para los overlays de música</h3>
+  <div class="card"><ul class="dots">
+    <li><b>Galería de estilos:</b> en Música, abre la galería y verás una vista previa de cada estilo (Cristal, Píldora, Synthwave, Neon City, Cyber, Telaraña, Rey Pixel y más).</li>
+    <li><b>Horizontal o vertical:</b> la versión vertical es ideal para columnas laterales.</li>
+    <li><b>Portada cuadrada o de disco:</b> el disco gira mientras suena la canción.</li>
+    <li><b>Colores de la portada:</b> algunos estilos toman los colores de la imagen del álbum.</li>
+  </ul></div>
+  <div class="note tip"><span class="e">💡</span><div>Cambia el estilo desde el dashboard y el overlay se actualiza solo, sin tocar OBS.</div></div>
+</section>
+
+<!-- ───────── SUBATÓN ───────── -->
+<section id="subaton">
+  <h2><span class="ic">⏱️</span> Subatón <span class="pro">PRO</span></h2>
+  <p class="lead">Un contador de tiempo que sube con cada sub, regalo de subs y bits, y que puedes mostrar en pantalla con su overlay.</p>
+  <div class="card">
+    <ol class="steps">
+      <li>En <b>Subatón</b> activa la función y elige los <b>minutos por evento</b>: sub Tier 1, 2 y 3 y bits.</li>
+      <li>Pon un <b>límite máximo de horas</b> si quieres que el contador no crezca sin fin (0 = sin límite).</li>
+      <li>Si quieres, activa <b>🚀 Las raids suman tiempo</b>: eliges cuántos minutos suma y el <b>mínimo de personas</b> que debe traer la raid. Una raid más pequeña no suma.</li>
+      <li>Con el contador listo, ponle las horas iniciales y pulsa <b>Iniciar</b>. Puedes pausar, reanudar y sumar o restar minutos a mano.</li>
+    </ol>
+  </div>
+  <div class="card"><ul class="dots">
+    <li>Un regalo de varias subs suma lo mismo que esas subs por separado (3 subs Tier 1 = 3 × el valor de Tier 1).</li>
+    <li><code>!tiempo</code> muestra cuánto queda y <code>!subathontop</code> el ranking de quién más aportó.</li>
+    <li>Muffet puede avisar en el chat cada vez que alguien suma tiempo (se apaga con “Avisar en el chat”).</li>
+  </ul></div>
+</section>
+
+<!-- ───────── MODERACIÓN ───────── -->
+<section id="moderacion">
+  <h2><span class="ic">🛡️</span> Moderación</h2>
+  <p class="lead">Activa <b>Moderación</b> en el dashboard y Muffet vigila tu chat: borra el mensaje y, si quieres, da un timeout.</p>
+  <div class="note warn"><span class="e">⚠️</span><div><b>Antes de nada:</b> el bot tiene que ser moderador de tu canal (<code>/mod MuffetBot_</code>). Luego escribe <code>!modcheck</code> para comprobarlo: debe responder <i>“Timeouts ✅ | Borrar mensajes ✅”</i>.</div></div>
+  <div class="tbl"><table>
+    <tr><th>Herramienta</th><th>Qué hace</th></tr>
+    <tr><td>🚫 Palabras prohibidas</td><td>Borra mensajes con esas palabras. Cuenta la palabra <b>completa</b> (acepta plural y no distingue tildes): “puta” no bloquea “computadora”</td></tr>
+    <tr><td>🔗 Bloqueo de links</td><td>Borra links. Puedes permitir dominios (por ejemplo <code>twitch.tv</code>). Subs y VIPs se libran de este filtro</td></tr>
+    <tr><td>🔁 Anti-spam</td><td>Detecta ráfagas de mensajes y mensajes repetidos</td></tr>
+    <tr><td>⏱️ Modo lento</td><td>Un mensaje cada X segundos por usuario</td></tr>
+    <tr><td>🤖 Moderación con IA <span class="pro">PRO</span></td><td>Analiza el mensaje para detectar insultos y acoso sin lista de palabras. Subs y VIPs se libran de este filtro</td></tr>
+  </table></div>
+  <div class="card"><ul class="dots">
+    <li>Cada herramienta tiene su propio interruptor de <b>⏱️ Timeout</b>. Apagado, solo borra el mensaje.</li>
+    <li>La duración del timeout se elige en el panel <b>General</b>.</li>
+    <li><b>Los mods y tú nunca son moderados</b> por Muffet.</li>
+  </ul></div>
+  <div class="note tip"><span class="e">💡</span><div>Empieza solo con palabras prohibidas y bloqueo de links. Cuando veas cómo se comporta tu chat, añade lo demás. La IA con timeout puede equivocarse con bromas, así que empieza dejándola solo en borrar.</div></div>
+</section>
+
+<!-- ───────── PERFIL ───────── -->
+<section id="perfil">
+  <h2><span class="ic">🌐</span> Perfil público</h2>
+  <p class="lead">Una página con tu nombre, tus redes y tus comandos para compartir en tu bio de Twitch.</p>
+  <div class="card"><ul class="dots">
+    <li>En <b>Perfil público</b> guardas tus links: Twitch, YouTube, TikTok, X, Instagram, Discord, donaciones y <b>Fiverr</b> si ofreces servicios.</li>
+    <li>Esos mismos links salen cuando alguien escribe <code>!redes</code>, y <code>!donar</code> muestra tu enlace de donaciones.</li>
+    <li>Puedes elegir el color de tu página y el nombre que se muestra.</li>
+    <li>Tu página está en <code>/canal/tu_usuario</code> <span class="pro">PRO</span></li>
+  </ul></div>
+</section>
+
+<!-- ───────── PLANES ───────── -->
+<section id="planes">
+  <h2><span class="ic">⭐</span> Free y Pro</h2>
+  <p class="lead">En el menú del dashboard, lo que lleva la etiqueta <span class="pro">PRO</span> es de pago. Lo demás es gratis.</p>
+  <div class="card"><ul class="dots">
+    <li><b>Gratis:</b> el bot con personalidad, comandos propios, auto mensajes, puntos y niveles, <code>!slots</code>, <code>!apostar</code>, canjes, sorteos por chat, DBDle, shoutout, estadísticas y la moderación por palabras, links, spam y modo lento.</li>
+    <li><b>Pro:</b> música (YouTube y Spotify, con sus overlays y el dock), subatón, Emoji Game, Pokédle, Primerin, duelos, encuestas, moderación con IA, alertas multimedia, overlay del sorteo, perfil público y un bot con nombre propio.</li>
+  </ul></div>
+  <div class="note tip"><span class="e">💡</span><div>La lista puede cambiar con el tiempo. Lo que ves marcado como <b>PRO</b> en el menú del dashboard es siempre lo que vale.</div></div>
+</section>
+
+<!-- ───────── PROBLEMAS ───────── -->
+<section id="problemas">
+  <h2><span class="ic">🔧</span> Si algo falla</h2>
+  <p class="lead">Las causas más comunes, en orden de probabilidad.</p>
+
+  <details><summary>Muffet no responde nada en mi chat</summary>
+    <div class="body"><p>Revisa que Muffet esté <b>encendida</b> en el dashboard y que tu cuenta esté aprobada. Si apagaste a Muffet o la pusiste en silencio, no contesta.</p>
+    <p>Prueba con un comando sencillo como <code>!puntos</code> o <code>!tiempo</code>.</p></div></details>
+
+  <details><summary>No borra mensajes ni da timeouts</summary>
+    <div class="body"><p>Casi siempre es que <b>el bot no es mod</b>. Escribe <code>/mod MuffetBot_</code> en tu chat y luego <code>!modcheck</code>.</p>
+    <p>También revisa que el <b>⏱️ Timeout</b> esté encendido en la herramienta que quieres. Si usas un bot propio, su token debe tener los permisos de moderación.</p></div></details>
+
+  <details><summary>Un viewer dice que le borró un mensaje normal</summary>
+    <div class="body"><p>Mira tu lista de palabras prohibidas y los dominios permitidos. Recuerda que subs y VIPs no pasan por el bloqueo de links.</p></div></details>
+
+  <details><summary>El overlay sale en blanco en OBS</summary>
+    <div class="body"><p>Comprueba que pegaste el link completo en la fuente de navegador y que el ancho y alto no sean 0. Pulsa <b>Actualizar caché del navegador</b> en las propiedades de la fuente.</p>
+    <p>Si es el overlay de música, asegúrate de tener algo sonando y de haber conectado tu Spotify o activado YouTube en Música.</p></div></details>
+
+  <details><summary>El dock de música no deja pausar o dar play</summary>
+    <div class="body"><p><b>Spotify:</b> necesita Premium y la app abierta. Si se durmió por estar mucho rato en pausa, toca ▶ para despertarla. Si el mensaje dice que no encuentra Spotify, ábrelo en el celular o la computadora.</p>
+    <p><b>YouTube:</b> el overlay de YouTube tiene que estar abierto en OBS; el dock le manda órdenes a esa página.</p></div></details>
+
+  <details><summary>El link del dock o del overlay dejó de funcionar</summary>
+    <div class="body"><p>Si regeneraste el link del dock, copia el nuevo desde el dashboard. Para los overlays, copia otra vez el link actual desde su sección.</p></div></details>
+
+  <details><summary>El subatón no suma tiempo</summary>
+    <div class="body"><p>Comprueba que esté <b>activado</b> en Subatón y que los minutos del evento no estén en 0. Para las raids, revisa que su interruptor esté encendido y que la raid llegue al mínimo de personas.</p></div></details>
+
+  <details><summary>Algo se rompió y no sé por qué</summary>
+    <div class="body"><p>Cuéntaselo al equipo de MuffetBot con una captura y la hora aproximada. Con eso se puede buscar el error en los registros.</p></div></details>
+</section>
+
+<footer>MuffetBot · Guía rápida · <a href="/dashboard">Volver al dashboard</a></footer>
+</main>
+</div>
+<script>
+// Resalta en el índice la sección que se está leyendo
+(function(){
+  var links=[].slice.call(document.querySelectorAll('.toc a[href^="#"]'));
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  if(!('IntersectionObserver' in window))return;
+  var io=new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if(e.isIntersecting){links.forEach(function(a){a.classList.remove('on');});var a=map[e.target.id];if(a)a.classList.add('on');}
+    });
+  },{rootMargin:'-20% 0px -70% 0px'});
+  Object.keys(map).forEach(function(id){var el=document.getElementById(id);if(el)io.observe(el);});
+})();
+</script>
+</body>
+</html>
