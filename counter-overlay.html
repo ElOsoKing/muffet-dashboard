@@ -4,89 +4,143 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contador Overlay</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&family=Orbitron:wght@700;900&family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: transparent; font-family: 'Inter', sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden;
+  --add: #3ecf8e; --urgent: #e05a7a; --paused: #c9a876; }
 
-body {
-  background: transparent;
-  font-family: 'Inter', sans-serif;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-}
-
-.widget {
-  display: none;
-  align-items: center;
-  gap: 14px;
-  background: linear-gradient(135deg, rgba(20,16,28,0.92), rgba(11,10,16,0.92));
-  border: 1px solid rgba(139,92,246,0.4);
-  border-radius: 16px;
-  padding: 14px 26px;
-  box-shadow: 0 0 30px rgba(139,92,246,0.25), 0 8px 24px rgba(0,0,0,0.4);
-  position: relative;
-}
-.widget.show { display: flex; }
-
-.icon { font-size: 30px; filter: drop-shadow(0 0 8px rgba(139,92,246,0.6)); }
-
-.value {
-  font-family: 'VT323', monospace;
-  font-size: 48px;
-  color: #e8dfff;
-  letter-spacing: 2px;
-  line-height: 1;
-  text-shadow: 0 0 12px rgba(139,92,246,0.5);
-  transition: color 0.3s;
-}
-
-.label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #8f88a8;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  margin-top: 2px;
-}
-
-.addon {
-  position: absolute;
-  top: 0;
-  right: 10px;
-  font-family: 'VT323', monospace;
-  font-size: 26px;
-  opacity: 0;
-  pointer-events: none;
-}
-@keyframes floatUp {
-  0% { opacity: 0; transform: translateY(10px) scale(0.8); }
-  20% { opacity: 1; transform: translateY(-10px) scale(1.1); }
-  80% { opacity: 1; transform: translateY(-40px) scale(1); }
-  100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
-}
-.addon.pop { animation: floatUp 2.2s ease-out forwards; }
-.addon.up { color: #3ecf8e; text-shadow: 0 0 10px rgba(62,207,142,0.7); }
-.addon.down { color: #e05a7a; text-shadow: 0 0 10px rgba(224,90,122,0.7); }
-
-.missing {
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  color: #8f88a8;
-  background: rgba(20,16,28,0.8);
-  border: 1px dashed rgba(139,92,246,0.3);
-  border-radius: 12px;
-  padding: 12px 18px;
-  display: none;
-}
+.widget { display: none; position: relative; align-items: center; gap: 14px; }
+.widget.show { display: flex; animation: pop-in .5s cubic-bezier(.2,1.4,.4,1); }
+@keyframes pop-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
+.deco { display: none; position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.deco i { display: none; position: absolute; }
+.icon { font-size: 30px; line-height: 1; }
+.value { line-height: 1; white-space: nowrap; }
+.label { font-weight: 700; text-transform: uppercase; }
+.addon { position: absolute; right: 14px; top: -6px; font-weight: 800; color: var(--add); opacity: 0; pointer-events: none; white-space: nowrap; z-index: 5; }
+.addon.down { color: #ff5470 !important; }
+.body.bump { animation: bump .45s ease-out; }
+@keyframes bump { 0% { transform: scale(1); } 35% { transform: scale(1.14); } 100% { transform: scale(1); } }
+.missing { display: none; font-family: 'Inter', sans-serif; font-size: 13px; color: #8f88a8; background: rgba(20,16,28,.8); border: 1px dashed rgba(139,92,246,.3); border-radius: 12px; padding: 12px 18px; }
 .missing.show { display: block; }
+@keyframes floatUp { 0% { opacity: 0; transform: translateY(10px) scale(.8); } 20% { opacity: 1; transform: translateY(-10px) scale(1.15); } 80% { opacity: 1; transform: translateY(-34px) scale(1); } 100% { opacity: 0; transform: translateY(-52px) scale(.9); } }
+.addon.pop { animation: floatUp 2.4s ease-out forwards; }
+
+/* ══════════ 1 · Clásico (el de siempre) ══════════ */
+body[data-theme="clasico"] .widget { background: linear-gradient(135deg, rgba(20,16,28,.92), rgba(11,10,16,.92)); border: 1px solid rgba(139,92,246,.4); border-radius: 16px; padding: 14px 26px; box-shadow: 0 0 30px rgba(139,92,246,.25), 0 8px 24px rgba(0,0,0,.4); }
+body[data-theme="clasico"] .icon { font-size: 30px; filter: drop-shadow(0 0 8px rgba(139,92,246,.6)); }
+body[data-theme="clasico"] .value { font-family: 'VT323', monospace; font-size: 48px; color: #e8dfff; letter-spacing: 2px; text-shadow: 0 0 12px rgba(139,92,246,.5); }
+body[data-theme="clasico"] .label { font-size: 11px; color: #8f88a8; letter-spacing: 1px; margin-top: 2px; }
+body[data-theme="clasico"] .addon { font-family: 'VT323', monospace; font-size: 26px; text-shadow: 0 0 10px rgba(62,207,142,.7); }
+
+/* ══════════ 1b · Solo números (sin fondo) ══════════ */
+body[data-theme="solo"] { --add: #3ecf8e; --urgent: #ff5470; }
+body[data-theme="solo"] .widget { padding: 4px 10px; }
+body[data-theme="solo"] .icon, body[data-theme="solo"] .label { display: none; }
+body[data-theme="solo"] .value { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 72px; letter-spacing: -1px; color: #fff; font-variant-numeric: tabular-nums; -webkit-text-stroke: 2px rgba(0,0,0,.75); paint-order: stroke fill; text-shadow: 0 3px 0 rgba(0,0,0,.55), 0 0 18px rgba(0,0,0,.6); }
+body[data-theme="solo"] .addon { font-family: 'Inter', sans-serif; font-size: 28px; right: 6px; top: -14px; -webkit-text-stroke: 1.5px rgba(0,0,0,.75); paint-order: stroke fill; text-shadow: 0 2px 0 rgba(0,0,0,.55); }
+
+/* ══════════ 2 · Neón (synthwave) ══════════ */
+body[data-theme="neon"] { --add: #00f0ff; --urgent: #ff3b6b; }
+body[data-theme="neon"] .widget { padding: 16px 68px 18px 28px; border-radius: 14px; background: linear-gradient(180deg, #1a0638 0%, #2b0a4f 60%, #3a0d5e 100%); border: 2px solid #ff2fd0; box-shadow: 0 0 0 1px rgba(0,240,255,.6), 0 0 22px rgba(255,47,208,.55), 0 0 46px rgba(0,240,255,.25), inset 0 0 22px rgba(255,47,208,.25); }
+body[data-theme="neon"] .deco { display: block; }
+body[data-theme="neon"] .deco .a { display: block; left: -20%; right: -20%; bottom: 0; height: 46%; transform-origin: bottom; transform: perspective(120px) rotateX(58deg); background: repeating-linear-gradient(90deg, rgba(0,240,255,.55) 0 1px, transparent 1px 26px), repeating-linear-gradient(0deg, rgba(0,240,255,.55) 0 1px, transparent 1px 12px); opacity: .55; animation: grid-run 1.2s linear infinite; }
+@keyframes grid-run { to { background-position: 0 12px, 0 12px; } }
+body[data-theme="neon"] .deco .b { display: block; right: 18px; top: 10px; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(180deg, #ffe14a, #ff2fd0); box-shadow: 0 0 18px rgba(255,47,208,.8); -webkit-mask: repeating-linear-gradient(180deg, #000 0 5px, transparent 5px 7px); mask: repeating-linear-gradient(180deg, #000 0 5px, transparent 5px 7px); }
+body[data-theme="neon"] .icon, body[data-theme="neon"] .body { position: relative; z-index: 2; }
+body[data-theme="neon"] .icon { font-size: 30px; filter: drop-shadow(0 0 8px #ff2fd0); }
+body[data-theme="neon"] .value { font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 40px; letter-spacing: 3px; color: #fff; text-shadow: 0 0 6px #ff2fd0, 0 0 16px #ff2fd0, 0 0 30px #00f0ff; animation: neon-flicker 5s infinite; }
+@keyframes neon-flicker { 0%,18%,22%,62%,64%,100% { opacity: 1; } 20%,63% { opacity: .75; } }
+body[data-theme="neon"] .label { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 4px; color: #00f0ff; text-shadow: 0 0 8px #00f0ff; margin-top: 6px; }
+body[data-theme="neon"] .addon { font-family: 'Orbitron', sans-serif; font-size: 22px; text-shadow: 0 0 10px #00f0ff, 0 0 20px #00f0ff; }
+
+/* ══════════ 3 · Cyber (HUD) ══════════ */
+body[data-theme="cyber"] { --add: #39ff88; --urgent: #ff4d4d; }
+body[data-theme="cyber"] .widget { padding: 14px 28px; background: rgba(2,14,20,.9); border: 1px solid rgba(0,229,255,.35); clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
+body[data-theme="cyber"] .deco { display: block; background: repeating-linear-gradient(0deg, rgba(0,229,255,.06) 0 1px, transparent 1px 3px); }
+body[data-theme="cyber"] .deco .a { display: block; left: 0; top: 0; width: 22px; height: 22px; border-top: 3px solid #00e5ff; border-left: 3px solid #00e5ff; }
+body[data-theme="cyber"] .deco .b { display: block; right: 0; bottom: 0; width: 22px; height: 22px; border-bottom: 3px solid #00e5ff; border-right: 3px solid #00e5ff; }
+body[data-theme="cyber"] .deco .c { display: block; left: 0; right: 0; top: 0; height: 36%; background: linear-gradient(180deg, rgba(0,229,255,.18), transparent); animation: scan 3.2s linear infinite; }
+@keyframes scan { 0% { transform: translateY(-120%); } 100% { transform: translateY(330%); } }
+body[data-theme="cyber"] .icon, body[data-theme="cyber"] .body { position: relative; z-index: 2; }
+body[data-theme="cyber"] .icon { font-size: 28px; filter: drop-shadow(0 0 6px #00e5ff) hue-rotate(120deg); }
+body[data-theme="cyber"] .value { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 38px; letter-spacing: 3px; color: #d8fbff; text-shadow: 0 0 10px rgba(0,229,255,.8), 2px 0 rgba(255,0,110,.5), -2px 0 rgba(0,229,255,.5); }
+body[data-theme="cyber"] .label { font-family: 'VT323', monospace; font-size: 17px; font-weight: 400; letter-spacing: 3px; color: #00e5ff; margin-top: 4px; }
+body[data-theme="cyber"] .label::before { content: "// "; opacity: .6; }
+body[data-theme="cyber"] .addon { font-family: 'VT323', monospace; font-size: 28px; text-shadow: 0 0 10px #39ff88; }
+
+/* ══════════ 4 · Cristal (minimal) ══════════ */
+body[data-theme="glass"] { --add: #7dffb2; --urgent: #ff7a8a; }
+body[data-theme="glass"] .widget { padding: 14px 30px 14px 24px; gap: 16px; border-radius: 999px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.28); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 8px 30px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.35); }
+body[data-theme="glass"] .icon { width: 12px; height: 12px; border-radius: 50%; background: #ff4d6a; box-shadow: 0 0 0 4px rgba(255,77,106,.25), 0 0 14px #ff4d6a; font-size: 0; animation: live 1.6s ease-in-out infinite; }
+@keyframes live { 50% { transform: scale(.7); opacity: .6; } }
+body[data-theme="glass"] .value { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 40px; letter-spacing: -1px; color: #fff; font-variant-numeric: tabular-nums; text-shadow: 0 2px 14px rgba(0,0,0,.35); }
+body[data-theme="glass"] .label { font-size: 10px; letter-spacing: 3px; color: rgba(255,255,255,.75); margin-top: 3px; text-shadow: 0 1px 6px rgba(0,0,0,.4); }
+body[data-theme="glass"] .addon { font-size: 22px; text-shadow: 0 2px 12px rgba(0,0,0,.45); right: 28px; }
+
+/* ══════════ 5 · Arcade (8-bit) ══════════ */
+body[data-theme="arcade"] { --add: #5dff7a; --urgent: #ff4a4a; --paused: #ffd24a; }
+body[data-theme="arcade"] .widget { padding: 16px 22px; background: #14123a; border: 4px solid #ffd24a; box-shadow: 0 0 0 4px #14123a, 0 0 0 8px #ff4a8d, 6px 8px 0 8px rgba(0,0,0,.5); border-radius: 0; image-rendering: pixelated; }
+body[data-theme="arcade"] .deco { display: block; background: repeating-linear-gradient(0deg, rgba(255,255,255,.04) 0 2px, transparent 2px 4px); }
+body[data-theme="arcade"] .icon { font-size: 26px; filter: saturate(1.4); animation: coin 1.2s steps(4) infinite; }
+@keyframes coin { 0% { transform: scaleX(1); } 25% { transform: scaleX(.55); } 50% { transform: scaleX(.12); } 75% { transform: scaleX(.55); } 100% { transform: scaleX(1); } }
+body[data-theme="arcade"] .value { font-family: 'Press Start 2P', monospace; font-size: 26px; letter-spacing: 0; color: #ffd24a; text-shadow: 3px 3px 0 #b3251f; }
+body[data-theme="arcade"] .label { font-family: 'Press Start 2P', monospace; font-size: 8px; font-weight: 400; letter-spacing: 0; color: #5de6ff; margin-top: 9px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+body[data-theme="arcade"] .label::before { content: "▶ "; }
+body[data-theme="arcade"] .addon { font-family: 'Press Start 2P', monospace; font-size: 14px; text-shadow: 3px 3px 0 #0b3d12; }
+
+/* ══════════ 6 · Fuego (épico) ══════════ */
+body[data-theme="fuego"] { --add: #ffd23c; --urgent: #fff; }
+body[data-theme="fuego"] .widget { padding: 14px 30px; border-radius: 14px; background: linear-gradient(180deg, #1c0a06, #2c0e06 70%, #4a1606); border: 2px solid #ff6a00; box-shadow: 0 0 22px rgba(255,106,0,.55), 0 0 50px rgba(255,40,0,.3), inset 0 -18px 30px rgba(255,80,0,.28); }
+body[data-theme="fuego"] .deco { display: block; background: linear-gradient(to top, rgba(255,90,0,.38), transparent 55%); }
+body[data-theme="fuego"] .deco i { display: block; bottom: -4px; width: 5px; height: 5px; border-radius: 50%; background: #ffb347; box-shadow: 0 0 8px #ff7a00; animation: ember 2.6s linear infinite; opacity: 0; }
+body[data-theme="fuego"] .deco .a { left: 16%; animation-delay: 0s; }
+body[data-theme="fuego"] .deco .b { left: 48%; animation-delay: 1s; animation-duration: 3.1s; }
+body[data-theme="fuego"] .deco .c { left: 80%; animation-delay: 1.8s; animation-duration: 2.3s; }
+@keyframes ember { 0% { transform: translate(0,0) scale(1); opacity: 0; } 15% { opacity: 1; } 100% { transform: translate(10px,-70px) scale(.2); opacity: 0; } }
+body[data-theme="fuego"] .icon, body[data-theme="fuego"] .body { position: relative; z-index: 2; }
+body[data-theme="fuego"] .icon { font-size: 34px; filter: drop-shadow(0 0 10px #ff6a00); animation: flame 1.1s ease-in-out infinite; }
+@keyframes flame { 0%,100% { transform: scale(1) rotate(-3deg); } 50% { transform: scale(1.12) rotate(3deg); } }
+body[data-theme="fuego"] .value { font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 42px; letter-spacing: 2px; background: linear-gradient(180deg, #fff6c2 0%, #ffd23c 35%, #ff6a00 75%, #d61a00 100%); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 10px rgba(255,106,0,.7)); }
+body[data-theme="fuego"] .label { font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 4px; color: #ff9a4a; margin-top: 6px; }
+body[data-theme="fuego"] .addon { font-family: 'Orbitron', sans-serif; font-size: 22px; text-shadow: 0 0 12px #ff6a00; }
+
+/* ══════════ 7 · Exclusivo de Wolf: Lobo Rey (glitch rojo/violeta) ══════════ */
+body[data-theme="wolf"] { --add: #ff3347; --urgent: #ffffff; font-family: 'VT323', monospace; }
+body[data-theme="wolf"] .widget { padding: 16px 92px 16px 26px; background: #07060a; border: 2px solid #ff1a2e; box-shadow: 0 0 0 2px #07060a, 0 0 0 4px rgba(140,60,255,.85), 0 0 24px rgba(255,26,46,.4); border-radius: 0; }
+body[data-theme="wolf"] .deco { display: block; background: repeating-linear-gradient(to bottom, rgba(255,255,255,.045) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.5)); }
+body[data-theme="wolf"] .deco .a { display: block; right: 12px; top: 50%; width: 62px; height: 80px; margin-top: -40px; transform: scaleX(-1); background: url("data:image/png;base64,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") center / contain no-repeat; filter: drop-shadow(0 0 7px rgba(255,26,46,.55)); animation: glitch-clip 5s steps(1) infinite -2.4s; }
+body[data-theme="wolf"] .icon { display: none; }
+body[data-theme="wolf"] .body { position: relative; z-index: 2; }
+body[data-theme="wolf"] .value { font-size: 58px; color: #f4f4f6; letter-spacing: 3px; text-shadow: -3px 0 rgba(255,26,46,.9), 3px 0 rgba(140,60,255,.85); animation: glitch 4s steps(1) infinite; }
+body[data-theme="wolf"] .label { font-size: 20px; font-weight: 400; letter-spacing: .14em; color: #ff3347; margin-top: 2px; }
+body[data-theme="wolf"] .addon { font-size: 34px; font-weight: 400; text-shadow: -2px 0 rgba(255,26,46,.9), 2px 0 rgba(140,60,255,.85); }
+@keyframes glitch { 0%,92%,100% { transform: none; } 93% { transform: translate(-3px,1px) skewX(-6deg); } 95% { transform: translate(3px,-1px) skewX(5deg); } 97% { transform: translate(-1px,0); } }
+@keyframes glitch-clip { 0%,90%,100% { clip-path: none; transform: scaleX(-1); } 91% { clip-path: inset(10% 0 55% 0); transform: scaleX(-1) translateX(5px); } 93% { clip-path: inset(55% 0 10% 0); transform: scaleX(-1) translateX(-5px); } 95% { clip-path: none; transform: scaleX(-1); } }
+
+/* ══════════ 8 · Exclusivo de ElOsoKing: Rey Oso (pixel dorado con brasas) ══════════ */
+body[data-theme="oso"] { --add: #ffcc33; --urgent: #ff6a3c; --paused: #e0a96a; }
+body[data-theme="oso"] .widget { padding: 18px 96px 18px 24px; background: #2a1a0e; border: 4px solid #ffcc33; border-radius: 0; box-shadow: 0 0 0 4px #5a3513, 6px 8px 0 4px rgba(0,0,0,.5); }
+body[data-theme="oso"] .deco { display: block; background: linear-gradient(to top, rgba(255,110,40,.30), transparent 48%), repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 2px, transparent 2px 4px); }
+body[data-theme="oso"] .deco .a { display: block; right: 14px; top: 50%; width: 66px; height: 78px; margin-top: -39px; image-rendering: pixelated; background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAAnCAYAAACBvSFyAAACjklEQVR42s2YMUgcQRSG/122UxHugpwSEMWY44oLJKlypLGxiIJWYmEIwS5NIFcKIZAiZZp0QQQJwUohpLUJHimOAw9Z5AyCEMIh5zXab5rMMvtm3uzM3h5x4Iqbe+9/3773ZmbngAFHtTQa4X+Oamk0in4+ioYGkiYsAMTHxp77zeccjg/u26W6vG71QCY93+TMOQrRrLZOECivK+ImURdbewgibiPqYusEIcRdhou979LFtsImO51+QA02Fqbd1vLpV2tTob17eBG1uzeekgktwL8AvXoRvXpREV1sNbHYairznL0MI2fE1wE8e7g8lA1Q1pVBPA6gj8+5QxSwCQD43voWz+0eXiQbc1gZMGVEaUwddeeyMXDQ+Ykn2feJPABsdBIQolady0ZuADKI0JR7AgA8ujru3S0OvSfOfl/FTdnu3nge3SfSIISAadhoCABjY7oG5uxtMhukidW/nAAAJsdH8GZpxhqE+plgAtoT9Kknx0cy1Z36Ud2Nhen4DPFxC8atgAiyOr56/1aZ+7T1LpOWxx3jT+88SHz/0Ttmg3MwnIZ8eMX7BIWgzgBQfb2S+L75/AMAoBF2AABhc1vxaX88UOZkEAGRqRyVxy/ZOR1MLo1Js2B9i7P000LQ2uU1OF3P5iWXa0a5LFwZuBUjnx3xO2atUnB+MhE4Sx/UKoX4HTNRjvPutdbhz6/T1MbUzVM/Lk4AQKQlqlUKOO9eY7Y0xoJMzZURNrcTq4GuDC64DHAU9uNyePTyI5dFhll9sZYQm5orp2Zsf2dP+/QygALB9YeAoSCmIQBo6imAFkK+L+qadbY0ZoTZ39nT9tZR2IdUeqRCcJdXlxUkgsZbuCa4FcQg/9SZgtLxF1G/ZQEc/PEWAAAAAElFTkSuQmCC") center / contain no-repeat; animation: oso-bob 4.2s steps(1) infinite; }
+@keyframes oso-bob { 0%,55%,100% { transform: translateY(0) scale(1,1); } 8% { transform: translateY(0) scale(1.06,.92); } 16%,26% { transform: translateY(-9px) scale(.96,1.06); } 36% { transform: translateY(0) scale(1.07,.9); } 44% { transform: translateY(0) scale(1,1); } 70% { transform: translateY(-3px); } 85% { transform: translateY(0); } }
+body[data-theme="oso"] .deco .b, body[data-theme="oso"] .deco .c { display: block; bottom: 6px; width: 3px; height: 3px; background: #ff9a3c; animation: oso-rise 3s steps(8) infinite; }
+body[data-theme="oso"] .deco .b { left: 14px; } body[data-theme="oso"] .deco .c { left: 46%; animation-delay: -1.4s; }
+@keyframes oso-rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-64px); opacity: 0; } }
+body[data-theme="oso"] .icon { display: none; }
+body[data-theme="oso"] .body { position: relative; z-index: 2; }
+body[data-theme="oso"] .value { font-family: 'Press Start 2P', monospace; font-size: 26px; letter-spacing: 0; color: #fff3d6; text-shadow: 3px 3px 0 #2e180c; }
+body[data-theme="oso"] .label { font-family: 'Press Start 2P', monospace; font-size: 8px; font-weight: 400; letter-spacing: 0; color: #ffcc33; margin-top: 10px; }
+body[data-theme="oso"] .addon { font-family: 'Press Start 2P', monospace; font-size: 14px; text-shadow: 3px 3px 0 #2e180c; }
 </style>
 </head>
-<body>
+<body data-theme="clasico">
 <div class="widget" id="widget">
-  <div class="icon">🕷️🔢</div>
-  <div>
+  <div class="deco"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+  <div class="icon" id="iconEl">🕷️🔢</div>
+  <div class="body" id="bodyEl">
     <div class="value" id="valueDisplay">0</div>
     <div class="label" id="labelText">CONTADOR</div>
   </div>
@@ -94,43 +148,64 @@ body {
 </div>
 <div class="missing" id="missingMsg">Agrega ?name=nombre a la URL (ej. ?name=muertes)</div>
 <script>
+const THEMES = ['clasico','solo','neon','cyber','glass','arcade','fuego','wolf','oso'];
+const ICONS = { clasico: '🕷️🔢', solo: '', neon: '🔢', cyber: '🔢', glass: '', arcade: '🪙', fuego: '🔥', wolf: '', oso: '' };
+const params = new URLSearchParams(location.search);
 const channel = decodeURIComponent(location.pathname.split('/').pop() || '').toLowerCase();
-const counterName = new URLSearchParams(location.search).get('name') || '';
+const counterName = params.get('name') || '';
+const customLabel = params.get('label');
+const requestedTheme = THEMES.includes(params.get('theme')) ? params.get('theme') : 'clasico';
+const previewTheme = THEMES.includes(params.get('preview')) ? params.get('preview') : null; // vista previa desde el dashboard
 const widget = document.getElementById('widget');
+const bodyEl = document.getElementById('bodyEl');
 const valueDisplay = document.getElementById('valueDisplay');
 const labelText = document.getElementById('labelText');
 const addonPopup = document.getElementById('addonPopup');
 const missingMsg = document.getElementById('missingMsg');
-
 let lastKnownValue = null;
 
+function setTheme(t) {
+  const th = THEMES.includes(t) ? t : 'clasico';
+  document.body.setAttribute('data-theme', th);
+  document.getElementById('iconEl').textContent = ICONS[th];
+}
 function showAddon(delta) {
   addonPopup.textContent = `${delta > 0 ? '+' : ''}${delta}`;
   addonPopup.classList.remove('pop', 'up', 'down');
-  void addonPopup.offsetWidth; // reiniciar animación
+  void addonPopup.offsetWidth;
   addonPopup.classList.add('pop', delta > 0 ? 'up' : 'down');
+  bodyEl.classList.remove('bump'); void bodyEl.offsetWidth; bodyEl.classList.add('bump');
 }
-
+function render(value, name) {
+  labelText.textContent = customLabel || name;
+  valueDisplay.textContent = value;
+  if (lastKnownValue !== null && value !== lastKnownValue) showAddon(value - lastKnownValue);
+  lastKnownValue = value;
+}
 async function syncState() {
   if (!counterName) { missingMsg.classList.add('show'); widget.classList.remove('show'); return; }
   try {
-    const res = await fetch(`/api/counters/state/${channel}?name=${encodeURIComponent(counterName)}`);
+    const res = await fetch(`/api/counters/state/${channel}?name=${encodeURIComponent(counterName)}&theme=${requestedTheme}`);
     const data = await res.json();
     if (!data.exists) { missingMsg.classList.add('show'); missingMsg.textContent = `No existe el contador "${counterName}" — créalo con !addcounter ${counterName}`; widget.classList.remove('show'); return; }
     missingMsg.classList.remove('show');
+    setTheme(data.theme);
     widget.classList.add('show');
-    labelText.textContent = counterName;
-    valueDisplay.textContent = data.value;
-
-    if (lastKnownValue !== null && data.value !== lastKnownValue) {
-      showAddon(data.value - lastKnownValue);
-    }
-    lastKnownValue = data.value;
+    render(data.value, counterName);
   } catch(e) {}
 }
 
-syncState();
-setInterval(syncState, 5000); // sincroniza con el servidor cada 5s
+if (previewTheme) {
+  // Vista previa: valor de ejemplo que sube de 1 en 1
+  setTheme(previewTheme);
+  widget.classList.add('show');
+  let v = 42;
+  render(v, 'muertes');
+  setInterval(() => { v += 1; render(v, 'muertes'); }, 4000);
+} else {
+  syncState();
+  setInterval(syncState, 3000); // sincroniza con el servidor cada 3s
+}
 </script>
 </body>
 </html>
