@@ -1819,6 +1819,7 @@ function renderMain() {
               '📱 Overlays de música en vertical y con portada de disco giratorio — se elige en la galería de estilos, para Spotify y YouTube',
               '🎮 La sección Emoji Game ahora se llama Mini juegos',
               '🚀 Subatón: las raids pueden sumar tiempo (opcional), con minutos y mínimo de personas configurables',
+              '🛡️ Moderación revisada: Muffet ya puede borrar mensajes y dar timeouts con cualquier tipo de token, y el comando !modcheck comprueba si tiene permiso en tu canal',
               '🛠️ Correcciones en sorteos, encuestas, duelos, canjes, Pokédle y subatón: ya no se pierden entradas, votos ni puntos cuando varios participan a la vez',
               '🎨 Estilos exclusivos hechos a medida para algunos canales, con animaciones nuevas',
             ]
@@ -2623,6 +2624,8 @@ function renderMain() {
       <div style="font-size:12px;color:var(--text-dim);line-height:1.7;">
         1. El bot debe ser <strong style="color:var(--text);">moderador de tu canal</strong> — escribe <code style="color:var(--purple-light);">/mod ${s.custom_bot_username||'MuffetBot_'}</code> en tu chat si aún no lo es.<br>
         ${s.custom_bot_username?`2. Como usas un bot personalizado (<strong style="color:var(--text);">${s.custom_bot_username}</strong>), su token debe incluir los permisos de moderación (<code style="color:var(--purple-light);">moderator:manage:chat_messages</code> y <code style="color:var(--purple-light);">moderator:manage:banned_users</code>). Si lo generaste antes de julio 2026, regenera el token con esos permisos y actualízalo en Configuración.`:''}
+        ${s.custom_bot_username?'3':'2'}. <strong style="color:var(--text);">Comprueba que quedó bien:</strong> escribe <code style="color:var(--purple-light);">!modcheck</code> en tu chat (siendo tú o un mod). El bot prueba si puede borrar mensajes y dar timeouts y te responde <em>"Timeouts ✅ | Borrar mensajes ✅"</em>. Si sale ❌, te dice qué falta.<br>
+        <span style="color:var(--text-muted);">Los mods y el propio streamer nunca son moderados por Muffet.</span>
       </div>
     </div>
 
