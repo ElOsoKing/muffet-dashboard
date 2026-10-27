@@ -1502,7 +1502,46 @@ function previewMediaAlert(i) {
 // ── Subatón ──
 let subathonPollTimer = null;
 
+const SUBATHON_THEME_LIST = [
+  { id:'clasico', name:'Clásico', desc:'El de siempre' },
+  { id:'neon', name:'Neón', desc:'Synthwave con rejilla y sol' },
+  { id:'cyber', name:'Cyber', desc:'Panel HUD con escáner' },
+  { id:'glass', name:'Cristal', desc:'Minimalista y translúcido' },
+  { id:'arcade', name:'Arcade', desc:'8-bit con moneda' },
+  { id:'fuego', name:'Fuego', desc:'Épico con brasas' },
+  { id:'wolf', name:'Lobo Rey', desc:'Exclusivo de Wolf', excl:'wolf' },
+  { id:'oso', name:'Rey Oso', desc:'Exclusivo de ElOsoKing', excl:'oso' },
+];
+function subathonThemeAllowed(t) {
+  if (!t.excl) return true;
+  const u = (userData?.username || '').toLowerCase();
+  const byName = t.excl === 'wolf' ? ['lordlonelywolf','elosoking1'].includes(u) : u === 'elosoking1';
+  return byName || (streamerData?.feature_flags?.themes || []).includes(t.excl);
+}
+function renderSubathonThemes() {
+  const grid = document.getElementById('subathonThemeGrid');
+  if (!grid) return;
+  const user = (userData?.username || '').toLowerCase();
+  const cur = streamerData?.subathon_config?.theme || 'clasico';
+  grid.innerHTML = SUBATHON_THEME_LIST.filter(subathonThemeAllowed).map(t => `
+    <div onclick="saveSubathonTheme('${t.id}')" style="cursor:pointer;border-radius:12px;overflow:hidden;background:var(--bg3);border:2px solid ${cur===t.id?'var(--purple)':'transparent'};">
+      <iframe src="/overlay/subathon/${encodeURIComponent(user)}?preview=${t.id}" loading="lazy" tabindex="-1" style="width:100%;height:150px;border:0;pointer-events:none;background:#2c2f3a;display:block;"></iframe>
+      <div style="padding:10px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div><div style="font-size:13px;font-weight:700;">${t.name}</div><div style="font-size:11px;color:var(--text-muted);">${t.desc}</div></div>
+        ${cur===t.id?'<span style="font-size:11px;color:var(--purple-light);font-weight:700;">✓ En uso</span>':''}
+      </div>
+    </div>`).join('');
+}
+async function saveSubathonTheme(id) {
+  try {
+    const res = await fetch('/api/subathon-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ subathon_config: { theme: id } }) });
+    if (res.ok) { streamerData.subathon_config = { ...(streamerData.subathon_config||{}), theme: id }; showToast('Estilo guardado ✓'); renderSubathonThemes(); }
+    else { const j = await res.json().catch(()=>({})); showToast(j.error || 'Error al guardar', 'error'); }
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
 function initSubathonSection() {
+  renderSubathonThemes();
   const urlInput = document.getElementById('subathonOverlayUrl');
   if (urlInput) urlInput.value = `${window.location.origin}/overlay/subathon/${(userData.username||'').toLowerCase()}`;
   pollSubathonState();
@@ -3320,6 +3359,15 @@ function renderMain() {
           <button class="btn btn-secondary" onclick="subathonAdjust(1)">+ Sumar</button>
           <button class="btn btn-secondary" onclick="subathonAdjust(-1)">− Restar</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Estilo del overlay -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🎨 Estilo del contador</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Elige cómo se ve el contador en OBS. El cambio se aplica solo, sin tocar la URL.</div>
+        <div id="subathonThemeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;"></div>
       </div>
     </div>
 
