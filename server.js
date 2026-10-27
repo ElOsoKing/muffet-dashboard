@@ -401,6 +401,40 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// ── Historial de acciones del admin (tabla admin_log; si no existe, simplemente no guarda) ──
+async function adminLog(req, action, target, detail) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/admin_log`, {
+      method: 'POST',
+      headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ admin: req.session?.user?.login || req.session?.user?.username || req.session?.user?.display_name || 'admin', action, target: target || null, detail: detail ? String(detail).slice(0, 300) : null })
+    });
+  } catch (e) { /* el historial nunca debe romper una acción */ }
+}
+async function patchStreamerReturning(id, body) { // PATCH que devuelve el nombre del streamer afectado (para el historial)
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=representation' }, body: JSON.stringify(body)
+  });
+  const rows = await r.json().catch(() => null);
+  return { ok: r.ok, name: Array.isArray(rows) ? rows[0]?.twitch_username : null };
+}
+// ── Ajustes globales (tabla app_settings: key/value) — hoy solo el anuncio para todos los streamers ──
+async function getSetting(key) {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/app_settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`, { headers: sbHeaders });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d?.[0]?.value || null;
+  } catch (e) { return null; }
+}
+async function setSetting(key, value) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/app_settings?on_conflict=key`, {
+    method: 'POST', headers: { ...sbHeaders, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ key, value, updated_at: new Date().toISOString() })
+  });
+  return r.ok;
+}
+
 app.get('/admin', requireAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
@@ -408,9 +442,14 @@ app.get('/admin', requireAdmin, (req, res) => {
 // API admin — obtener todos los streamers
 app.get('/api/admin/streamers', requireAdmin, async (req, res) => {
   try {
-    const url = `${SUPABASE_URL}/rest/v1/streamers?select=id,twitch_username,twitch_id,role,approved,plan,plan_expires_at,created_at,ai_enabled,mod_enabled,custom_bot_username,commands,auto_messages,viewer_points,command_stats&order=created_at.desc`;
+    const url = `${SUPABASE_URL}/rest/v1/streamers?select=id,twitch_username,twitch_id,role,approved,plan,plan_expires_at,created_at,ai_enabled,mod_enabled,custom_bot_username,commands,auto_messages,viewer_points,command_stats,bot_status,feature_flags,spotify_token,subathon_config,youtube_enabled:youtube_config->enabled&order=created_at.desc`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
+    if (Array.isArray(data)) data.forEach(r => { // los tokens nunca salen del servidor: solo "está conectado o no"
+      r.spotify_connected = !!r.spotify_token; delete r.spotify_token;
+      r.subathon_on = !!(r.subathon_config && r.subathon_config.enabled); delete r.subathon_config;
+      r.youtube_on = r.youtube_enabled === true; delete r.youtube_enabled;
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -455,7 +494,7 @@ app.post('/api/admin/changelog', requireAdmin, async (req, res) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (r.ok || r.status === 204) res.json({ success: true });
+    if (r.ok || r.status === 204) { adminLog(req, 'publicar novedades', null, version); res.json({ success: true }); }
     else res.status(400).json({ error: 'Error al enviar a Discord' });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -464,11 +503,8 @@ app.post('/api/admin/changelog', requireAdmin, async (req, res) => {
 app.post('/api/admin/approve/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { ...sbHeaders, 'Prefer': 'return=representation' },
-      body: JSON.stringify({ approved: true, role: 'streamer' })
-    });
+    const r = await patchStreamerReturning(id, { approved: true, role: 'streamer' });
+    adminLog(req, 'aprobar', r.name, null);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -479,11 +515,8 @@ app.post('/api/admin/approve/:id', requireAdmin, async (req, res) => {
 app.post('/api/admin/revoke/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { ...sbHeaders, 'Prefer': 'return=representation' },
-      body: JSON.stringify({ approved: false, role: 'blocked' })
-    });
+    const r = await patchStreamerReturning(id, { approved: false, role: 'blocked' });
+    adminLog(req, 'revocar', r.name, null);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -496,11 +529,8 @@ app.post('/api/admin/role/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
     const { role } = req.body;
     if (!['admin','streamer','pending','blocked'].includes(role)) return res.status(400).json({ error: 'Rol inválido' });
-    await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { ...sbHeaders, 'Prefer': 'return=representation' },
-      body: JSON.stringify({ role, approved: role !== 'pending' && role !== 'blocked' })
-    });
+    const r = await patchStreamerReturning(id, { role, approved: role !== 'pending' && role !== 'blocked' });
+    adminLog(req, 'cambiar rol', r.name, role);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -523,15 +553,57 @@ app.post('/api/admin/plan/:id', requireAdmin, async (req, res) => {
     const update = { plan };
     if (plan === 'pro' && expires_at) update.plan_expires_at = expires_at;
     if (plan === 'free') { update.plan_expires_at = null; update.lemon_subscription_id = null; }
-    await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${id}`, {
-      method: 'PATCH',
-      headers: { ...sbHeaders, 'Prefer': 'return=representation' },
-      body: JSON.stringify(update)
-    });
+    const r = await patchStreamerReturning(id, update);
+    adminLog(req, plan === 'pro' ? 'activar Pro' : 'bajar a Free', r.name, plan === 'pro' && expires_at ? `hasta ${String(expires_at).slice(0, 10)}` : null);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// API admin — interruptores de funciones por canal (feature_flags)
+const FLAG_THEMES = ['wolf', 'oso']; // estilos exclusivos que se pueden dar a un canal
+app.post('/api/admin/flags/:id', requireAdmin, async (req, res) => {
+  try {
+    const f = req.body?.flags;
+    if (!f || typeof f !== 'object') return res.status(400).json({ error: 'Inválido' });
+    const flags = {
+      dbdle: f.dbdle !== false,
+      themes: Array.isArray(f.themes) ? f.themes.filter(t => FLAG_THEMES.includes(t)) : []
+    };
+    const r = await patchStreamerReturning(req.params.id, { feature_flags: flags });
+    if (!r.ok) return res.status(400).json({ error: 'No se pudo guardar (¿falta la columna feature_flags? corre admin_mejoras.sql)' });
+    adminLog(req, 'funciones del canal', r.name, `dbdle ${flags.dbdle ? 'sí' : 'no'} · estilos: ${flags.themes.join(',') || 'ninguno'}`);
+    res.json({ success: true, flags });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// API admin — historial de acciones
+app.get('/api/admin/log', requireAdmin, async (req, res) => {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/admin_log?select=ts,admin,action,target,detail&order=ts.desc&limit=100`, { headers: sbHeaders });
+    if (!r.ok) return res.json({ missing: true, rows: [] });
+    res.json({ rows: await r.json() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Anuncio para todos los streamers (se muestra en su dashboard)
+app.get('/api/admin/announcement', requireAdmin, async (req, res) => {
+  res.json(await getSetting('announcement') || {});
+});
+app.post('/api/admin/announcement', requireAdmin, async (req, res) => {
+  try {
+    const text = String(req.body?.text || '').trim().slice(0, 300);
+    const value = text ? { id: Date.now(), text, ts: new Date().toISOString() } : { id: 0, text: '' };
+    if (!(await setSetting('announcement', value))) return res.status(400).json({ error: 'No se pudo guardar (¿falta la tabla app_settings? corre admin_mejoras.sql)' });
+    _ttlCache.delete('announcement');
+    adminLog(req, text ? 'publicar anuncio' : 'quitar anuncio', null, text);
+    res.json({ success: true, announcement: value });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.get('/api/announcement', requireAuth, async (req, res) => {
+  const a = await ttlCache('announcement', 60000, () => getSetting('announcement'));
+  res.json(a && a.text ? a : {});
 });
 
 app.get('/api/streamer', requireAuth, async (req, res) => {
