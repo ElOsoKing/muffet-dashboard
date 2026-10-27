@@ -565,9 +565,7 @@ function renderTable(){
             <td style="color:var(--text-dim);font-size:12px;">${new Date(s.created_at).toLocaleDateString('es-DO')}</td>
             <td>
               <div class="actions">
-                ${s.role==='admin'
-                  ? `<span class="you-badge">👑 Tú</span>`
-                  : `
+                ${`
                     <button class="btn-action btn-view" onclick="showDetails(${s.id})">👁 Ver</button>
                     ${!s.approved||s.role==='pending' ? `<button class="btn-action btn-approve" onclick="approve(${s.id})">✓ Aprobar</button>` : ''}
                     ${s.approved&&s.role!=='blocked' ? `<button class="btn-action btn-revoke" onclick="revoke(${s.id})">Revocar</button>` : ''}
@@ -642,7 +640,7 @@ function showDetails(id){
       <div style="margin-top:8px;">${channelCell(s)}</div>
       ${s.bot_status?.updated_at?`<div class="chan-meta">Último reporte del bot: ${ago(s.bot_status.updated_at)}</div>`:''}
     </div>`:''}
-    ${s.role!=='admin'?`
+    ${true?`
     <div class="detail-card" style="margin-bottom:16px;">
       <div class="detail-label">Funciones de este canal</div>
       <div class="flag-row"><div><b>🔪 DBDle</b><span>El juego del asesino del día. Apágalo en canales que no lo quieran</span></div><input type="checkbox" id="flagDbdle" ${s.feature_flags?.dbdle===false?'':'checked'}></div>
@@ -650,7 +648,7 @@ function showDetails(id){
       <div class="flag-row"><div><b>🐻 Estilo "Rey Oso"</b><span>Overlay de música exclusivo de ElOsoKing1</span></div><input type="checkbox" id="flagOso" ${(s.feature_flags?.themes||[]).includes('oso')?'checked':''}></div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:10px;"><button class="btn-action btn-view" style="padding:8px 14px;" onclick="saveFlags(${s.id})">Guardar funciones</button><span style="font-size:11px;color:var(--text-muted);">Wolf y ElOsoKing1 ya tienen sus estilos por defecto</span></div>
     </div>`:''}
-    ${s.role!=='admin'?`
+    ${true?`
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       ${!s.approved||s.role==='pending'?`<button class="btn-action btn-approve" style="flex:1;padding:9px;" onclick="approve(${s.id});document.getElementById('detailModal').style.display='none'">✓ Aprobar acceso</button>`:''}
       ${s.approved&&s.plan!=='pro'?`<button class="btn-action btn-pro" style="flex:1;padding:9px;" onclick="openProModal(${s.id})">⭐ Activar Pro</button>`:''}
@@ -680,10 +678,11 @@ async function approve(id){
 }
 
 async function revoke(id){
-  if(!confirm('¿Revocar acceso a este streamer?'))return;
+  const t=allStreamers.find(x=>x.id===id);
+  if(!confirm(t?.role==='admin'?'Esta cuenta es ADMIN. Si la revocas pierde el acceso al panel y al bot. ¿Seguro?':'¿Revocar acceso a este streamer?'))return;
   const res=await fetch(`/api/admin/revoke/${id}`,{method:'POST'});
   if(res.ok){showToast('Acceso revocado');loadStreamers();}
-  else showToast('Error','error');
+  else { const j=await res.json().catch(()=>({})); showToast(j.error||'Error','error'); }
 }
 
 async function setPlan(id,plan){
