@@ -1540,10 +1540,11 @@ app.get('/api/counters/state/:username', async (req, res) => {
     const name = (req.query.name || '').toLowerCase().trim();
     if (!name) return res.status(400).json({ error: 'Falta el nombre del contador' });
     const u = req.params.username.toLowerCase();
-    const streamer = await ttlCache('counters:' + u, 2000, () => sbSelect('streamers', { twitch_username: u }, 'counters'));
+    const streamer = await ttlCache('counters:' + u, 2000, () => sbSelect('streamers', { twitch_username: u }, 'counters,twitch_username,feature_flags'));
     const counters = streamer?.counters || {};
-    if (counters[name] === undefined) return res.json({ exists: false, value: null, name });
-    res.json({ exists: true, value: counters[name], name });
+    const theme = subathonThemeAllowed(String(req.query.theme || ''), streamer) ? String(req.query.theme) : 'clasico'; // mismos estilos que el subatón; los exclusivos se validan aquí
+    if (counters[name] === undefined) return res.json({ exists: false, value: null, name, theme });
+    res.json({ exists: true, value: counters[name], name, theme });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1552,10 +1553,59 @@ app.get('/overlay/counter/:username', (req, res) => {
 });
 
 
+// Operaciones atómicas sobre UN contador: lee los datos frescos de la BD y cambia solo esa clave
+// (así el dashboard nunca pisa lo que el chat acaba de sumar)
+const COUNTER_NAME_RE = /^[a-z0-9_]{1,20}$/;
+const COUNTER_MAX = 999999999;
+const _counterOpLocks = new Map();
+function withCounterOpLock(key, fn) {
+  const prev = _counterOpLocks.get(key) || Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  _counterOpLocks.set(key, next);
+  next.finally(() => { if (_counterOpLocks.get(key) === next) _counterOpLocks.delete(key); }).catch(() => {});
+  return next;
+}
+app.get('/api/counters', requireAuth, async (req, res) => {
+  try {
+    const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'counters');
+    res.json({ counters: st?.counters || {} });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.post('/api/counters/op', requireAuth, async (req, res) => {
+  try {
+    const { name, op } = req.body || {};
+    const n = Number.isFinite(Number(req.body?.value)) ? Math.trunc(Number(req.body.value)) : 0;
+    const key = String(name || '').toLowerCase();
+    if (!COUNTER_NAME_RE.test(key)) return res.status(400).json({ error: 'Nombre inválido (solo letras, números y guion bajo, máx. 20)' });
+    if (!['create', 'add', 'set', 'reset', 'delete'].includes(op)) return res.status(400).json({ error: 'Operación inválida' });
+    const out = await withCounterOpLock('op:' + req.session.user.id, async () => {
+      const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'counters,twitch_username');
+      if (!st) return { status: 404, body: { error: 'Streamer no encontrado' } };
+      const counters = { ...(st.counters || {}) };
+      if (op === 'create') {
+        if (counters[key] !== undefined) return { status: 409, body: { error: 'Ese contador ya existe' } };
+        if (Object.keys(counters).length >= 50) return { status: 400, body: { error: 'Máximo 50 contadores' } };
+        counters[key] = 0;
+      } else if (counters[key] === undefined) {
+        return { status: 404, body: { error: 'Ese contador ya no existe (¿lo borraron desde el chat?)', counters } };
+      } else if (op === 'delete') delete counters[key];
+      else if (op === 'reset') counters[key] = 0;
+      else if (op === 'add') counters[key] = Math.min(COUNTER_MAX, Math.max(0, (Number(counters[key]) || 0) + n));
+      else if (op === 'set') counters[key] = Math.min(COUNTER_MAX, Math.max(0, n));
+      await sbUpdate('streamers', { counters }, { twitch_id: req.session.user.id });
+      _ttlCache.delete('counters:' + String(st.twitch_username || '').toLowerCase());
+      return { status: 200, body: { success: true, counters } };
+    });
+    res.status(out.status).json(out.body);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/counters', requireAuth, async (req, res) => {
   try {
     const { counters } = req.body;
     if (!isValidObject(counters)) return res.status(400).json({ error: 'Inválido' });
+    const entries = Object.entries(counters);
+    if (entries.length > 50 || entries.some(([k, v]) => !COUNTER_NAME_RE.test(k) || !Number.isInteger(v) || v < 0 || v > COUNTER_MAX)) return res.status(400).json({ error: 'Contadores inválidos' });
     await sbUpdate('streamers', { counters }, { twitch_id: req.session.user.id });
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
