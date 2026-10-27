@@ -50,6 +50,7 @@ body.sp .src { color: #1ed760; } body.sp .fill { background: #1ed760; } body.sp 
 .btn.main:hover:not(:disabled) { background: #ff5555; }
 .vol { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 90px; }
 .vol input { flex: 1; min-width: 0; accent-color: var(--red); }
+.vol input:disabled { opacity: .35; filter: grayscale(1); }
 .vol span { width: 34px; text-align: right; font-size: 11px; color: var(--dim); font-variant-numeric: tabular-nums; }
 
 .qhead { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 6px; }
@@ -219,7 +220,7 @@ function renderSp() {
   const volOk = ok && sp.volume != null && sp.volume_ok;
   $('vol').disabled = !volOk;
   if (!draggingVol && sp.volume != null) { $('vol').value = sp.volume; $('volTxt').textContent = sp.volume + '%'; }
-  if (ok && !volOk) $('volTxt').textContent = '—';
+  if (!volOk) { if (!draggingVol) $('vol').value = 0; $('volTxt').textContent = '—'; }
   $('spnote').innerHTML = ok
     ? `Dispositivo: <b>${esc(sp.device || '?')}</b>${volOk ? '' : '<br>Este dispositivo no permite cambiar el volumen desde aquí.'}<br>Pausa, saltar y volumen necesitan Spotify Premium.`
     : 'Pausa, saltar y volumen necesitan Spotify Premium y un dispositivo con Spotify abierto.';
