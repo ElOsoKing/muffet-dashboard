@@ -1325,7 +1325,7 @@ function showSection(name) {
   if(name === 'profile') setTimeout(() => switchProfileTab('socials'), 100);
   if(name === 'commands') renderCommandsList();
   if(name === 'automessages') renderAutoMsgList();
-  if(name === 'counters') renderCountersList();
+  if(name === 'counters') { renderCountersList(); refreshCounters(); }
   if(name === 'primerin') renderPrimerinRanking();
   if(name === 'emojigame') renderPokedleRanking();
   if(name === 'mediaalerts') initMediaAlertsSection();
@@ -2269,6 +2269,18 @@ function renderMain() {
         <div style="padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-dim);">
           💡 También puedes gestionar contadores desde el chat con <code style="color:var(--purple-light);">!addcounter nombre</code> y <code style="color:var(--purple-light);">!delcounter nombre</code>
         </div>
+      </div>
+    </div>
+    <div class="panel" id="counterStylePanel">
+      <div class="panel-header"><span class="panel-title-text">🎨 Estilo del overlay</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Elige el contador y el estilo; copia la URL y pégala como Fuente de navegador en OBS. Cada contador puede tener su propio estilo.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+          <select id="counterStyleName" class="form-input" style="width:auto;min-width:160px;" onchange="onCounterStyleChange()"></select>
+          <input class="form-input" id="counterStyleUrl" readonly style="flex:1;min-width:220px;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('counterStyleUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
+        </div>
+        <div id="counterStyleGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;"></div>
       </div>
     </div>
   </div>
@@ -6333,6 +6345,8 @@ function renderCountersList() {
   if (!el) return;
   const counters = streamerData.counters || {};
   const entries = Object.entries(counters);
+  const cc = document.getElementById('counterCount'); if (cc) cc.textContent = entries.length ? `(${entries.length})` : '';
+  renderCounterStyles();
   if (!entries.length) {
     el.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:13px;">No hay contadores. Agrega uno con el botón de arriba.</div>`;
     return;
@@ -6628,45 +6642,86 @@ async function resetPrimerinRanking() {
 }
 
 // ── CONTADORES ──
-async function addCounter() {
-  const name = prompt('Nombre del contador (sin !):\nej: muertes, victorias, cafes')?.trim().toLowerCase();
-  if (!name || !/^[a-z0-9_]+$/.test(name)) { if(name) showToast('Solo letras, números y guion bajo','error'); return; }
-  const counters = { ...(streamerData.counters || {}), [name]: 0 };
-  const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
-  if(res.ok) { streamerData.counters = counters; renderCountersList(); showToast(`Contador !${name} creado ✓`); }
-  else showToast('Error al crear','error');
+// Operaciones atómicas: el servidor cambia solo ese contador sobre los datos frescos (no pisa lo que sumó el chat)
+async function counterOp(name, op, value) {
+  try {
+    const res = await fetch('/api/counters/op', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name, op, value }) });
+    const j = await res.json().catch(() => ({}));
+    if (j.counters) { streamerData.counters = j.counters; renderCountersList(); }
+    if (!res.ok) { showToast(j.error || 'Error', 'error'); return null; }
+    return j;
+  } catch(e) { showToast('Error de conexión', 'error'); return null; }
 }
 
-async function adjustCounter(name, delta) {
-  const counters = { ...(streamerData.counters || {}) };
-  counters[name] = (counters[name] || 0) + delta;
-  const el = document.getElementById(`counterVal_${name}`);
-  if (el) el.textContent = counters[name];
-  const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
-  if(res.ok) { streamerData.counters = counters; }
-  else showToast('Error','error');
+async function refreshCounters() {
+  try {
+    const res = await fetch('/api/counters');
+    if (!res.ok) return;
+    const j = await res.json();
+    if (j.counters) { streamerData.counters = j.counters; renderCountersList(); }
+  } catch(e) {}
 }
+
+async function addCounter() {
+  const name = prompt('Nombre del contador (sin !):\nej: muertes, victorias, cafes')?.trim().toLowerCase().replace(/^!/, '');
+  if (!name || !/^[a-z0-9_]{1,20}$/.test(name)) { if (name) showToast('Solo letras, números y guion bajo (máx. 20)', 'error'); return; }
+  if (await counterOp(name, 'create')) showToast(`Contador !${name} creado ✓`);
+}
+
+async function adjustCounter(name, delta) { await counterOp(name, 'add', delta); }
 
 async function resetCounter(name) {
-  const counters = { ...(streamerData.counters || {}), [name]: 0 };
-  const el = document.getElementById(`counterVal_${name}`);
-  if (el) el.textContent = 0;
-  const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
-  if(res.ok) { streamerData.counters = counters; showToast(`!${name} reiniciado ✓`); }
-}
-
-function copyCounterOverlayUrl(name) {
-  const url = `${window.location.origin}/overlay/counter/${(userData.username||'').toLowerCase()}?name=${encodeURIComponent(name)}`;
-  navigator.clipboard.writeText(url);
-  showToast(`URL del overlay de !${name} copiada ✓`);
+  if (await counterOp(name, 'reset')) showToast(`!${name} reiniciado ✓`);
 }
 
 async function deleteCounter(name) {
   if (!confirm(`¿Eliminar el contador !${name}?`)) return;
-  const counters = { ...(streamerData.counters || {}) };
-  delete counters[name];
-  const res = await fetch('/api/counters', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ counters }) });
-  if(res.ok) { streamerData.counters = counters; renderCountersList(); showToast(`!${name} eliminado ✓`); }
+  if (await counterOp(name, 'delete')) showToast(`!${name} eliminado ✓`);
+}
+
+// ── Estilo del overlay de contadores (mismos diseños que el subatón) ──
+let counterStyleTheme = 'clasico';
+try { counterStyleTheme = localStorage.getItem('counter_style') || 'clasico'; } catch(e) {}
+function counterOverlayUrl(name, theme) {
+  const t = theme || counterStyleTheme;
+  return `${window.location.origin}/overlay/counter/${(userData.username||'').toLowerCase()}?name=${encodeURIComponent(name)}${t !== 'clasico' ? '&theme=' + t : ''}`;
+}
+function renderCounterStyles() {
+  const sel = document.getElementById('counterStyleName');
+  const grid = document.getElementById('counterStyleGrid');
+  const panel = document.getElementById('counterStylePanel');
+  if (!sel || !grid) return;
+  const names = Object.keys(streamerData.counters || {});
+  panel.style.display = names.length ? '' : 'none';
+  const prev = sel.value;
+  sel.innerHTML = names.map(n => `<option value="${n}">!${n}</option>`).join('');
+  if (names.includes(prev)) sel.value = prev;
+  const allowed = SUBATHON_THEME_LIST.filter(subathonThemeAllowed);
+  if (!allowed.some(t => t.id === counterStyleTheme)) counterStyleTheme = 'clasico';
+  if (!grid.dataset.built) { // las vistas previas se crean una sola vez para que no parpadeen
+    const user = (userData?.username || '').toLowerCase();
+    grid.innerHTML = allowed.map(t => `
+      <div data-theme-card="${t.id}" onclick="pickCounterStyle('${t.id}')" style="cursor:pointer;border-radius:12px;overflow:hidden;background:var(--bg3);border:2px solid transparent;">
+        <iframe src="/overlay/counter/${encodeURIComponent(user)}?preview=${t.id}" loading="lazy" tabindex="-1" style="width:100%;height:130px;border:0;pointer-events:none;background:#2c2f3a;display:block;"></iframe>
+        <div style="padding:8px 12px;font-size:13px;font-weight:700;">${t.name}</div>
+      </div>`).join('');
+    grid.dataset.built = '1';
+  }
+  grid.querySelectorAll('[data-theme-card]').forEach(c => { c.style.borderColor = c.dataset.themeCard === counterStyleTheme ? 'var(--purple)' : 'transparent'; });
+  onCounterStyleChange();
+}
+function onCounterStyleChange() {
+  const sel = document.getElementById('counterStyleName'); const url = document.getElementById('counterStyleUrl');
+  if (url) url.value = sel?.value ? counterOverlayUrl(sel.value) : '';
+}
+function pickCounterStyle(id) {
+  counterStyleTheme = id;
+  try { localStorage.setItem('counter_style', id); } catch(e) {}
+  renderCounterStyles();
+}
+function copyCounterOverlayUrl(name) {
+  navigator.clipboard.writeText(counterOverlayUrl(name));
+  showToast(`URL del overlay de !${name} copiada ✓`);
 }
 
 async function resetCommandStats() {
