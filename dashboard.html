@@ -5,7 +5,7 @@
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MuffetBot — Dashboard</title>
+<title>SilklyBot — Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=VT323&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -483,7 +483,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
   <div class="sidebar-logo">
     <img src="data:image/webp;base64,UklGRjYBAABXRUJQVlA4TCkBAAAvM0AREDegqG0jNlcE68brAB5ZgMn+YQSTR9jRKGjbhgmCPh5DPaLzHwCAFWFnf254HyAEcBs2EoWjEAqiIAqmIP4cmvaXPIGI/k+A9tZH64+/Ajx+8xjgFM8Z7zzD9gxPe8zWY9/h8fBxPL5AHvNawGOdehqge7D18QRA26RtgWuaXS7LI/cATV9T4JrkkVzC85E2L3BKmyZtm3SjS77eIYCWQmkBdIEEtLS0gD6fkES36IcnBC1cBgZfho2NzT0Ja9n2WiQXAIkk8FoGSQlwhBZJSmAtSCSJlhMCSYqYZa9BkSTQkW0UZuwZoujzr4AozMTODFGAQ7RoM/ZsRMsZgYSYAZhBSKBDkoiEkTBS0McTKRKShEQv4X8gCSSQxCXbDz88AJIEVwAA" alt="Muffet">
     <div>
-      <div class="logo-text">MuffetBot</div>
+      <div class="logo-text">SilklyBot</div>
       <div class="logo-badge">Panel de Control</div>
     </div>
   </div>
@@ -1698,7 +1698,7 @@ async function importConfig(input) {
     const text = await file.text();
     const data = JSON.parse(text);
     if (!data._muffetbot_export) {
-      showToast('Ese archivo no es una configuración válida de MuffetBot', 'error');
+      showToast('Ese archivo no es una configuración válida de SilklyBot', 'error');
       input.value = '';
       return;
     }
@@ -7114,7 +7114,7 @@ function setSpotifyBgOpacity(val) {
 const SPOTIFY_THEME_GROUPS = [
   ['Esenciales', [['classic','Clásico','El de siempre, limpio'],['glass','Cristal','Colores de la portada'],['pill','Píldora','Cápsula con ▶/⏸'],['macos','macOS','Ventana con puntitos'],['minimal','Minimal','Oscuro y sobrio'],['line','Línea','Negro con rayas blancas']]],
   ['Neón y arcade', [['synthwave','Synthwave','Atardecer de neón'],['neoncity','Neon City','Ciudad nocturna'],['cyber','Cyber','Panel HUD cian/magenta'],['glitch','Glitch','Efecto VHS'],['retro','Retro','Papel viejo y arcoíris']]],
-  ['Exclusivos MuffetBot ✨', [['muffet','Telaraña','Morado, rosa y arañita'],['osoking','Rey Pixel','Pixel art con corona'],['undertale','Diálogo retro','Caja blanca y negra']]],
+  ['Exclusivos SilklyBot ✨', [['muffet','Telaraña','Morado, rosa y arañita'],['osoking','Rey Pixel','Pixel art con corona'],['undertale','Diálogo retro','Caja blanca y negra']]],
   ['Exclusivo de Wolf 🐺', [['wolf','Lobo Rey','Glitch rojo con el lobo coronado']]],
   ['Exclusivo de ElOsoKing 🐻', [['oso','Rey Oso','Marco dorado, brasas y el oso con corona']]]
 ];
