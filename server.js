@@ -251,6 +251,7 @@ async function handleBotAuthCallback(req, res, code, kind) {
     const scopes = v.scopes || [];
     const missing = ['user:write:chat', 'user:bot'].filter(sc => !scopes.includes(sc));
     await setSetting('bot_auth:' + String(v.login).toLowerCase(), { login: v.login, user_id: v.user_id, scopes, authorized_at: new Date().toISOString() });
+    _ttlCache.delete('botauth');
     adminLog(req, kind === 'custom' ? 'bot propio autorizado en la app' : 'autorizar bot en la app', v.login, missing.length ? `faltan: ${missing.join(', ')}` : 'ok');
     if (kind === 'custom') {
       const owner = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'custom_bot_username,twitch_username');
@@ -499,15 +500,43 @@ app.get('/admin', requireAdmin, (req, res) => {
 });
 
 // API admin — obtener todos los streamers
+// Bots propios que ya autorizaron la app de Muffet (para la insignia de bot) — login en minúsculas → true
+async function getBotAuthLogins() {
+  return ttlCache('botauth', 30000, async () => {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/app_settings?key=like.bot_auth:*&select=key,value`, { headers: sbHeaders });
+      if (!r.ok) return {};
+      const rows = await r.json();
+      const out = {};
+      for (const row of rows || []) {
+        const sc = row?.value?.scopes || [];
+        if (sc.includes('user:bot') && sc.includes('user:write:chat')) out[String(row.key).replace(/^bot_auth:/, '').toLowerCase()] = true;
+      }
+      return out;
+    } catch (e) { return {}; }
+  });
+}
+app.get('/api/custom-bot-status', requireAuth, async (req, res) => {
+  try {
+    const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'custom_bot_username');
+    const login = String(st?.custom_bot_username || '').toLowerCase();
+    if (!login) return res.json({ configured: false });
+    const map = await getBotAuthLogins();
+    res.json({ configured: true, login: st.custom_bot_username, authorized: !!map[login] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/admin/streamers', requireAdmin, async (req, res) => {
   try {
     const url = `${SUPABASE_URL}/rest/v1/streamers?select=id,twitch_username,twitch_id,role,approved,plan,plan_expires_at,created_at,ai_enabled,mod_enabled,custom_bot_username,commands,auto_messages,viewer_points,command_stats,bot_status,feature_flags,spotify_token,subathon_config,youtube_enabled:youtube_config->enabled&order=created_at.desc`;
     const result = await fetch(url, { headers: sbHeaders });
     const data = await result.json();
+    const botAuth = await getBotAuthLogins();
     if (Array.isArray(data)) data.forEach(r => { // los tokens nunca salen del servidor: solo "está conectado o no"
       r.spotify_connected = !!r.spotify_token; delete r.spotify_token;
       r.subathon_on = !!(r.subathon_config && r.subathon_config.enabled); delete r.subathon_config;
       r.youtube_on = r.youtube_enabled === true; delete r.youtube_enabled;
+      r.bot_badge = r.custom_bot_username ? !!botAuth[String(r.custom_bot_username).toLowerCase()] : null; // null = usa el bot principal
     });
     res.json(data);
   } catch (err) {
