@@ -4872,6 +4872,21 @@ function renderMain() {
       <div class="panel-header"><span class="panel-title-text">🤖 Bot personalizado — Pro</span></div>
       <div class="panel-body">
 
+        <div style="background:rgba(145,71,255,0.08);border:1px solid var(--purple-border);border-radius:var(--radius-sm);padding:14px;margin-bottom:16px;">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">⚡ Conectar mi bot (recomendado)</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;">Crea una cuenta nueva en Twitch para tu bot (ej: <strong>MiCanalBot</strong>) y conéctala con un solo permiso. Sin copiar tokens: Muffet deja el bot listo y con la insignia de bot.</div>
+          <button class="btn btn-primary btn-sm" onclick="copyBotConnectLink()">⚡ Copiar enlace para conectar mi bot</button>
+          <ol style="margin:8px 0 0 18px;padding:0;font-size:12px;color:var(--text-muted);line-height:1.6;">
+            <li>Crea la cuenta del bot en <strong>twitch.tv</strong> (una cuenta aparte de la tuya).</li>
+            <li>Pulsa <strong>Copiar enlace para conectar mi bot</strong>.</li>
+            <li>Abre una <strong>ventana de incógnito</strong> (Ctrl+Shift+N en Chrome/Edge, Ctrl+Shift+P en Firefox) y pega el enlace.</li>
+            <li>Inicia sesión con la cuenta de tu <strong>bot</strong>, no con la tuya, y pulsa <strong>Autorizar</strong>.</li>
+            <li>En tu chat escribe <code style="color:var(--purple-light);">/mod NombreDeTuBot</code> para darle moderador.</li>
+          </ol>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">El enlace dura 30 min. Tu sesión normal no se cierra.</div>
+        </div>
+        <details style="margin-bottom:16px;">
+        <summary style="cursor:pointer;font-size:12px;color:var(--text-muted);margin-bottom:10px;">Método manual (token de twitchtokengenerator)</summary>
         <!-- Instrucciones paso a paso -->
         <div style="background:var(--bg3);border-radius:var(--radius-sm);padding:14px;margin-bottom:20px;">
           <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:10px;">📖 Cómo configurar tu bot propio:</div>
@@ -4903,6 +4918,7 @@ function renderMain() {
           <button class="btn btn-primary" onclick="saveCustomBot()">Guardar bot</button>
           ${s.custom_bot_username?`<button class="btn btn-danger" onclick="removeCustomBot()">Quitar bot</button>`:''}
         </div>
+        </details>
         ${s.custom_bot_username?`<div style="margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-dim);line-height:1.6;">
           <div id="cbBadgeStatus" style="margin-bottom:6px;font-weight:600;"></div>🤖 <strong style="color:var(--text);">Insignia de bot (opcional)</strong><br>Autoriza la cuenta de tu bot con la app de Muffet para que Twitch le muestre la insignia de bot en el chat. Usa el enlace en una ventana de incógnito para entrar con la cuenta de tu bot sin cerrar tu sesión. Tu bot sigue funcionando igual.
           <div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" onclick="copyBotAuthLink()">🏅 Copiar enlace de autorización</button>
@@ -5556,6 +5572,7 @@ async function saveSocials(){
   else showToast('Error al guardar','error');
 }
 
+async function copyBotConnectLink(){try{const r=await fetch('/api/custom-bot-connect-link');const j=await r.json();if(!j.url)throw new Error(j.error||'');try{await navigator.clipboard.writeText(j.url);showToast('Enlace copiado ✓ Pégalo en una ventana de incógnito');}catch(e){prompt('Copia este enlace y ábrelo en incógnito:',j.url);}}catch(e){showToast(e.message||'No se pudo generar el enlace','error');}}
 async function copyBotAuthLink(){try{const r=await fetch('/api/custom-bot-auth-link');const j=await r.json();if(!j.url)throw 0;try{await navigator.clipboard.writeText(j.url);showToast('Enlace copiado ✓ Pégalo en una ventana de incógnito');}catch(e){prompt('Copia este enlace y ábrelo en incógnito:',j.url);}}catch(e){showToast('No se pudo generar el enlace','error');}}
 async function saveCustomBot(){const username=document.getElementById('customBotUsername')?.value.trim();const token=document.getElementById('customBotToken')?.value.trim();if(!username||!token){showToast('Completa ambos campos','error');return;}if(!token.startsWith('oauth:')){showToast('El token debe empezar con oauth:','error');return;}const res=await fetch('/api/custom-bot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({custom_bot_username:username,custom_bot_token:token})});res.ok?(showToast('Bot guardado ✓'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
 async function removeCustomBot(){if(!confirm('¿Quitar el bot personalizado?'))return;const res=await fetch('/api/custom-bot',{method:'DELETE'});res.ok?(showToast('Bot eliminado'),setTimeout(()=>location.reload(),1500)):showToast('Error','error');}
