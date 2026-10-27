@@ -1318,6 +1318,11 @@ async function loadChannelBotStatus() {
     el.innerHTML = j.authorized
       ? '<span style="color:var(--green);">✅ Muffet ya tiene tu permiso</span>'
       : '<span style="color:var(--text-muted);">Sin autorizar todavía</span>';
+    const ok = !!j.authorized;
+    const info = document.getElementById('chBotInfo'), btn = document.getElementById('chBotBtn'), re = document.getElementById('chBotRe');
+    if (info) info.style.display = ok ? 'none' : '';
+    if (btn) btn.style.display = ok ? 'none' : '';
+    if (re) re.style.display = ok ? '' : 'none';
   } catch(e) {}
 }
 
@@ -4883,8 +4888,9 @@ function renderMain() {
       <div class="panel-header"><span class="panel-title-text">🏅 Insignia de bot para Muffet</span></div>
       <div class="panel-body">
         <div id="chBotStatus" style="margin-bottom:8px;font-weight:600;font-size:13px;"></div>
-        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;">Autoriza a Muffet en tu canal para que Twitch le muestre la <strong>insignia de bot</strong> en tu chat, sin que tengas que darle moderador. Es gratis, opcional y puedes retirar el permiso cuando quieras desde la configuración de conexiones de Twitch.</div>
-        <button class="btn btn-primary btn-sm" onclick="location.href='/auth/twitch/channel-bot'">🏅 Autorizar a Muffet</button>
+        <div id="chBotInfo" style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;">Autoriza a Muffet en tu canal para que Twitch le muestre la <strong>insignia de bot</strong> en tu chat, sin que tengas que darle moderador. Es gratis, opcional y puedes retirar el permiso cuando quieras desde la configuración de conexiones de Twitch.</div>
+        <button id="chBotBtn" class="btn btn-primary btn-sm" onclick="location.href='/auth/twitch/channel-bot'">🏅 Autorizar a Muffet</button>
+        <a id="chBotRe" href="/auth/twitch/channel-bot" style="display:none;font-size:11px;color:var(--text-muted);">Volver a autorizar</a>
         <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Para que Muffet también modere (borrar mensajes, timeouts) sigue haciendo falta darle moderador: <code>/mod MuffetBot_</code></div>
       </div>
     </div>`:''}
