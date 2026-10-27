@@ -237,8 +237,8 @@ app.get('/auth/twitch/bot', requireAdmin, startBotAuth('main'));
 app.get('/auth/twitch/custom-bot', requireAuth, startBotAuth('custom'));
 // Enlace firmado (sin depender de la sesión): se puede abrir en una ventana de incógnito, donde Twitch pide
 // iniciar sesión directamente con la cuenta del bot, sin cerrar la sesión del streamer. Caduca en 30 min.
-function signBotState(ownerId) {
-  const payload = Buffer.from(JSON.stringify({ k: 'custom', o: String(ownerId), e: Date.now() + 30 * 60 * 1000, n: require('crypto').randomBytes(6).toString('hex') })).toString('base64url');
+function signBotState(ownerId, kind = 'custom') {
+  const payload = Buffer.from(JSON.stringify({ k: kind, o: String(ownerId), e: Date.now() + 30 * 60 * 1000, n: require('crypto').randomBytes(6).toString('hex') })).toString('base64url');
   const sig = require('crypto').createHmac('sha256', SESSION_SECRET).update('botauth.' + payload).digest('base64url');
   return payload + '.' + sig;
 }
@@ -249,7 +249,7 @@ function verifyBotState(st) {
     const exp = require('crypto').createHmac('sha256', SESSION_SECRET).update('botauth.' + payload).digest('base64url');
     if (sig.length !== exp.length || !require('crypto').timingSafeEqual(Buffer.from(sig), Buffer.from(exp))) return null;
     const d = JSON.parse(Buffer.from(payload, 'base64url').toString());
-    if (d.k !== 'custom' || !d.o || d.e < Date.now()) return null;
+    if ((d.k !== 'custom' && d.k !== 'connect') || !d.o || d.e < Date.now()) return null;
     return d;
   } catch { return null; }
 }
@@ -258,6 +258,57 @@ app.get('/api/custom-bot-auth-link', requireAuth, (req, res) => {
   const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(BASE_URL + '/auth/twitch/callback')}&response_type=code&scope=${encodeURIComponent('user:read:chat user:write:chat user:bot')}&state=${encodeURIComponent(state)}&force_verify=true`;
   res.json({ url });
 });
+
+// ── "Conectar mi bot": una sola autorización deja el bot listo (token de chat + insignia) ──
+app.get('/api/custom-bot-connect-link', requireAuth, async (req, res) => {
+  try {
+    const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'plan');
+    if (!st || (st.plan !== 'pro' && st.plan !== 'admin')) return res.status(403).json({ error: 'Solo disponible en Plan Pro' });
+    const state = signBotState(req.session.user.id, 'connect');
+    const scopes = 'chat:read chat:edit moderator:manage:chat_messages moderator:manage:banned_users user:read:chat user:write:chat user:bot';
+    const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(BASE_URL + '/auth/twitch/callback')}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${encodeURIComponent(state)}&force_verify=true`;
+    res.json({ url });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+async function handleBotConnectCallback(req, res, code, ownerId) {
+  const page = (ok, title, body) => res.status(ok ? 200 : 400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui,sans-serif;background:#0e0e12;color:#eee;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0"><div style="max-width:520px;padding:28px;background:#1a1a22;border-radius:14px;border:1px solid ${ok ? '#3ecf8e' : '#e05a7a'}"><h2 style="margin-top:0">${title}</h2>${body}<p><a style="color:#b794ff" href="/dashboard">← Volver al dashboard</a></p></div>`);
+  try {
+    const owner = await sbSelect('streamers', { twitch_id: ownerId }, 'twitch_username,plan,custom_bot_username');
+    if (!owner || (owner.plan !== 'pro' && owner.plan !== 'admin')) return page(false, 'Solo Plan Pro', '<p>El bot personalizado es una función del Plan Pro.</p>');
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET, code, grant_type: 'authorization_code', redirect_uri: BASE_URL + '/auth/twitch/callback' }).toString()
+    });
+    const t = await tokenRes.json();
+    if (!t.access_token || !t.refresh_token) return page(false, 'No se pudo conectar', '<p>Twitch no aceptó el código. Copia un enlace nuevo desde el dashboard e inténtalo de nuevo.</p>');
+    const v = await (await fetch('https://id.twitch.tv/oauth2/validate', { headers: { Authorization: `OAuth ${t.access_token}` } })).json();
+    const scopes = v.scopes || [];
+    const missing = ['chat:read', 'chat:edit', 'moderator:manage:chat_messages', 'moderator:manage:banned_users', 'user:write:chat', 'user:bot'].filter(sc => !scopes.includes(sc));
+    if (missing.length) return page(false, 'Faltaron permisos', `<p>Faltan: <code>${missing.join(', ')}</code>. Vuelve a intentarlo y acepta todos los permisos.</p>`);
+    const login = String(v.login || '').toLowerCase();
+    if (login === String(owner.twitch_username).toLowerCase()) {
+      return page(false, 'Esa es tu cuenta', `<p>Entraste con <b>@${v.login}</b>, que es tu cuenta de streamer. Tienes que iniciar sesión con la cuenta de tu <b>bot</b> (una cuenta aparte). Copia un enlace nuevo y ábrelo en una ventana de incógnito.</p>`);
+    }
+    const saved = await sbUpdate('streamers', {
+      custom_bot_username: v.login,
+      custom_bot_token: 'oauth:' + t.access_token,
+      custom_bot_refresh: t.refresh_token,
+      custom_bot_expires_at: new Date(Date.now() + (t.expires_in || 3600) * 1000).toISOString(),
+    }, { twitch_id: ownerId });
+    if (!saved || saved.code || saved.message) {
+      console.error('connect-bot save:', JSON.stringify(saved));
+      return page(false, 'No se pudo guardar', '<p>La autorización salió bien, pero no se pudo guardar el bot. Avisa al administrador.</p>');
+    }
+    await setSetting('bot_auth:' + login, { login: v.login, user_id: v.user_id, scopes, authorized_at: new Date().toISOString() });
+    _ttlCache.delete('botauth');
+    adminLog(req, 'bot conectado con un clic', v.login, 'owner: ' + owner.twitch_username);
+    return page(true, '✅ Bot conectado', `<p>La cuenta <b>@${v.login}</b> quedó conectada a tu canal y con permiso para la insignia de bot.</p><p style="color:#9a96ad;font-size:13px">Muffet lo conecta en menos de un minuto. Recuerda dar moderador a tu bot en tu chat: <code>/mod ${v.login}</code></p>`);
+  } catch (err) {
+    console.error('connect bot callback:', err.message);
+    return page(false, 'Error', '<p>Algo falló al conectar el bot. Inténtalo de nuevo.</p>');
+  }
+}
 
 async function handleBotAuthCallback(req, res, code, kind, ownerId) {
   ownerId = ownerId || req.session?.user?.id;
@@ -306,7 +357,7 @@ app.get('/auth/twitch/callback', async (req, res) => {
   }
   // Flujo con enlace firmado (ventana de incógnito, sin sesión)
   const signed = req.query.state ? verifyBotState(req.query.state) : null;
-  if (signed) return handleBotAuthCallback(req, res, code, 'custom', signed.o);
+  if (signed) return signed.k === 'connect' ? handleBotConnectCallback(req, res, code, signed.o) : handleBotAuthCallback(req, res, code, 'custom', signed.o);
   // El login normal nunca lleva "state". Si llega uno que no reconocemos (enlace caducado o alterado),
   // NO iniciamos sesión ni registramos la cuenta: así una cuenta de bot nunca se crea como streamer por error.
   if (req.query.state) {
@@ -732,6 +783,7 @@ app.get('/api/streamer', requireAuth, async (req, res) => {
   try {
     const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
     if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+    delete streamer.custom_bot_refresh; // el refresh token del bot nunca sale al navegador
     res.json({ streamer, user: { ...req.session.user, role: streamer.role } });
   } catch (err) {
     console.error('GET /api/streamer:', err.message);
@@ -873,7 +925,8 @@ app.post('/api/custom-bot', requireAuth, async (req, res) => {
     const { custom_bot_username, custom_bot_token } = req.body;
     if (!custom_bot_username || !custom_bot_token) return res.status(400).json({ error: 'Faltan datos' });
     if (!custom_bot_token.startsWith('oauth:')) return res.status(400).json({ error: 'Token inválido' });
-    await sbUpdate('streamers', { custom_bot_username, custom_bot_token }, { twitch_id: req.session.user.id });
+    let up = await sbUpdate('streamers', { custom_bot_username, custom_bot_token, custom_bot_refresh: null, custom_bot_expires_at: null }, { twitch_id: req.session.user.id });
+    if (up && (up.code || up.message)) up = await sbUpdate('streamers', { custom_bot_username, custom_bot_token }, { twitch_id: req.session.user.id }); // por si aún no se corrió conectar_bot.sql
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -883,7 +936,8 @@ app.post('/api/custom-bot', requireAuth, async (req, res) => {
 // API — eliminar bot personalizado
 app.delete('/api/custom-bot', requireAuth, async (req, res) => {
   try {
-    await sbUpdate('streamers', { custom_bot_username: null, custom_bot_token: null }, { twitch_id: req.session.user.id });
+    const up = await sbUpdate('streamers', { custom_bot_username: null, custom_bot_token: null, custom_bot_refresh: null, custom_bot_expires_at: null }, { twitch_id: req.session.user.id });
+    if (up && (up.code || up.message)) await sbUpdate('streamers', { custom_bot_username: null, custom_bot_token: null }, { twitch_id: req.session.user.id }); // por si aún no se corrió conectar_bot.sql
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
