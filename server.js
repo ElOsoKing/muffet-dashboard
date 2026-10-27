@@ -1,942 +1,3069 @@
-<!DOCTYPE html>
+const express = require('express');
+const session = require('express-session');
+const path = require('path');
+const fs = require('fs');
+
+const app = express();
+
+const SUPABASE_URL     = process.env.SUPABASE_URL;
+const SUPABASE_KEY     = process.env.SUPABASE_KEY;
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
+const TWITCH_SECRET    = process.env.TWITCH_SECRET;
+const EVENTSUB_SECRET  = process.env.EVENTSUB_SECRET || 'muffetbot-secret-2026';
+const SESSION_SECRET   = process.env.SESSION_SECRET || 'muffet-secreto';
+const BASE_URL         = process.env.BASE_URL || 'http://localhost:8080';
+const PORT             = process.env.PORT || 8080;
+const SPOTIFY_SCOPES = 'user-read-playback-state user-modify-playback-state user-read-currently-playing';
+const IS_PROD          = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
+
+// ── Trust proxy para HTTPS en Render/Railway ──
+app.set('trust proxy', 1);
+
+// Raw body para verificar firma de Twitch EventSub
+app.use('/webhook/twitch', express.raw({ type: 'application/json' }));
+
+// ── LEMON SQUEEZY WEBHOOK — debe ir ANTES de express.json() ──
+app.post('/webhooks/lemonsqueezy', express.raw({ type: '*/*' }), async (req, res) => {
+  try {
+    const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+    const signature = req.headers['x-signature'];
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
+
+    // Verificar firma
+    const crypto = require('crypto');
+    const hmac = crypto.createHmac('sha256', secret);
+    hmac.update(rawBody);
+    const digest = hmac.digest('hex');
+
+    if (digest !== signature) {
+      console.log(`[LS Webhook] Firma inválida — esperada: ${digest}, recibida: ${signature}`);
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    const payload = JSON.parse(rawBody.toString());
+    const eventName = payload.meta?.event_name;
+    const data = payload.data?.attributes;
+    const customData = payload.meta?.custom_data;
+    const variantId = String(data?.variant_id || '');
+    const customerId = String(data?.customer_id || '');
+    const subscriptionId = String(payload.data?.id || '');
+    const twitchId = customData?.twitch_id;
+
+    console.log(`[LS Webhook] Event: ${eventName} | twitch_id: ${twitchId} | variant: ${variantId}`);
+
+    const variantMap = {
+      [process.env.LEMONSQUEEZY_VARIANT_MONTHLY]:   1,
+      [process.env.LEMONSQUEEZY_VARIANT_QUARTERLY]:  3,
+      [process.env.LEMONSQUEEZY_VARIANT_BIANNUAL]:   6,
+      [process.env.LEMONSQUEEZY_VARIANT_ANNUAL]:     12,
+    };
+    const months = variantMap[variantId] || 1;
+
+    const expiresAt = new Date();
+    expiresAt.setMonth(expiresAt.getMonth() + months);
+
+    let streamer = null;
+    if (twitchId) streamer = await sbSelect('streamers', { twitch_id: twitchId });
+
+    if (!streamer) {
+      console.log(`[LS Webhook] Streamer no encontrado — twitch_id: ${twitchId}`);
+      return res.status(200).json({ received: true });
+    }
+
+    if (eventName === 'subscription_created' || eventName === 'subscription_updated') {
+      const status = data?.status;
+      if (status === 'active' || status === 'on_trial') {
+        await sbUpdate('streamers', {
+          plan: 'pro',
+          plan_expires_at: expiresAt.toISOString(),
+          lemon_customer_id: customerId,
+          lemon_subscription_id: subscriptionId,
+        }, { twitch_id: streamer.twitch_id });
+        console.log(`[LS] ✅ Plan Pro activado para ${streamer.twitch_username} hasta ${expiresAt.toISOString()}`);
+      }
+    }
+
+    if (eventName === 'subscription_cancelled') {
+      // Al cancelar mantenemos el Pro hasta que venza el período pagado
+      await sbUpdate('streamers', {
+        lemon_subscription_id: null, // ya no hay suscripción activa para cobrar
+      }, { twitch_id: streamer.twitch_id });
+      console.log(`[LS] ⚠️ Suscripción cancelada para ${streamer.twitch_username} — mantiene Pro hasta ${streamer.plan_expires_at}`);
+    }
+
+    if (eventName === 'subscription_expired') {
+      // Solo al expirar quitamos el Pro
+      await sbUpdate('streamers', {
+        plan: 'free',
+        plan_expires_at: null,
+        lemon_subscription_id: null,
+      }, { twitch_id: streamer.twitch_id });
+      console.log(`[LS] ❌ Plan expirado para ${streamer.twitch_username}`);
+    }
+
+    res.status(200).json({ received: true });
+  } catch(err) {
+    console.error('[LS Webhook Error]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+const globalJsonParser = express.json({ limit: '50kb' });
+app.use((req, res, next) => {
+  // El upload de media alerts usa su propio parser con límite de 8MB — el global lo saltea
+  if (req.path === '/api/media-alerts/upload') return next();
+  return globalJsonParser(req, res, next);
+});
+app.use(express.urlencoded({ extended: true, limit: '50kb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: IS_PROD,   // HTTPS en producción
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000
+  }
+}));
+
+// ── Supabase helpers ──
+const sbHeaders = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+};
+
+// cols: columnas a pedir (por defecto todas). Los endpoints que se consultan seguido piden solo las que usan;
+// si Supabase rechaza alguna columna, se reintenta pidiendo todas para no dejar el endpoint sin respuesta.
+async function sbSelect(table, filters = {}, cols = '*') {
+  const query = Object.entries(filters).map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
+  const run = async (c) => {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}&select=${c}&limit=1`, { headers: sbHeaders });
+    return res.json();
+  };
+  let data = await run(cols);
+  if (!Array.isArray(data) && cols !== '*') data = await run('*');
+  return Array.isArray(data) ? data[0] || null : null;
+}
+
+// Caché corta con "una sola consulta a la vez": muchos overlays abiertos preguntando lo mismo comparten una respuesta
+const _ttlCache = new Map(); // key -> { ts, promise }
+function ttlCache(key, ttlMs, fn) {
+  const hit = _ttlCache.get(key);
+  if (hit && Date.now() - hit.ts < ttlMs) return hit.promise;
+  const promise = Promise.resolve().then(fn);
+  _ttlCache.set(key, { ts: Date.now(), promise });
+  promise.catch(() => { if (_ttlCache.get(key)?.promise === promise) _ttlCache.delete(key); }); // los errores no se guardan
+  if (_ttlCache.size > 500) { const lim = Date.now() - 60000; for (const [k, v] of _ttlCache) if (v.ts < lim) _ttlCache.delete(k); }
+  return promise;
+}
+
+async function sbInsert(table, row) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { ...sbHeaders, 'Prefer': 'return=representation' },
+    body: JSON.stringify(row)
+  });
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
+}
+
+async function sbUpdate(table, row, filters = {}) {
+  const query = Object.entries(filters).map(([k,v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${query}`, {
+    method: 'PATCH',
+    headers: { ...sbHeaders, 'Prefer': 'return=representation' },
+    body: JSON.stringify(row)
+  });
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
+}
+
+function requireAuth(req, res, next) {
+  if (!req.session.user) return res.redirect('/');
+  if (!req.session.user.approved) return res.redirect('/pending');
+  next();
+}
+
+// ── Validadores ──
+function isValidObject(val) {
+  return val && typeof val === 'object' && !Array.isArray(val);
+}
+function isValidArray(val) {
+  return Array.isArray(val);
+}
+function isValidString(val, maxLen = 2000) {
+  return typeof val === 'string' && val.length <= maxLen;
+}
+
+// ══════════════════════════════════════════
+//  RUTAS PÚBLICAS
+// ══════════════════════════════════════════
+app.get('/', (req, res) => {
+  if (req.session.user) return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/login', (req, res) => {
+  if (req.session.user) return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+app.get('/auth/twitch', (req, res) => {
+  const redirectUri = BASE_URL + '/auth/twitch/callback';
+  const scopes = 'user:read:email channel:manage:broadcast clips:edit channel:read:redemptions channel:manage:redemptions moderator:read:followers channel:bot';
+    const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
+  res.redirect(url);
+});
+
+// ── Autorizar la cuenta del bot (ej. MuffetBot_) con ESTA app de Twitch ──
+// Es lo que permite que Muffet envíe por la API y muestre la insignia de bot.
+// Solo el admin lo inicia; el login normal y la sesión no se tocan. No se guarda ningún token: la autorización queda registrada en Twitch.
+function startBotAuth(kind, extraScopes) {
+  return (req, res) => {
+  const state = require('crypto').randomBytes(16).toString('hex');
+  req.session.botAuthState = state;
+  req.session.botAuthKind = kind;
+  const redirectUri = BASE_URL + '/auth/twitch/callback';
+  const scopes = extraScopes || 'user:read:chat user:write:chat user:bot';
+  // force_verify: Twitch pregunta con qué cuenta entrar, así puedes elegir la cuenta del bot en vez de la tuya
+  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${state}${kind === 'channelbot' ? '' : '&force_verify=true'}`;
+  req.session.save(() => res.redirect(url));
+  };
+}
+app.get('/auth/twitch/bot', requireAdmin, startBotAuth('main'));
+// Cada streamer con bot propio autoriza la cuenta de SU bot con la app de Muffet (para la insignia de bot)
+app.get('/auth/twitch/custom-bot', requireAuth, startBotAuth('custom'));
+// El streamer da permiso a Muffet (channel:bot) con SU cuenta: así el bot principal puede enviar con insignia sin ser moderador
+app.get('/auth/twitch/channel-bot', requireAuth, startBotAuth('channelbot', 'channel:bot'));
+app.get('/api/channel-bot-status', requireAuth, async (req, res) => {
+  const g = await getSetting('channel_bot:' + String(req.session.user.username).toLowerCase());
+  res.json({ authorized: !!g, at: g?.authorized_at || null });
+});
+
+async function handleChannelBotCallback(req, res, code) {
+  const page = (ok, title, body) => res.status(ok ? 200 : 400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui,sans-serif;background:#0e0e12;color:#eee;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0"><div style="max-width:520px;padding:28px;background:#1a1a22;border-radius:14px;border:1px solid ${ok ? '#3ecf8e' : '#e05a7a'}"><h2 style="margin-top:0">${title}</h2>${body}<p><a style="color:#b794ff" href="/dashboard">← Volver al dashboard</a></p></div>`);
+  try {
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET, code, grant_type: 'authorization_code', redirect_uri: BASE_URL + '/auth/twitch/callback' }).toString()
+    });
+    const t = await tokenRes.json();
+    if (!t.access_token) return page(false, 'No se pudo autorizar', '<p>Twitch no aceptó el código. Inténtalo de nuevo desde el dashboard.</p>');
+    const v = await (await fetch('https://id.twitch.tv/oauth2/validate', { headers: { Authorization: `OAuth ${t.access_token}` } })).json();
+    if (!(v.scopes || []).includes('channel:bot')) return page(false, 'Faltó el permiso', '<p>No se aceptó el permiso. Vuelve a intentarlo y pulsa Autorizar.</p>');
+    if (String(v.user_id) !== String(req.session.user.id)) return page(false, 'Cuenta distinta', `<p>Autorizaste con <b>@${v.login}</b>, pero tu sesión del dashboard es <b>@${req.session.user.username}</b>. Entra a Twitch con tu cuenta de streamer e inténtalo otra vez.</p>`);
+    await setSetting('channel_bot:' + String(v.login).toLowerCase(), { login: v.login, user_id: v.user_id, authorized_at: new Date().toISOString() });
+    adminLog(req, 'permiso de bot a Muffet (channel:bot)', v.login, 'ok');
+    return page(true, '✅ Muffet autorizada', `<p>Listo, <b>@${v.login}</b>. Muffet ya puede mostrar la insignia de bot en tu chat sin que tengas que darle moderador.</p><p style="color:#9a96ad;font-size:13px">Si quieres que modere (borrar mensajes, timeouts), sigue siendo necesario darle moderador: <code>/mod MuffetBot_</code>.</p>`);
+  } catch (err) {
+    console.error('channel-bot callback:', err.message);
+    return page(false, 'Error', '<p>Algo falló al autorizar. Inténtalo de nuevo.</p>');
+  }
+}
+// Enlace firmado (sin depender de la sesión): se puede abrir en una ventana de incógnito, donde Twitch pide
+// iniciar sesión directamente con la cuenta del bot, sin cerrar la sesión del streamer. Caduca en 30 min.
+function signBotState(ownerId, kind = 'custom') {
+  const payload = Buffer.from(JSON.stringify({ k: kind, o: String(ownerId), e: Date.now() + 30 * 60 * 1000, n: require('crypto').randomBytes(6).toString('hex') })).toString('base64url');
+  const sig = require('crypto').createHmac('sha256', SESSION_SECRET).update('botauth.' + payload).digest('base64url');
+  return payload + '.' + sig;
+}
+function verifyBotState(st) {
+  try {
+    const [payload, sig] = String(st || '').split('.');
+    if (!payload || !sig) return null;
+    const exp = require('crypto').createHmac('sha256', SESSION_SECRET).update('botauth.' + payload).digest('base64url');
+    if (sig.length !== exp.length || !require('crypto').timingSafeEqual(Buffer.from(sig), Buffer.from(exp))) return null;
+    const d = JSON.parse(Buffer.from(payload, 'base64url').toString());
+    if ((d.k !== 'custom' && d.k !== 'connect') || !d.o || d.e < Date.now()) return null;
+    return d;
+  } catch { return null; }
+}
+app.get('/api/custom-bot-auth-link', requireAuth, (req, res) => {
+  const state = signBotState(req.session.user.id);
+  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(BASE_URL + '/auth/twitch/callback')}&response_type=code&scope=${encodeURIComponent('user:read:chat user:write:chat user:bot')}&state=${encodeURIComponent(state)}&force_verify=true`;
+  res.json({ url });
+});
+
+// ── "Conectar mi bot": una sola autorización deja el bot listo (token de chat + insignia) ──
+app.get('/api/custom-bot-connect-link', requireAuth, async (req, res) => {
+  try {
+    const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'plan');
+    if (!st || (st.plan !== 'pro' && st.plan !== 'admin')) return res.status(403).json({ error: 'Solo disponible en Plan Pro' });
+    const state = signBotState(req.session.user.id, 'connect');
+    const scopes = 'chat:read chat:edit moderator:manage:chat_messages moderator:manage:banned_users user:read:chat user:write:chat user:bot';
+    const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(BASE_URL + '/auth/twitch/callback')}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${encodeURIComponent(state)}&force_verify=true`;
+    res.json({ url });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+async function handleBotConnectCallback(req, res, code, ownerId) {
+  const page = (ok, title, body) => res.status(ok ? 200 : 400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui,sans-serif;background:#0e0e12;color:#eee;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0"><div style="max-width:520px;padding:28px;background:#1a1a22;border-radius:14px;border:1px solid ${ok ? '#3ecf8e' : '#e05a7a'}"><h2 style="margin-top:0">${title}</h2>${body}<p><a style="color:#b794ff" href="/dashboard">← Volver al dashboard</a></p></div>`);
+  try {
+    const owner = await sbSelect('streamers', { twitch_id: ownerId }, 'twitch_username,plan,custom_bot_username');
+    if (!owner || (owner.plan !== 'pro' && owner.plan !== 'admin')) return page(false, 'Solo Plan Pro', '<p>El bot personalizado es una función del Plan Pro.</p>');
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET, code, grant_type: 'authorization_code', redirect_uri: BASE_URL + '/auth/twitch/callback' }).toString()
+    });
+    const t = await tokenRes.json();
+    if (!t.access_token || !t.refresh_token) return page(false, 'No se pudo conectar', '<p>Twitch no aceptó el código. Copia un enlace nuevo desde el dashboard e inténtalo de nuevo.</p>');
+    const v = await (await fetch('https://id.twitch.tv/oauth2/validate', { headers: { Authorization: `OAuth ${t.access_token}` } })).json();
+    const scopes = v.scopes || [];
+    const missing = ['chat:read', 'chat:edit', 'moderator:manage:chat_messages', 'moderator:manage:banned_users', 'user:write:chat', 'user:bot'].filter(sc => !scopes.includes(sc));
+    if (missing.length) return page(false, 'Faltaron permisos', `<p>Faltan: <code>${missing.join(', ')}</code>. Vuelve a intentarlo y acepta todos los permisos.</p>`);
+    const login = String(v.login || '').toLowerCase();
+    if (login === String(owner.twitch_username).toLowerCase()) {
+      return page(false, 'Esa es tu cuenta', `<p>Entraste con <b>@${v.login}</b>, que es tu cuenta de streamer. Tienes que iniciar sesión con la cuenta de tu <b>bot</b> (una cuenta aparte). Copia un enlace nuevo y ábrelo en una ventana de incógnito.</p>`);
+    }
+    const saved = await sbUpdate('streamers', {
+      custom_bot_username: v.login,
+      custom_bot_token: 'oauth:' + t.access_token,
+      custom_bot_refresh: t.refresh_token,
+      custom_bot_expires_at: new Date(Date.now() + (t.expires_in || 3600) * 1000).toISOString(),
+    }, { twitch_id: ownerId });
+    if (!saved || saved.code || saved.message) {
+      console.error('connect-bot save:', JSON.stringify(saved));
+      return page(false, 'No se pudo guardar', '<p>La autorización salió bien, pero no se pudo guardar el bot. Avisa al administrador.</p>');
+    }
+    await setSetting('bot_auth:' + login, { login: v.login, user_id: v.user_id, scopes, authorized_at: new Date().toISOString() });
+    _ttlCache.delete('botauth');
+    adminLog(req, 'bot conectado con un clic', v.login, 'owner: ' + owner.twitch_username);
+    return page(true, '✅ Bot conectado', `<p>La cuenta <b>@${v.login}</b> quedó conectada a tu canal y con permiso para la insignia de bot.</p><p style="color:#9a96ad;font-size:13px">Muffet lo conecta en menos de un minuto. Recuerda dar moderador a tu bot en tu chat: <code>/mod ${v.login}</code></p>`);
+  } catch (err) {
+    console.error('connect bot callback:', err.message);
+    return page(false, 'Error', '<p>Algo falló al conectar el bot. Inténtalo de nuevo.</p>');
+  }
+}
+
+async function handleBotAuthCallback(req, res, code, kind, ownerId) {
+  ownerId = ownerId || req.session?.user?.id;
+  const backHref = kind === 'custom' ? '/dashboard' : '/admin';
+  const backText = kind === 'custom' ? 'Volver al dashboard' : 'Volver al panel';
+  const page = (ok, title, body) => res.status(ok ? 200 : 400).send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui,sans-serif;background:#0e0e12;color:#eee;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0"><div style="max-width:520px;padding:28px;background:#1a1a22;border-radius:14px;border:1px solid ${ok ? '#3ecf8e' : '#e05a7a'}"><h2 style="margin-top:0">${title}</h2>${body}<p><a style="color:#b794ff" href="${backHref}">← ${backText}</a></p></div>`);
+  try {
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET, code, grant_type: 'authorization_code', redirect_uri: BASE_URL + '/auth/twitch/callback' }).toString()
+    });
+    const t = await tokenRes.json();
+    if (!t.access_token) return page(false, 'No se pudo autorizar', '<p>Twitch no aceptó el código. Intenta de nuevo desde el panel.</p>');
+    const v = await (await fetch('https://id.twitch.tv/oauth2/validate', { headers: { Authorization: `OAuth ${t.access_token}` } })).json();
+    const scopes = v.scopes || [];
+    const missing = ['user:write:chat', 'user:bot'].filter(sc => !scopes.includes(sc));
+    await setSetting('bot_auth:' + String(v.login).toLowerCase(), { login: v.login, user_id: v.user_id, scopes, authorized_at: new Date().toISOString() });
+    _ttlCache.delete('botauth');
+    adminLog(req, kind === 'custom' ? 'bot propio autorizado en la app' : 'autorizar bot en la app', v.login, missing.length ? `faltan: ${missing.join(', ')}` : 'ok');
+    if (kind === 'custom') {
+      const owner = await sbSelect('streamers', { twitch_id: ownerId }, 'custom_bot_username,twitch_username');
+      const expected = String(owner?.custom_bot_username || '').toLowerCase();
+      if (!missing.length && expected && expected !== String(v.login).toLowerCase()) {
+        return page(false, 'Cuenta distinta', `<p>Autorizaste con <b>@${v.login}</b>, pero tu bot configurado es <b>@${owner.custom_bot_username}</b>. Vuelve a intentarlo y, cuando Twitch pregunte, entra con la cuenta de tu bot.</p>`);
+      }
+    }
+    // El token recién creado no se guarda ni se usa (lo único que importa es la autorización registrada en Twitch); caduca solo.
+    if (missing.length) return page(false, 'Faltaron permisos', `<p>La cuenta <b>@${v.login}</b> autorizó, pero faltan: <code>${missing.join(', ')}</code>.</p>`);
+    return page(true, '✅ Bot autorizado', kind === 'custom'
+      ? `<p>La cuenta <b>@${v.login}</b> ya autorizó la app de Muffet.</p><p style="color:#9a96ad;font-size:13px">Listo. El administrador activa el envío cuando esté todo preparado; tu bot sigue funcionando igual mientras tanto.</p>`
+      : `<p>La cuenta <b>@${v.login}</b> ya autorizó la app de Muffet.</p><p style="color:#9a96ad;font-size:13px">Siguiente: en Railway agrega <code>HELIX_SEND=test</code> y <code>HELIX_SEND_CHANNELS=elosoking1</code>, y en tu chat escribe <code>!helixcheck</code>.</p>`);
+  } catch (err) {
+    console.error('bot auth callback:', err.message);
+    return page(false, 'Error', '<p>Algo falló al autorizar. Revisa el log del servidor.</p>');
+  }
+}
+
+app.get('/auth/twitch/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect('/?error=auth');
+  // ¿Viene del flujo "autorizar al bot"? (el state coincide con el que guardamos en tu sesión de admin)
+  if (req.query.state && req.session.botAuthState && req.query.state === req.session.botAuthState) {
+    delete req.session.botAuthState;
+    const kind = req.session.botAuthKind || 'main'; delete req.session.botAuthKind;
+    if (kind === 'channelbot') return handleChannelBotCallback(req, res, code);
+    return handleBotAuthCallback(req, res, code, kind);
+  }
+  // Flujo con enlace firmado (ventana de incógnito, sin sesión)
+  const signed = req.query.state ? verifyBotState(req.query.state) : null;
+  if (signed) return signed.k === 'connect' ? handleBotConnectCallback(req, res, code, signed.o) : handleBotAuthCallback(req, res, code, 'custom', signed.o);
+  // El login normal nunca lleva "state". Si llega uno que no reconocemos (enlace caducado o alterado),
+  // NO iniciamos sesión ni registramos la cuenta: así una cuenta de bot nunca se crea como streamer por error.
+  if (req.query.state) {
+    return res.status(400).send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Enlace caducado</title><body style="font-family:system-ui,sans-serif;background:#0e0e12;color:#eee;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0"><div style="max-width:520px;padding:28px;background:#1a1a22;border-radius:14px;border:1px solid #e05a7a"><h2 style="margin-top:0">Enlace caducado</h2><p>Este enlace de autorización ya no es válido (dura 30 minutos). Vuelve a tu dashboard de Muffet, copia un enlace nuevo y ábrelo en una ventana de incógnito.</p><p><a style="color:#b794ff" href="/dashboard">← Volver al dashboard</a></p></div>');
+  }
+
+  try {
+    const redirectUri = BASE_URL + '/auth/twitch/callback';
+
+    const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET, code, grant_type: 'authorization_code', redirect_uri: redirectUri }).toString()
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) { console.error('No token:', tokenData); return res.redirect('/?error=auth'); }
+
+    const userRes = await fetch('https://api.twitch.tv/helix/users', {
+      headers: { 'Authorization': `Bearer ${tokenData.access_token}`, 'Client-Id': TWITCH_CLIENT_ID }
+    });
+    const userData = await userRes.json();
+    const twitchUser = userData?.data?.[0];
+    if (!twitchUser) { console.error('No user data'); return res.redirect('/?error=auth'); }
+    // Si en este login el streamer dio el permiso channel:bot, lo registramos (para mostrar "Muffet autorizada" en su dashboard)
+    if ((tokenData.scope || []).includes('channel:bot')) {
+      const key = 'channel_bot:' + String(twitchUser.login).toLowerCase();
+      getSetting(key).then(g => g || setSetting(key, { login: twitchUser.login, user_id: twitchUser.id, authorized_at: new Date().toISOString(), via: 'login' })).catch(() => {});
+    }
+
+    let streamer = await sbSelect('streamers', { twitch_id: twitchUser.id });
+
+    // Tu cuenta es siempre admin y aprobada
+    const isAdmin = twitchUser.login.toLowerCase() === 'elosoking1';
+
+    if (!streamer) {
+      streamer = await sbInsert('streamers', {
+        twitch_id: twitchUser.id,
+        twitch_username: twitchUser.login,
+        bot_prompt: `Eres Muffet, una araña consejera con corona. Eres la consejera y asistente del canal de ${twitchUser.display_name}. Los viewers son "súbditos" o "dearies". Hablas en español, eres coqueta y misteriosa. Usas emojis 🕷️ 👑 ♥. Respuestas cortas (máximo 2 oraciones).`,
+        commands: { '!miel': '🍯 ¡Miel fresca para todos! ♥', '!muffet': '🕷️ ¡Soy Muffet, consejera del canal! 👑♥', '!redes': '👑 ¡Síguenos en redes! 🕷️♥' },
+        auto_messages: ['👑 ¡Recuerden seguir el canal! 🕷️♥', '🕷️ ¡Usa !ask para preguntarme! ♥'],
+        ai_enabled: true, mod_enabled: false, banned_words: [],
+        warn_message: '⚠️ Cuidado, dearie~ 🕷️',
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        role: isAdmin ? 'admin' : 'streamer',
+        approved: true,
+      });
+
+      // Notificar nuevo registro en Discord
+      if (!isAdmin && process.env.DISCORD_WEBHOOK_URL) {
+        fetch(process.env.DISCORD_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            embeds: [{
+              title: '🕷️ Nuevo streamer registrado',
+              description: `**${twitchUser.display_name}** acaba de unirse a MuffetBot`,
+              color: 0x9147ff,
+              fields: [
+                { name: 'Canal', value: `[twitch.tv/${twitchUser.login}](https://twitch.tv/${twitchUser.login})`, inline: true },
+                { name: 'Plan', value: '🆓 Free', inline: true },
+              ],
+              thumbnail: { url: twitchUser.profile_image_url },
+              timestamp: new Date().toISOString(),
+              footer: { text: 'MuffetBot Dashboard' }
+            }]
+          })
+        }).catch(e => console.error('[Discord webhook]', e.message));
+      }
+    } else {
+      await sbUpdate('streamers', { access_token: tokenData.access_token, refresh_token: tokenData.refresh_token }, { twitch_id: twitchUser.id });
+    }
+
+    if (!streamer?.id) { console.error('Streamer null'); return res.redirect('/?error=auth'); }
+
+    req.session.user = {
+      id: twitchUser.id,
+      username: twitchUser.login,
+      display_name: twitchUser.display_name,
+      avatar: twitchUser.profile_image_url,
+      streamerId: streamer.id,
+      role: streamer.role || 'streamer',
+      approved: streamer.approved !== false,
+    };
+
+    // Redirigir según rol
+    if (!streamer.approved) return res.redirect('/pending');
+    if (streamer.role === 'admin') return res.redirect('/admin');
+    res.redirect('/dashboard');
+  } catch (err) {
+    console.error('Auth error:', err.message);
+    res.redirect('/?error=auth');
+  }
+});
+
+// ── Página pública del canal ──
+function proOnlyPage(res) {
+  res.status(403).send(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MuffetBot Pro</title><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"><style>*{box-sizing:border-box;margin:0;padding:0;}body{background:#0d0d0f;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;}.card{background:#141416;border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:40px;max-width:400px;width:100%;text-align:center;}.icon{font-size:48px;margin-bottom:16px;}h1{font-size:20px;font-weight:700;color:#e8e8f0;margin-bottom:8px;}p{font-size:14px;color:#6b6b80;line-height:1.6;margin-bottom:24px;}a{display:inline-flex;align-items:center;gap:8px;background:#f0c060;color:black;font-weight:700;font-size:14px;padding:12px 24px;border-radius:24px;text-decoration:none;transition:opacity 0.15s;}a:hover{opacity:0.85;}.badge{display:inline-block;background:rgba(240,192,96,0.1);border:1px solid rgba(240,192,96,0.3);color:#f0c060;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;margin-bottom:20px;letter-spacing:0.5px;}</style></head><body><div class="card"><div class="icon">🕷️</div><div class="badge">⭐ PLAN PRO</div><h1>Función exclusiva Pro</h1><p>Esta función está disponible para los usuarios del plan Pro de MuffetBot por solo $5/mes.</p><a href="/plans">⭐ Ver planes Pro</a></div></body></html>`);
+}
+
+app.get('/canal/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    const streamer = data?.[0];
+    if (!streamer) return res.status(404).send('Canal no encontrado');
+    if (streamer.plan !== 'pro') return proOnlyPage(res);
+    res.sendFile(path.join(__dirname, 'canal.html'));
+  } catch (err) {
+    res.status(500).send('Error');
+  }
+});
+
+// API pública del canal
+app.get('/api/canal/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_username,public_name,commands,social_links,youtube_channel_id,points_config,viewer_points,stream_schedule,primerin_config,pokedle_config,dbdle_config&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    const streamer = data?.[0];
+    if (!streamer) return res.status(404).json({ error: 'Canal no encontrado' });
+    // Solo devolver comandos públicos (everyone)
+    const publicCmds = {};
+    Object.entries(streamer.commands || {}).forEach(([trigger, val]) => {
+      const perms = typeof val === 'object' ? val.perms : ['everyone'];
+      if (perms.includes('everyone')) {
+        publicCmds[trigger] = typeof val === 'object' ? val.response : val;
+      }
+    });
+    // Top viewers
+    const pointsConfig = streamer.points_config || {};
+    let topViewers = [];
+    if (pointsConfig.enabled !== false && streamer.viewer_points) {
+      topViewers = Object.entries(streamer.viewer_points)
+        .map(([username, xp]) => ({ username, xp }))
+        .sort((a, b) => b.xp - a.xp)
+        .slice(0, 5);
+    }
+
+    res.json({
+      username: streamer.twitch_username,
+      public_name: streamer.public_name || null,
+      commands: publicCmds,
+      social_links: streamer.social_links || {},
+      youtube_channel_id: streamer.youtube_channel_id || null,
+      points_config: { name: pointsConfig.name || 'puntos', emoji: pointsConfig.emoji || '🏆', enabled: pointsConfig.enabled !== false, levels: pointsConfig.levels || [] },
+      top_viewers: topViewers,
+      stream_schedule: streamer.stream_schedule || null,
+      primerin_config: streamer.primerin_config || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/'));
+});
+
+// API para verificar si fue aprobado
+app.get('/api/check-approval', async (req, res) => {
+  if (!req.session.user) return res.json({ approved: false });
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (streamer?.approved) {
+      req.session.user.approved = true;
+      req.session.user.role = streamer.role;
+      return res.json({ approved: true, role: streamer.role });
+    }
+    res.json({ approved: false });
+  } catch(err) { res.json({ approved: false }); }
+});
+
+// ── Página de espera para pendientes ──
+app.get('/pending', (req, res) => {
+  if (!req.session.user) return res.redirect('/');
+  if (req.session.user.approved) return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'pending.html'));
+});
+
+// ── Panel de admin ──
+function requireAdmin(req, res, next) {
+  if (!req.session.user) return res.redirect('/');
+  if (req.session.user.role !== 'admin') return res.redirect('/dashboard');
+  next();
+}
+
+// ── Historial de acciones del admin (tabla admin_log; si no existe, simplemente no guarda) ──
+async function adminLog(req, action, target, detail) {
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/admin_log`, {
+      method: 'POST',
+      headers: { ...sbHeaders, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ admin: req.session?.user?.login || req.session?.user?.username || req.session?.user?.display_name || 'admin', action, target: target || null, detail: detail ? String(detail).slice(0, 300) : null })
+    });
+  } catch (e) { /* el historial nunca debe romper una acción */ }
+}
+async function patchStreamerReturning(id, body) { // PATCH que devuelve el nombre del streamer afectado (para el historial)
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=representation' }, body: JSON.stringify(body)
+  });
+  const rows = await r.json().catch(() => null);
+  return { ok: r.ok, name: Array.isArray(rows) ? rows[0]?.twitch_username : null };
+}
+// ── Ajustes globales (tabla app_settings: key/value) — hoy solo el anuncio para todos los streamers ──
+async function getSetting(key) {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/app_settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`, { headers: sbHeaders });
+    if (!r.ok) return null;
+    const d = await r.json();
+    return d?.[0]?.value || null;
+  } catch (e) { return null; }
+}
+async function setSetting(key, value) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/app_settings?on_conflict=key`, {
+    method: 'POST', headers: { ...sbHeaders, 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({ key, value, updated_at: new Date().toISOString() })
+  });
+  return r.ok;
+}
+
+app.get('/admin', requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+// API admin — obtener todos los streamers
+// Bots propios que ya autorizaron la app de Muffet (para la insignia de bot) — login en minúsculas → true
+async function getBotAuthLogins() {
+  return ttlCache('botauth', 30000, async () => {
+    try {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/app_settings?key=like.bot_auth:*&select=key,value`, { headers: sbHeaders });
+      if (!r.ok) return {};
+      const rows = await r.json();
+      const out = {};
+      for (const row of rows || []) {
+        const sc = row?.value?.scopes || [];
+        if (sc.includes('user:bot') && sc.includes('user:write:chat')) out[String(row.key).replace(/^bot_auth:/, '').toLowerCase()] = true;
+      }
+      return out;
+    } catch (e) { return {}; }
+  });
+}
+app.get('/api/custom-bot-status', requireAuth, async (req, res) => {
+  try {
+    const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'custom_bot_username');
+    const login = String(st?.custom_bot_username || '').toLowerCase();
+    if (!login) return res.json({ configured: false });
+    const map = await getBotAuthLogins();
+    res.json({ configured: true, login: st.custom_bot_username, authorized: !!map[login] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/streamers', requireAdmin, async (req, res) => {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/streamers?select=id,twitch_username,twitch_id,role,approved,plan,plan_expires_at,created_at,ai_enabled,mod_enabled,custom_bot_username,commands,auto_messages,viewer_points,command_stats,bot_status,feature_flags,spotify_token,subathon_config,youtube_enabled:youtube_config->enabled&order=created_at.desc`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    const botAuth = await getBotAuthLogins();
+    if (Array.isArray(data)) data.forEach(r => { // los tokens nunca salen del servidor: solo "está conectado o no"
+      r.spotify_connected = !!r.spotify_token; delete r.spotify_token;
+      r.subathon_on = !!(r.subathon_config && r.subathon_config.enabled); delete r.subathon_config;
+      r.youtube_on = r.youtube_enabled === true; delete r.youtube_enabled;
+      r.bot_badge = r.custom_bot_username ? !!botAuth[String(r.custom_bot_username).toLowerCase()] : null; // null = usa el bot principal
+    });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API admin — última novedad, leída directo de dashboard.html (una sola fuente)
+let _clCache = { mtime: 0, data: null };
+app.get('/api/admin/changelog/latest', requireAdmin, (req, res) => {
+  try {
+    const file = path.join(__dirname, 'dashboard.html');
+    const mtime = fs.statSync(file).mtimeMs;
+    if (_clCache.data && _clCache.mtime === mtime) return res.json(_clCache.data);
+    const html = fs.readFileSync(file, 'utf8');
+    const m = html.match(/const update = (\{[\s\S]*?\n\s*\});\s*return/);
+    if (!m) return res.status(404).json({ error: 'No se encontró la novedad en dashboard.html' });
+    const u = require('vm').runInNewContext('(' + m[1] + ')', {}, { timeout: 200 });
+    const data = { version: String(u.version), date: String(u.date), items: (u.items || []).map(String) };
+    _clCache = { mtime, data };
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// API admin — publicar novedades en Discord
+app.post('/api/admin/changelog', requireAdmin, async (req, res) => {
+  try {
+    const webhookUrl = process.env.DISCORD_CHANGELOG_WEBHOOK;
+    if (!webhookUrl) return res.status(400).json({ error: 'Webhook no configurado' });
+    const { version, date, items } = req.body;
+    const fields = items.map(item => ({ name: item, value: '​', inline: false }));
+    const payload = {
+      embeds: [{
+        title: `🕷️ MuffetBot ${version} — Novedades`,
+        description: `Nueva actualización disponible — ${date}`,
+        color: 9519103,
+        fields: items.map(item => ({ name: item, value: '​', inline: false })),
+        footer: { text: `MuffetBot • ${date}` }
+      }]
+    };
+    const r = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (r.ok || r.status === 204) { adminLog(req, 'publicar novedades', null, version); res.json({ success: true }); }
+    else res.status(400).json({ error: 'Error al enviar a Discord' });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// API admin — aprobar streamer
+app.post('/api/admin/approve/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const r = await patchStreamerReturning(id, { approved: true, role: 'streamer' });
+    adminLog(req, 'aprobar', r.name, null);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API admin — revocar acceso
+app.post('/api/admin/revoke/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const target = await sbSelect('streamers', { id }, 'twitch_id');
+    if (target && String(target.twitch_id) === String(req.session.user.id)) return res.status(400).json({ error: 'No puedes revocarte a ti mismo: perderías el acceso al panel' });
+    const r = await patchStreamerReturning(id, { approved: false, role: 'blocked' });
+    adminLog(req, 'revocar', r.name, null);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API admin — cambiar rol
+app.post('/api/admin/role/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    if (!['admin','streamer','pending','blocked'].includes(role)) return res.status(400).json({ error: 'Rol inválido' });
+    const r = await patchStreamerReturning(id, { role, approved: role !== 'pending' && role !== 'blocked' });
+    adminLog(req, 'cambiar rol', r.name, role);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ══════════════════════════════════════════
+//  RUTAS PROTEGIDAS
+// ══════════════════════════════════════════
+app.get('/plans', (req, res) => res.sendFile(path.join(__dirname, 'plans.html')));
+app.get('/guia', (req, res) => res.sendFile(path.join(__dirname, 'guia.html'))); // guía rápida para streamers nuevos (pública)
+app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
+
+// API admin — activar plan pro
+app.post('/api/admin/plan/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { plan, expires_at } = req.body;
+    if (!['free','pro'].includes(plan)) return res.status(400).json({ error: 'Plan inválido' });
+    const update = { plan };
+    if (plan === 'pro' && expires_at) update.plan_expires_at = expires_at;
+    if (plan === 'free') { update.plan_expires_at = null; update.lemon_subscription_id = null; }
+    const r = await patchStreamerReturning(id, update);
+    adminLog(req, plan === 'pro' ? 'activar Pro' : 'bajar a Free', r.name, plan === 'pro' && expires_at ? `hasta ${String(expires_at).slice(0, 10)}` : null);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API admin — interruptores de funciones por canal (feature_flags)
+const FLAG_THEMES = ['wolf', 'oso']; // estilos exclusivos que se pueden dar a un canal
+app.post('/api/admin/flags/:id', requireAdmin, async (req, res) => {
+  try {
+    const f = req.body?.flags;
+    if (!f || typeof f !== 'object') return res.status(400).json({ error: 'Inválido' });
+    const flags = {
+      dbdle: f.dbdle !== false,
+      themes: Array.isArray(f.themes) ? f.themes.filter(t => FLAG_THEMES.includes(t)) : []
+    };
+    const r = await patchStreamerReturning(req.params.id, { feature_flags: flags });
+    if (!r.ok) return res.status(400).json({ error: 'No se pudo guardar (¿falta la columna feature_flags? corre admin_mejoras.sql)' });
+    adminLog(req, 'funciones del canal', r.name, `dbdle ${flags.dbdle ? 'sí' : 'no'} · estilos: ${flags.themes.join(',') || 'ninguno'}`);
+    res.json({ success: true, flags });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// API admin — historial de acciones
+app.get('/api/admin/log', requireAdmin, async (req, res) => {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/admin_log?select=ts,admin,action,target,detail&order=ts.desc&limit=100`, { headers: sbHeaders });
+    if (!r.ok) return res.json({ missing: true, rows: [] });
+    res.json({ rows: await r.json() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Anuncio para todos los streamers (se muestra en su dashboard)
+app.get('/api/admin/announcement', requireAdmin, async (req, res) => {
+  res.json(await getSetting('announcement') || {});
+});
+app.post('/api/admin/announcement', requireAdmin, async (req, res) => {
+  try {
+    const text = String(req.body?.text || '').trim().slice(0, 300);
+    const value = text ? { id: Date.now(), text, ts: new Date().toISOString() } : { id: 0, text: '' };
+    if (!(await setSetting('announcement', value))) return res.status(400).json({ error: 'No se pudo guardar (¿falta la tabla app_settings? corre admin_mejoras.sql)' });
+    _ttlCache.delete('announcement');
+    adminLog(req, text ? 'publicar anuncio' : 'quitar anuncio', null, text);
+    res.json({ success: true, announcement: value });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.get('/api/announcement', requireAuth, async (req, res) => {
+  const a = await ttlCache('announcement', 60000, () => getSetting('announcement'));
+  res.json(a && a.text ? a : {});
+});
+
+app.get('/api/streamer', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+    delete streamer.custom_bot_refresh; // el refresh token del bot nunca sale al navegador
+    res.json({ streamer, user: { ...req.session.user, role: streamer.role } });
+  } catch (err) {
+    console.error('GET /api/streamer:', err.message);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ── Exportar/Importar configuración (sin tokens ni datos sensibles) ──
+const EXPORTABLE_FIELDS = [
+  'shoutout_config', 'spotify_config', 'youtube_config', 'primerin_config', 'emojigame_config', 'media_alerts',
+  'points_config', 'raffle_settings', 'mod_config', 'personality_prompt',
+  'on_message', 'off_message', 'auto_messages', 'auto_message_interval',
+  'on_off_ai', 'system_commands', 'welcome_config'
+];
+
+app.get('/api/config/export', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+
+    const exportData = { _muffetbot_export: true, _version: 1, _exported_at: new Date().toISOString() };
+    EXPORTABLE_FIELDS.forEach(field => { if (streamer[field] !== undefined) exportData[field] = streamer[field]; });
+
+    // Limpiar cosas específicas del canal que no deben copiarse a otro streamer
+    if (exportData.shoutout_config) {
+      exportData.shoutout_config = { ...exportData.shoutout_config };
+      delete exportData.shoutout_config.reward_id;
+      delete exportData.shoutout_config.reward_name;
+    }
+    if (exportData.youtube_config) {
+      exportData.youtube_config = { ...exportData.youtube_config };
+      delete exportData.youtube_config.queue;
+      delete exportData.youtube_config.history;
+      delete exportData.youtube_config.song_limits;
+      delete exportData.youtube_config.player_command;
+      delete exportData.youtube_config.player_command_ts;
+    }
+    if (exportData.primerin_config) {
+      exportData.primerin_config = { ...exportData.primerin_config };
+      delete exportData.primerin_config.ranking;
+      delete exportData.primerin_config.used_today;
+      delete exportData.primerin_config.reward_id;
+      delete exportData.primerin_config.reward_name;
+    }
+    if (exportData.raffle_settings) {
+      exportData.raffle_settings = { ...exportData.raffle_settings };
+      delete exportData.raffle_settings.reward_id;
+    }
+    if (exportData.points_config) {
+      exportData.points_config = { ...exportData.points_config }; // ranking vive aparte en viewer_points, no se exporta
+    }
+
+    res.json(exportData);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/config/import', requireAuth, async (req, res) => {
+  try {
+    const incoming = req.body;
+    if (!incoming || incoming._muffetbot_export !== true) {
+      return res.status(400).json({ error: 'Archivo inválido — no es una configuración de MuffetBot' });
+    }
+    const updates = {};
+    EXPORTABLE_FIELDS.forEach(field => { if (incoming[field] !== undefined) updates[field] = incoming[field]; });
+    if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'No hay configuración para importar' });
+
+    await sbUpdate('streamers', updates, { twitch_id: req.session.user.id });
+    res.json({ success: true, imported: Object.keys(updates) });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/on-off-ai', requireAuth, async (req, res) => {
+  try {
+    const { on_off_ai } = req.body;
+    if (typeof on_off_ai !== 'boolean') return res.status(400).json({ error: 'Valor inválido' });
+    await sbUpdate('streamers', { on_off_ai }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/on-off-messages', requireAuth, async (req, res) => {
+  try {
+    const { on_message, off_message } = req.body;
+    await sbUpdate('streamers', { on_message: on_message || null, off_message: off_message || null }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/prompt', requireAuth, async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!isValidString(prompt, 3000)) return res.status(400).json({ error: 'Prompt inválido' });
+    await sbUpdate('streamers', { bot_prompt: prompt }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/prompt:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
+});
+
+app.post('/api/commands', requireAuth, async (req, res) => {
+  try {
+    const { commands } = req.body;
+    if (!isValidObject(commands)) return res.status(400).json({ error: 'Comandos inválidos' });
+    if (Object.keys(commands).length > 50) return res.status(400).json({ error: 'Máximo 50 comandos' });
+    await sbUpdate('streamers', { commands }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/commands:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
+});
+
+app.post('/api/auto-messages', requireAuth, async (req, res) => {
+  try {
+    const { auto_messages } = req.body;
+    if (!isValidArray(auto_messages)) return res.status(400).json({ error: 'Mensajes inválidos' });
+    if (auto_messages.length > 20) return res.status(400).json({ error: 'Máximo 20 mensajes' });
+    // Migrar formato antiguo (string) a nuevo (objeto)
+    const normalized = auto_messages.map(msg => {
+      if (typeof msg === 'string') return { text: msg, type: 'fixed', interval: 20 };
+      return { text: msg.text || '', type: msg.type || 'fixed', interval: Math.max(parseInt(msg.interval) || 20, 5) };
+    }).filter(m => m.text);
+    await sbUpdate('streamers', { auto_messages: normalized }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/auto-messages:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
+});
+
+// API — guardar bot personalizado (solo Pro)
+app.post('/api/custom-bot', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer || (streamer.plan !== 'pro' && streamer.plan !== 'admin')) {
+      return res.status(403).json({ error: 'Solo disponible en Plan Pro' });
+    }
+    const { custom_bot_username, custom_bot_token } = req.body;
+    if (!custom_bot_username || !custom_bot_token) return res.status(400).json({ error: 'Faltan datos' });
+    if (!custom_bot_token.startsWith('oauth:')) return res.status(400).json({ error: 'Token inválido' });
+    let up = await sbUpdate('streamers', { custom_bot_username, custom_bot_token, custom_bot_refresh: null, custom_bot_expires_at: null }, { twitch_id: req.session.user.id });
+    if (up && (up.code || up.message)) up = await sbUpdate('streamers', { custom_bot_username, custom_bot_token }, { twitch_id: req.session.user.id }); // por si aún no se corrió conectar_bot.sql
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// API — eliminar bot personalizado
+app.delete('/api/custom-bot', requireAuth, async (req, res) => {
+  try {
+    const up = await sbUpdate('streamers', { custom_bot_username: null, custom_bot_token: null, custom_bot_refresh: null, custom_bot_expires_at: null }, { twitch_id: req.session.user.id });
+    if (up && (up.code || up.message)) await sbUpdate('streamers', { custom_bot_username: null, custom_bot_token: null }, { twitch_id: req.session.user.id }); // por si aún no se corrió conectar_bot.sql
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── API Stream Manager ──
+// ── EventSub de Twitch ──
+const crypto = require('crypto');
+
+function verifyTwitchSignature(req) {
+  const msgId = req.headers['twitch-eventsub-message-id'];
+  const timestamp = req.headers['twitch-eventsub-message-timestamp'];
+  const signature = req.headers['twitch-eventsub-message-signature'];
+  if (!msgId || !timestamp || !signature) return false;
+  const hmac = 'sha256=' + crypto.createHmac('sha256', EVENTSUB_SECRET)
+    .update(msgId + timestamp + req.body)
+    .digest('hex');
+  return hmac === signature;
+}
+
+app.post('/webhook/twitch', (req, res) => {
+  if (!verifyTwitchSignature(req)) return res.status(403).send('Forbidden');
+  const body = JSON.parse(req.body.toString());
+  const type = req.headers['twitch-eventsub-message-type'];
+  if (type === 'webhook_callback_verification') return res.status(200).send(body.challenge);
+  if (type === 'notification') {
+    const eventType = body.subscription?.type;
+    const event = body.event;
+
+    // Manejar canje de puntos para sorteo
+    if (eventType === 'channel.channel_points_custom_reward_redemption.add') {
+      handleRewardRedemption(event).catch(e => console.error('[redemption]', e.message));
+    }
+
+    // Enviar evento al bot para otros eventos
+    const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+    fetch(botUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: eventType, event })
+    }).catch(() => {});
+  }
+  res.status(204).send();
+});
+
+// ══════════════════════════════════════════
+//  MEDIA ALERTS — audio/video al canjear puntos del canal
+//  El server solo empuja el aviso por SSE; el overlay carga el archivo directo desde Supabase Storage (CDN)
+// ══════════════════════════════════════════
+const alertConnections = {}; // { channelName: Set<res> } — overlays conectados por SSE
+
+function pushMediaAlert(channelName, alert) {
+  const conns = alertConnections[channelName];
+  if (!conns || !conns.size) { console.log(`[media-alerts] Sin overlays conectados en #${channelName}`); return false; }
+  const payload = `data: ${JSON.stringify(alert)}\n\n`;
+  conns.forEach(res => { try { res.write(payload); } catch(e) {} });
+  console.log(`[media-alerts] Alerta enviada a ${conns.size} overlay(s) de #${channelName}`);
+  return true;
+}
+
+// SSE — el overlay se conecta aquí y queda escuchando
+app.get('/api/media-alerts/events/:username', (req, res) => {
+  const channelName = req.params.username?.toLowerCase();
+  if (!channelName) return res.status(400).end();
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.write('data: {"type":"connected"}\n\n');
+  if (!alertConnections[channelName]) alertConnections[channelName] = new Set();
+  alertConnections[channelName].add(res);
+  const keepalive = setInterval(() => { try { res.write(': ping\n\n'); } catch(e) {} }, 25000);
+  req.on('close', () => {
+    clearInterval(keepalive);
+    alertConnections[channelName]?.delete(res);
+  });
+});
+
+// Subir archivo de audio/video a Supabase Storage (base64, máx 15MB — suficiente para clips de hasta ~40-50s)
+const MEDIA_ALERT_TYPES = { 'audio/mpeg':'mp3', 'audio/ogg':'ogg', 'audio/wav':'wav', 'video/mp4':'mp4', 'video/webm':'webm' };
+const MEDIA_ALERT_MAX_BYTES = 15 * 1024 * 1024;
+let alertsBucketReady = false;
+
+async function ensureAlertsBucket() {
+  if (alertsBucketReady) return;
+  try {
+    const created = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
+      method: 'POST', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'alerts', name: 'alerts', public: true, file_size_limit: MEDIA_ALERT_MAX_BYTES })
+    });
+    if (!created.ok) {
+      // Ya existía (posiblemente con el límite viejo de 5MB) — actualizarlo
+      await fetch(`${SUPABASE_URL}/storage/v1/bucket/alerts`, {
+        method: 'PUT', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ public: true, file_size_limit: MEDIA_ALERT_MAX_BYTES })
+      }).catch(() => {});
+    }
+  } catch(e) {}
+  alertsBucketReady = true;
+}
+
+app.post('/api/media-alerts/upload', requireAuth, express.json({ limit: '21mb' }), async (req, res) => {
+  try {
+    const { filename, mime, data } = req.body;
+    if (!filename || !mime || !data) return res.status(400).json({ error: 'Datos incompletos' });
+    const ext = MEDIA_ALERT_TYPES[mime];
+    if (!ext) return res.status(400).json({ error: 'Formato no soportado — usa MP3, OGG, WAV, MP4 o WebM' });
+    const buffer = Buffer.from(data, 'base64');
+    if (buffer.length > MEDIA_ALERT_MAX_BYTES) return res.status(400).json({ error: 'El archivo supera los 15MB' });
+
+    await ensureAlertsBucket();
+    const channelName = req.session.user.username?.toLowerCase() || req.session.user.id;
+    const safeName = `${Date.now()}_${filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`.slice(0, 80);
+    const path = `${channelName}/${safeName}`;
+
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/alerts/${path}`, {
+      method: 'POST', headers: { ...sbHeaders, 'Content-Type': mime, 'x-upsert': 'true' },
+      body: buffer
+    });
+    if (!up.ok) {
+      const err = await up.text();
+      console.error('[media-alerts] Upload error:', up.status, err.slice(0, 200));
+      return res.status(500).json({ error: 'Error al subir el archivo' });
+    }
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/alerts/${path}`;
+    res.json({ success: true, url: publicUrl, type: mime.startsWith('video') ? 'video' : 'audio' });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Guardar configuración de media alerts
+app.post('/api/media-alerts', requireAuth, async (req, res) => {
+  try {
+    const { media_alerts } = req.body;
+    if (!isValidObject(media_alerts)) return res.status(400).json({ error: 'Inválido' });
+    if (Array.isArray(media_alerts.alerts) && media_alerts.alerts.length > 20) {
+      return res.status(400).json({ error: 'Máximo 20 alertas por canal' });
+    }
+    await sbUpdate('streamers', { media_alerts }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Probar una alerta desde el dashboard
+app.post('/api/media-alerts/test', requireAuth, async (req, res) => {
+  try {
+    const { url, type, volume } = req.body;
+    const channelName = req.session.user.username?.toLowerCase();
+    pushMediaAlert(channelName, { type: 'alert', media_url: url, media_type: type, volume: volume ?? 80, redeemer: 'Prueba' });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Servir el overlay
+app.get('/overlay/alerts/:username', (req, res) => {
+  res.sendFile(path.join(__dirname, 'media-alerts-overlay.html'));
+});
+
+// ══════════════════════════════════════════
+//  RECOMPENSAS DE PUNTOS DE CANAL — crearlas desde Muffet y resolver sus canjes
+//  Twitch solo deja que una app administre las recompensas que ELLA misma creó (mismo Client-Id).
+//  Por eso solo las recompensas creadas por Muffet se pueden cumplir/reembolsar automáticamente.
+// ══════════════════════════════════════════
+
+// Una recompensa está "administrada por Muffet" si es la misma que Muffet creó para esa función
+function isManagedReward(cfg) {
+  return !!(cfg && cfg.reward_id && cfg.reward_id === cfg.managed_reward_id);
+}
+
+async function createTwitchReward(streamer, { title, cost, cooldownSec = 0, maxPerStream = 0 }) {
+  const token = await getFreshTwitchToken(streamer);
+  if (!token) return { ok: false, status: 401, message: 'sin token' };
+  const body = {
+    title, cost,
+    is_enabled: true,
+    background_color: '#8B5CF6',
+    // Deben quedar pendientes para que Muffet los pueda cumplir o reembolsar él mismo
+    should_redemptions_skip_request_queue: false,
+  };
+  if (cooldownSec > 0) { body.is_global_cooldown_enabled = true; body.global_cooldown_seconds = cooldownSec; }
+  if (maxPerStream > 0) { body.is_max_per_stream_enabled = true; body.max_per_stream = maxPerStream; }
+  const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${streamer.twitch_id}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return { ok: false, status: r.status, message: data.message || data.error || '' };
+  const reward = data.data?.[0];
+  if (!reward) return { ok: false, status: 502, message: 'Twitch no devolvió la recompensa' };
+  return { ok: true, reward: { id: reward.id, title: reward.title, cost: reward.cost, image: reward.image?.url_1x || reward.default_image?.url_1x || '' } };
+}
+
+function friendlyRewardError(status, message) {
+  const msg = String(message || '');
+  if (status === 401) return 'Tu sesión de Twitch no tiene permiso para crear recompensas — cierra sesión y vuelve a entrar con Twitch.';
+  if (status === 403) return 'Tu canal necesita ser afiliado o partner de Twitch para tener recompensas de puntos.';
+  if (/DUPLICATE/i.test(msg)) return 'Ya tienes una recompensa con ese nombre — elige otro.';
+  if (/TOO_MANY|maximum/i.test(msg)) return 'Llegaste al máximo de recompensas de Twitch (50) — borra alguna que no uses.';
+  return `Twitch no pudo crear la recompensa${msg ? `: ${msg}` : ''}`;
+}
+
+// Cumple (FULFILLED) o cancela (CANCELED → Twitch devuelve los puntos al viewer) un canje pendiente.
+// Si la recompensa no la creó Muffet, Twitch responde 403 y simplemente no se hace nada.
+async function settleRedemption(streamer, rewardId, redemptionId, status) {
+  if (!redemptionId) return false;
+  try {
+    const token = await getFreshTwitchToken(streamer);
+    if (!token) return false;
+    const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards/redemptions?id=${redemptionId}&broadcaster_id=${streamer.twitch_id}&reward_id=${rewardId}`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    });
+    if (!r.ok) { console.error(`[redemption] No se pudo marcar ${status} (${r.status}):`, (await r.text()).slice(0, 200)); return false; }
+    console.log(`[redemption] Canje ${redemptionId} → ${status}`);
+    return true;
+  } catch(e) { console.error('[redemption] settleRedemption error:', e.message); return false; }
+}
+
+app.post('/api/rewards/create', requireAuth, async (req, res) => {
+  try {
+    const { purpose, title, cost, cooldown_sec } = req.body || {};
+    if (!['raffle', 'primerin', 'media'].includes(purpose)) return res.status(400).json({ error: 'Propósito inválido' });
+    const cleanTitle = String(title || '').trim();
+    const cleanCost = parseInt(cost);
+    const cooldown = Math.max(0, parseInt(cooldown_sec) || 0);
+    if (!cleanTitle || cleanTitle.length > 45) return res.status(400).json({ error: 'El nombre debe tener entre 1 y 45 caracteres.' });
+    if (!Number.isInteger(cleanCost) || cleanCost < 1 || cleanCost > 1000000) return res.status(400).json({ error: 'El costo debe ser de 1 punto o más.' });
+    if (cooldown > 604800) return res.status(400).json({ error: 'El enfriamiento no puede pasar de 7 días.' });
+
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+
+    // Primerin: límite de 1 canje por stream, así solo gana el primero (Muffet confía en ese límite de Twitch)
+    const result = await createTwitchReward(streamer, {
+      title: cleanTitle, cost: cleanCost, cooldownSec: cooldown,
+      maxPerStream: purpose === 'primerin' ? 1 : 0,
+    });
+    if (!result.ok) {
+      console.error(`[rewards] No se pudo crear la recompensa para ${streamer.twitch_username}: ${result.status} ${result.message}`);
+      return res.status(result.status === 401 || result.status === 403 ? result.status : 400).json({ error: friendlyRewardError(result.status, result.message) });
+    }
+    console.log(`[rewards] ${streamer.twitch_username} creó la recompensa "${result.reward.title}" (${purpose})`);
+    res.json({ success: true, reward: result.reward });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+async function handleRewardRedemption(event) {
+  const broadcasterId = event.broadcaster_user_id;
+  const rewardId = event.reward?.id;
+  const username = event.user_name;
+  const redemptionId = event.id; // id del canje (para cumplirlo o reembolsarlo)
+  if (!broadcasterId || !rewardId || !username) return;
+
+  // Buscar el streamer por twitch_id
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${broadcasterId}&limit=1`, { headers: sbHeaders });
+  const data = await res.json();
+  const streamer = data?.[0];
+  if (!streamer) return;
+
+  const channelName = streamer.twitch_username?.toLowerCase();
+
+  // ── Media Alert (audio/video en overlay) ──
+  const mediaAlerts = streamer.media_alerts || {};
+  if (mediaAlerts.enabled !== false && Array.isArray(mediaAlerts.alerts)) {
+    const matched = mediaAlerts.alerts.find(a => a.reward_id === rewardId && a.media_url);
+    if (matched) {
+      const isProMedia = streamer.plan === 'pro' || streamer.plan === 'admin';
+      let delivered = false;
+      if (isProMedia) {
+        delivered = pushMediaAlert(channelName, { type: 'alert', media_url: matched.media_url, media_type: matched.media_type || 'audio', volume: matched.volume ?? 80, redeemer: username });
+        console.log(`[media-alerts] ${username} disparó "${matched.name || 'alerta'}" en #${channelName}`);
+      }
+      // Recompensa creada por Muffet: se cumple si la alerta llegó a un overlay; si no, se reembolsa
+      if (isManagedReward({ reward_id: matched.reward_id, managed_reward_id: matched.managed_reward_id })) {
+        await settleRedemption(streamer, rewardId, redemptionId, delivered ? 'FULFILLED' : 'CANCELED');
+      }
+      return;
+    }
+  } else if (Array.isArray(mediaAlerts.alerts)) {
+    // Alertas desactivadas: si la recompensa la administra Muffet, se reembolsa en vez de quitarle los puntos al viewer
+    const offAlert = mediaAlerts.alerts.find(a => a.reward_id === rewardId && isManagedReward({ reward_id: a.reward_id, managed_reward_id: a.managed_reward_id }));
+    if (offAlert) { await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED'); return; }
+  }
+
+  const configuredRaffleReward = streamer.raffle_settings?.reward_id;
+  const primerinConfig = streamer.primerin_config || {};
+  const configuredPrimerinReward = primerinConfig.mode === 'reward' ? primerinConfig.reward_id : null;
+  const primerinManaged = isManagedReward(primerinConfig);
+  const raffleManaged = isManagedReward(streamer.raffle_settings);
+
+  console.log(`[redemption] ${username} canjeó ${rewardId} en #${channelName} | sorteo: ${configuredRaffleReward||'ninguno'} | primerin: ${configuredPrimerinReward||'ninguno'}`);
+
+  // ── Canje de Primerin ──
+  if (configuredPrimerinReward && rewardId === configuredPrimerinReward) {
+    const isPro = streamer.plan === 'pro' || streamer.plan === 'admin';
+    if (!isPro) {
+      console.log(`[redemption] #${channelName} no es Pro — Primerin ignorado`);
+      if (primerinManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const usedToday = primerinConfig.used_today || {};
+    // En modo canje confiamos en el límite de Twitch (Max redemptions per stream)
+    const ranking = primerinConfig.ranking || {};
+    ranking[username.toLowerCase()] = (ranking[username.toLowerCase()] || 0) + 1;
+    const newConfig = { ...primerinConfig, ranking, used_today: { date: today, winner: username } };
+
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${broadcasterId}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ primerin_config: newConfig })
+    });
+
+    console.log(`[redemption] ✅ ${username} ganó Primerin en #${channelName} (${ranking[username.toLowerCase()]} victorias)`);
+
+    const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+    console.log(`[redemption] Notificando al bot en: ${botUrl}`);
+    fetch(botUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: process.env.BOT_SECRET || 'muffetbot-internal-2026',
+        type: 'primerin.redemption',
+        event: { channel: channelName, username, wins: ranking[username.toLowerCase()], message: primerinConfig.message || '' }
+      })
+    }).then(r => console.log(`[redemption] Bot respondió status: ${r.status}`))
+      .catch(e => console.error('[redemption] Error al notificar al bot:', e.message));
+    if (primerinManaged) await settleRedemption(streamer, rewardId, redemptionId, 'FULFILLED');
+    return;
+  }
+
+  // Primerin en modo comando pero con su recompensa todavía activa en Twitch: si la administra Muffet, se reembolsa
+  if (primerinConfig.reward_id && rewardId === primerinConfig.reward_id && rewardId !== configuredRaffleReward && primerinConfig.mode !== 'reward') {
+    console.log(`[redemption] Primerin de #${channelName} está en modo comando — canje de ${username} ignorado`);
+    if (primerinManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
+    return;
+  }
+
+  if (!configuredRaffleReward || rewardId !== configuredRaffleReward) return;
+
+  // Si el sorteo está configurado para entrar solo por comando, los canjes no cuentan
+  if (streamer.raffle_settings?.entry_mode === 'command') {
+    console.log(`[redemption] Sorteo de #${channelName} está en modo comando — canje de ${username} ignorado`);
+    if (raffleManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
+    return;
+  }
+
+  // Verificar que hay sorteo activo
+  const raffle = streamer.raffle_active || {};
+  if (!raffle.active) {
+    console.log(`[redemption] Sorteo no activo en #${channelName}`);
+    if (raffleManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
+    return;
+  }
+
+  const participants = raffle.participants || [];
+  if (participants.includes(username)) {
+    console.log(`[redemption] ${username} ya está en el sorteo`);
+    if (raffleManaged) await settleRedemption(streamer, rewardId, redemptionId, 'CANCELED');
+    return;
+  }
+
+  participants.push(username);
+  await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${broadcasterId}`, {
+    method: 'PATCH',
+    headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ raffle_active: { ...raffle, participants } })
+  });
+
+  console.log(`[redemption] ✅ ${username} agregado al sorteo de #${channelName} (${participants.length} participantes)`);
+  if (raffleManaged) await settleRedemption(streamer, rewardId, redemptionId, 'FULFILLED');
+
+  // Notificar en el chat via bot
+  const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+  fetch(botUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      secret: process.env.BOT_SECRET || 'muffetbot-internal-2026',
+      type: 'raffle.redemption',
+      event: { channel: channelName, username, count: participants.length }
+    })
+  }).catch(() => {});
+}
+
+async function getTwitchAppToken() {
+  const res = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${TWITCH_CLIENT_ID}&client_secret=${TWITCH_SECRET}&grant_type=client_credentials`, { method: 'POST' });
+  const data = await res.json();
+  return data.access_token;
+}
+
+// Solo se registran por EventSub las alertas que el bot realmente usa por ese camino.
+// Subs, regalos de subs y bits el bot los recibe directo del chat (tmi.js), no por EventSub —
+// registrarlos aquí exigiría permisos extra (channel:read:subscriptions, bits:read) y no aportaría nada.
+const EVENTSUB_LABELS = {
+  'channel.follow': 'Seguidores',
+  'channel.channel_points_custom_reward_redemption.add': 'Canjes de puntos',
+};
+
+// Registra las alertas en Twitch y devuelve qué pasó con cada una (ok / ya estaba activa / falló)
+async function registerEventSub(broadcasterId, appToken) {
+  const webhookUrl = `${BASE_URL}/webhook/twitch`;
+  const subs = [
+    { type: 'channel.follow', version: '2', condition: { broadcaster_user_id: broadcasterId, moderator_user_id: broadcasterId } },
+    { type: 'channel.channel_points_custom_reward_redemption.add', version: '1', condition: { broadcaster_user_id: broadcasterId } },
+  ];
+  const results = [];
+  for (const sub of subs) {
+    const label = EVENTSUB_LABELS[sub.type] || sub.type;
+    try {
+      const r = await fetch('https://api.twitch.tv/helix/eventsub/subscriptions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...sub, transport: { method: 'webhook', callback: webhookUrl, secret: EVENTSUB_SECRET } })
+      });
+      if (r.status === 202 || r.ok) { results.push({ type: sub.type, label, status: 'ok' }); continue; }
+      if (r.status === 409) { results.push({ type: sub.type, label, status: 'exists' }); continue; } // ya estaba registrada
+      const data = await r.json().catch(() => ({}));
+      const message = data.message || data.error || `HTTP ${r.status}`;
+      console.error(`[eventsub] ${sub.type} rechazada por Twitch (${r.status}): ${message}`);
+      results.push({ type: sub.type, label, status: 'failed', message });
+    } catch(e) {
+      console.error(`[eventsub] ${sub.type} error de red: ${e.message}`);
+      results.push({ type: sub.type, label, status: 'failed', message: e.message });
+    }
+  }
+  return results;
+}
+
+app.post('/api/eventsub/register', requireAuth, async (req, res) => {
+  try {
+    const appToken = await getTwitchAppToken();
+    if (!appToken) return res.status(502).json({ error: 'No se pudo conectar con Twitch' });
+    const results = await registerEventSub(req.session.user.id, appToken);
+    const failed = results.filter(r => r.status === 'failed');
+    res.json({ success: failed.length === 0, results, failed: failed.length });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── API Horario ──
+app.post('/api/schedule', requireAuth, async (req, res) => {
+  try {
+    const { stream_schedule } = req.body;
+    await sbUpdate('streamers', { stream_schedule }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Refrescar/obtener un access_token de Twitch válido para un streamer ──
+async function refreshTwitchToken(twitchId, refreshToken) {
+  try {
+    const res = await fetch('https://id.twitch.tv/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token', refresh_token: refreshToken,
+        client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET,
+      }).toString()
+    });
+    const data = await res.json();
+    if (!data.access_token) { console.error('[twitch-refresh] Sin access_token:', JSON.stringify(data)); return null; }
+    await sbUpdate('streamers', { access_token: data.access_token, refresh_token: data.refresh_token || refreshToken }, { twitch_id: twitchId });
+    return data.access_token;
+  } catch(e) { console.error('[twitch-refresh] error:', e.message); return null; }
+}
+
+async function getFreshTwitchToken(streamer) {
+  if (!streamer?.access_token) return null;
+  const check = await fetch('https://id.twitch.tv/oauth2/validate', { headers: { 'Authorization': `Bearer ${streamer.access_token}` } });
+  if (check.ok) return streamer.access_token;
+  if (!streamer.refresh_token) return null;
+  return refreshTwitchToken(streamer.twitch_id, streamer.refresh_token);
+}
+
+// ── API Último clip ──
+app.get('/api/clips/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=twitch_id,access_token,refresh_token&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    const streamer = data?.[0];
+    const token = await getFreshTwitchToken(streamer);
+    if (!token) return res.json([]);
+
+    const r = await fetch(`https://api.twitch.tv/helix/clips?broadcaster_id=${streamer.twitch_id}&first=4`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID }
+    });
+    const clipData = await r.json();
+    const clips = (clipData.data || []).map(c => ({
+      id: c.id, title: c.title,
+      url: c.url, thumbnail: c.thumbnail_url,
+      views: c.view_count, created: c.created_at,
+      duration: Math.round(c.duration)
+    }));
+    res.json(clips);
+  } catch(err) { res.json([]); }
+});
+app.get('/overlay/spotify/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=plan&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    if (!data?.[0] || (data[0].plan !== 'pro' && data[0].plan !== 'admin')) return proOnlyPage(res);
+    res.sendFile(path.join(__dirname, 'spotify-overlay.html'));
+  } catch(err) { res.status(500).send('Error'); }
+});
+
+app.get('/api/overlay/spotify/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    // Varios overlays/pestañas abiertos comparten una consulta cada 4 s (cuida a Supabase y los límites de Spotify)
+    const { payload, ts } = await ttlCache('spotify:' + username, 4000, async () => {
+      const streamer = await sbSelect('streamers', { twitch_username: username }, 'spotify_token,spotify_refresh,spotify_client_id,spotify_client_secret,spotify_config');
+      if (!streamer?.spotify_token) return { payload: { playing: false }, ts: Date.now() };
+
+      let token = streamer.spotify_token;
+      let r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (r.status === 401 && streamer.spotify_refresh) {
+        token = await refreshSpotifyToken(streamer.spotify_refresh, streamer.spotify_client_id, streamer.spotify_client_secret);
+        if (token) {
+          await sbUpdate('streamers', { spotify_token: token }, { twitch_username: username });
+          r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': `Bearer ${token}` } });
+        }
+      }
+      if (r.status === 204 || !r.ok) return { payload: { playing: false }, ts: Date.now() };
+      const data = await r.json();
+      if (!data.item) return { payload: { playing: false }, ts: Date.now() };
+      return {
+        ts: Date.now(),
+        payload: {
+          playing: true,
+          track: data.item.name,
+          artist: data.item.artists.map(a => a.name).join(', '),
+          album: data.item.album.name,
+          image: data.item.album.images?.[1]?.url || data.item.album.images?.[0]?.url || '',
+          progress_ms: data.progress_ms,
+          duration_ms: data.item.duration_ms,
+          is_playing: data.is_playing,
+          overlay_opacity: streamer.spotify_config?.overlay_opacity ?? 100,
+          bg_opacity: streamer.spotify_config?.bg_opacity ?? 75,
+          theme: streamer.spotify_config?.theme || 'classic',
+          layout: streamer.spotify_config?.layout === 'vertical' ? 'vertical' : 'horizontal',
+          cover: streamer.spotify_config?.cover === 'disc' ? 'disc' : 'square'
+        }
+      };
+    });
+    // Si la respuesta viene de la caché, el progreso se adelanta lo que pasó desde que se leyó
+    if (payload.playing && payload.is_playing) {
+      const elapsed = Date.now() - ts;
+      return res.json({ ...payload, progress_ms: Math.min((payload.progress_ms || 0) + elapsed, payload.duration_ms || Infinity) });
+    }
+    res.json(payload);
+  } catch(err) { res.json({ playing: false }); }
+});
+
+app.post('/api/youtube-music', requireAuth, async (req, res) => {
+  try {
+    const { youtube_music_config } = req.body;
+    if (!isValidObject(youtube_music_config)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { youtube_music_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── LEMON SQUEEZY CHECKOUT ──
+app.post('/api/checkout', requireAuth, async (req, res) => {
+  try {
+    const { variant_id } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+
+    const validVariants = [
+      process.env.LEMONSQUEEZY_VARIANT_MONTHLY,
+      process.env.LEMONSQUEEZY_VARIANT_QUARTERLY,
+      process.env.LEMONSQUEEZY_VARIANT_BIANNUAL,
+      process.env.LEMONSQUEEZY_VARIANT_ANNUAL,
+    ];
+    if (!validVariants.includes(String(variant_id))) return res.status(400).json({ error: 'Plan inválido' });
+
+    const checkoutRes = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.LEMONSQUEEZY_API_KEY}`,
+        'Content-Type': 'application/vnd.api+json',
+        'Accept': 'application/vnd.api+json',
+      },
+      body: JSON.stringify({
+        data: {
+          type: 'checkouts',
+          attributes: {
+            checkout_data: {
+              custom: { twitch_id: String(req.session.user.id) },
+            },
+            product_options: {
+              redirect_url: `https://muffet-dashboard.onrender.com/dashboard?upgraded=1`,
+            },
+          },
+          relationships: {
+            store: { data: { type: 'stores', id: String(process.env.LEMONSQUEEZY_STORE_ID) } },
+            variant: { data: { type: 'variants', id: String(variant_id) } },
+          },
+        },
+      }),
+    });
+
+    const checkoutData = await checkoutRes.json();
+    console.log('[LS Checkout]', JSON.stringify(checkoutData).slice(0,500));
+    const url = checkoutData.data?.attributes?.url;
+    if (!url) return res.status(500).json({ error: 'No se pudo crear el checkout' });
+    res.json({ url });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/cancel-subscription', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer?.lemon_subscription_id) return res.status(400).json({ error: 'No tienes suscripción activa' });
+
+    await fetch(`https://api.lemonsqueezy.com/v1/subscriptions/${streamer.lemon_subscription_id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${process.env.LEMONSQUEEZY_API_KEY}`, 'Accept': 'application/vnd.api+json' },
+    });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/mod-config', requireAuth, async (req, res) => {
+  try {
+    const { mod_config } = req.body;
+    await sbUpdate('streamers', { mod_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/live-announcement', requireAuth, async (req, res) => {
+  try {
+    const { live_announcement } = req.body;
+    if (!isValidObject(live_announcement)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { live_announcement }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/reset-command-stats', requireAuth, async (req, res) => {
+  try {
+    await sbUpdate('streamers', { command_stats: {} }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/points-clean-broadcaster', requireAuth, async (req, res) => {
+  try {
+    const username = req.session.user.username.toLowerCase();
+    const result = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${req.session.user.id}&select=viewer_points`, { headers: sbHeaders });
+    const data = await result.json();
+    const viewer_points = data?.[0]?.viewer_points || {};
+    delete viewer_points[username];
+    await sbUpdate('streamers', { viewer_points }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/primerin', requireAuth, async (req, res) => {
+  try {
+    const { primerin_config } = req.body;
+    if (!isValidObject(primerin_config)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { primerin_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/emojigame', requireAuth, async (req, res) => {
+  try {
+    const { emojigame_config } = req.body;
+    if (!isValidObject(emojigame_config)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { emojigame_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Subatón ──
+// Estilos del overlay del subatón. wolf/oso son exclusivos (se pueden habilitar a otros canales desde el panel admin con feature_flags.themes)
+const SUBATHON_THEMES = ['clasico', 'solo', 'neon', 'cyber', 'glass', 'arcade', 'fuego', 'wolf', 'oso'];
+function subathonThemeAllowed(theme, streamer) {
+  if (!SUBATHON_THEMES.includes(theme)) return false;
+  const u = String(streamer?.twitch_username || '').toLowerCase();
+  const flags = streamer?.feature_flags?.themes || [];
+  if (theme === 'wolf') return ['lordlonelywolf', 'elosoking1'].includes(u) || flags.includes('wolf');
+  if (theme === 'oso') return u === 'elosoking1' || flags.includes('oso');
+  return true;
+}
+
+app.post('/api/subathon-config', requireAuth, async (req, res) => {
+  try {
+    const { subathon_config } = req.body;
+    if (!isValidObject(subathon_config)) return res.status(400).json({ error: 'Inválido' });
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (streamer?.plan !== 'pro' && streamer?.plan !== 'admin') return res.status(403).json({ error: 'Función exclusiva de Pro' });
+    if (subathon_config.theme !== undefined && !subathonThemeAllowed(subathon_config.theme, streamer)) return res.status(400).json({ error: 'Ese estilo no está disponible para tu canal' });
+    const current = streamer?.subathon_config || {};
+    // Solo actualizar los campos de configuración — nunca pisar running/target_end_time/remaining_seconds desde aquí
+    const merged = { ...current, ...subathon_config };
+    await sbUpdate('streamers', { subathon_config: merged }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/subathon/control', requireAuth, async (req, res) => {
+  try {
+    const { action, minutes } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (streamer?.plan !== 'pro' && streamer?.plan !== 'admin') return res.status(403).json({ error: 'Función exclusiva de Pro' });
+    const cfg = streamer?.subathon_config || {};
+    let updated = { ...cfg };
+
+    if (action === 'start') {
+      const startSeconds = Math.max(0, (parseFloat(minutes) || 0) * 60);
+      updated = { ...cfg, running: true, target_end_time: new Date(Date.now() + startSeconds * 1000).toISOString(), remaining_seconds: 0, contributors: {} };
+    } else if (action === 'pause') {
+      if (cfg.running && cfg.target_end_time) {
+        const secondsLeft = Math.max(0, Math.floor((new Date(cfg.target_end_time).getTime() - Date.now()) / 1000));
+        updated = { ...cfg, running: false, remaining_seconds: secondsLeft };
+      }
+    } else if (action === 'resume') {
+      const secondsLeft = cfg.remaining_seconds || 0;
+      updated = { ...cfg, running: true, target_end_time: new Date(Date.now() + secondsLeft * 1000).toISOString() };
+    } else if (action === 'adjust') {
+      const deltaSeconds = (parseFloat(minutes) || 0) * 60;
+      if (cfg.running && cfg.target_end_time) {
+        const currentEnd = new Date(cfg.target_end_time).getTime();
+        const newEnd = Math.max(Date.now(), currentEnd + deltaSeconds * 1000);
+        updated = { ...cfg, target_end_time: new Date(newEnd).toISOString() };
+      } else {
+        updated = { ...cfg, remaining_seconds: Math.max(0, (cfg.remaining_seconds || 0) + deltaSeconds) };
+      }
+    } else if (action === 'stop') {
+      updated = { ...cfg, running: false, remaining_seconds: 0, target_end_time: null };
+    } else {
+      return res.status(400).json({ error: 'Acción inválida' });
+    }
+
+    await sbUpdate('streamers', { subathon_config: updated }, { twitch_id: req.session.user.id });
+    res.json({ success: true, subathon_config: updated });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Estado público — usado por el overlay y el panel del dashboard (polling, sin auth para que el overlay de OBS pueda leerlo)
+app.get('/api/subathon/state/:username', async (req, res) => {
+  try {
+    const u = req.params.username.toLowerCase();
+    const streamer = await ttlCache('subathon:' + u, 2000, () => sbSelect('streamers', { twitch_username: u }, 'subathon_config,twitch_username,feature_flags'));
+    const cfg = streamer?.subathon_config || {};
+    res.json({
+      enabled: !!cfg.enabled,
+      theme: subathonThemeAllowed(cfg.theme, streamer) ? cfg.theme : 'clasico',
+      running: !!cfg.running,
+      target_end_time: cfg.target_end_time || null,
+      remaining_seconds: cfg.remaining_seconds || 0,
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/overlay/subathon/:username', (req, res) => {
+  res.sendFile(path.join(__dirname, 'subathon-overlay.html'));
+});
+
+app.get('/api/counters/state/:username', async (req, res) => {
+  try {
+    const name = (req.query.name || '').toLowerCase().trim();
+    if (!name) return res.status(400).json({ error: 'Falta el nombre del contador' });
+    const u = req.params.username.toLowerCase();
+    const streamer = await ttlCache('counters:' + u, 2000, () => sbSelect('streamers', { twitch_username: u }, 'counters,twitch_username,feature_flags'));
+    const counters = streamer?.counters || {};
+    const theme = subathonThemeAllowed(String(req.query.theme || ''), streamer) ? String(req.query.theme) : 'clasico'; // mismos estilos que el subatón; los exclusivos se validan aquí
+    if (counters[name] === undefined) return res.json({ exists: false, value: null, name, theme });
+    res.json({ exists: true, value: counters[name], name, theme });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/overlay/counter/:username', (req, res) => {
+  res.sendFile(path.join(__dirname, 'counter-overlay.html'));
+});
+
+
+// Operaciones atómicas sobre UN contador: lee los datos frescos de la BD y cambia solo esa clave
+// (así el dashboard nunca pisa lo que el chat acaba de sumar)
+const COUNTER_NAME_RE = /^[a-z0-9_]{1,20}$/;
+const COUNTER_MAX = 999999999;
+const _counterOpLocks = new Map();
+function withCounterOpLock(key, fn) {
+  const prev = _counterOpLocks.get(key) || Promise.resolve();
+  const next = prev.catch(() => {}).then(fn);
+  _counterOpLocks.set(key, next);
+  next.finally(() => { if (_counterOpLocks.get(key) === next) _counterOpLocks.delete(key); }).catch(() => {});
+  return next;
+}
+app.get('/api/counters', requireAuth, async (req, res) => {
+  try {
+    const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'counters');
+    res.json({ counters: st?.counters || {} });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+app.post('/api/counters/op', requireAuth, async (req, res) => {
+  try {
+    const { name, op } = req.body || {};
+    const n = Number.isFinite(Number(req.body?.value)) ? Math.trunc(Number(req.body.value)) : 0;
+    const key = String(name || '').toLowerCase();
+    if (!COUNTER_NAME_RE.test(key)) return res.status(400).json({ error: 'Nombre inválido (solo letras, números y guion bajo, máx. 20)' });
+    if (!['create', 'add', 'set', 'reset', 'delete'].includes(op)) return res.status(400).json({ error: 'Operación inválida' });
+    const out = await withCounterOpLock('op:' + req.session.user.id, async () => {
+      const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'counters,twitch_username');
+      if (!st) return { status: 404, body: { error: 'Streamer no encontrado' } };
+      const counters = { ...(st.counters || {}) };
+      if (op === 'create') {
+        if (counters[key] !== undefined) return { status: 409, body: { error: 'Ese contador ya existe' } };
+        if (Object.keys(counters).length >= 50) return { status: 400, body: { error: 'Máximo 50 contadores' } };
+        counters[key] = 0;
+      } else if (counters[key] === undefined) {
+        return { status: 404, body: { error: 'Ese contador ya no existe (¿lo borraron desde el chat?)', counters } };
+      } else if (op === 'delete') delete counters[key];
+      else if (op === 'reset') counters[key] = 0;
+      else if (op === 'add') counters[key] = Math.min(COUNTER_MAX, Math.max(0, (Number(counters[key]) || 0) + n));
+      else if (op === 'set') counters[key] = Math.min(COUNTER_MAX, Math.max(0, n));
+      await sbUpdate('streamers', { counters }, { twitch_id: req.session.user.id });
+      _ttlCache.delete('counters:' + String(st.twitch_username || '').toLowerCase());
+      return { status: 200, body: { success: true, counters } };
+    });
+    res.status(out.status).json(out.body);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/counters', requireAuth, async (req, res) => {
+  try {
+    const { counters } = req.body;
+    if (!isValidObject(counters)) return res.status(400).json({ error: 'Inválido' });
+    const entries = Object.entries(counters);
+    if (entries.length > 50 || entries.some(([k, v]) => !COUNTER_NAME_RE.test(k) || !Number.isInteger(v) || v < 0 || v > COUNTER_MAX)) return res.status(400).json({ error: 'Contadores inválidos' });
+    await sbUpdate('streamers', { counters }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/counters-permission', requireAuth, async (req, res) => {
+  try {
+    const { counters_permission } = req.body;
+    const valid = ['everyone', 'sub', 'vip', 'mod'];
+    if (!Array.isArray(counters_permission) || !counters_permission.every(p => valid.includes(p))) {
+      return res.status(400).json({ error: 'Inválido' });
+    }
+    await sbUpdate('streamers', { counters_permission }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/system-commands', requireAuth, async (req, res) => {
+  try {
+    const { system_commands } = req.body;
+    if (!isValidObject(system_commands)) return res.status(400).json({ error: 'Inválido' });
+    await sbUpdate('streamers', { system_commands }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── APIs de Premios y Canjes ──
+app.get('/api/redeem-requests', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    res.json(streamer?.redeem_requests || []);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/redeem-requests/complete', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const requests = (streamer?.redeem_requests || []).map(r => r.id === id ? { ...r, status: 'completed' } : r);
+    await sbUpdate('streamers', { redeem_requests: requests }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/redeem-requests/delete', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const requests = (streamer?.redeem_requests || []).filter(r => r.id !== id);
+    await sbUpdate('streamers', { redeem_requests: requests }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/points-config', requireAuth, async (req, res) => {
+  try {
+    const { points_config } = req.body;
+    if (!isValidObject(points_config)) return res.status(400).json({ error: 'Config inválida' });
+    await sbUpdate('streamers', { points_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/points-ranking', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const points = streamer?.viewer_points || {};
+    const ranking = Object.entries(points)
+      .map(([username, xp]) => ({ username, xp }))
+      .sort((a, b) => b.xp - a.xp);
+    res.json(ranking);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// API — guardar credenciales de Spotify
+app.post('/api/spotify/credentials', requireAuth, async (req, res) => {
+  try {
+    const { spotify_client_id, spotify_client_secret } = req.body;
+    if (!spotify_client_id || !spotify_client_secret) return res.status(400).json({ error: 'Faltan credenciales' });
+    await sbUpdate('streamers', { spotify_client_id, spotify_client_secret }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Spotify OAuth ──
+app.get('/auth/spotify', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const clientId = streamer?.spotify_client_id;
+    if (!clientId) return res.redirect('/dashboard?spotify=nocreds');
+    const url = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(BASE_URL+'/auth/spotify/callback')}&scope=${encodeURIComponent(SPOTIFY_SCOPES)}`;
+    res.redirect(url);
+  } catch(err) { res.redirect('/dashboard?spotify=error'); }
+});
+
+app.get('/auth/spotify/callback', requireAuth, async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect('/dashboard?section=settings&spotify=error');
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const clientId = streamer?.spotify_client_id;
+    const clientSecret = streamer?.spotify_client_secret;
+    if (!clientId || !clientSecret) return res.redirect('/dashboard?spotify=nocreds');
+    const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+      },
+      body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: BASE_URL+'/auth/spotify/callback' }).toString()
+    });
+    const data = await tokenRes.json();
+    if (!data.access_token) return res.redirect('/dashboard?spotify=error');
+    await sbUpdate('streamers', { spotify_token: data.access_token, spotify_refresh: data.refresh_token }, { twitch_id: req.session.user.id });
+    res.redirect('/dashboard?spotify=success');
+  } catch(err) { res.redirect('/dashboard?spotify=error'); }
+});
+
+// Refresh Spotify token
+async function refreshSpotifyToken(refreshToken, clientId, clientSecret) {
+  if (!clientId || !clientSecret) return null;
+  const res = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+    },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken }).toString()
+  });
+  const data = await res.json();
+  return data.access_token || null;
+}
+
+// API — canción actual
+app.get('/api/spotify/current', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    let token = streamer?.spotify_token;
+    if (!token) return res.json({ connected: false });
+
+    // Refrescar token si expiró
+    let r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (r.status === 401 && streamer.spotify_refresh) {
+      token = await refreshSpotifyToken(streamer.spotify_refresh, streamer.spotify_client_id, streamer.spotify_client_secret);
+      if (token) {
+        await sbUpdate('streamers', { spotify_token: token }, { twitch_id: req.session.user.id });
+        r = await fetch('https://api.spotify.com/v1/me/player/currently-playing', { headers: { 'Authorization': `Bearer ${token}` } });
+      }
+    }
+    if (r.status === 204) return res.json({ connected: true, playing: false, queue: [] });
+    const data = await r.json();
+
+    // Obtener cola
+    let queue = [];
+    try {
+      const qr = await fetch('https://api.spotify.com/v1/me/player/queue', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (qr.ok) {
+        const qd = await qr.json();
+        queue = (qd.queue || []).slice(0, 8).map(t => ({
+          name: t.name,
+          artist: t.artists?.[0]?.name || '',
+          image: t.album?.images?.[1]?.url || t.album?.images?.[0]?.url || ''
+        }));
+      }
+    } catch(e) {}
+
+    res.json({
+      connected: true,
+      playing: true,
+      track: data.item?.name,
+      artist: data.item?.artists?.[0]?.name,
+      album_art: data.item?.album?.images?.[0]?.url,
+      progress_ms: data.progress_ms,
+      duration_ms: data.item?.duration_ms,
+      queue
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// API — listar recompensas de puntos del canal
+app.get('/api/raffle/rewards', requireAuth, async (req, res) => {
+  try {
+    const data = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${req.session.user.id}&limit=1`, { headers: sbHeaders });
+    const streamer = (await data.json())?.[0];
+    const token = await getFreshTwitchToken(streamer);
+    if (!token) return res.status(400).json({ error: 'Sin token de Twitch — reconecta tu cuenta' });
+    const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${streamer.twitch_id}&only_manageable_rewards=false`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': process.env.TWITCH_CLIENT_ID }
+    });
+    if (!r.ok) {
+      const err = await r.json();
+      console.error('[rewards] Twitch error:', r.status, JSON.stringify(err));
+      return res.status(400).json({ error: err.message || `Error Twitch ${r.status}`, details: err });
+    }
+    const rewards = await r.json();
+    res.json({ rewards: rewards.data || [] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// API — config de Spotify
+app.post('/api/spotify/config', requireAuth, async (req, res) => {
+  try {
+    const { spotify_config } = req.body;
+    await sbUpdate('streamers', { spotify_config }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// API — desconectar Spotify
+app.post('/api/spotify/disconnect', requireAuth, async (req, res) => {
+  try {
+    await sbUpdate('streamers', { spotify_token: null, spotify_refresh: null }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+app.get('/api/youtube-videos/:channelId', async (req, res) => {
+  try {
+    const { channelId } = req.params;
+    const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
+    const response = await fetch(rssUrl);
+    if (!response.ok) return res.json([]);
+    const xml = await response.text();
+    const videos = [];
+    const entries = xml.split('<entry>').slice(1);
+    for (const entry of entries.slice(0, 4)) {
+      const videoId = entry.match(/<yt:videoId>(.*?)<\/yt:videoId>/)?.[1];
+      const title = entry.match(/<title>(.*?)<\/title>/)?.[1]?.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>');
+      const published = entry.match(/<published>(.*?)<\/published>/)?.[1];
+      if (videoId && title) {
+        videos.push({
+          videoId, title,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          thumb: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
+          date: published ? new Date(published).toLocaleDateString('es-DO',{day:'numeric',month:'short',year:'numeric'}) : ''
+        });
+      }
+    }
+    res.json(videos);
+  } catch(err) { res.json([]); }
+});
+
+app.get('/overlay/sorteo/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=plan&limit=1`;
+    const result = await fetch(url, { headers: sbHeaders });
+    const data = await result.json();
+    if (!data?.[0] || (data[0].plan !== 'pro' && data[0].plan !== 'admin')) return proOnlyPage(res);
+    res.sendFile(path.join(__dirname, 'raffle-overlay.html'));
+  } catch(err) { res.status(500).send('Error'); }
+});
+
+app.get('/api/raffle/overlay/:username', async (req, res) => {
+  try {
+    const username = req.params.username.toLowerCase();
+    const streamer = await ttlCache('raffle:' + username, 1000, async () => {
+      const url = `${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&approved=eq.true&select=raffle_active,raffle_settings&limit=1`;
+      const result = await fetch(url, { headers: sbHeaders });
+      const data = await result.json();
+      return data?.[0] || null;
+    });
+    if (!streamer) return res.status(404).json({ error: 'Canal no encontrado' });
+    const raffle = streamer.raffle_active || {};
+    const join_cmd = streamer.raffle_settings?.join_cmd || '!entrar';
+    res.json({ active: !!raffle.active, prize: raffle.prize || '', participants: raffle.participants || [], winner: raffle.winner || null, join_cmd, entry_mode: streamer.raffle_settings?.entry_mode || null, reward_name: streamer.raffle_settings?.reward_name || '', overlay_opacity: streamer.raffle_settings?.overlay_opacity ?? 100, bg_opacity: streamer.raffle_settings?.bg_opacity ?? 75, spin_style: streamer.raffle_settings?.spin_style || 'ruleta', card_size: streamer.raffle_settings?.card_size || 'medium' });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+app.post('/api/raffle/add-participant', requireAuth, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username?.trim()) return res.status(400).json({ error: 'Nombre inválido' });
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    if (!streamer) return res.status(404).json({ error: 'Streamer no encontrado' });
+    const raffle = streamer.raffle_active || {};
+    if (!raffle.active) return res.status(400).json({ error: 'No hay sorteo activo' });
+    const participants = raffle.participants || [];
+    participants.push(username.trim());
+    await sbUpdate('streamers', { raffle_active: { ...raffle, participants } }, { twitch_id: req.session.user.id });
+    res.json({ ok: true, count: participants.length });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/raffle/settings', requireAuth, async (req, res) => {
+  try {
+    const { raffle_settings } = req.body;
+    await sbUpdate('streamers', { raffle_settings }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/raffle/status', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const raffle = streamer?.raffle_active || {};
+    res.json({ active: !!raffle.active, prize: raffle.prize || '', participants: raffle.participants || [] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/raffle/start', requireAuth, async (req, res) => {
+  try {
+    const { prize } = req.body;
+    const raffle_active = { active: true, prize: prize || 'Sorpresa', participants: [], started_at: new Date().toISOString() };
+    await sbUpdate('streamers', { raffle_active }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/raffle/end', requireAuth, async (req, res) => {
+  try {
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const raffle = streamer?.raffle_active || {};
+    const participants = raffle.participants || [];
+    if (!participants.length) return res.json({ success: true, winner: null });
+    const winner = participants[Math.floor(Math.random() * participants.length)];
+    await sbUpdate('streamers', { raffle_active: { active: false, prize: raffle.prize, winner, participants: [], ended_at: new Date().toISOString() } }, { twitch_id: req.session.user.id });
+
+    // Notificar al bot para que anuncie el ganador en el chat
+    const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+    fetch(botUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        secret: process.env.BOT_SECRET || 'muffetbot-internal-2026',
+        type: 'raffle.winner',
+        event: { broadcaster_user_login: streamer.twitch_username, winner, prize: raffle.prize }
+      })
+    }).catch(() => {});
+
+    res.json({ success: true, winner, prize: raffle.prize });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/raffle/cancel', requireAuth, async (req, res) => {
+  try {
+    await sbUpdate('streamers', { raffle_active: { active: false } }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/raffle/remove', requireAuth, async (req, res) => {
+  try {
+    const { username } = req.body;
+    const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const raffle = streamer?.raffle_active || {};
+    const participants = (raffle.participants || []).filter(p => p !== username);
+    await sbUpdate('streamers', { raffle_active: { ...raffle, participants } }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+app.post('/api/socials', requireAuth, async (req, res) => {
+  try {
+    const { social_links, youtube_channel_id, public_name } = req.body;
+    if (!isValidObject(social_links)) return res.status(400).json({ error: 'Links inválidos' });
+    const update = { social_links };
+    if (youtube_channel_id !== undefined) update.youtube_channel_id = youtube_channel_id || null;
+    if (public_name !== undefined) update.public_name = public_name || null;
+    await sbUpdate('streamers', update, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al guardar' });
+  }
+});
+
+app.post('/api/ai-toggle', requireAuth, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+    if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'Valor inválido' });
+    await sbUpdate('streamers', { ai_enabled: enabled }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/ai-toggle:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
+});
+
+app.post('/api/moderation', requireAuth, async (req, res) => {
+  try {
+    const { mod_enabled, banned_words, warn_message } = req.body;
+    if (typeof mod_enabled !== 'boolean') return res.status(400).json({ error: 'mod_enabled inválido' });
+    if (!isValidArray(banned_words)) return res.status(400).json({ error: 'banned_words inválido' });
+    if (!isValidString(warn_message, 500)) return res.status(400).json({ error: 'warn_message inválido' });
+    await sbUpdate('streamers', { mod_enabled, banned_words, warn_message }, { twitch_id: req.session.user.id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('POST /api/moderation:', err.message);
+    res.status(500).json({ error: 'Error al guardar' });
+  }
+});
+
+// ── CLIPS PARA SHOUTOUT OVERLAY ──
+app.get('/api/shoutout-clips/:username', async (req, res) => {
+  const target = req.params.username.toLowerCase();
+  try {
+    const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`, { method:'POST' });
+    const tokenData = await tokenRes.json();
+    const appToken = tokenData.access_token;
+    if (!appToken) return res.status(500).json({ error: 'Sin token' });
+
+    const userRes = await fetch(`https://api.twitch.tv/helix/users?login=${target}`,
+      { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
+    const userData = await userRes.json();
+    const user = userData?.data?.[0];
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Obtener config del canal que hace el shoutout (no del target)
+    const configChannel = (req.query.channel || target).toLowerCase();
+    const configRes = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${configChannel}&select=shoutout_config&limit=1`, { headers: sbHeaders });
+    const configData = await configRes.json();
+    const sConfig = configData?.[0]?.shoutout_config || {};
+    const selectionMode = sConfig.selection_mode || 'random';
+    const timeFrame = sConfig.time_frame || 'all';
+    const minDuration = sConfig.min_duration || 0;
+    const maxDuration = sConfig.max_duration || 60;
+    const quality = sConfig.quality || '1080';
+
+    // Parámetros de búsqueda según marco de tiempo
+    let clipsUrl = `https://api.twitch.tv/helix/clips?broadcaster_id=${user.id}&first=50`;
+    if (timeFrame === 'week') {
+      const d = new Date(); d.setDate(d.getDate() - 7);
+      clipsUrl += `&started_at=${d.toISOString()}`;
+    } else if (timeFrame === 'month') {
+      const d = new Date(); d.setMonth(d.getMonth() - 1);
+      clipsUrl += `&started_at=${d.toISOString()}`;
+    } else if (timeFrame === 'year') {
+      const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+      clipsUrl += `&started_at=${d.toISOString()}`;
+    }
+    // Más popular = ordenar por views (API ya los devuelve así por defecto)
+
+    const clipsRes = await fetch(clipsUrl,
+      { headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID } });
+    const clipsData = await clipsRes.json();
+    let clips = clipsData?.data || [];
+
+    // Filtrar por duración mínima y máxima
+    if (minDuration > 0) clips = clips.filter(c => c.duration >= minDuration);
+    clips = clips.filter(c => c.duration <= maxDuration);
+
+    if (!clips.length) return res.json({ user, clip: null, mp4Url: null, fallback: sConfig.fallback_profile || false });
+
+    // Selección: aleatorio o más popular (ya viene ordenado por views)
+    const clip = selectionMode === 'random'
+      ? clips[Math.floor(Math.random() * clips.length)]
+      : clips[0];
+
+    // Obtener URL autenticada del clip via GQL (método yt-dlp)
+    let mp4Url = null;
+    try {
+      const streamerRes = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${target}&select=access_token&limit=1`, { headers: sbHeaders });
+      const streamerData = await streamerRes.json();
+      const userToken = streamerData?.[0]?.access_token;
+
+      const gqlHeaders = {
+        'Client-Id': 'kimne78kx3ncx6brgo4mv6wki5h1ko',
+        'Content-Type': 'application/json'
+      };
+      // Sin autenticación primero — el token del usuario puede estar expirado
+
+      const gqlRes = await fetch('https://gql.twitch.tv/gql', {
+        method: 'POST',
+        headers: gqlHeaders,
+        body: JSON.stringify([{
+          query: `{
+            clip(slug: "${clip.id}") {
+              videoQualities { quality frameRate sourceURL }
+              playbackAccessToken(params: {platform: "web", playerBackend: "mediaplayer", playerType: "site"}) {
+                signature value
+              }
+            }
+          }`
+        }])
+      });
+      const gqlData = await gqlRes.json();
+      const clipData = gqlData?.[0]?.data?.clip;
+      const token = clipData?.playbackAccessToken;
+      const qualities = clipData?.videoQualities || [];
+
+      if (token && qualities.length) {
+        // Construir URL autenticada: sourceURL + sig + token (método yt-dlp)
+        const best = qualities.find(q => q.quality === quality) || qualities.find(q => q.quality === '720') || qualities[0];
+        if (best?.sourceURL) {
+          mp4Url = `${best.sourceURL}?sig=${token.signature}&token=${encodeURIComponent(token.value)}`;
+        }
+      }
+    } catch(e) { console.error('[GQL]', e.message); }
+
+    res.json({ user, clip, mp4Url, config: sConfig, overlay_opacity: sConfig.overlay_opacity ?? 100 });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── PROXY MP4 CLIP ──
+app.get('/api/clip-proxy', async (req, res) => {
+  const { url } = req.query;
+  if (!url || !url.includes('cloudfront.net')) return res.status(400).end();
+  try {
+    const range = req.headers.range;
+    const headers = {
+      'Referer': 'https://clips.twitch.tv/',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Origin': 'https://clips.twitch.tv'
+    };
+    if (range) headers['Range'] = range;
+    const videoRes = await fetch(url, { headers });
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'no-cache');
+    if (videoRes.headers.get('content-length')) res.setHeader('Content-Length', videoRes.headers.get('content-length'));
+    if (videoRes.headers.get('content-range')) res.setHeader('Content-Range', videoRes.headers.get('content-range'));
+    res.status(videoRes.status);
+    videoRes.body.pipe(res);
+  } catch(e) { res.status(500).end(); }
+});
+
+// ── CACHE DE CLIPS EN MEMORIA ──
+const clipCache = new Map(); // username -> { buffer, contentType, expires }
+
+app.post('/api/cache-clip', async (req, res) => {
+  const { username, url } = req.body;
+  if (!username || !url || !url.includes('cloudfront.net')) return res.status(400).json({ error: 'Inválido' });
+  try {
+    const videoRes = await fetch(url, {
+      headers: { 'Referer': 'https://clips.twitch.tv/', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+    });
+    if (!videoRes.ok) return res.status(videoRes.status).json({ error: 'No se pudo descargar' });
+    const buffer = Buffer.from(await videoRes.arrayBuffer());
+    clipCache.set(username, { buffer, expires: Date.now() + 120000 }); // expira en 2 min
+    console.log(`[Clip cache] ${username} — ${Math.round(buffer.length/1024)}KB`);
+    res.json({ ok: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/clip-cached/:username', (req, res) => {
+  const cached = clipCache.get(req.params.username);
+  if (!cached || Date.now() > cached.expires) return res.status(404).end();
+  res.setHeader('Content-Type', 'video/mp4');
+  res.setHeader('Content-Length', cached.buffer.length);
+  res.setHeader('Cache-Control', 'no-cache');
+  res.send(cached.buffer);
+});
+
+// ── PROXY VIDEO CLIP ──
+app.get('/api/clip-video', async (req, res) => {
+  const { url } = req.query;
+  if (!url || !url.includes('cloudfront.net')) return res.status(400).end();
+  try {
+    const videoRes = await fetch(url, {
+      headers: { 'Referer': 'https://clips.twitch.tv/', 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (!videoRes.ok) return res.status(videoRes.status).end();
+    res.setHeader('Content-Type', 'video/mp4');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    const range = req.headers.range;
+    if (range) res.setHeader('Content-Range', videoRes.headers.get('content-range') || '');
+    videoRes.body.pipe(res);
+  } catch(e) { res.status(500).end(); }
+});
+
+// ── SHOUTOUT CONFIG ──
+app.post('/api/shoutout-config', requireAuth, async (req, res) => {
+  const { shoutout_config } = req.body;
+  if (!isValidObject(shoutout_config)) return res.status(400).json({ error: 'Inválido' });
+  await sbUpdate('streamers', { shoutout_config }, { twitch_id: req.session.user.id });
+  res.json({ ok: true });
+});
+
+// ── SHOUTOUT CONFIG PÚBLICA (para el overlay) ──
+app.get('/api/shoutout-config-public/:username', async (req, res) => {
+  const username = req.params.username.toLowerCase();
+  try {
+    const data = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=shoutout_config&limit=1`, { headers: sbHeaders });
+    const rows = await data.json();
+    res.json({ config: rows?.[0]?.shoutout_config || {} });
+  } catch(e) { res.json({ config: {} }); }
+});
+
+// ── FOLLOWERS PARA OVERLAY ──
+// Token de app de Twitch: se reutiliza hasta que esté por vencer (antes se pedía uno nuevo en cada consulta)
+let _twitchAppTokenCache = { token: null, exp: 0 };
+async function getCachedTwitchAppToken() {
+  if (_twitchAppTokenCache.token && Date.now() < _twitchAppTokenCache.exp) return _twitchAppTokenCache.token;
+  const tokenRes = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`, { method: 'POST' });
+  const tokenData = await tokenRes.json();
+  if (!tokenData.access_token) return null;
+  _twitchAppTokenCache = { token: tokenData.access_token, exp: Date.now() + Math.max(60, (tokenData.expires_in || 3600) - 300) * 1000 };
+  return _twitchAppTokenCache.token;
+}
+app.get('/api/shoutout-followers/:username', async (req, res) => {
+  try {
+    const login = String(req.params.username || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30);
+    if (!login) return res.json({ followers: null });
+    const followers = await ttlCache('followers:' + login, 60000, async () => {
+      const appToken = await getCachedTwitchAppToken();
+      if (!appToken) return null;
+      const h = { 'Authorization': `Bearer ${appToken}`, 'Client-Id': process.env.TWITCH_CLIENT_ID };
+      const userData = await (await fetch(`https://api.twitch.tv/helix/users?login=${login}`, { headers: h })).json();
+      const userId = userData?.data?.[0]?.id;
+      if (!userId) return null;
+      const followData = await (await fetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${userId}`, { headers: h })).json();
+      return followData?.total ?? null;
+    });
+    res.json({ followers });
+  } catch(e) { res.json({ followers: null }); }
+});
+
+// ── SHOUTOUT OVERLAY ──
+// ── YouTube Player Overlay ──
+// Clave del overlay: firma del usuario. Va en el link de OBS (?key=...) y protege los endpoints que modifican la cola.
+// Los links viejos (sin key) siguen funcionando mientras YT_OVERLAY_ENFORCE no sea "1".
+const YT_OVERLAY_SECRET = process.env.OVERLAY_SECRET || SESSION_SECRET || EVENTSUB_SECRET;
+function ytOverlayKey(username) {
+  return crypto.createHmac('sha256', YT_OVERLAY_SECRET).update('yt-overlay:' + String(username || '').toLowerCase()).digest('hex').slice(0, 24);
+}
+function ytOverlayKeyOk(channel, key) {
+  if (key) {
+    const a = Buffer.from(String(key)), b = Buffer.from(ytOverlayKey(channel));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
+  return process.env.YT_OVERLAY_ENFORCE !== '1';
+}
+
+// Escritura segura de youtube_config (compare-and-swap con el campo "rev") — evita que dos cambios simultáneos se pisen
+async function ytMutate(channel, mutator, tries = 6) {
+  for (let i = 0; i < tries; i++) {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const d = await r.json();
+    if (!Array.isArray(d) || !d.length) return { ok: false, error: 'nochannel' };
+    const cur = d[0].youtube_config || {};
+    const draft = JSON.parse(JSON.stringify(cur));
+    const out = (await mutator(draft)) || {};
+    if (out.abort) return { ok: false, aborted: true, ...out };
+    draft.rev = (Number(cur.rev) || 0) + 1;
+    const filter = cur.rev == null ? 'youtube_config->>rev=is.null' : `youtube_config->>rev=eq.${encodeURIComponent(cur.rev)}`;
+    const pr = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&${filter}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Prefer': 'return=representation' },
+      body: JSON.stringify({ youtube_config: draft })
+    });
+    const pd = await pr.json().catch(() => null);
+    if (Array.isArray(pd) && pd.length) { delete ytCfgCache[channel]; return { ok: true, config: draft, ...out }; }
+    if (!pr.ok) throw new Error('supabase ' + pr.status);
+    await new Promise(res => setTimeout(res, 40 + Math.random() * 120));
+  }
+  return { ok: false, error: 'conflict' };
+}
+
+// Quita el primer elemento de la cola (o el indicado), lo manda al historial y libera el límite del usuario
+function ytRemoveFromQueue(cfg, index) {
+  const queue = Array.isArray(cfg.queue) ? cfg.queue : [];
+  if (index < 0 || index >= queue.length) return null;
+  const [removed] = queue.splice(index, 1);
+  cfg.queue = queue;
+  const limits = cfg.song_limits || {};
+  const who = removed.requestedBy;
+  if (who && Array.isArray(limits[who])) {
+    const i = limits[who].findIndex(s => s.uri === removed.videoId);
+    if (i >= 0) limits[who].splice(i, 1);
+    if (limits[who].length === 0) delete limits[who];
+  }
+  cfg.song_limits = limits;
+  return removed;
+}
+
+// Campos que el dashboard SÍ puede cambiar desde "Guardar" (nunca la cola, el historial ni los límites)
+const YT_SETTINGS_KEYS = ['enabled','max_per_user','max_duration_min','volume','card_width','card_height','card_position','accent_color','show_title','allowed','playlist_url','blacklist','playlist_shuffle','playlist_loop','display_mode','theme','layout','cover'];
+const YT_THEMES = ['classic','glass','pill','macos','minimal','line','synthwave','neoncity','cyber','glitch','retro','muffet','osoking','undertale','wolf','oso'];
+function ytSanitizeSettings(src) {
+  const out = {};
+  if (!isValidObject(src)) return out;
+  for (const k of YT_SETTINGS_KEYS) {
+    if (!(k in src)) continue;
+    const v = src[k];
+    switch (k) {
+      case 'enabled': case 'show_title': case 'playlist_shuffle': case 'playlist_loop': out[k] = !!v; break;
+      case 'display_mode': out[k] = v === 'card' ? 'card' : 'video'; break;
+      case 'theme': out[k] = YT_THEMES.includes(v) ? v : 'classic'; break;
+      case 'layout': out[k] = v === 'vertical' ? 'vertical' : 'horizontal'; break;
+      case 'cover': out[k] = v === 'disc' ? 'disc' : 'square'; break;
+      case 'max_per_user': out[k] = Math.max(1, Math.min(20, parseInt(v) || 3)); break;
+      case 'max_duration_min': out[k] = Math.max(1, Math.min(180, parseInt(v) || 10)); break;
+      case 'volume': out[k] = Math.max(0, Math.min(100, parseInt(v))); if (isNaN(out[k])) delete out[k]; break;
+      case 'card_width': out[k] = Math.max(200, Math.min(1920, parseInt(v) || 480)); break;
+      case 'card_height': out[k] = Math.max(120, Math.min(1080, parseInt(v) || 300)); break;
+      case 'card_position': if (isValidString(v, 30)) out[k] = v; break;
+      case 'accent_color': if (typeof v === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(v)) out[k] = v; break;
+      case 'allowed': if (isValidArray(v)) out[k] = v.filter(x => ['everyone','sub','vip','mod'].includes(x)).slice(0, 4); break;
+      case 'playlist_url': if (v === '' || v === null) out[k] = ''; else if (isValidString(v, 300) && !/[?&]list=(RDMM|LM|WL)/.test(v)) out[k] = v.trim(); break; // los mixes (RD), "me gusta" (LM) y "ver más tarde" (WL) no se pueden embeber
+      case 'blacklist': if (isValidArray(v)) out[k] = v.filter(x => isValidString(x, 200) && x.trim()).map(x => x.trim()).slice(0, 200); break;
+    }
+  }
+  return out;
+}
+
+// ── Playlist base leída desde el servidor (solo trae lo que está en la playlist; el overlay la reproduce video por video) ──
+const ytPlaylistCache = {};  // listId -> { ts, items, total, skipped }
+const ytPlaylistInfo = {};   // canal -> { ts, ok, error, total, skipped } (lo muestra el dashboard)
+const YT_PLAYLIST_TTL = 15 * 60 * 1000;
+function ytIsoSeconds(iso) {
+  const m = String(iso || '').match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  return m ? (parseInt(m[1] || 0) * 3600) + (parseInt(m[2] || 0) * 60) + parseInt(m[3] || 0) : 0;
+}
+async function ytFetchPlaylist(listId, apiKey) {
+  const base = 'https://www.googleapis.com/youtube/v3';
+  const ids = []; let pageToken = '', pages = 0, total = 0;
+  do {
+    const r = await fetch(`${base}/playlistItems?part=snippet,contentDetails,status&maxResults=50&playlistId=${encodeURIComponent(listId)}${pageToken ? '&pageToken=' + pageToken : ''}&key=${apiKey}`);
+    const d = await r.json();
+    if (d.error) return { error: d.error.errors?.[0]?.reason || d.error.status || 'api' };
+    for (const it of (d.items || [])) {
+      total++;
+      const vid = it.contentDetails?.videoId;
+      const t = it.snippet?.title;
+      if (!vid || t === 'Private video' || t === 'Deleted video' || it.status?.privacyStatus === 'private') continue;
+      ids.push(vid);
+    }
+    pageToken = d.nextPageToken || ''; pages++;
+  } while (pageToken && pages < 6);
+  const items = await ytVideoDetails(ids, apiKey);
+  if (items.error) return items;
+  return { items, total, skipped: total - items.length };
+}
+// Detalles de una lista de videos (solo los reproducibles en un overlay), en el orden recibido
+async function ytVideoDetails(ids, apiKey) {
+  const base = 'https://www.googleapis.com/youtube/v3';
+  const items = [];
+  for (let i = 0; i < ids.length; i += 50) {
+    const r = await fetch(`${base}/videos?part=snippet,contentDetails,status&id=${ids.slice(i, i + 50).join(',')}&key=${apiKey}`);
+    const d = await r.json();
+    if (d.error) return { error: d.error.errors?.[0]?.reason || d.error.status || 'api' };
+    for (const v of (d.items || [])) {
+      const sec = ytIsoSeconds(v.contentDetails?.duration);
+      const live = v.snippet?.liveBroadcastContent;
+      if (v.status?.embeddable === false) continue;
+      if (v.status?.privacyStatus && !['public', 'unlisted'].includes(v.status.privacyStatus)) continue;
+      if ((live && live !== 'none') || sec === 0) continue;
+      items.push({ videoId: v.id, title: v.snippet?.title || '', channelTitle: v.snippet?.channelTitle || '', durationSec: sec });
+    }
+  }
+  const pos = {}; ids.forEach((id, i) => pos[id] = i);
+  items.sort((a, b) => pos[a.videoId] - pos[b.videoId]);
+  return items;
+}
+app.get('/api/youtube/playlist', async (req, res) => {
+  const channel = String(req.query.channel || '').toLowerCase();
+  if (!channel) return res.json({ ok: false, error: 'canal' });
+  const note = (o) => { ytPlaylistInfo[channel] = { ts: Date.now(), ...o }; return res.json(o); };
+  try {
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) return note({ ok: false, error: 'nokey' });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
+    const d = await r.json();
+    const ycfg = d?.[0]?.youtube_config || {};
+    const url = ycfg.playlist_url || '';
+    const m = url.match(/[?&]list=([A-Za-z0-9_-]+)/);
+    if (!m) return note({ ok: false, error: 'sinplaylist' });
+    const listId = m[1];
+    if (/^(RDMM|LM|WL)/.test(listId)) return note({ ok: false, error: 'mix' });
+    if (/^RD/.test(listId)) {
+      // Mix de una canción: si el streamer lo "fijó" desde su navegador (con su sesión), se reproduce esa lista exacta; si no, lo arma YouTube
+      const snap = ycfg.mix_snapshot;
+      if (!(snap && snap.listId === listId && Array.isArray(snap.ids) && snap.ids.length)) return note({ ok: true, mix: true, listId });
+      const key = 'snap:' + listId + ':' + snap.ts;
+      let cs = ytPlaylistCache[key];
+      if (!cs) {
+        const items = await ytVideoDetails(snap.ids, apiKey);
+        if (items.error) return note({ ok: false, error: items.error });
+        cs = ytPlaylistCache[key] = { ts: Date.now(), items, total: snap.ids.length, skipped: snap.ids.length - items.length };
+      }
+      if (!cs.items.length) return note({ ok: false, error: 'vacia', total: cs.total, skipped: cs.skipped });
+      return note({ ok: true, listId, items: cs.items, total: cs.total, skipped: cs.skipped, fixed: true });
+    }
+    let c = ytPlaylistCache[listId];
+    if (!c || Date.now() - c.ts > YT_PLAYLIST_TTL) {
+      const f = await ytFetchPlaylist(listId, apiKey);
+      if (f.error) return note({ ok: false, error: f.error });
+      c = ytPlaylistCache[listId] = { ts: Date.now(), ...f };
+      const keys = Object.keys(ytPlaylistCache);
+      if (keys.length > 50) { keys.sort((x, y) => ytPlaylistCache[x].ts - ytPlaylistCache[y].ts).slice(0, keys.length - 50).forEach(k => delete ytPlaylistCache[k]); }
+    }
+    if (!c.items.length) return note({ ok: false, error: 'vacia', total: c.total, skipped: c.skipped });
+    note({ ok: true, listId, items: c.items, total: c.total, skipped: c.skipped });
+  } catch (e) { note({ ok: false, error: 'red' }); }
+});
+
+// Lectura de la config con caché corto (1.5 s): el overlay y el dashboard la piden cada pocos segundos y así no se golpea Supabase por cada petición
+const ytCfgCache = {}; // canal -> { ts, cfg }
+async function ytReadConfig(channel) {
+  const c = ytCfgCache[channel];
+  if (c && Date.now() - c.ts < 1500) return c.cfg;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=youtube_config&limit=1`, { headers: sbHeaders });
+  const d = await r.json();
+  const cfg = (Array.isArray(d) && d[0]?.youtube_config) || {};
+  ytCfgCache[channel] = { ts: Date.now(), cfg };
+  return cfg;
+}
+
+// Estado en vivo del reproductor (lo manda el overlay cada pocos segundos; vive en memoria)
+const ytLiveStatus = {}; // { canal: { ...estado, ts } }
+setInterval(() => { const lim = Date.now() - 10 * 60 * 1000; for (const k of Object.keys(ytLiveStatus)) if (ytLiveStatus[k].ts < lim) delete ytLiveStatus[k]; for (const k of Object.keys(ytCfgCache)) if (ytCfgCache[k].ts < lim) delete ytCfgCache[k]; }, 10 * 60 * 1000).unref();
+
+app.get('/overlay/youtube/:username', (req, res) => {
+  res.sendFile(path.join(__dirname, 'youtube-overlay.html'));
+});
+
+app.get('/api/youtube/config', async (req, res) => {
+  const channel = req.query.channel?.toLowerCase();
+  if (!channel) return res.json({ config: {} });
+  try { res.json({ config: await ytReadConfig(channel) }); } catch(e) { res.json({ config: {} }); }
+});
+
+app.get('/api/youtube/queue', async (req, res) => {
+  const channel = req.query.channel?.toLowerCase();
+  if (!channel) return res.json({ queue: [], config: {} });
+  try {
+    const cfg = await ytReadConfig(channel);
+    // ?lite=1 (overlay): sin historial, límites ni lista negra, que el overlay no usa
+    if (req.query.lite === '1') {
+      const { history, song_limits, blacklist, mix_snapshot, ...lite } = cfg;
+      lite.mix_ts = mix_snapshot?.ts || 0; // el overlay solo necesita saber si el mix fijado cambió
+      return res.json({ queue: cfg.queue || [], config: lite });
+    }
+    res.json({ queue: cfg.queue || [], config: cfg });
+  } catch(e) { res.json({ queue: [], config: {} }); }
+});
+
+// El overlay avisa que terminó (o se saltó) la canción
+app.post('/api/youtube/queue/next', async (req, res) => {
+  const channel = String(req.body?.channel || '').toLowerCase();
+  const { videoId } = req.body || {};
+  if (!channel) return res.json({ ok: false });
+  if (!ytOverlayKeyOk(channel, req.body?.key || req.query.key)) return res.status(403).json({ ok: false, error: 'key' });
+  try {
+    const r = await ytMutate(channel, (cfg) => {
+      const queue = cfg.queue || [];
+      if (!queue.length || queue[0].videoId !== videoId) return { abort: true, reason: 'nohead' };
+      const removed = ytRemoveFromQueue(cfg, 0);
+      const history = Array.isArray(cfg.history) ? cfg.history : [];
+      history.unshift({ ...removed, playedAt: new Date().toISOString() });
+      cfg.history = history.slice(0, 30);
+      return { remaining: (cfg.queue || []).length };
+    });
+    // Si ya no era la primera de la cola no es un error: otro proceso ya la quitó
+    res.json({ ok: r.ok || r.reason === 'nohead', remaining: r.remaining ?? null });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Limpiar flag force_next
+app.post('/api/youtube/queue/clearforce', async (req, res) => {
+  const channel = String(req.query.channel || req.body?.channel || '').toLowerCase();
+  if (!channel) return res.json({ ok: false });
+  if (!ytOverlayKeyOk(channel, req.query.key || req.body?.key)) return res.status(403).json({ ok: false, error: 'key' });
+  try {
+    const r = await ytMutate(channel, (cfg) => { if (!cfg.force_next) return { abort: true }; delete cfg.force_next; });
+    res.json({ ok: r.ok || !!r.aborted });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// El overlay manda su estado real (qué suena, tiempo, pausa) para mostrarlo en el dashboard
+app.post('/api/youtube/status', (req, res) => {
+  const channel = String(req.body?.channel || '').toLowerCase();
+  if (!channel) return res.json({ ok: false });
+  if (!ytOverlayKeyOk(channel, req.body?.key || req.query.key)) return res.status(403).json({ ok: false });
+  const b = req.body || {};
+  ytLiveStatus[channel] = {
+    ts: Date.now(),
+    state: ['playing','paused','buffering','idle'].includes(b.state) ? b.state : 'idle',
+    source: b.source === 'playlist' ? 'playlist' : (b.source === 'viewer' ? 'viewer' : null),
+    videoId: isValidString(b.videoId, 20) ? b.videoId : null,
+    title: isValidString(b.title, 300) ? b.title : null,
+    author: isValidString(b.author, 200) ? b.author : null,
+    current: Math.max(0, Number(b.current) || 0),
+    duration: Math.max(0, Number(b.duration) || 0),
+    volume: Math.max(0, Math.min(100, Number(b.volume) || 0)),
+  };
+  res.json({ ok: true });
+});
+
+app.get('/api/youtube/status', (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const st = ytLiveStatus[username.toLowerCase()];
+  const online = !!st && Date.now() - st.ts < 12000;
+  const pl = ytPlaylistInfo[username.toLowerCase()] || null;
+  res.json({ online, status: online ? st : null, lastSeen: st?.ts || null, playlist: pl ? { ok: pl.ok, mix: !!pl.mix, fixed: !!pl.fixed, error: pl.error || null, total: pl.total ?? null, skipped: pl.skipped ?? null } : null });
+});
+
+// Link del overlay con su clave (para copiar a OBS)
+app.get('/api/youtube/overlay-url', (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const u = username.toLowerCase();
+  res.json({ url: `${BASE_URL}/overlay/youtube/${u}?channel=${u}&key=${ytOverlayKey(u)}`, enforced: process.env.YT_OVERLAY_ENFORCE === '1' });
+});
+
+// Control de reproducción: pausar/reanudar/saltar/volumen
+app.post('/api/youtube/control', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const { action, value } = req.body || {};
+  if (!['pause','play','skip','volume'].includes(action)) return res.json({ ok: false, error: 'accion' });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      if (action === 'volume') {
+        const v = parseInt(value);
+        cfg.volume = Math.max(0, Math.min(100, isNaN(v) ? 0 : v));
+        // OJO: el volumen NO toca player_command_ts; si no, el overlay repetiría el último comando (ej. "saltar") y el video desaparece
+      } else {
+        cfg.player_command = action;
+        cfg.player_command_ts = Date.now();
+      }
+    });
+    res.json({ ok: r.ok });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// ── Spotify desde el dock: llamadas a la API del streamer (refresca el token si caducó) ──
+async function spotifyApi(username, method, urlPath, body) {
+  const st = await sbSelect('streamers', { twitch_username: username }, 'spotify_token,spotify_refresh,spotify_client_id,spotify_client_secret');
+  if (!st?.spotify_token) return { notConnected: true };
+  const call = (tok) => fetch('https://api.spotify.com/v1' + urlPath, { method, headers: body ? { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' } : { 'Authorization': `Bearer ${tok}` }, body: body ? JSON.stringify(body) : undefined });
+  let r = await call(st.spotify_token);
+  if (r.status === 401 && st.spotify_refresh) {
+    const tok = await refreshSpotifyToken(st.spotify_refresh, st.spotify_client_id, st.spotify_client_secret);
+    if (tok) { await sbUpdate('streamers', { spotify_token: tok }, { twitch_username: username }); r = await call(tok); }
+  }
+  return { r };
+}
+function spotifyConnected(channel) { // ¿tiene Spotify conectado? (cacheado 30 s)
+  return ttlCache('spotifyconn:' + channel, 30000, async () => {
+    const st = await sbSelect('streamers', { twitch_username: channel }, 'spotify_token');
+    return !!st?.spotify_token;
+  });
+}
+function spotifyDockState(channel) { // lo que suena en Spotify (cacheado 2.5 s; varios docks comparten la consulta)
+  return ttlCache('spotifydock:' + channel, 2500, async () => {
+    const x = await spotifyApi(channel, 'GET', '/me/player');
+    if (x.notConnected) return { connected: false };
+    const r = x.r;
+    if (r.status === 204) return { connected: true, active: false };
+    if (r.status === 401 || r.status === 403) return { connected: true, error: 'reconnect' };
+    if (!r.ok) return { connected: true, error: 'fail' };
+    const d = await r.json().catch(() => null);
+    if (!d) return { connected: true, active: false };
+    const it = d.item;
+    return {
+      connected: true, active: !!d.device, playing: !!d.is_playing,
+      track: it?.name || null, artist: it?.artists?.map(a => a.name).join(', ') || null,
+      image: it?.album?.images?.[1]?.url || it?.album?.images?.[0]?.url || '',
+      progress_ms: d.progress_ms || 0, duration_ms: it?.duration_ms || 0, ts: Date.now(),
+      repeat: d.repeat_state || 'off', volume: d.device?.volume_percent ?? null, volume_ok: d.device?.supports_volume !== false, device: d.device?.name || null
+    };
+  });
+}
+const SPOTIFY_DOCK_ACTIONS = { spotify_pause: ['PUT', '/me/player/pause'], spotify_play: ['PUT', '/me/player/play'], spotify_next: ['POST', '/me/player/next'], spotify_prev: ['POST', '/me/player/previous'] };
+// Tras un rato en pausa Spotify marca el dispositivo como inactivo (404): lo despertamos transfiriendo la reproducción al último dispositivo visible
+async function spotifyWake(channel) {
+  const x = await spotifyApi(channel, 'GET', '/me/player/devices');
+  if (x.notConnected || !x.r?.ok) return false;
+  const j = await x.r.json().catch(() => null);
+  const devs = (j?.devices || []).filter(d => d.id && !d.is_restricted);
+  const dev = devs.find(d => d.is_active) || devs.find(d => d.type === 'Computer') || devs[0];
+  if (!dev) return false;
+  const t = await spotifyApi(channel, 'PUT', '/me/player', { device_ids: [dev.id], play: true });
+  return !!t.r && (t.r.ok || t.r.status === 204);
+}
+async function spotifyDockControl(channel, action, value) {
+  let m = SPOTIFY_DOCK_ACTIONS[action];
+  if (action === 'spotify_restart') m = ['PUT', '/me/player/seek?position_ms=0'];
+  if (action === 'spotify_volume') {
+    const v = parseInt(value);
+    m = ['PUT', `/me/player/volume?volume_percent=${Math.max(0, Math.min(100, isNaN(v) ? 0 : v))}`];
+  }
+  if (!m) return { ok: false, error: 'accion' };
+  const x = await spotifyApi(channel, m[0], m[1]);
+  if (x.notConnected) return { ok: false, error: 'notconnected' };
+  let r = x.r;
+  if (r.status === 404 && (action === 'spotify_play' || action === 'spotify_next' || action === 'spotify_prev')) {
+    if (await spotifyWake(channel)) { _ttlCache.delete('spotifydock:' + channel); return { ok: true, woke: true }; }
+  }
+  if (action === 'spotify_restart' && (r.ok || r.status === 204)) await spotifyApi(channel, 'PUT', '/me/player/play'); // si estaba en pausa, que suene de nuevo
+  if (r.ok || r.status === 204) { _ttlCache.delete('spotifydock:' + channel); return { ok: true }; }
+  const body = await r.json().catch(() => null);
+  const reason = body?.error?.reason, msg = String(body?.error?.message || '');
+  if (r.status === 404) return { ok: false, error: 'nodevice' };
+  if (r.status === 401) return { ok: false, error: 'reconnect' };
+  if (r.status === 429) return { ok: false, error: 'rate' };
+  if (r.status === 403) return { ok: false, error: reason === 'PREMIUM_REQUIRED' ? 'premium' : (/scope/i.test(msg) ? 'scope' : 'forbidden') };
+  return { ok: false, error: 'fail' };
+}
+
+// ── Dock de OBS: panel de control para "Docks → Docks de navegador personalizados" ──
+// Su propia clave (distinta a la del overlay) va en el link del dock; se puede regenerar (dock_rev) si se filtra.
+function dockKey(channel, rev) {
+  return crypto.createHmac('sha256', YT_OVERLAY_SECRET).update(`dock:${String(channel || '').toLowerCase()}:${Number(rev) || 0}`).digest('hex').slice(0, 32);
+}
+async function dockAuth(channel, key) {
+  if (!channel || !isValidString(key, 80)) return null;
+  const cfg = await ytReadConfig(channel);
+  const a = Buffer.from(String(key)), b = Buffer.from(dockKey(channel, cfg.dock_rev));
+  return (a.length === b.length && crypto.timingSafeEqual(a, b)) ? cfg : null;
+}
+const _dockHits = {};
+function dockRateOk(channel) { // tope por canal: 40 acciones cada 10 s
+  const now = Date.now(), arr = (_dockHits[channel] || []).filter(t => now - t < 10000);
+  if (arr.length >= 40) { _dockHits[channel] = arr; return false; }
+  arr.push(now); _dockHits[channel] = arr; return true;
+}
+app.get('/dock/:channel', (req, res) => {
+  res.set({ 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex' });
+  res.sendFile(path.join(__dirname, 'dock.html'));
+});
+app.get('/api/dock/url', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const u = username.toLowerCase();
+  try {
+    const cfg = await ytReadConfig(u);
+    res.json({ ok: true, url: `${BASE_URL}/dock/${u}?key=${dockKey(u, cfg.dock_rev)}` });
+  } catch (e) { res.json({ ok: false }); }
+});
+app.post('/api/dock/regenerate', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const u = username.toLowerCase();
+  try {
+    const r = await ytMutate(u, (cfg) => { cfg.dock_rev = (Number(cfg.dock_rev) || 0) + 1; });
+    if (!r.ok) return res.json({ ok: false });
+    res.json({ ok: true, url: `${BASE_URL}/dock/${u}?key=${dockKey(u, r.config.dock_rev)}` });
+  } catch (e) { res.json({ ok: false }); }
+});
+app.get('/api/dock/:channel/state', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const channel = String(req.params.channel || '').toLowerCase();
+  try {
+    const cfg = await dockAuth(channel, req.query.key);
+    if (!cfg) return res.status(403).json({ ok: false, error: 'key' });
+    const st = ytLiveStatus[channel];
+    const online = !!st && Date.now() - st.ts < 12000;
+    const queue = (Array.isArray(cfg.queue) ? cfg.queue : []).slice(0, 25).map(q => ({
+      videoId: q.videoId, title: String(q.title || '').slice(0, 200), requestedBy: q.requestedBy || null, durationSec: q.durationSec || null
+    }));
+    let spotify = { connected: false };
+    try {
+      spotify = req.query.spotify === '1' ? await spotifyDockState(channel) : { connected: await spotifyConnected(channel) };
+    } catch (e) { spotify = { connected: true, error: 'fail' }; }
+    res.json({
+      ok: true, now: Date.now(), online, status: online ? st : null,
+      queue, total: (cfg.queue || []).length, volume: cfg.volume ?? 100,
+      shuffle: !!cfg.playlist_shuffle, loop: cfg.playlist_loop !== false, spotify
+    });
+  } catch (e) { res.status(500).json({ ok: false }); }
+});
+app.post('/api/dock/:channel/control', async (req, res) => {
+  const channel = String(req.params.channel || '').toLowerCase();
+  try {
+    const cfg0 = await dockAuth(channel, req.body?.key || req.query.key);
+    if (!cfg0) return res.status(403).json({ ok: false, error: 'key' });
+    if (!dockRateOk(channel)) return res.status(429).json({ ok: false, error: 'rate' });
+    const { action, value, videoId } = req.body || {};
+    if (typeof action === 'string' && action.startsWith('spotify_')) return res.json(await spotifyDockControl(channel, action, value));
+    if (!['pause', 'play', 'skip', 'volume', 'playnow', 'remove', 'clear'].includes(action)) return res.json({ ok: false, error: 'accion' });
+    if (action === 'remove' && !isValidString(videoId, 20)) return res.json({ ok: false, error: 'videoId' });
+    const r = await ytMutate(channel, (cfg) => {
+      if (action === 'volume') {
+        const v = parseInt(value);
+        cfg.volume = Math.max(0, Math.min(100, isNaN(v) ? 0 : v)); // el volumen no toca player_command_ts (si no, el overlay repetiría el último comando)
+      } else if (action === 'playnow') {
+        cfg.force_next = true;
+      } else if (action === 'clear') {
+        cfg.queue = []; cfg.song_limits = {}; cfg.force_next = false;
+        cfg.player_command = 'stop'; cfg.player_command_ts = Date.now();
+      } else if (action === 'remove') {
+        const idx = (cfg.queue || []).findIndex(q => q.videoId === videoId);
+        if (idx < 0) return { abort: true, reason: 'gone' };
+        const st = ytLiveStatus[channel];
+        const playingNow = idx === 0 && st && Date.now() - st.ts < 12000 && st.source === 'viewer' && st.videoId === videoId;
+        if (playingNow) { cfg.player_command = 'skip'; cfg.player_command_ts = Date.now(); return { skipped: true }; }
+        ytRemoveFromQueue(cfg, idx);
+      } else {
+        cfg.player_command = action; cfg.player_command_ts = Date.now();
+      }
+    });
+    res.json({ ok: r.ok || r.reason === 'gone', skipped: !!r.skipped });
+  } catch (e) { res.json({ ok: false }); }
+});
+
+// Reproducir ya la primera canción de la cola (salta la playlist base)
+app.post('/api/youtube/queue/playnow', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => { cfg.force_next = true; });
+    res.json({ ok: r.ok });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Quitar una canción concreta de la cola (libera el límite del usuario que la pidió)
+app.post('/api/youtube/queue/remove', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const { videoId } = req.body || {};
+  if (!isValidString(videoId, 20)) return res.json({ ok: false });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      const idx = (cfg.queue || []).findIndex(q => q.videoId === videoId);
+      if (idx < 0) return { abort: true, reason: 'gone' };
+      // Si es la que está sonando AHORA en el overlay, se usa "saltar" para que la detenga.
+      // Si solo está esperando (suena la playlist o el overlay está cerrado), se quita directo de la cola.
+      const st = ytLiveStatus[username.toLowerCase()];
+      const playingNow = idx === 0 && st && Date.now() - st.ts < 12000 && st.source === 'viewer' && st.videoId === videoId;
+      if (playingNow) { cfg.player_command = 'skip'; cfg.player_command_ts = Date.now(); return { skipped: true }; }
+      ytRemoveFromQueue(cfg, idx);
+    });
+    res.json({ ok: r.ok || r.reason === 'gone', skipped: !!r.skipped });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Vaciar la cola completa (libera todos los límites) — la canción que suena se detiene
+app.post('/api/youtube/queue/clear', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      cfg.queue = []; cfg.song_limits = {}; cfg.force_next = false;
+      cfg.player_command = 'stop'; cfg.player_command_ts = Date.now();
+    });
+    res.json({ ok: r.ok });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+app.post('/api/youtube/history/clear', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => { cfg.history = []; });
+    res.json({ ok: r.ok });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Volver a poner en cola una canción del historial (a nombre de quien la pidió, respetando que no esté repetida)
+app.post('/api/youtube/history/requeue', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const { videoId } = req.body || {};
+  if (!isValidString(videoId, 20)) return res.json({ ok: false });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      const item = (cfg.history || []).find(h => h.videoId === videoId);
+      if (!item) return { abort: true, reason: 'gone' };
+      const queue = cfg.queue || [];
+      if (queue.some(q => q.videoId === videoId)) return { abort: true, reason: 'dup' };
+      queue.push({ videoId: item.videoId, title: item.title, channelTitle: item.channelTitle, requestedBy: username.toLowerCase(), addedAt: Date.now(), durationSec: item.durationSec });
+      cfg.queue = queue;
+      return { position: queue.length };
+    });
+    res.json({ ok: r.ok, reason: r.reason || null, position: r.position || null });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// "Fijar mix": el dashboard lee la lista real del mix en el navegador del streamer (con su sesión de YouTube) y la guarda,
+// para que el overlay de OBS reproduzca exactamente esas canciones
+app.post('/api/youtube/mix-snapshot', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  const { listId, ids } = req.body || {};
+  if (!isValidString(listId, 60) || !/^RD[A-Za-z0-9_-]+$/.test(listId) || !isValidArray(ids)) return res.json({ ok: false, error: 'datos' });
+  const clean = [...new Set(ids.filter(x => typeof x === 'string' && /^[A-Za-z0-9_-]{11}$/.test(x)))].slice(0, 200);
+  if (!clean.length) return res.json({ ok: false, error: 'vacio' });
+  try {
+    const r = await ytMutate(username.toLowerCase(), (cfg) => { cfg.mix_snapshot = { listId, ids: clean, ts: Date.now() }; });
+    if (r.ok) ytPlaylistInfo[username.toLowerCase()] = { ts: Date.now(), ok: true, fixed: true, total: clean.length, skipped: 0 };
+    res.json({ ok: r.ok, count: clean.length });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+// Guardar ajustes — solo los campos permitidos; la cola, el historial y los límites nunca se tocan desde aquí
+app.post('/api/youtube/config', async (req, res) => {
+  const username = req.session?.user?.username;
+  if (!username) return res.status(401).json({ error: 'No autorizado' });
+  try {
+    const settings = ytSanitizeSettings(req.body?.youtube_config);
+    if (!Object.keys(settings).length) return res.json({ ok: false, error: 'vacio' });
+    const r = await ytMutate(username.toLowerCase(), (cfg) => {
+      Object.assign(cfg, settings);
+    });
+    res.json({ ok: r.ok });
+  } catch(e) { res.json({ ok: false }); }
+});
+
+app.get('/overlay/shoutout/:username', async (req, res) => {
+  try {
+    res.sendFile(path.join(__dirname, 'shoutout-overlay.html'));
+  } catch(e) { res.status(500).send('Error'); }
+});
+
+app.get('/api/shoutout/:username', async (req, res) => {
+  const username = req.params.username.toLowerCase();
+  try {
+    const data = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${username}&select=last_shoutout&limit=1`, { headers: sbHeaders });
+    const streamer = (await data.json())?.[0];
+    res.json(streamer?.last_shoutout || null);
+  } catch(e) { res.status(500).json(null); }
+});
+
+// ── 404 ──
+app.use((req, res) => {
+  res.status(404).send(`<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>SilklyBot — YouTube Player</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Mr+Dafoe&family=Orbitron:wght@500;700&family=VT323&family=Press+Start+2P&family=Cinzel:wght@700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MuffetBot — Página no encontrada</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
-*{margin:0;padding:0;box-sizing:border-box;}
-html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font-family:'Inter',sans-serif;}
-
-#scene{width:1920px;height:1080px;position:relative;}
-
-/* Overlay card */
-#overlay{
-  position:absolute;
-  display:none;
-  flex-direction:column;
-  background:#000;
-  border-radius:12px;
-  overflow:hidden;
-  box-shadow:0 8px 40px rgba(0,0,0,0.8);
-  transition:opacity 0.4s ease;
-  opacity:0;
-}
-#overlay.show{display:flex;opacity:1;}
-
-/* Video */
-#videoZone{flex:1;position:relative;background:#000;overflow:hidden;}
-#ytPlayer{width:100%;height:100%;} #ytPlayer iframe{width:100%!important;height:100%!important;}
-
-/* Info panel */
-#infoPanel{
-  background:rgba(0,0,0,0.92);
-  padding:10px 14px;
-  display:flex;align-items:center;gap:12px;
-  border-top:1px solid rgba(255,255,255,0.08);
-}
-#thumbWrap{flex-shrink:0;}
-#thumb{width:40px;height:40px;border-radius:6px;object-fit:cover;}
-#trackInfo{flex:1;min-width:0;}
-#trackName{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-#trackMeta{font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px;}
-#queueCount{font-size:10px;color:rgba(255,255,255,0.35);flex-shrink:0;}
-
-/* Progress */
-#progressBar{height:3px;background:rgba(255,255,255,0.1);}
-#progressFill{height:100%;background:#FF0000;width:0%;transition:width 0.5s linear;}
-
-
-/* Modo "solo título": sin video visible, tarjeta compacta (el reproductor sigue activo fuera de pantalla para que suene el audio) */
-#overlay.cardmode #videoZone{position:absolute;left:-3000px;top:0;width:320px;height:180px;flex:none;}
-#overlay.cardmode #thumb{width:52px;height:52px;}
-#overlay.cardmode #trackName{font-size:14px;}
-
-/* Title bar */
-#titleBar{
-  background:rgba(0,0,0,0.85);
-  padding:8px 14px;
-  border-bottom:2px solid #FF0000;
-  display:none;
-}
-#soTitle{font-size:14px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#FF0000;}
-
-/* ══════════ ESTILOS (se eligen en el dashboard; "classic" = el diseño de siempre) ══════════
-   Los estilos con diseño propio se inspiran en alejox/obs-music-player (MIT). */
-@property --c1r { syntax: '<number>'; inherits: true; initial-value: 40; }
-@property --c1g { syntax: '<number>'; inherits: true; initial-value: 40; }
-@property --c1b { syntax: '<number>'; inherits: true; initial-value: 48; }
-@property --c2r { syntax: '<number>'; inherits: true; initial-value: 18; }
-@property --c2g { syntax: '<number>'; inherits: true; initial-value: 18; }
-@property --c2b { syntax: '<number>'; inherits: true; initial-value: 24; }
-:root { transition: --c1r 1s, --c1g 1s, --c1b 1s, --c2r 1s, --c2g 1s, --c2b 1s; --skyline: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 60'><path d='M0 60V33h12V60zM12 60V8h8V60zM15 8v-8h2V8zM20 60V29h16V60zM27 29v-7h2V29zM38 60V27h8V60zM41 27v-7h2V27zM46 60V35h16V60zM62 60V5h16V60zM78 60V7h8V60zM87 60V33h14V60zM102 60V31h16V60zM109 31v-8h2V31zM118 60V36h12V60zM130 60V39h16V60zM148 60V8h18V60zM167 60V5h14V60zM182 60V27h12V60zM194 60V6h8V60zM204 60V14h12V60zM209 14v-4h2V14zM216 60V16h16V60zM223 16v-6h2V16zM232 60V16h14V60zM238 16v-9h2V16z'/></svg>"); }
-.deco, .deco i, .mac-dots, .eq-icon { position: absolute; pointer-events: none; }
-.deco, .deco i, .label, .mac-dots, .pill-btn, .eq-icon { display: none; }
-.deco { inset: 0; z-index: 0; overflow: hidden; }
-.label { align-items: center; gap: 5px; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 4px; }
-.label-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; display: inline-block; }
-.mac-dots span { width: 11px; height: 11px; border-radius: 50%; display: block; }
-.mac-dots span:nth-child(1) { background: #ff5f57; } .mac-dots span:nth-child(2) { background: #febc2e; } .mac-dots span:nth-child(3) { background: #28c840; }
-.pill-btn { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; align-items: center; justify-content: center; background: rgba(255,255,255,0.14); color: #fff; font-size: 13px; }
-.eq-icon { width: 14px; height: 14px; align-items: flex-end; gap: 2px; top: 12px; right: 14px; }
-.eq-icon i { display: block; width: 3px; background: rgba(255,255,255,0.85); border-radius: 1px; }
-.eq-icon i:nth-child(1) { height: 6px; } .eq-icon i:nth-child(2) { height: 13px; } .eq-icon i:nth-child(3) { height: 9px; }
-
-/* Base común de los estilos (todos menos classic) */
-#overlay[data-theme] #titleBar, #overlay[data-theme] #queueCount { display: none !important; }
-#overlay[data-theme] .label { display: flex; }
-#overlay[data-theme] #infoPanel { position: relative; overflow: hidden; background: transparent; border-top: none; gap: 16px; padding: 14px 20px 14px 14px; min-height: 100px; }
-#overlay[data-theme] .deco { display: block; }
-#overlay[data-theme] #infoPanel > :not(.deco):not(.mac-dots):not(.eq-icon) { position: relative; z-index: 1; }
-#overlay[data-theme] #thumb { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; }
-#overlay[data-theme] #trackInfo { min-width: 0; }
-#overlay[data-theme] #trackName { font-size: 15px; line-height: 1.25; margin-bottom: 3px; }
-#overlay[data-theme] #trackMeta { font-size: 12px; margin: 0 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#overlay[data-theme] #progressBar { height: 4px; border-radius: 2px; overflow: hidden; }
-#overlay[data-theme] #progressFill { border-radius: 2px; box-shadow: none; }
-#overlay[data-theme="glass"], #overlay[data-theme="pill"], #overlay[data-theme="macos"],
-#overlay[data-theme="synthwave"], #overlay[data-theme="neoncity"], #overlay[data-theme="cyber"], #overlay[data-theme="retro"],
-#overlay[data-theme="glitch"], #overlay[data-theme="line"], #overlay[data-theme="muffet"], #overlay[data-theme="osoking"], #overlay[data-theme="undertale"], #overlay[data-theme="minimal"] { border: none; }
-
-/* Colores de la portada (cristal, píldora, macOS) */
-#overlay[data-theme="glass"], #overlay[data-theme="pill"], #overlay[data-theme="macos"] {
-  background: linear-gradient(135deg, rgba(var(--c1r), var(--c1g), var(--c1b), 0.92), rgba(var(--c2r), var(--c2g), var(--c2b), 0.92));
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255,255,255,0.16);
-}
-#overlay[data-theme="glass"] .label, #overlay[data-theme="pill"] .label, #overlay[data-theme="macos"] .label { color: rgba(255,255,255,0.78); }
-#overlay[data-theme="glass"] #trackName, #overlay[data-theme="pill"] #trackName, #overlay[data-theme="macos"] #trackName { color: #fff; }
-#overlay[data-theme="glass"] #trackMeta, #overlay[data-theme="pill"] #trackMeta, #overlay[data-theme="macos"] #trackMeta { color: rgba(255,255,255,0.72); }
-#overlay[data-theme="glass"] #progressBar, #overlay[data-theme="pill"] #progressBar, #overlay[data-theme="macos"] #progressBar { background: rgba(255,255,255,0.22); }
-#overlay[data-theme="glass"] #progressFill, #overlay[data-theme="pill"] #progressFill, #overlay[data-theme="macos"] #progressFill { background: #fff !important; }
-#overlay[data-theme="glass"] #thumb { border-radius: 12px; }
-#overlay[data-theme="pill"] { border-radius: 999px; }
-#overlay[data-theme="pill"] #thumb { border: 2px solid rgba(255,255,255,0.35); }
-#overlay[data-theme="pill"] .pill-btn { display: flex; }
-#overlay[data-theme="macos"] { border-radius: 14px; }
-#overlay[data-theme="macos"] #infoPanel { padding-top: 24px; }
-#overlay[data-theme="macos"] .mac-dots { display: flex; gap: 6px; top: 9px; right: 12px; }
-#overlay[data-theme="macos"] #thumb { border: 2px solid rgba(255,255,255,0.3); }
-
-/* Minimal */
-#overlay[data-theme="minimal"] { background: rgba(34, 34, 36, 0.94); border-radius: 14px; box-shadow: 0 6px 22px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.06); }
-#overlay[data-theme="minimal"] #thumb { border: 2px solid rgba(255,255,255,0.85); }
-#overlay[data-theme="minimal"] #thumbWrap { position: relative; padding-right: 2px; }
-#overlay[data-theme="minimal"] #thumbWrap::after { content: ''; position: absolute; top: 4px; bottom: 4px; right: -9px; width: 1px; background: rgba(255,255,255,0.18); }
-#overlay[data-theme="minimal"] .label { color: rgba(255,255,255,0.55); }
-#overlay[data-theme="minimal"] #trackName { color: #fff; } #overlay[data-theme="minimal"] #trackMeta { color: rgba(255,255,255,0.6); }
-#overlay[data-theme="minimal"] #progressBar { background: rgba(255,255,255,0.16); } #overlay[data-theme="minimal"] #progressFill { background: #fff !important; }
-#overlay[data-theme="minimal"] .eq-icon { display: flex; }
-
-/* Synthwave */
-#overlay[data-theme="synthwave"] { background: rgba(18, 4, 34, 0.94); border: 2px solid #ff2bd6; box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 14px rgba(255, 43, 214, 0.55); }
-#overlay[data-theme="synthwave"] .deco { background: linear-gradient(to bottom, rgba(40, 6, 70, 0.6), rgba(90, 10, 90, 0.5)); }
-#overlay[data-theme="synthwave"] .deco .sun { display: block; width: 118px; height: 118px; left: 84px; top: -26px; border-radius: 50%; background: linear-gradient(to bottom, #ffd23f 10%, #ff7b2e 45%, #ff2a8a 80%); -webkit-mask: linear-gradient(#000 52%, transparent 52%), repeating-linear-gradient(to bottom, #000 0 7%, transparent 7% 11%); filter: drop-shadow(0 0 10px rgba(255, 90, 140, 0.6)); }
-#overlay[data-theme="synthwave"] .deco .grid { display: block; left: -40%; right: -40%; bottom: -2px; height: 55%; background: repeating-linear-gradient(90deg, rgba(255, 43, 214, 0.75) 0 1px, transparent 1px 26px), repeating-linear-gradient(0deg, rgba(255, 43, 214, 0.75) 0 1px, transparent 1px 13px); transform: perspective(90px) rotateX(48deg); transform-origin: bottom; -webkit-mask: linear-gradient(to top, #000 10%, transparent 95%); }
-#overlay[data-theme="synthwave"] #thumb { box-shadow: 0 0 0 3px #2b0a3d, 0 4px 16px rgba(0,0,0,.35); }
-#overlay[data-theme="synthwave"] #trackName { font-family: "Mr Dafoe", "Brush Script MT", cursive; font-weight: 400; font-size: 26px; line-height: 1.15; color: #ff3fdc; text-shadow: 0 0 10px rgba(255, 43, 214, 0.85); padding-right: 6px; }
-#overlay[data-theme="synthwave"] #trackMeta, #overlay[data-theme="synthwave"] .label { color: #35e0ff; }
-#overlay[data-theme="synthwave"] #trackMeta { text-shadow: 0 0 6px rgba(53, 224, 255, 0.6); }
-#overlay[data-theme="synthwave"] #progressBar { height: 6px; border: 1px solid rgba(255, 43, 214, 0.7); border-radius: 4px; background: rgba(255, 43, 214, 0.18); }
-#overlay[data-theme="synthwave"] #progressFill { background: #ff2bd6 !important; box-shadow: 0 0 8px #ff2bd6; }
-
-/* Neon City */
-#overlay[data-theme="neoncity"] { background: linear-gradient(115deg, rgba(14, 10, 52, 0.95), rgba(36, 10, 72, 0.95)); border: 1.5px solid rgba(160, 90, 255, 0.85); box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 14px rgba(140, 70, 255, 0.4); }
-#overlay[data-theme="neoncity"] .deco .sun { display: block; width: 104px; height: 104px; right: 40px; top: -6px; border-radius: 50%; background: linear-gradient(to bottom, #ff3f8e 20%, #ff7a45 75%); -webkit-mask: linear-gradient(#000 45%, transparent 45%), repeating-linear-gradient(to bottom, #000 0 8%, transparent 8% 12%); filter: drop-shadow(0 0 12px rgba(255, 70, 140, 0.55)); }
-#overlay[data-theme="neoncity"] .deco .city { display: block; right: 0; bottom: 18%; width: 62%; height: 68%; background: linear-gradient(to top, #120a2e, #2b145a); -webkit-mask: var(--skyline) right bottom / auto 100% repeat-x; }
-#overlay[data-theme="neoncity"] .deco .grid { display: block; right: 0; bottom: 0; width: 62%; height: 18%; background: repeating-linear-gradient(to bottom, rgba(255, 63, 216, 0.45) 0 1px, transparent 1px 4px), linear-gradient(to bottom, rgba(90, 30, 140, 0.6), transparent); }
-#overlay[data-theme="neoncity"] #thumb { box-shadow: 0 0 0 3px #ff3fd8, 0 0 16px rgba(255, 63, 216, 0.6); }
-#overlay[data-theme="neoncity"] #trackName { color: #ff4fe0; text-shadow: 0 0 8px rgba(255, 63, 216, 0.6); }
-#overlay[data-theme="neoncity"] #trackMeta, #overlay[data-theme="neoncity"] .label { color: #2fe0ff; }
-#overlay[data-theme="neoncity"] #progressBar { background: rgba(47, 224, 255, 0.25); }
-#overlay[data-theme="neoncity"] #progressFill { background: #ff3fd8 !important; box-shadow: 0 0 8px #ff3fd8; }
-
-/* Cyber */
-#overlay[data-theme="cyber"] { --cut: 16px; font-family: "Orbitron", "Eurostile", system-ui, sans-serif; border: 2px solid transparent;
-  background: linear-gradient(120deg, rgba(5, 12, 40, 0.96), rgba(20, 8, 50, 0.96)) padding-box, linear-gradient(115deg, #22d3ff, #3a6bff 50%, #ff2bd6) border-box;
-  border-radius: 0; box-shadow: none; clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); }
-#overlay[data-theme="cyber"] .deco .city { display: block; right: 0; bottom: 0; width: 60%; height: 80%; opacity: 0.35; background: linear-gradient(to top, #ff2bd6, #3a3bff 60%, #1a1f6b); -webkit-mask: var(--skyline) right bottom / auto 100% repeat-x; }
-#overlay[data-theme="cyber"] .deco .stripes { display: block; top: 8px; right: 26px; width: 46px; height: 5px; background: repeating-linear-gradient(115deg, #22d3ff 0 5px, transparent 5px 9px); }
-#overlay[data-theme="cyber"] #thumb { box-shadow: 0 0 0 2px #22d3ff, 0 0 14px rgba(34, 211, 255, 0.7); }
-#overlay[data-theme="cyber"] #trackName { font-size: 14px; letter-spacing: 0.02em; color: #eaf6ff; text-shadow: 0 0 8px rgba(34, 228, 255, 0.7); }
-#overlay[data-theme="cyber"] #trackMeta { font-size: 11px; color: #ff3fd8; text-shadow: 0 0 6px rgba(255, 63, 216, 0.6); }
-#overlay[data-theme="cyber"] .label { color: #22e4ff; letter-spacing: 0.14em; }
-#overlay[data-theme="cyber"] #progressBar { height: 5px; border-radius: 0; background: rgba(255, 43, 214, 0.25); } #overlay[data-theme="cyber"] #progressFill { border-radius: 0; background: #22e4ff !important; box-shadow: 0 0 8px #22e4ff; }
-
-/* Retro */
-#overlay[data-theme="retro"] { background: rgba(238, 228, 205, 0.97); border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 22px rgba(120, 90, 40, 0.35); --rainbow: #d8452f 0 20%, #ec8a2d 20% 40%, #f2c14b 40% 60%, #4aa36c 60% 80%, #2b6f9a 80%; }
-#overlay[data-theme="retro"] .deco { background: radial-gradient(circle at 18% 30%, rgba(140, 110, 60, 0.12), transparent 30%), radial-gradient(circle at 70% 80%, rgba(140, 110, 60, 0.1), transparent 35%), radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.3), transparent 30%), repeating-radial-gradient(circle at 40% 60%, rgba(90, 70, 40, 0.05) 0 1px, transparent 1px 4px); }
-#overlay[data-theme="retro"] .deco .stripes { display: block; top: 0; bottom: 0; right: 0; width: 44px; background: linear-gradient(90deg, var(--rainbow)); }
-#overlay[data-theme="retro"] #infoPanel { padding-right: 60px; }
-#overlay[data-theme="retro"] #thumb { box-shadow: 0 0 0 3px #1aa3a3, 0 4px 16px rgba(0,0,0,.35); }
-#overlay[data-theme="retro"] #trackName { color: #1c1a17; font-weight: 800; letter-spacing: -0.01em; } #overlay[data-theme="retro"] #trackMeta { color: #2c2925; font-weight: 600; }
-#overlay[data-theme="retro"] .label { color: #b0412c; }
-#overlay[data-theme="retro"] #progressBar { height: 7px; border-radius: 4px; border: 1.5px solid #1c1a17; background: transparent; } #overlay[data-theme="retro"] #progressFill { background: #1aa3a3 !important; }
-
-/* Glitch */
-#overlay[data-theme="glitch"] { background: rgba(18, 18, 20, 0.95); border-radius: 12px; font-family: "VT323", "Courier New", monospace; box-shadow: 0 6px 18px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,0.14); }
-#overlay[data-theme="glitch"] .deco { background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.45)); }
-#overlay[data-theme="glitch"] #thumb { box-shadow: -3px 0 0 rgba(255, 40, 80, 0.75), 3px 0 0 rgba(40, 230, 255, 0.75), 0 0 0 2px rgba(255, 255, 255, 0.7); animation: glitch-clip 5s steps(1) infinite -1.3s; }
-#overlay[data-theme="glitch"] #trackName { font-size: 22px; font-weight: 400; color: #f2f2f2; text-shadow: -2px 0 rgba(255, 40, 80, 0.85), 2px 0 rgba(40, 230, 255, 0.85); animation: glitch 4s steps(1) infinite; }
-#overlay[data-theme="glitch"] #trackMeta { font-size: 17px; color: #e6e6e6; text-shadow: -1px 0 rgba(255, 40, 80, 0.7), 1px 0 rgba(40, 230, 255, 0.7); }
-#overlay[data-theme="glitch"] .label { color: #50e6f0; font-size: 13px; font-weight: 400; }
-#overlay[data-theme="glitch"] #progressBar { border: 1px solid rgba(80, 220, 230, 0.7); height: 6px; border-radius: 0; background: rgba(80, 220, 230, 0.25); } #overlay[data-theme="glitch"] #progressFill { background: #50e6f0 !important; border-radius: 0; }
-@keyframes glitch-clip { 0%, 91%, 100% { clip-path: none; } 92% { clip-path: inset(10% 0 55% 0); } 94% { clip-path: inset(60% 0 8% 0); } }
-@keyframes glitch { 0%, 91%, 100% { transform: none; clip-path: none; } 92% { transform: translateX(-3px); clip-path: inset(10% 0 55% 0); } 94% { transform: translateX(3px); clip-path: inset(60% 0 8% 0); } 96% { transform: translateX(-1px); } }
-
-/* Line */
-#overlay[data-theme="line"] { background: #000; border: 2px solid #fff; border-radius: 18px; box-shadow: 0 6px 18px rgba(0,0,0,.4); }
-#overlay[data-theme="line"] #infoPanel { padding-left: 34px; padding-right: 34px; }
-#overlay[data-theme="line"] .deco .stripes, #overlay[data-theme="line"] .deco .grid { display: block; top: 22%; bottom: 22%; left: 10px; width: 10px; background: repeating-linear-gradient(-55deg, #fff 0 3px, transparent 3px 9px); }
-#overlay[data-theme="line"] .deco .grid { left: auto; right: 10px; }
-#overlay[data-theme="line"] #thumb { box-shadow: 0 0 0 3px #fff; }
-#overlay[data-theme="line"] #trackName { color: #fff; } #overlay[data-theme="line"] #trackMeta, #overlay[data-theme="line"] .label { color: rgba(255, 255, 255, 0.75); }
-#overlay[data-theme="line"] #progressBar { background: rgba(255, 255, 255, 0.18); } #overlay[data-theme="line"] #progressFill { background: #fff !important; }
-
-/* Telaraña (MuffetBot) */
-#overlay[data-theme="muffet"] { background: linear-gradient(135deg, rgba(36, 10, 58, 0.96), rgba(86, 22, 92, 0.96)); border-radius: 18px; box-shadow: 0 8px 26px rgba(0,0,0,.4), inset 0 0 0 1.5px rgba(197, 139, 255, 0.75), inset 0 0 18px rgba(197, 139, 255, 0.25); }
-#overlay[data-theme="muffet"] .deco .city { display: block; top: 0; right: 0; width: 86px; height: 86px; transform: scaleX(-1); background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='none' stroke='%23e0b3ff' stroke-width='1.2' stroke-linecap='round'><path d='M0 0L100 0M0 0L92 38M0 0L72 72M0 0L38 92M0 0L0 100'/><path d='M24 0Q21 21 0 24M46 0Q39 39 0 46M70 0Q58 58 0 70M94 0Q76 76 0 94'/></g></svg>") center / contain no-repeat; opacity: 0.5; }
-#overlay[data-theme="muffet"] .deco .grid { display: block; bottom: 0; left: 0; width: 70px; height: 70px; transform: scaleY(-1); background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g fill='none' stroke='%23e0b3ff' stroke-width='1.2' stroke-linecap='round'><path d='M0 0L100 0M0 0L92 38M0 0L72 72M0 0L38 92M0 0L0 100'/><path d='M24 0Q21 21 0 24M46 0Q39 39 0 46M70 0Q58 58 0 70M94 0Q76 76 0 94'/></g></svg>") center / contain no-repeat; opacity: 0.32; }
-#overlay[data-theme="muffet"] #thumb { border-radius: 16px; box-shadow: 0 0 0 2px #ff8cc8, 0 0 16px rgba(255, 110, 190, 0.55); }
-#overlay[data-theme="muffet"] #trackName { font-family: "Cinzel", "Inter", serif; font-size: 16px; font-weight: 700; color: #fff; text-shadow: 0 0 10px rgba(255, 140, 200, 0.55); }
-#overlay[data-theme="muffet"] #trackMeta { color: #e8c7ff; } #overlay[data-theme="muffet"] .label { color: #ff8cc8; }
-#overlay[data-theme="muffet"] #progressBar { height: 2px; background: rgba(255, 140, 200, 0.28); overflow: visible; margin-top: 6px; border-radius: 0; }
-#overlay[data-theme="muffet"] #progressFill { position: relative; background: #ff8cc8 !important; box-shadow: 0 0 6px #ff8cc8; }
-#overlay[data-theme="muffet"] #progressFill::after { content: "\1F577\FE0F"; position: absolute; right: -9px; top: -9px; font-size: 16px; line-height: 1; filter: invert(1) drop-shadow(0 0 4px rgba(255,140,200,.9)); }
-
-/* Rey Pixel (MuffetBot) */
-#overlay[data-theme="osoking"] { background: rgba(20, 16, 42, 0.96); border-radius: 0; margin: 4px; overflow: visible;
-  box-shadow: 0 -4px 0 0 #ffcc33, 0 4px 0 0 #ffcc33, -4px 0 0 0 #ffcc33, 4px 0 0 0 #ffcc33, 0 0 0 8px rgba(0,0,0,0.35); font-family: "Press Start 2P", "Courier New", monospace; }
-#overlay[data-theme="osoking"] .deco { background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 4px); }
-#overlay[data-theme="osoking"] .deco .stripes { display: block; right: 10px; top: 8px; width: 38px; height: 38px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><rect x='4' y='1' width='1' height='1' fill='%23ffcc33'/><rect x='7' y='0' width='2' height='2' fill='%23ffcc33'/><rect x='11' y='1' width='1' height='1' fill='%23ffcc33'/><rect x='4' y='2' width='8' height='2' fill='%23ffcc33'/><rect x='2' y='4' width='3' height='3' fill='%238a5a3b'/><rect x='11' y='4' width='3' height='3' fill='%238a5a3b'/><rect x='3' y='5' width='10' height='8' fill='%238a5a3b'/><rect x='6' y='9' width='4' height='3' fill='%23d7a97a'/><rect x='7' y='9' width='2' height='1' fill='%23111'/><rect x='5' y='7' width='1' height='1' fill='%23111'/><rect x='10' y='7' width='1' height='1' fill='%23111'/></svg>") center / contain no-repeat; image-rendering: pixelated; }
-#overlay[data-theme="osoking"] #infoPanel { padding-top: 26px; padding-right: 56px; }
-#overlay[data-theme="osoking"] #thumb { border-radius: 0; image-rendering: pixelated; box-shadow: 0 0 0 4px #ffcc33, 4px 4px 0 4px rgba(0,0,0,.45); }
-#overlay[data-theme="osoking"] #thumbWrap { position: relative; }
-#overlay[data-theme="osoking"] #thumbWrap::before { content: ""; position: absolute; top: -20px; left: 50%; margin-left: -16px; width: 32px; height: 22px; background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' shape-rendering='crispEdges'><rect x='0' y='1' width='2' height='2' fill='%23ffcc33'/><rect x='5' y='0' width='2' height='3' fill='%23ffcc33'/><rect x='10' y='1' width='2' height='2' fill='%23ffcc33'/><rect x='1' y='3' width='10' height='4' fill='%23ffcc33'/><rect x='2' y='4' width='1' height='1' fill='%23d9822b'/><rect x='5' y='4' width='2' height='1' fill='%23d9822b'/><rect x='9' y='4' width='1' height='1' fill='%23d9822b'/><rect x='1' y='7' width='10' height='1' fill='%23d9822b'/></svg>") center / contain no-repeat; z-index: 3; image-rendering: pixelated; }
-#overlay[data-theme="osoking"] .label { font-size: 7px; color: #ffcc33; letter-spacing: 0; margin-bottom: 8px; } #overlay[data-theme="osoking"] .label-dot { border-radius: 0; }
-#overlay[data-theme="osoking"] #trackName { font-size: 11px; line-height: 1.4; color: #fff; font-weight: 400; margin-bottom: 6px; }
-#overlay[data-theme="osoking"] #trackMeta { font-size: 8px; color: #b9a6ff; margin-bottom: 10px; }
-#overlay[data-theme="osoking"] #progressBar { height: 10px; border-radius: 0; background: repeating-linear-gradient(90deg, rgba(255,204,51,.16) 0 8px, transparent 8px 10px); }
-#overlay[data-theme="osoking"] #progressFill { border-radius: 0; background: repeating-linear-gradient(90deg, #ffcc33 0 8px, transparent 8px 10px) !important; transition: width 1s steps(8, end); }
-
-/* Diálogo retro (MuffetBot) */
-#overlay[data-theme="undertale"] { background: #000; box-shadow: inset 0 0 0 4px #fff; border-radius: 0; font-family: "VT323", "Courier New", monospace; }
-#overlay[data-theme="undertale"] #infoPanel { padding: 18px 22px 18px 18px; }
-#overlay[data-theme="undertale"] .deco { display: none !important; }
-#overlay[data-theme="undertale"] #thumb { border-radius: 0; border: 4px solid #fff; image-rendering: pixelated; }
-#overlay[data-theme="undertale"] .label { font-size: 15px; font-weight: 400; color: #fff; letter-spacing: 0.06em; }
-#overlay[data-theme="undertale"] .label-dot { width: 10px; height: 9px; border-radius: 0; background: #ff1f2d; clip-path: polygon(0 20%, 20% 20%, 20% 0, 40% 0, 40% 20%, 60% 20%, 60% 0, 80% 0, 80% 20%, 100% 20%, 100% 60%, 80% 60%, 80% 80%, 60% 80%, 60% 100%, 40% 100%, 40% 80%, 20% 80%, 20% 60%, 0 60%); }
-#overlay[data-theme="undertale"] #trackName { font-size: 24px; font-weight: 400; color: #fff; line-height: 1.05; }
-#overlay[data-theme="undertale"] #trackName::before { content: "* "; }
-#overlay[data-theme="undertale"] #trackMeta { font-size: 19px; color: #ffe94d; }
-#overlay[data-theme="undertale"] #progressBar { height: 14px; border-radius: 0; background: #b3001b; } #overlay[data-theme="undertale"] #progressFill { border-radius: 0; background: #ffe94d !important; }
-
-/* ══════════ Exclusivo de Wolf: glitch + lobo con corona, rojo sangre y morado ══════════ */
-#overlay[data-theme="wolf"] { --track: rgba(255, 26, 46, 0.22); background: rgba(12, 10, 14, 0.95); border: 1px solid rgba(255, 26, 46, 0.55); border-radius: 12px; font-family: "VT323", "Courier New", monospace; box-shadow: 0 6px 18px rgba(0,0,0,.45), inset 0 0 18px rgba(255, 26, 46, 0.16); }
-#overlay[data-theme="wolf"] #infoPanel { padding: 22px 18px 14px 16px; }
-#overlay[data-theme="wolf"] .deco { background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.045) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.5)); }
-#overlay[data-theme="wolf"] .deco .grid { display: block; left: -8px; top: 50%; width: 128px; height: 128px; margin-top: -64px; border-radius: 50%; background: radial-gradient(circle closest-side at 56% 50%, transparent 97%, #a8001b 99%); opacity: 0.9; }
-#overlay[data-theme="wolf"] .deco .city { display: block; right: 12px; top: 50%; width: 62px; height: 80px; margin-top: -40px; transform: scaleX(-1); background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKsAAADcCAMAAAA4EaFSAAABJGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGAycHRxcmUSYGDIzSspCnJ3UoiIjFJgP8/AxsDMAAaJycUFjgEBPiB2Xn5eKgMG+HaNgRFEX9YFmYUpjxdwJRcUlQDpP0BslJJanMzAwGgAZGeXlxQAxRnnANkiSdlg9gYQuygkyBnIPgJk86VD2FdA7CQI+wmIXQT0BJD9BaQ+Hcxm4gCbA2HLgNglqRUgexmc8wsqizLTM0oUDC0tLRUcU/KTUhWCK4tLUnOLFTzzkvOLCvKLEktSU4BqIe4DA0GIQlCIaQA1WmiS6G+CABQPENbnQHD4MoqdQYghQHJpURmUychkTJiPMGOOBAOD/1IGBpY/CDGTXgaGBToMDPxTEWJqhgwMAvoMDPvmAADAxk/9GlU2EAAAAJBQTFRFGgYI3NnSAAAAXk4NAQEAjo2NCgoKUwcHmwEB9csh0AAA1bEh9dhf8+alY2Bcr5EaOwZD////wL26XFxcQhBJh28RgH9/hIF0oaGhOElJv8C8w7R7AAAAJSUl19TUAwICGBcXSklJl5aWbWxs9fTyPDIIpqWl6ejoNzc3/AAAQzgJV1ZWdHNzMSgHtrW178YmMFCAMgAAADB0Uk5T7f6h/l7+Jf///v/+//7//v8B/wX//f76BP//+wD+//3+/v7+//7+//7//v7+/v7+bdN4cwAAF0FJREFUeNrVnYl6o7i2hQUGnEpq7uGce29hCXBAZcD1/m93tTVLSCDbuPocvu6uIZ3kz/Lag7YERj+efVWo2OkroaezIoz/W1gRRrj472DN8eFtL2H3Zi3kvxp1/vjxL5z/B7Hm8mWuEMPKzWteYPQx+/VGcPWPstrRXWD5MiNMMFyF/vu3LPv1YSdh0d1KGvUqzBARV7WuBWwl//7Lp/OnD79+zbsIm8aK/BxZAVCuQ32+YP7i17WERRoVWD98sYQtUPVUVgArvKSpYXNMLu/v7E+Y1Bo2h//nr0/n7PyR6WqELayf8TmsOf/2lftnkK/i3/2dXTOWqHUtLMuy1cdzJliVsIX4tKeyspdztmjlt+TGhA8BKxO2rm1YfAFUqeuvd2Zv/WnFU2OL5cmLocXOxVEvxKAKF8wfM5A1A1IQFiH9GdoERfUE1gIT8ToDbe6gkndhASIVJeIX9ItxnhXrrw8X+3MqGWW3WTc1Z3H5Lu+gjYvKzaocgEnTYC4seQNQ9s8nwfrrzf6cXJu+egIrN4GijToAN91Uw2/xAVIAZ/0ghT1Yn4SE5+f5JmFTWSsloEc7Ow4gY1dOQtjMY3WFZVkCI/a1nJyw5d7kuoUk1vvlMhNj1ovlAIKbcSp7yoX9l2T9qFgdYeGnvLCLWL3DpnuTWQsZRJzW1fWCpANA1rblwuJZ+lWzQgtjuQBIL4d3jDTpZuJN7weUCRjbbKeBWTmABVTdtW0rhf2/M1yZ0fXXwRb1XcCKFqxISrzprLkyAbzkzoupAosRN8DaCWE/mvTKSN/+mt0XA0gPBxZdVW7H3C6sJrpmLxUoWeua0mZq21JEF08FkvXt4LwSgpWhHi7uV6p26gl1dPmoRlZaY9q3LeH14PJJpYE3h0jG40WZYJF4d2AtdIkKoQpZMSHasIdMsvoZQMAKVv9F2qvXlia4kIADhKzsP3hq+5GbgGQyDfis2q/8cj9U7MSa68wfkRV+j5u+7UTB/R5jdWDdr6Z4qqLI8+J+1kJZjQRlpTwfkFoGV40/q/R68VnRxbB69i84ZVDkm9ZbIrpmVwrZsQpp4belCq5ZpYGFw2fNOiMcvsgyg93EWnBBXMfqMlArhce+pCJrfYqxKgvMIUgyzzNPjI+tY1WKnZeyclz4L6YyuJjCMmURvEgEIVRJCb6A71A8xqqiywirZZWoDJu0/aQMK1hjoeX9DKzvupjSWDw4H9DRNftlQPbadcOSQdfL4JojrMoCoVaYt53sp8gfnmXo2kXc6qqXBZRS0vUiuFgT+zHEqrLAHGGFxg09Pndh0eU4VspKZP9K4WpKWbmYYeWCe8EUjCx0MQ1H9TirbmCEsHp4IZmPHHbSwfX5Yyi2lAUWIfeudSj2mGfpznBGs5kIyGxVc1TayX67xu8f3t4Y7duXvw4mjyLVDeAIa6yFuZUVGphZvVKkti+iWEeoXMKwv77gA6P9wIFlT6WywIyDfg3H1V1zQrPusqcXqswqVhVcb+DVL7/exDyD9avvCKmOkASKGZcA7TXTzE10+bJCpyVZVXAdDlAl3pgVGO6BX5c5nLHIalzdxVqZzrD2LWCxjthEHSNmvzm8SVYp64xDM5H3lbbw9lmxjC5fVrAAErDg18kdbxE8f/nisqJgciUrS4PbWXntmheyytZF5gHZFuo0gS/KAod34QFv8cJz6/yO1paHd8zg+Rji3ZdVtVk8v6rg0h+bP3z4oljVwnAmi2XNvLqIuYOVRRd0nXXAroK19FkJfv/y9pdknfUa9mA8u14E7metrOXAkrWmMCNwWeVSe8EKuMikq/eNYcY9+zCmEwix1pBeZTGwRscyhR4uDio3BZoP0LJeyMZA615WEmAV7TafE7V+HqhNFM0eK6jLWC9oY+xyO2uRFyFZa75C4qwQWjK/GsnZxxgSkW7wWQ8i31Y7slYwNsUoJCufvsNfEzqx2CprvwCzrARQRKWoha7bWx7prN8YKOulhfsWqDURq0NCKMw1y0VR4xdkV4SdUFOsCdteyXPtAmHKGn6zfxG4+G5s0/2t2gGnHAAve6WtWfNssZKEaXzi/hbzaFP2fU/JKiv4AObFEw5+cD68u82AtMJlpbm6kZWRkrG9MtSJqIaEhHAJLGfHsSwDH4XIm8048yJXbIL2PWlDBiX4FJGxv/asH+mobP4I7KwFxcV0HLs65Gfen4i2B4xwUCsFcoEhbMpW4iYr82lTXvuyY0vUxnzb48/XEC1hso4E12FWvf6ZESGmHUAkbetog7XKMW2vbTc28JUp1YGC0c+fL3xWoocmStYgqt6sV+s/FJoOPsLKjDox0qYBVPayM930ZvbLT0b7ckTwAXQ88kTG3NrEUEXk4YsQlvnAwq0eZmWiNn0PpE0DsiC7uJLjT3G9vry8vLJfj4DSUBxDhZ+T8BrL3AqgsINDbtmkX2GtEBO1bOQ1NtjpWQgX1r6OegIXp9W7Gxe+/wjDNrIDa4GpElVeUJSo9ZIemZyvr5r1JVzQQrCcUmRZguZHWb+x19+Ial3UDhVwBVKsr6Z9qTd8oHnRDaEVY2VW7a5T06zB8m/M9D1qXTnHNizxJwMPsTKrlu7rLzlp4Lsjw1pzqck27A27WhusFapZB7qiqN1E11haFooDwXjLtYQscB9gZah9ADWYMUFLlRBekK4LhCTAksdZAbVNQa1rgDMm+PlyPCJ3IyH4ScSnLe5lXaraxVB5LvAy7SsrZXCtuJYQj/Ze1j8Q8VHHOOoRjjlg9OoUhVcwA8J1Giy5nzUnXlh1XSishF+PrFgRXn2ZkIib4EWXBZIMe2fOKnB5dZJVN32OyQrN1gtvWfg5sReoBlLj40ai9ZWt7mAt/BLQdWABGmudjq+iC+Ct1pG3iEfZHKCFtvaf77EB8sY/XmHtJm6BqDwYQeTLZSpBQmtRcBEey6Y2CQGzP5veltyhrMuae9kKUDWrGLDTZYq15WPKvspki+phyL6XlH+YQfYD+/Oo/t8F7I2szKxOZQXUSbDSWPlCxIbFJBuPsoodcTewL0eF6N0pO7FrKGOw6CbWCo+OWUdQdeqarWJrqhQh34dWlgaoC0J25pKxH07iisMWt7CCA3zUIGs02HA7nDJtAgYr6tgR90MmWbNBzWRutiyKOmDsujhrGBZTRjT8z1FVXFjcsCUZE7ZVqKDs6MFi+UuezPoHcnMAj6soaxAWZGUvMtL1S6UvYqGy/4Nivz8UvybPCQvsFKzP06quIVgikDL86q/DGps16yfXslhKm3z2sWKyTr5Z+dWkwuJmEK/x0WFl3YGxK7uuJm8oXRtofUnyrFjJOo6qXqlrjMEuWLtBwhxVYwBOYPHVXTMDO3TYX9LQscbbJkCWWzvadGXZWWblJhiXKxm4jgtYXAIry/iTSFUvqiiw4Gp00mIX9WAxaThs4jlNkHXq2r6fPAf4hrVe+UUN60G8tvvzK0dFojU4sqKA/mQV13IsIb6wTQOr4LS9jZzCzLKXJbZzru28KlmvAPIZxklf/+Qt7FHlWfz1T57QpAvapbANxSTtTGmF/+7bMiSrbQK6PqkQrMPpWo7sZf8KsC/cr3zo9Scy2WAYfVg+MiM4hTXnS9BOrghcWY0J6hRWbtmsbURTKGE5LZ5MOjATOsFas6+OSdL516ooipzVrdJOrUsT0DRWwM2uDe8EXnkFQ+KujXaIukCYILXGskwQktXNBGu0IrZ0ADEehOW6ka0Y+dizVLAZ9YSlI03UlSUtyASll69C5SBO61R9EK9nrbjIWzCo5UYYsyEoLCactUisWyOLiZCsixQbZS0Hh5Ura1a3Rw5bt7Is1J6w3K95ct0Ku3VZZ2Md4eSygrJm0AHJ6whZt4GKmw2TLyzkgaQz0P9GtO8jsi4bmMgSfPRZT8OV6knHkU/qv34F2gwqsVsQeLOVdH6gUElgnIKw4/bAqLayvWWEFiGY0YMFjpB2EdDWpW2C2rDipLolh9hd5EqYbhESYGXZCwqZzFoAyq666Zf1YLPh1nVrWpPVdwE90q0Ea0vbuZNhzEAzp92qk5ZdSC+1+i6SsLzOcCXD+onAuPYz31niHQ0rtv+C+sWDi5DlnHPjfBasYNtxzQJjUvMyhlmBdqoZ5tev4AFcglcEK8bpsMh0hGsWGJM6AkxP0Ws49R3l007mVWGNhq3Juwb7i1omfrHCmuuEtZ4FAsdtsHMIJ4vDspR6yj7976dMLxHAx60KMW8mm8dYWWRd2yZqAR1X1EyGxvbKvmV2bTtqbRSZ5iTpYuHVZ5lYKfrDgtjZ8oKsW8BLVAR3p7O+4MWtJW7csBGpoSiwSoxDo428CrGyRYFoBYKskxdXBPeMUF7wgg4M97M4AVGfbrvEjOta4wVrIMg4K1b7riG7Llpt3DJSS1bhxYwPBN22MP0a+bGepbQLVp0FmpR0hcezIdWwUJ/6Ed9qgpOZyOElrFfFkJ0FxlVZFevJZdWwTNzvn7v7dOU+IBuwCEYDncwCQbuOrgVwI1GHgeOx3zlZ9N4rO3U4QGsvbeHREazFmmJ2tfoA41ZbzNNwvh/QlbYl67BwZzVR5wRWm0FlgcxjfURMD/b7MSCtgUU8Y7VjNLS8/pqQwXPpnlfWBaQ1z+VgFuhkxhpXW0HJSp9HCmO7tllKq2CBtZTDzEBoWesBaoXWkD2JNWt7nqeDWwmIF9gumgYUqGaF7PosVbmwZTnVHq3cSkC8zR63WBF1WYdn+eDKp2qdRyuWYYy1kdk1kLKUXWntsj4vvL6zDhweYjBRbONyy6J/IxVaIdZRpVbq+PU5pBlbrl35nJk0U1uONTa8YFkEjcsUY+2WrFSVrSeIyhqfa6kOQNRwcEHt9HIXoMrsakUHWYCpclYtu4CnJIHs1OviZW5n5H/DXICgyeqaWClYsupaMAyrLydcWXZTbuvbLINT6ctTUcIFqDBHRqKVQNyOsWyzVr5rCzea9H1/Tcdln8TWRH2DrR0627EIWdvwq6z1Uc0rzpvK9q199dcU3Ax+vow/wcLsffK0TqSujJWqlBVlpe68YjO4XNQk3Ix/Tg///RvbK0Rxfl6kLbZcX2EdA6xqWbASIqFrBTe7Oj+d074YE+AKWTvGizwgWd0BG91Kr9c2cgVxPVB+qyIJrRDQN4THG1lJJh7ckmQB2DFjFT6Cmy1AW8ewXv9yM6sKrrj3DBmrPQ3Pj11p47Ns9p392/dh+cvgwgtqwTarv5M58a4wya6lfERD3d5wBU0gHiBnWMc01iadVWV2PJU3wE5Yz7kN6497WEXlWila7jfmqZ0/oeY2YTGliz5rm3U5vRbtdmIl4EtpXHe3KAtbMm1rs1Y+a5fG2gFrfHXg56CJ7wfhekrXtiS4KVsz3RArLl0L4DxGGuvW8nCZX6nYYqFlMm05lnAfoLvg4qyA1JYB1vApXTEiuKFulaPcEGraVNpex5ioA5xVDrNKmGf4SSvGWq6vDwP5fZI1nYxtf5NtiXUOBokdmBFuJFsEV4yVrrN+13r2i+SFSZeeDxp+U6CZD+Ssf50o3J/XGtbJ7rUDexin9TWMQmRfaOIFlpmv1W1pcpCV7NUYO7NTz9cFZSePutiSrrGW5/VVgY4pdWcXnL0x5TI5yJqJaWtmRLDekpdmHSF9TWptGNob2lgbZpKlI9i6Xccq7k0aLTyGyZyJRBXqFKsMLuHSkR9+jRyBh0ywtX7mjiuDE2CgTQsyW1Yxy5CsMrjUUODzFGedttfcgrYNd6M8JZT9Wi1jL3cL0yJ7/gqJoIdGs/9bZFg9bxujZ+Bh5Z0wIOC0dQyW+XZqQ7xA2U4Mo3bv70PiQAaZGGsp28JRTttA5si+JvQEaeu9NjitVriE8kdFtsqGcHt1OdkzjMKZweOph0YIkpYwAUclHDbK2iWYoFeZh8QvuUtKqbrlijiB6O9toLHhmQsSwagHGOI4OXQJ4WMN25PNLBOJtqdrsIubudwOu3JZc+aJb3DmDeYvFqs6+x4+1tAmmSC+KCELsNBe3Ddvf6sCT0BbALsx42RY69Wj2UnTN2GDQHjBxnuRI7xCHNzjrOTeIQTXqGKr1rCRQ0MixWbDdiawmjujWKEfv5AHgQPb8sgcJePB1eg8YGDrWHQN6wM4xVp2eH0Lu/IlXjx73D1LxtPsCCZwVlnx28xIyhy+txZ7W8cuQGJJjPLV55LBSSI+3BQFQBPGb4hqz8OQFFtOcG3cXQgHRmPPLbYqWMMN26iJm360TMSwKbXr2vq64gfe0MK9v6DVxcoQ0qiwm7VLydrhlKNiN7BW6lixPxagMdZmi1V2UiYPPPaeC8i5dYfvd4/+GCt6LjM7pzjAFK4H3x4C2bdEyXN6XeelqhjruDbSsNazu6jq3RMlz2eMwdlQ6A6+0/kU35rtvSHlw2+6gbzb4iZ9R2y4yXZv2JtW0lbmL2EffssU5NzGK2fcn7sYKyHtiLA5BLgy0+jdsR95/N133PsN1X28XdQEkKiuYrMUHlAsF7RZgqyPv+0K+hG64bCLCovFMOvUjmIrWgg7xJOATK54h3dd8e45JfKOw65ZE5ZvxAh5ubCh3NW7CWuPd7Px7+XtxB3SccfKjW7Be2qv53ALk7lbQLu8/ZIXnKwelJawsdIq9w2d02RDxK67yeqzQj0YG317HI0Lq7Y55S/DOayrTK67vAWXn/Ty+vp3qrDBg3p+fRX7BU95P6MUYY8+a6AgXJ2M9aT3iWLCyhNQcWF7xwXBpczVDa3iKawpwtZbqlq67mfXwLM9WI79e0vYUgvLw+o8bLE+6X3NoOce12H1QRKVroZzbEkg9wB/PIcVhJXnC+Mu6GRBYJTiyPU5zKpS1rNYoSvotlyQ6U1ZeZ/bENzpFMsXjJ7FCqvEtjGwNN7CbG4cPZ31D0Sd5zvQeHjFTzRffw8rE3ZynkcTWb+sbM1fpWHlEhY/j9X0hnFY2RbEWLPT72L1n/IRd0FE2Gsv58TjU/OrHsJs3HO+6oKszb7v3WbFWL/5z9CK54LwmrvvT7+Lla8QNi3bxS2btWJ/a9qv1Y4/n1DfhLoG22sXZMuTT5nVD6Cnsn5T460VWEK0ZRfDou9lb+1u4aeywjOfNmFV+eLnXxaFqzf7Gk9Zw3gVwXtI5TIXdLo7DHdaOy65V59TmsPezCosg5Ct7LC07BVOrehRxpNZv8GZjVUbAMU1ejC+LzsWn3tNszaeVVshqmBp7HFUWMZXaLY5YUw78qS5SzC+IHXBu/+EYPljOYZY/bpifdZ2DxNsJL6Cw7b8ng8Je1w8IxVOlIRhre34HUywlaQFbN/klYZtFrBNDNba4d6hHGw/s5rDNvkPC5Z6N+PjMRxcQ4PJjsJu/7QAe23yb/CW1st8IDm64Lhw6HDaUxD2YmWwNejKEy5dPgpYwQaUHZyTAw83sUnPg0ek5qxVrtOBuWPawA5+g5j1mOwobJLjGWOuNW4Wd0vasIOftO54zutDrNZb5hYmwiStlm1cwmbq3BtCObuq38JqGwJT9/lEa7D85PUujfY9rK5p5SPCJWwzWO2sTlr/IKvvg6Yx0VOr3luOjHjS2mmScR8r90FIWOZOOeeSu0giaeF/ktX3gX1CpDyLm1IH+VSq3Vax97JyHxhpqZ1Fp/NZL2mG7D+B1ZXWeTwLjzBxhG8YyI7B9YDvbWmd41e13kwcznRHwz4So5a01D0rVspMO5zHHU3wWD4psEoI3sPIm5NciE/7bW/9eDT35SrX+iecWx5i5/b5c8IbpEXCCNQ/u9jATQjn6++YZyVffxSY0y5gSQkTjv3GAz92qX852HZcPEsG0+v5TH7LjOi2jMDyVx24i0AuD3fZ6N6rr+C0oUcKkd80d7mVNvjgm/RnqP8+1ijtXsvYXVlFBovR/o75wK20MXEfd8HurHHch9cHz2BVb4SId7bsc1iFusi/b2C/s7pPkTdH97xz0T/AKoEZcS4fpvkQ6/8DsgXy9fHv/NgAAAAASUVORK5CYII=") center / contain no-repeat; filter: drop-shadow(0 0 7px rgba(255, 26, 46, 0.55)); animation: glitch-clip 5s steps(1) infinite -2.4s; }
-#overlay[data-theme="wolf"] #trackInfo { margin-right: 70px; }
-#overlay[data-theme="wolf"] #thumb { box-shadow: -3px 0 0 rgba(255, 26, 46, 0.85), 3px 0 0 rgba(140, 60, 255, 0.8), 0 0 0 2px rgba(255,255,255,0.8); animation: glitch-clip 5s steps(1) infinite -1.3s; }
-#overlay[data-theme="wolf"] #thumbWrap { position: relative; }
-#overlay[data-theme="wolf"] #thumbWrap::before { content: ""; position: absolute; top: -17px; left: 50%; margin-left: -15px; width: 30px; height: 20px; z-index: 3; transform: rotate(-8deg);
-  background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 20'><path d='M2 18 L0 4 L8 10 L15 0 L22 10 L30 4 L28 18 Z' fill='%23f2c230' stroke='%23000' stroke-width='1.4' stroke-linejoin='round'/><path d='M4 14 H26' stroke='%23b88a10' stroke-width='1.6'/></svg>") center / contain no-repeat; filter: drop-shadow(0 0 4px rgba(242, 194, 48, 0.55)); }
-#overlay[data-theme="wolf"] #trackName { font-size: 24px; font-weight: 400; color: #f4f4f6; text-shadow: -2px 0 rgba(255, 26, 46, 0.9), 2px 0 rgba(140, 60, 255, 0.85); animation: glitch 4s steps(1) infinite; }
-#overlay[data-theme="wolf"] #trackMeta { font-size: 18px; color: #e3d9ea; text-shadow: -1px 0 rgba(255, 26, 46, 0.75), 1px 0 rgba(140, 60, 255, 0.7); }
-#overlay[data-theme="wolf"] .label { font-size: 14px; font-weight: 400; color: #ff3347; letter-spacing: 0.1em; }
-#overlay[data-theme="wolf"] .label-dot { background: #ff1a2e; box-shadow: 0 0 6px #ff1a2e; }
-#overlay[data-theme="wolf"] #progressBar { height: 6px; border: 1px solid rgba(255, 26, 46, 0.7); border-radius: 0; background: transparent; }
-#overlay[data-theme="wolf"] #progressFill { background: #ff1a2e !important; box-shadow: 0 0 8px #ff1a2e; border-radius: 0; clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
-
-/* Clásico con distribución vertical o disco (el clásico "de siempre" no los usa) */
-#overlay[data-theme="classic"] { background: rgba(0, 0, 0, 0.92); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; }
-#overlay[data-theme="classic"] .label { color: #ff3b3b; }
-#overlay[data-theme="classic"] #trackName { color: #fff; } #overlay[data-theme="classic"] #trackMeta { color: rgba(255,255,255,0.55); }
-#overlay[data-theme="classic"] #progressBar { background: rgba(255,255,255,0.12); }
-#overlay[data-theme="classic"] #progressFill { box-shadow: 0 0 6px rgba(255, 0, 0, 0.55); }
-
-/* ══════════ Exclusivo de ElOsoKing: Rey Oso ══════════ */
-#overlay[data-theme="oso"] { --track: rgba(255, 204, 51, 0.16); background: linear-gradient(180deg, rgba(26, 15, 12, 0.96), rgba(48, 24, 14, 0.96)); border: none; border-radius: 0; font-family: "Press Start 2P", "Courier New", monospace; image-rendering: pixelated; box-shadow: 0 -4px 0 0 #ffcc33, 0 4px 0 0 #ffcc33, -4px 0 0 0 #ffcc33, 4px 0 0 0 #ffcc33, 0 0 0 8px rgba(0,0,0,.4), inset 0 0 0 3px #5a2f12; }
-#overlay[data-theme="oso"] #infoPanel { padding: 24px 18px 14px 16px; }
-#overlay[data-theme="oso"] .deco { background: linear-gradient(to top, rgba(255, 110, 40, 0.28), transparent 48%), repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0 2px, transparent 2px 4px); }
-#overlay[data-theme="oso"] .deco .stripes { display: block; right: 12px; top: 50%; width: 58px; height: 68px; margin-top: -32px; image-rendering: pixelated; background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACEAAAAnCAYAAACBvSFyAAACjklEQVR42s2YMUgcQRSG/122UxHugpwSEMWY44oLJKlypLGxiIJWYmEIwS5NIFcKIZAiZZp0QQQJwUohpLUJHimOAw9Z5AyCEMIh5zXab5rMMvtm3uzM3h5x4Iqbe+9/3773ZmbngAFHtTQa4X+Oamk0in4+ioYGkiYsAMTHxp77zeccjg/u26W6vG71QCY93+TMOQrRrLZOECivK+ImURdbewgibiPqYusEIcRdhou979LFtsImO51+QA02Fqbd1vLpV2tTob17eBG1uzeekgktwL8AvXoRvXpREV1sNbHYairznL0MI2fE1wE8e7g8lA1Q1pVBPA6gj8+5QxSwCQD43voWz+0eXiQbc1gZMGVEaUwddeeyMXDQ+Ykn2feJPABsdBIQolady0ZuADKI0JR7AgA8ujru3S0OvSfOfl/FTdnu3nge3SfSIISAadhoCABjY7oG5uxtMhukidW/nAAAJsdH8GZpxhqE+plgAtoT9Kknx0cy1Z36Ud2Nhen4DPFxC8atgAiyOr56/1aZ+7T1LpOWxx3jT+88SHz/0Ttmg3MwnIZ8eMX7BIWgzgBQfb2S+L75/AMAoBF2AABhc1vxaX88UOZkEAGRqRyVxy/ZOR1MLo1Js2B9i7P000LQ2uU1OF3P5iWXa0a5LFwZuBUjnx3xO2atUnB+MhE4Sx/UKoX4HTNRjvPutdbhz6/T1MbUzVM/Lk4AQKQlqlUKOO9eY7Y0xoJMzZURNrcTq4GuDC64DHAU9uNyePTyI5dFhll9sZYQm5orp2Zsf2dP+/QygALB9YeAoSCmIQBo6imAFkK+L+qadbY0ZoTZ39nT9tZR2IdUeqRCcJdXlxUkgsZbuCa4FcQg/9SZgtLxF1G/ZQEc/PEWAAAAAElFTkSuQmCC") center / contain no-repeat; animation: oso-bob 4.2s steps(1) infinite; }
-@keyframes oso-bob { 0%, 55%, 100% { transform: translateY(0) scale(1, 1); } 8% { transform: translateY(0) scale(1.06, .92); } 16% { transform: translateY(-9px) scale(.96, 1.06); } 26% { transform: translateY(-9px) scale(.96, 1.06); } 36% { transform: translateY(0) scale(1.07, .9); } 44% { transform: translateY(0) scale(1, 1); } 70% { transform: translateY(-3px) scale(1, 1); } 85% { transform: translateY(0) scale(1, 1); } }
-@keyframes oso-glint { 0%, 62% { transform: translateX(-140%) skewX(-20deg); } 100% { transform: translateX(520%) skewX(-20deg); } }
-@keyframes oso-twinkle { 0%, 100% { opacity: 0; } 20%, 40% { opacity: 1; } 60% { opacity: 0; } }
-#overlay[data-theme="oso"] .deco .grid { display: block; left: 14px; bottom: 6px; width: 3px; height: 3px; background: #ff9a3c; box-shadow: 46px -4px 0 #ffb347, 98px -1px 0 #ff7a2c, 152px -8px 0 #ffcc33, 206px -3px 0 #ff9a3c, 262px -7px 0 #ffb347, 318px -2px 0 #ff7a2c; animation: oso-rise 3s steps(8) infinite; }
-@keyframes oso-rise { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-64px); opacity: 0; } }
-#overlay[data-theme="oso"] #trackInfo { margin-right: 74px; }
-#overlay[data-theme="oso"] #thumb { border-radius: 0; box-shadow: 0 0 0 4px #ffcc33, 4px 4px 0 4px rgba(0,0,0,.5); }
-#overlay[data-theme="oso"] #trackName { font-size: 14px; line-height: 1.4; font-weight: 400; color: #fff3d6; text-shadow: 2px 2px 0 #2e180c; }
-#overlay[data-theme="oso"] #trackMeta { font-size: 10px; color: #e0a96a; text-shadow: 1px 1px 0 #2e180c; }
-#overlay[data-theme="oso"] .label { font-size: 8px; font-weight: 400; color: #ffcc33; letter-spacing: 0; }
-#overlay[data-theme="oso"] .label-dot { background: #ff7a2c; border-radius: 0; box-shadow: none; }
-#overlay[data-theme="oso"] #progressBar { height: 10px; border-radius: 0; background: repeating-linear-gradient(90deg, rgba(255,204,51,.16) 0 8px, transparent 8px 10px); }
-#overlay[data-theme="oso"] #progressFill { border-radius: 0; background: repeating-linear-gradient(90deg, #ffcc33 0 8px, transparent 8px 10px) !important; box-shadow: none; }
-
-/* ══════════ Distribución vertical y portada de disco (opciones aparte del estilo) ══════════ */
-.vinyl { display: none; }
-@keyframes disc-spin { to { transform: rotate(360deg); } }
-#overlay[data-layout="vertical"][data-theme] #infoPanel { flex-direction: column; align-items: center; text-align: center; padding: 18px 18px 16px; gap: 12px; min-height: 0; }
-#overlay[data-layout="vertical"][data-theme="pill"] { border-radius: 30px; }
-#overlay[data-layout="vertical"][data-theme="macos"] #infoPanel { padding-top: 30px; }
-#overlay[data-layout="vertical"][data-theme="osoking"] #infoPanel { padding: 32px 18px 16px; }
-#overlay[data-layout="vertical"][data-theme="line"] #infoPanel { padding: 18px 34px 16px; }
-#overlay[data-layout="vertical"][data-theme="retro"] #infoPanel { padding: 18px 18px 30px; }
-#overlay[data-layout="vertical"][data-theme="wolf"] #infoPanel { padding: 30px 18px 14px; }
-#overlay[data-layout="vertical"][data-theme] #thumbWrap { width: 76%; }
-#overlay[data-layout="vertical"][data-theme] #thumb { width: 100%; height: auto; aspect-ratio: 1; }
-#overlay[data-layout="vertical"][data-theme] #trackInfo { flex: none; width: 100%; margin-right: 0; padding-left: 0; }
-#overlay[data-layout="vertical"][data-theme] .label { justify-content: center; }
-#overlay[data-layout="vertical"][data-theme] #trackName { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-#overlay[data-layout="vertical"][data-theme] #trackMeta { white-space: normal; }
-#overlay[data-layout="vertical"][data-theme] .pill-btn { display: none; }
-#overlay[data-layout="vertical"][data-theme="minimal"] #thumbWrap::after { display: none; }
-/* con video a la vista, la miniatura sobra: el video ya es la imagen */
-#overlay[data-layout="vertical"][data-theme]:not(.cardmode) #thumbWrap { display: none; }
-#overlay[data-layout="vertical"][data-theme="synthwave"] .deco .sun { left: 50%; margin-left: -110px; width: 220px; height: 220px; top: -58px; }
-#overlay[data-layout="vertical"][data-theme="neoncity"] .deco .sun { right: auto; left: 50%; margin-left: -100px; width: 200px; height: 200px; top: -52px; bottom: auto; }
-#overlay[data-layout="vertical"][data-theme="neoncity"] .deco .city { width: 100%; height: 34%; bottom: 8%; }
-#overlay[data-layout="vertical"][data-theme="neoncity"] .deco .grid { width: 100%; height: 8%; }
-#overlay[data-layout="vertical"][data-theme="cyber"] .deco .city { width: 100%; height: 34%; }
-#overlay[data-layout="vertical"][data-theme="synthwave"]:not(.cardmode) .deco .sun, #overlay[data-layout="vertical"][data-theme="neoncity"]:not(.cardmode) .deco .sun { display: none; }
-#overlay[data-layout="vertical"][data-theme="wolf"]:not(.cardmode) .deco .grid { top: -40px; }
-#overlay[data-layout="vertical"][data-theme="retro"] .deco .stripes { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 14px; background: linear-gradient(90deg, var(--rainbow)); }
-#overlay[data-layout="vertical"][data-theme="osoking"] .deco .stripes { right: 8px; top: 6px; width: 30px; height: 30px; }
-#overlay[data-layout="vertical"][data-theme="wolf"] .deco .city { top: 12px; right: 10px; margin-top: 0; width: 44px; height: 56px; }
-#overlay[data-layout="vertical"][data-theme="wolf"] .deco .grid { top: 26px; margin-top: 0; left: -22px; width: 190px; height: 190px; }
-
-/* brillo dorado que cruza el marco + destellos de la corona */
-#overlay[data-theme="oso"] .deco .sun { display: block; left: 0; top: 0; bottom: 0; width: 22%; background: linear-gradient(90deg, transparent, rgba(255, 224, 130, .22) 45%, rgba(255, 255, 255, .34) 50%, rgba(255, 224, 130, .22) 55%, transparent); animation: oso-glint 5s steps(28) infinite; }
-#overlay[data-theme="oso"] .deco .city { display: block; right: 12px; top: 50%; margin-top: -32px; width: 58px; height: 68px; }
-#overlay[data-theme="oso"] .deco .city::before, #overlay[data-theme="oso"] .deco .city::after { content: ""; position: absolute; width: 4px; height: 4px; background: #fff3b0; box-shadow: 0 -4px 0 #ffd84a, 0 4px 0 #ffd84a, -4px 0 0 #ffd84a, 4px 0 0 #ffd84a; animation: oso-twinkle 1.6s steps(1) infinite; }
-#overlay[data-theme="oso"] .deco .city::before { left: 8px; top: 2px; }
-#overlay[data-theme="oso"] .deco .city::after { right: 4px; top: 14px; animation-delay: .8s; }
-#overlay[data-layout="vertical"][data-theme="oso"] .deco .city { top: 8px; right: 10px; margin-top: 0; width: 42px; height: 50px; }
-#overlay[data-layout="vertical"][data-theme="oso"] #infoPanel { padding: 34px 18px 14px; }
-#overlay[data-layout="vertical"][data-theme="oso"] #trackInfo { margin-right: 0; }
-#overlay[data-layout="vertical"][data-theme="oso"] .deco .stripes { top: 8px; right: 10px; margin-top: 0; width: 42px; height: 50px; }
-
-/* Portada de disco: la miniatura llena un vinilo que gira mientras suena */
-#overlay[data-cover="disc"][data-theme] #thumbWrap { position: relative; width: 88px; height: 88px; display: grid; place-items: center; }
-#overlay[data-cover="disc"][data-layout="vertical"][data-theme] #thumbWrap { width: 76%; height: auto; aspect-ratio: 1; }
-#overlay[data-cover="disc"][data-theme] .vinyl {
-  display: block; position: absolute; inset: 0; z-index: 2; border-radius: 50%; pointer-events: none; will-change: transform;
-  background:
-    radial-gradient(circle, #0b0b0c 0 3.5%, rgba(0,0,0,0.6) 3.5% 5.5%, transparent 5.5%),
-    conic-gradient(rgba(255,255,255,0) 0 6%, rgba(255,255,255,0.22) 12%, rgba(255,255,255,0) 20% 50%, rgba(255,255,255,0.22) 62%, rgba(255,255,255,0) 70%),
-    repeating-radial-gradient(circle, rgba(0,0,0,0.34) 0 1px, rgba(0,0,0,0) 1px 3px);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12), 0 4px 14px rgba(0,0,0,0.5);
-  animation: disc-spin 5s linear infinite;
-}
-#overlay[data-cover="disc"][data-theme] #thumbWrap #thumb { position: relative; z-index: 1; width: 100%; height: 100%; aspect-ratio: 1; border: 0; border-radius: 50%; box-shadow: none; will-change: transform; animation: disc-spin 5s linear infinite; }
-#overlay.paused .vinyl, #overlay.paused #thumbWrap #thumb { animation-play-state: paused; }
-
-/* Modo demo (?demo=estilo): lo usa la galería del dashboard */
-html.demo, html.demo body { width: 100vw; height: 100vh; }
-html.demo #scene { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
-html.demo #overlay { position: relative; inset: auto; transform: none; width: 430px !important; height: auto !important; }
-html.demo #overlay[data-layout="vertical"] { width: 270px !important; }
-html.demo #videoZone { display: none; }
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#0a0a0c;font-family:'Inter',sans-serif;color:#eeeef5;min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  background-image:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(145,71,255,0.08),transparent);}
+.card{text-align:center;max-width:420px;padding:48px 32px;}
+.spider{font-size:80px;margin-bottom:24px;display:block;animation:swing 3s ease-in-out infinite;}
+@keyframes swing{0%,100%{transform:rotate(-8deg);}50%{transform:rotate(8deg);}}
+.code{font-size:80px;font-weight:900;letter-spacing:-3px;line-height:1;
+  background:linear-gradient(135deg,#fff,#b388ff,#9147ff);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+h1{font-size:22px;font-weight:700;margin:12px 0 10px;}
+p{font-size:14px;color:#6b6b82;line-height:1.7;margin-bottom:32px;}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+a{padding:11px 24px;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.15s;}
+.btn-primary{background:#9147ff;color:white;box-shadow:0 0 20px rgba(145,71,255,0.3);}
+.btn-primary:hover{background:#7d2ff7;}
+.btn-ghost{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#6b6b82;}
+.btn-ghost:hover{color:#eeeef5;border-color:rgba(255,255,255,0.2);}
 </style>
 </head>
 <body>
-<div id="scene">
-  <div id="overlay">
-    <div id="titleBar"><div id="soTitle">▶ REPRODUCIENDO</div></div>
-    <div id="videoZone"><div id="ytPlayer"></div></div>
-    <div id="progressBar"><div id="progressFill"></div></div>
-    <div id="infoPanel">
-      <div class="deco"><i class="sun"></i><i class="grid"></i><i class="city"></i><i class="stripes"></i></div>
-      <div class="mac-dots"><span></span><span></span><span></span></div>
-      <div class="eq-icon"><i></i><i></i><i></i></div>
-      <div id="thumbWrap"><div class="vinyl"></div><img id="thumb" src="" alt=""></div>
-      <div id="trackInfo">
-        <div class="label"><span class="label-dot"></span>Sonando ahora</div>
-        <div id="trackName">—</div>
-        <div id="trackMeta">—</div>
-      </div>
-      <div class="pill-btn">&#10074;&#10074;</div>
-      <div id="queueCount"></div>
-    </div>
+<div class="card">
+  <span class="spider">🕷️</span>
+  <div class="code">404</div>
+  <h1>¡Dearie, esta página no existe!</h1>
+  <p>Parece que Muffet no puede encontrar lo que buscas.<br>Quizás la URL está mal o la página fue movida.</p>
+  <div class="btns">
+    <a href="/" class="btn-primary">🏠 Ir al inicio</a>
+    <a href="/dashboard" class="btn-ghost">🎮 Dashboard</a>
   </div>
 </div>
-
-<script>
-const params = new URLSearchParams(location.search);
-const channel = params.get('channel') || 'elosoking1';
-const SERVER = '';
-const overlayKey = params.get('key') || '';
-const isSnap = params.get('snap') === '1';       // modo "fijar mix": solo lee la lista del mix y se la manda al dashboard
-const isPreview = isSnap || params.get('preview') === '1'; // vista previa del dashboard: sin sonido y sin tocar la cola
-const keyQ = overlayKey ? `&key=${encodeURIComponent(overlayKey)}` : '';
-const vol = () => (isPreview ? 0 : (config.volume ?? 100));
-
-let ytPlayer = null;
-let currentVideo = null;          // lo que suena ahora (puede traer fromPlaylist:true)
-let queue = [];
-let pollInterval = null;
-let progressInterval = null;
-let config = {};
-let hideTimeout = null;
-let isPlaying = false;
-let isPlayingBasePlaylist = false; // true cuando lo que suena viene de la playlist base
-
-// ── Playlist base: el servidor lee las canciones y aquí se reproducen una por una ──
-let baseItems = null;              // canciones de la playlist (null = sin cargar)
-let baseListId = null;
-let baseOrder = [];                // orden de reproducción (secuencial o aleatorio)
-let basePos = 0;
-let baseLoading = false;
-let baseShuffle = false;
-let baseFinished = false;          // terminó y "repetir" está apagado
-let baseMixTs = 0;                 // versión del mix fijado con la que se cargó la playlist
-let isMix = false;                 // la playlist base es un Mix/radio de YouTube (lo reproduce el propio YouTube)
-let mixIndex = 0;
-let _mixTimer = null;
-let playlistErrors = 0;            // errores seguidos
-let playlistRetryAt = 0;           // si falla, se reintenta más tarde
-
-const listIdFromUrl = (u) => { const m = String(u || '').match(/[?&]list=([A-Za-z0-9_-]+)/); return m ? m[1] : null; };
-
-async function loadBaseItems() {
-  if (baseLoading) return false;
-  baseLoading = true;
-  try {
-    const res = await fetch(`${SERVER}/api/youtube/playlist?channel=${channel}`);
-    const d = await res.json();
-    if (d.ok && d.mix) { baseMixTs = config.mix_ts || 0; baseItems = []; baseListId = d.listId; isMix = true; baseFinished = false; return true; }
-    isMix = false;
-    if (!d.ok || !d.items || !d.items.length) {
-      console.log('[yt] No se pudo leer la playlist:', d.error);
-      baseItems = null; playlistRetryAt = Date.now() + 60000;
-      return false;
-    }
-    baseMixTs = config.mix_ts || 0;
-    baseItems = d.items; baseListId = d.listId; baseShuffle = !!config.playlist_shuffle; baseFinished = false;
-    buildOrder();
-    return true;
-  } catch (e) { baseItems = null; playlistRetryAt = Date.now() + 60000; return false; }
-  finally { baseLoading = false; }
-}
-
-function buildOrder(lastId) {
-  baseOrder = baseItems.map((_, i) => i);
-  if (config.playlist_shuffle) {
-    for (let i = baseOrder.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [baseOrder[i], baseOrder[j]] = [baseOrder[j], baseOrder[i]]; }
-    // que la primera de la nueva vuelta no sea la última que sonó
-    if (lastId && baseOrder.length > 1 && baseItems[baseOrder[0]].videoId === lastId) {
-      const k = baseOrder.length - 1; [baseOrder[0], baseOrder[k]] = [baseOrder[k], baseOrder[0]];
-    }
-  }
-  basePos = 0;
-}
-
-function nextBaseItem() {
-  if (!baseItems || !baseItems.length) return null;
-  if (basePos >= baseOrder.length) {
-    if (config.playlist_loop === false) return null;
-    buildOrder(currentVideo && currentVideo.videoId);
-  }
-  return baseItems[baseOrder[basePos++]];
-}
-
-async function playBasePlaylist() {
-  if (!ytPlayer || baseLoading) return;
-  const wantedId = listIdFromUrl(config.playlist_url);
-  if (!wantedId) return;
-  if (!baseItems || baseListId !== wantedId) { if (!(await loadBaseItems())) { hideOverlay(); return; } }
-  if (isMix) { playBaseMix(); return; }
-  const item = nextBaseItem();
-  if (!item) { baseFinished = true; isPlayingBasePlaylist = false; currentVideo = null; hideOverlay(); return; }
-  playVideo({ ...item, fromPlaylist: true });
-}
-
-// Mix/radio de YouTube: lo carga y avanza el propio reproductor de YouTube (las canciones las elige YouTube)
-function playBaseMix() {
-  if (!ytPlayer || !ytPlayer.loadPlaylist) return;
-  const listId = baseListId;
-  isPlayingBasePlaylist = true; isPlaying = true;
-  currentVideo = { videoId: '', title: 'Mix de YouTube', channelTitle: '', fromPlaylist: true, mix: true };
-  ytPlayer.loadPlaylist({ listType: 'playlist', list: listId, index: mixIndex });
-  ytPlayer.setVolume(vol());
-  showOverlay();
-  document.getElementById('queueCount').textContent = '🎵 Mix';
-  scheduleMixInfo(1500);
-}
-function scheduleMixInfo(ms) { clearTimeout(_mixTimer); _mixTimer = setTimeout(updateMixInfo, ms); }
-function updateMixInfo() {
-  if (!currentVideo || !currentVideo.mix || !ytPlayer || !ytPlayer.getVideoData) return;
-  try {
-    const d = ytPlayer.getVideoData();
-    if (d && d.title) {
-      currentVideo.title = d.title; currentVideo.channelTitle = d.author || ''; currentVideo.videoId = d.video_id || '';
-      document.getElementById('trackName').textContent = d.title;
-      document.getElementById('trackMeta').textContent = `${d.author || ''} · mix`;
-      if (d.video_id) setThumb(`https://img.youtube.com/vi/${d.video_id}/mqdefault.jpg`);
-      if (config.display_mode === 'card' || config.show_title !== false) { document.getElementById('titleBar').style.display = 'block'; document.getElementById('soTitle').textContent = '▶ ' + d.title; }
-    }
-    if (ytPlayer.getPlaylistIndex) mixIndex = Math.max(0, ytPlayer.getPlaylistIndex() || 0);
-  } catch(e) {}
-  scheduleMixInfo(4000);
-}
-
-// Terminó (o se saltó/falló) una canción de la playlist: si hay un pedido del chat esperando suena ese; si no, la siguiente de la playlist
-function advanceFromPlaylist() {
-  const pending = window._pendingViewerVideo;
-  if (pending) { window._pendingViewerVideo = null; playVideo(pending); return; }
-  if (currentVideo && currentVideo.mix) { try { ytPlayer.nextVideo(); } catch(e) {} scheduleMixInfo(1500); return; }
-  currentVideo = null;
-  playBasePlaylist();
-}
-
-// ── Cargar configuración ──
-async function loadConfig() {
-  try {
-    const res = await fetch(`${SERVER}/api/youtube/config?channel=${channel}`);
-    const data = await res.json();
-    config = data.config || {};
-    applyStyle();
-  } catch(e) {}
-}
-
-
-// ── Estilos: color de la portada y aplicación del estilo ──
-const THEMES = ['classic','glass','pill','macos','minimal','line','synthwave','neoncity','cyber','glitch','retro','muffet','osoking','undertale','wolf','oso'];
-const $ = (id) => document.getElementById(id);
-function hexToRgb(h) {
-  let x = String(h || '').replace('#', '');
-  if (x.length === 3) x = x.split('').map(c => c + c).join('');
-  const n = parseInt(x.slice(0, 6), 16);
-  return isNaN(n) ? [200, 30, 30] : [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-function darkenForText(col) { // oscurece para que el texto blanco se lea
-  const lum = 0.299 * col[0] + 0.587 * col[1] + 0.114 * col[2];
-  const k = lum > 95 ? 95 / lum : 1;
-  return col.map(v => Math.round(v * k));
-}
-function accentColors() { // plan B cuando la miniatura no deja leer sus colores: se usa el color acento
-  const c1 = darkenForText(hexToRgb(config.accent_color || '#FF0000'));
-  return { c1, c2: c1.map(v => Math.round(v * 0.55)) };
-}
-function extractCoverColors(img) {
-  try {
-    const c = document.createElement('canvas'); c.width = c.height = 24;
-    const ctx = c.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(img, 0, 0, 24, 24);
-    const d = ctx.getImageData(0, 0, 24, 24).data;
-    let r = 0, g = 0, b = 0, w = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      const R = d[i], G = d[i + 1], B = d[i + 2];
-      const max = Math.max(R, G, B), min = Math.min(R, G, B);
-      const lum = (R + G + B) / 3;
-      if (lum < 25 || lum > 235) continue;
-      const sat = max ? (max - min) / max : 0;
-      const wt = 0.15 + sat * sat * 2;
-      r += R * wt; g += G * wt; b += B * wt; w += wt;
-    }
-    if (!w) return null;
-    const col = darkenForText([r / w, g / w, b / w].map(Math.round));
-    return { c1: col, c2: col.map(v => Math.round(v * 0.55)) };
-  } catch (e) { return null; }
-}
-function setCoverColors(cols) {
-  const root = document.documentElement.style;
-  const c = cols || accentColors();
-  root.setProperty('--c1r', c.c1[0]); root.setProperty('--c1g', c.c1[1]); root.setProperty('--c1b', c.c1[2]);
-  root.setProperty('--c2r', c.c2[0]); root.setProperty('--c2g', c.c2[1]); root.setProperty('--c2b', c.c2[2]);
-}
-function setThumb(url) {
-  const th = $('thumb');
-  th.style.visibility = 'visible';
-  th.onload = () => { setCoverColors(extractCoverColors(th)); th.style.visibility = 'visible'; };
-  th.onerror = () => {
-    if (th.crossOrigin) { // la miniatura no permite leer sus colores: se muestra igual
-      th.crossOrigin = null;
-      th.onload = () => { setCoverColors(null); th.style.visibility = 'visible'; };
-      th.onerror = () => { th.style.visibility = 'hidden'; };
-      th.src = url;
-    } else th.style.visibility = 'hidden';
-  };
-  th.crossOrigin = 'anonymous';
-  th.src = url;
-}
-function applyTheme(overlay) {
-  const layout = config.layout === 'vertical' ? 'vertical' : 'horizontal';
-  const cover = config.cover === 'disc' ? 'disc' : 'square';
-  const look = layout === 'vertical' || cover === 'disc';
-  const t = THEMES.includes(config.theme) ? config.theme : 'classic';
-  if (t === 'classic' && !look) {
-    if (overlay.hasAttribute('data-theme')) overlay.removeAttribute('data-theme');
-    if ($('progressBar').parentElement !== overlay) overlay.insertBefore($('progressBar'), $('infoPanel')); // como siempre: entre el video y la info
-  } else {
-    if (overlay.dataset.theme !== t) overlay.dataset.theme = t;
-    if ($('progressBar').parentElement !== $('trackInfo')) $('trackInfo').appendChild($('progressBar')); // dentro de la tarjeta, bajo el título
-  }
-  if (overlay.dataset.layout !== layout) overlay.dataset.layout = layout;
-  if (overlay.dataset.cover !== cover) overlay.dataset.cover = cover;
-}
-
-function applyStyle() {
-  const overlay = document.getElementById('overlay');
-  const w = config.card_width || 480;
-  const h = config.card_height || 300;
-  const cardMode = config.display_mode === 'card';
-  overlay.classList.toggle('cardmode', cardMode);
-  applyTheme(overlay);
-  overlay.style.width = (cardMode && config.layout === 'vertical' ? 270 : w) + 'px';
-  overlay.style.height = cardMode ? 'auto' : h + 'px';
-
-  // Posición
-  const pad = 2.5;
-  const posMap = {
-    'top-left':      { top: pad+'%',    left: pad+'%',    bottom:'auto', right:'auto', transform:'' },
-    'top-center':    { top: pad+'%',    left: '50%',      bottom:'auto', right:'auto', transform:'translateX(-50%)' },
-    'top-right':     { top: pad+'%',    right: pad+'%',   bottom:'auto', left:'auto',  transform:'' },
-    'middle-left':   { top: '50%',      left: pad+'%',    bottom:'auto', right:'auto', transform:'translateY(-50%)' },
-    'middle-right':  { top: '50%',      right: pad+'%',   bottom:'auto', left:'auto',  transform:'translateY(-50%)' },
-    'center':        { top: '50%',      left: '50%',      bottom:'auto', right:'auto', transform:'translate(-50%,-50%)' },
-    'bottom-left':   { bottom: pad+'%', left: pad+'%',    top:'auto',    right:'auto', transform:'' },
-    'bottom-center': { bottom: pad+'%', left: '50%',      top:'auto',    right:'auto', transform:'translateX(-50%)' },
-    'bottom-right':  { bottom: pad+'%', right: pad+'%',   top:'auto',    left:'auto',  transform:'' },
-  };
-  const pos = posMap[config.card_position] || posMap['bottom-left'];
-  Object.entries(pos).forEach(([k, v]) => overlay.style[k] = v);
-
-  // Volumen
-  if (ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(vol());
-
-  // Color acento
-  document.getElementById('progressFill').style.background = config.accent_color || '#FF0000';
-  document.getElementById('soTitle').style.color = config.accent_color || '#FF0000';
-  document.getElementById('titleBar').style.borderBottomColor = config.accent_color || '#FF0000';
-  // Título visible (en modo "solo título" siempre se ve, es lo único que hay)
-  if (currentVideo) document.getElementById('titleBar').style.display = (cardMode || config.show_title !== false) ? 'block' : 'none';
-}
-
-// ── YouTube IFrame API ──
-function onYouTubeIframeAPIReady() {
-  ytPlayer = new YT.Player('ytPlayer', {
-    width: '100%',
-    height: '100%',
-    playerVars: {
-      autoplay: 1,
-      controls: 0,
-      modestbranding: 1,
-      rel: 0,
-      showinfo: 0,
-      iv_load_policy: 3,
-      disablekb: 1,
-    },
-    events: {
-      onReady: onPlayerReady,
-      onStateChange: onPlayerStateChange,
-      onError: onPlayerError,
-    }
-  });
-}
-
-// Modo "fijar mix": carga el mix sin reproducirlo, lee las canciones que YouTube le dio a ESTE navegador y se las pasa al dashboard
-async function runSnapshot() {
-  const post = (m) => { try { parent.postMessage(Object.assign({ type: 'yt-mix-snapshot' }, m), location.origin); } catch(e) {} };
-  const sleepMs = (ms) => new Promise(r => setTimeout(r, ms));
-  try {
-    const listId = listIdFromUrl(config.playlist_url);
-    if (!listId || !/^RD/.test(listId)) return post({ ok: false, error: 'nomix' });
-    showOverlay();
-    ytPlayer.setVolume(0);
-    ytPlayer.cuePlaylist({ listType: 'playlist', list: listId, index: 0 });
-    for (let i = 0; i < 40; i++) {
-      await sleepMs(500);
-      let ids = [];
-      try { ids = ytPlayer.getPlaylist() || []; } catch(e) {}
-      if (ids.length > 1) {
-        await sleepMs(800); // dejar que termine de cargar la lista completa
-        try { ids = ytPlayer.getPlaylist() || ids; } catch(e) {}
-        return post({ ok: true, listId, ids });
-      }
-    }
-    post({ ok: false, error: 'timeout' });
-  } catch(e) { post({ ok: false, error: 'error' }); }
-}
-
-function onPlayerReady() {
-  if (isSnap) { runSnapshot(); return; }
-  ytPlayer.setVolume(vol());
-  pollQueue();
-  pollInterval = setInterval(pollQueue, 3000);
-  setInterval(sendStatus, 5000);
-  sendStatus();
-  progressInterval = setInterval(updateProgress, 1000);
-}
-
-function onPlayerStateChange(event) {
-  if (event.data === YT.PlayerState.ENDED) {
-    if (currentVideo && currentVideo.mix) {
-      // el Mix avanza solo; solo se interviene si hay un pedido esperando
-      if (window._pendingViewerVideo) { mixIndex++; advanceFromPlaylist(); } else scheduleMixInfo(1000);
-    }
-    else if (currentVideo && currentVideo.fromPlaylist) advanceFromPlaylist();
-    else markCurrentPlayed();
-  } else if (event.data === YT.PlayerState.PLAYING) {
-    isPlaying = true; $('overlay').classList.remove('paused');
-    playlistErrors = 0;
-    // Mix: empezó una canción nueva y hay un pedido esperando → se cambia al pedido
-    if (currentVideo && currentVideo.mix && window._pendingViewerVideo) { try { mixIndex = ytPlayer.getPlaylistIndex() || 0; } catch(e) {} advanceFromPlaylist(); }
-    else if (currentVideo && currentVideo.mix) scheduleMixInfo(500);
-  } else if (event.data === YT.PlayerState.PAUSED) {
-    isPlaying = false; $('overlay').classList.add('paused');
-  } else if (event.data === YT.PlayerState.UNSTARTED || event.data === 5) {
-    setTimeout(() => {
-      if (!isPlaying && currentVideo) {
-        console.log('[yt] Video no disponible — saltando al siguiente');
-        if (currentVideo.fromPlaylist) advanceFromPlaylist(); else markCurrentPlayed();
-      }
-    }, 3000);
-  }
-}
-
-// Detectar error de reproducción (video bloqueado, no disponible, etc.)
-function onPlayerError(event) {
-  // Playlist base: un video que falla se salta; si fallan varios seguidos se detiene y se reintenta en 1 min
-  if (currentVideo && currentVideo.fromPlaylist) {
-    playlistErrors++;
-    console.log('[yt] Error en video de playlist:', event.data, '— seguidos:', playlistErrors);
-    if (playlistErrors >= 4) {
-      try { ytPlayer.stopVideo(); } catch(e) {}
-      isPlayingBasePlaylist = false; currentVideo = null; playlistErrors = 0;
-      playlistRetryAt = Date.now() + 60000;
-      hideOverlay();
-    } else {
-      setTimeout(advanceFromPlaylist, 800);
-    }
-    return;
-  }
-  console.log('[yt] Error en video:', event.data, '— saltando al siguiente');
-  setTimeout(() => markCurrentPlayed(), 1500);
-}
-
-// ── Cola ──
-let _lastCommandTs = 0;
-let _cmdInit = false;
-
-function handlePlayerCommand() {
-  const cmdTs = config.player_command_ts || 0;
-  // Al abrir el overlay se ignora cualquier comando viejo (si no, un "saltar" de ayer saltaría la primera canción de hoy)
-  if (!_cmdInit) { _cmdInit = true; _lastCommandTs = cmdTs; return; }
-  if (isPreview) return;
-  if (cmdTs <= _lastCommandTs) return; // ya procesado
-  _lastCommandTs = cmdTs;
-  const cmd = config.player_command;
-  if (!ytPlayer) return;
-  console.log('[control] Ejecutando comando:', cmd);
-  if (cmd === 'pause' && ytPlayer.pauseVideo) {
-    ytPlayer.pauseVideo();
-  } else if (cmd === 'play' && ytPlayer.playVideo) {
-    ytPlayer.playVideo();
-  } else if (cmd === 'stop') {
-    try { ytPlayer.stopVideo(); } catch(e) {}
-    currentVideo = null; isPlaying = false; isPlayingBasePlaylist = false;
-    window._pendingViewerVideo = null;
-  } else if (cmd === 'skip') {
-    if (currentVideo && currentVideo.fromPlaylist) advanceFromPlaylist();
-    else if (currentVideo) markCurrentPlayed();
-  }
-}
-
-async function pollQueue() {
-  try {
-    const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}&lite=1`);
-    const data = await res.json();
-    queue = data.queue || [];
-    config = { ...config, ...(data.config || {}) };
-    applyStyle();
-    handlePlayerCommand();
-
-    // Si el streamer desactivó la música, se detiene y se oculta
-    if (config.enabled === false) {
-      if (currentVideo) { try { ytPlayer.stopVideo(); } catch(e) {} }
-      isPlayingBasePlaylist = false; window._pendingViewerVideo = null;
-      hideOverlay();
-      return;
-    }
-
-    // Cambios en la playlist base: otra playlist, aleatorio, repetir
-    const wantedId = listIdFromUrl(config.playlist_url);
-    if (baseListId && wantedId !== baseListId) {
-      baseItems = null; baseListId = null; baseFinished = false;
-      if (currentVideo && currentVideo.fromPlaylist) { try { ytPlayer.stopVideo(); } catch(e) {} currentVideo = null; isPlayingBasePlaylist = false; }
-    }
-    // Si el streamer fijó (o volvió a fijar) el mix desde el dashboard, se recarga para usar esa lista exacta
-    if (baseListId && /^RD/.test(baseListId) && (config.mix_ts || 0) !== baseMixTs) {
-      baseItems = null; baseListId = null; baseFinished = false; isMix = false;
-      if (currentVideo && currentVideo.fromPlaylist) { try { ytPlayer.stopVideo(); } catch(e) {} currentVideo = null; isPlayingBasePlaylist = false; }
-    }
-    if (baseItems && !!config.playlist_shuffle !== baseShuffle) { baseShuffle = !!config.playlist_shuffle; buildOrder(currentVideo && currentVideo.videoId); }
-    if (baseFinished && config.playlist_loop !== false) baseFinished = false;
-
-    if (queue.length === 0) {
-      // Un pedido "en espera" que ya no existe (lo quitaron desde el dashboard) se descarta
-      window._pendingViewerVideo = null;
-      if (!currentVideo) {
-        if (wantedId && !baseFinished && Date.now() >= playlistRetryAt) playBasePlaylist();
-        else if (!wantedId) hideOverlay();
-      }
-      return;
-    }
-
-    const next = queue[0];
-    const forceNext = config.force_next === true;
-
-    if (!currentVideo || currentVideo.videoId !== next.videoId) {
-      if (isPlayingBasePlaylist && !forceNext) {
-        // Suena la playlist — el pedido espera a que termine la canción actual
-        window._pendingViewerVideo = next;
-      } else if (!currentVideo || forceNext) {
-        if (forceNext) {
-          window._pendingViewerVideo = null;
-          if (!isPreview) fetch(`${SERVER}/api/youtube/queue/clearforce?channel=${channel}${keyQ}`, { method: 'POST' }).catch(()=>{});
-        }
-        playVideo(next);
-      }
-    }
-
-    // Actualizar contador
-    const qc = document.getElementById('queueCount');
-    if (isPlayingBasePlaylist) qc.textContent = `🎵 Playlist · +${queue.length} en cola`;
-    else if (queue.length > 1) qc.textContent = `+${queue.length - 1} en cola`;
-    else qc.textContent = '';
-
-  } catch(e) {}
-}
-
-async function markCurrentPlayed() {
-  if (!currentVideo || currentVideo.fromPlaylist) return;
-  if (isPreview) return;
-  try {
-    await fetch(`${SERVER}/api/youtube/queue/next`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel, key: overlayKey, videoId: currentVideo.videoId })
-    });
-    currentVideo = null;
-    isPlaying = false;
-    // Verificar si hay más canciones en cola
-    const res = await fetch(`${SERVER}/api/youtube/queue?channel=${channel}&lite=1`);
-    const data = await res.json();
-    const remaining = data.queue || [];
-    if (remaining.length === 0 && listIdFromUrl(config.playlist_url)) {
-      playBasePlaylist(); // sigue con la siguiente de la playlist
-    } else {
-      await pollQueue();
-    }
-  } catch(e) {}
-}
-
-function playVideo(item) {
-  currentVideo = item;
-  isPlaying = true;
-  isPlayingBasePlaylist = !!item.fromPlaylist;
-
-  // Mostrar overlay
-  showOverlay();
-
-  // Cargar video
-  if (ytPlayer && ytPlayer.loadVideoById) {
-    ytPlayer.loadVideoById(item.videoId);
-    ytPlayer.setVolume(vol());
-  }
-
-  // Info
-  document.getElementById('trackName').textContent = item.title || 'Sin título';
-  document.getElementById('trackMeta').textContent = item.fromPlaylist
-    ? `${item.channelTitle || ''} · playlist`
-    : `${item.channelTitle || ''} · pedido por @${item.requestedBy || '?'}`;
-  setThumb(`https://img.youtube.com/vi/${item.videoId}/mqdefault.jpg`);
-  document.getElementById('queueCount').textContent = item.fromPlaylist ? '🎵 Playlist' : '';
-
-  // Título
-  const titleBar = document.getElementById('titleBar');
-  if (config.display_mode === 'card' || config.show_title !== false) {
-    titleBar.style.display = 'block';
-    document.getElementById('soTitle').textContent = '▶ ' + (item.title || 'REPRODUCIENDO');
-  } else {
-    titleBar.style.display = 'none';
-  }
-}
-
-function showOverlay() {
-  if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
-  const overlay = document.getElementById('overlay');
-  overlay.classList.add('show');
-}
-
-function hideOverlay() {
-  const overlay = document.getElementById('overlay');
-  overlay.classList.remove('show');
-  if (isPlaying || currentVideo) { try { ytPlayer && ytPlayer.stopVideo && ytPlayer.stopVideo(); } catch(e) {} }
-  isPlaying = false;
-  currentVideo = null;
-  isPlayingBasePlaylist = false;
-}
-
-// ── Estado en vivo para el dashboard ──
-function sendStatus() {
-  if (isPreview) return;
-  try {
-    let state = 'idle', title = null, author = null, videoId = null, cur = 0, dur = 0, source = null;
-    if (ytPlayer && ytPlayer.getPlayerState && currentVideo) {
-      const ps = ytPlayer.getPlayerState();
-      state = ps === 1 ? 'playing' : ps === 2 ? 'paused' : ps === 3 ? 'buffering' : 'idle';
-      cur = ytPlayer.getCurrentTime() || 0;
-      dur = ytPlayer.getDuration() || 0;
-      source = currentVideo.fromPlaylist ? 'playlist' : 'viewer';
-      title = currentVideo.title; author = currentVideo.channelTitle; videoId = currentVideo.videoId;
-    }
-    fetch(`${SERVER}/api/youtube/status`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel, key: overlayKey, state, source, title, author, videoId, current: cur, duration: dur,
-        volume: ytPlayer && ytPlayer.getVolume ? ytPlayer.getVolume() : (config.volume ?? 100) })
-    }).catch(() => {});
-  } catch(e) {}
-}
-
-function updateProgress() {
-  if (!ytPlayer || !ytPlayer.getCurrentTime) return;
-  try {
-    const current = ytPlayer.getCurrentTime();
-    const duration = ytPlayer.getDuration();
-    if (duration > 0) {
-      const pct = (current / duration) * 100;
-      document.getElementById('progressFill').style.width = pct + '%';
-    }
-  } catch(e) {}
-}
-
-// ── Init ──
-async function init() {
-  await loadConfig();
-  const tag = document.createElement('script');
-  tag.src = 'https://www.youtube.com/iframe_api';
-  document.head.appendChild(tag);
-}
-
-// Modo demo (?demo=estilo): lo usa la galería del dashboard; muestra una tarjeta de ejemplo sin reproductor
-const demoTheme = params.get('demo');
-if (demoTheme) {
-  document.documentElement.classList.add('demo');
-  config = { theme: demoTheme, accent_color: '#FF0000', layout: params.get('layout'), cover: params.get('cover') };
-  const ov = $('overlay');
-  applyTheme(ov);
-  ov.classList.add('cardmode', 'show');
-  $('trackName').textContent = 'Tu canción';
-  $('trackMeta').textContent = 'Tu canal · pedido por @viewer';
-  $('progressFill').style.width = '40%';
-  const svg = "data:image/svg+xml;utf8," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 90'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#ff5c8a'/><stop offset='1' stop-color='#6a3cff'/></linearGradient></defs><rect width='160' height='90' fill='url(#g)'/><circle cx='80' cy='40' r='24' fill='#ffd36b'/><rect y='64' width='160' height='26' fill='#1b1f4b'/></svg>");
-  setThumb(svg);
-} else {
-  init();
-}
-</script>
 </body>
-</html>
+</html>`);
+});
+
+app.listen(PORT, () => console.log(`🐻🕷️ Dashboard en puerto ${PORT} | Producción: ${IS_PROD}`));
