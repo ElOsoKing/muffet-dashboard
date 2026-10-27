@@ -307,6 +307,11 @@ app.get('/auth/twitch/callback', async (req, res) => {
   // Flujo con enlace firmado (ventana de incógnito, sin sesión)
   const signed = req.query.state ? verifyBotState(req.query.state) : null;
   if (signed) return handleBotAuthCallback(req, res, code, 'custom', signed.o);
+  // El login normal nunca lleva "state". Si llega uno que no reconocemos (enlace caducado o alterado),
+  // NO iniciamos sesión ni registramos la cuenta: así una cuenta de bot nunca se crea como streamer por error.
+  if (req.query.state) {
+    return res.status(400).send('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Enlace caducado</title><body style="font-family:system-ui,sans-serif;background:#0e0e12;color:#eee;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0"><div style="max-width:520px;padding:28px;background:#1a1a22;border-radius:14px;border:1px solid #e05a7a"><h2 style="margin-top:0">Enlace caducado</h2><p>Este enlace de autorización ya no es válido (dura 30 minutos). Vuelve a tu dashboard de Muffet, copia un enlace nuevo y ábrelo en una ventana de incógnito.</p><p><a style="color:#b794ff" href="/dashboard">← Volver al dashboard</a></p></div>');
+  }
 
   try {
     const redirectUri = BASE_URL + '/auth/twitch/callback';
