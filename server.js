@@ -1451,7 +1451,7 @@ app.post('/api/emojigame', requireAuth, async (req, res) => {
 
 // ── Subatón ──
 // Estilos del overlay del subatón. wolf/oso son exclusivos (se pueden habilitar a otros canales desde el panel admin con feature_flags.themes)
-const SUBATHON_THEMES = ['clasico', 'neon', 'cyber', 'glass', 'arcade', 'fuego', 'wolf', 'oso'];
+const SUBATHON_THEMES = ['clasico', 'solo', 'neon', 'cyber', 'glass', 'arcade', 'fuego', 'wolf', 'oso'];
 function subathonThemeAllowed(theme, streamer) {
   if (!SUBATHON_THEMES.includes(theme)) return false;
   const u = String(streamer?.twitch_username || '').toLowerCase();
