@@ -72,6 +72,7 @@ nav{position:sticky;top:0;z-index:100;padding:0 24px;height:60px;display:flex;al
 .social-twitter{background:rgba(29,161,242,0.08);border-color:rgba(29,161,242,0.2);color:#1da1f2;}
 .social-instagram{background:rgba(225,48,108,0.08);border-color:rgba(225,48,108,0.2);color:#e1306c;}
 .social-discord{background:rgba(88,101,242,0.08);border-color:rgba(88,101,242,0.2);color:#7289da;}
+.social-fiverr{background:rgba(29,191,115,0.1);border-color:rgba(29,191,115,0.3);color:#1dbf73;}
 
 /* MAIN */
 .main{position:relative;z-index:1;max-width:860px;margin:0 auto;padding:8px 24px 80px;}
@@ -226,9 +227,9 @@ nav{position:sticky;top:0;z-index:100;padding:0 24px;height:60px;display:flex;al
 <div class="toast" id="toast">✓ Copiado al portapapeles</div>
 
 <script>
-const socialIcons   = {twitch:'🎮',youtube:'📺',tiktok:'🎵',twitter:'🐦',instagram:'📸',discord:'💬',donaciones:'💸'};
-const socialLabels  = {twitch:'Twitch',youtube:'YouTube',tiktok:'TikTok',twitter:'Twitter/X',instagram:'Instagram',discord:'Discord',donaciones:'Donaciones'};
-const socialClasses = {twitch:'social-twitch',youtube:'social-youtube',tiktok:'social-tiktok',twitter:'social-twitter',instagram:'social-instagram',discord:'social-discord',donaciones:'social-discord'};
+const socialIcons   = {twitch:'🎮',youtube:'📺',tiktok:'🎵',twitter:'🐦',instagram:'📸',discord:'💬',donaciones:'💸',fiverr:'💼'};
+const socialLabels  = {twitch:'Twitch',youtube:'YouTube',tiktok:'TikTok',twitter:'Twitter/X',instagram:'Instagram',discord:'Discord',donaciones:'Donaciones',fiverr:'Fiverr · Servicios'};
+const socialClasses = {twitch:'social-twitch',youtube:'social-youtube',tiktok:'social-tiktok',twitter:'social-twitter',instagram:'social-instagram',discord:'social-discord',donaciones:'social-discord',fiverr:'social-fiverr'};
 
 function showToast(msg='✓ Copiado') {
   const t = document.getElementById('toast');
@@ -323,8 +324,8 @@ async function loadCanal() {
 
     // Redes sociales con colores
     const socials = Object.entries(data.social_links || {})
-      .filter(([k,v]) => v && k !== 'accent_color')
-      .map(([k,v]) => `<a href="${v}" target="_blank" class="social-btn ${socialClasses[k]||''}">
+      .filter(([k,v]) => v && k !== 'accent_color' && /^https?:\/\//i.test(String(v))) // solo enlaces http(s): bloquea javascript: en un link guardado
+      .map(([k,v]) => `<a href="${String(v).replace(/"/g,'&quot;')}" target="_blank" rel="noopener noreferrer" class="social-btn ${socialClasses[k]||''}">
         ${socialIcons[k]||'🔗'} ${socialLabels[k]||k}
       </a>`).join('');
 
