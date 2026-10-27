@@ -181,13 +181,14 @@ function tick() {
   timeDisplay.classList.toggle('urgent', running && secs > 0 && secs < 120);
   labelText.textContent = running ? 'SUBATÓN' : 'SUBATÓN (pausado)';
   if (lastKnownSeconds !== null && secs > lastKnownSeconds + 1) {
-    const added = Math.round((secs - lastKnownSeconds) / 60);
-    if (added > 0) showAddon(added);
+    const addedSec = Math.round(secs - lastKnownSeconds);
+    if (addedSec > 0) showAddon(addedSec);
   }
   lastKnownSeconds = secs;
 }
-function showAddon(minutes) {
-  addonPopup.textContent = `+${minutes} min`;
+function showAddon(sec) {
+  const m = Math.round(sec / 6) / 10; // 1 decimal
+  addonPopup.textContent = sec >= 60 ? `+${m} min` : `+${sec} s`;
   addonPopup.classList.remove('pop');
   void addonPopup.offsetWidth;
   addonPopup.classList.add('pop');
