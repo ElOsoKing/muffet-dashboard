@@ -4905,7 +4905,15 @@ function renderMain() {
         </div>
         ${s.custom_bot_username?`<div style="margin-top:14px;padding:12px 14px;background:var(--bg3);border-radius:var(--radius-sm);font-size:12px;color:var(--text-dim);line-height:1.6;">
           <div id="cbBadgeStatus" style="margin-bottom:6px;font-weight:600;"></div>🤖 <strong style="color:var(--text);">Insignia de bot (opcional)</strong><br>Autoriza la cuenta de tu bot con la app de Muffet para que Twitch le muestre la insignia de bot en el chat. Usa el enlace en una ventana de incógnito para entrar con la cuenta de tu bot sin cerrar tu sesión. Tu bot sigue funcionando igual.
-          <div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" onclick="copyBotAuthLink()">🏅 Copiar enlace de autorización</button> <span style="font-size:12px;color:var(--text-muted)">Ábrelo en una <strong>ventana de incógnito</strong> e inicia sesión con tu bot (@${s.custom_bot_username}). Así no cierras tu sesión. El enlace dura 30 min.</span></div>
+          <div style="margin-top:8px;"><button class="btn btn-secondary btn-sm" onclick="copyBotAuthLink()">🏅 Copiar enlace de autorización</button>
+          <ol style="margin:8px 0 0 18px;padding:0;font-size:12px;color:var(--text-muted);line-height:1.6;">
+            <li>Pulsa <strong>Copiar enlace de autorización</strong>.</li>
+            <li>Abre una <strong>ventana de incógnito</strong> (Ctrl+Shift+N en Chrome/Edge, Ctrl+Shift+P en Firefox).</li>
+            <li>Pega el enlace en la barra de direcciones y entra.</li>
+            <li>Inicia sesión en Twitch con la cuenta de tu bot (<strong>@${s.custom_bot_username}</strong>), no con la tuya.</li>
+            <li>Pulsa <strong>Autorizar</strong>. Debe salir "✅ Bot autorizado".</li>
+          </ol>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">El enlace dura 30 min. Si caduca, copia uno nuevo. Tu sesión normal no se cierra.</div></div>
         </div>`:''}
         ${s.custom_bot_username?`<div style="margin-top:12px;padding:12px;background:rgba(64,208,144,0.08);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);font-size:13px;color:var(--green);">✅ Bot activo: <strong>${s.custom_bot_username}</strong> — aparece con este nombre en tu chat</div>`:''}
       </div>
