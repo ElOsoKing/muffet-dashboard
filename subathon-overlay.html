@@ -32,6 +32,13 @@ body[data-theme="clasico"] .time { font-family: 'VT323', monospace; font-size: 4
 body[data-theme="clasico"] .label { font-size: 11px; color: #8f88a8; letter-spacing: 1px; margin-top: 2px; }
 body[data-theme="clasico"] .addon { font-family: 'VT323', monospace; font-size: 26px; text-shadow: 0 0 10px rgba(62,207,142,.7); }
 
+/* ══════════ 1b · Solo números (sin fondo) ══════════ */
+body[data-theme="solo"] { --add: #3ecf8e; --urgent: #ff5470; }
+body[data-theme="solo"] .widget { padding: 4px 10px; }
+body[data-theme="solo"] .icon, body[data-theme="solo"] .label { display: none; }
+body[data-theme="solo"] .time { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 72px; letter-spacing: -1px; color: #fff; font-variant-numeric: tabular-nums; -webkit-text-stroke: 2px rgba(0,0,0,.75); paint-order: stroke fill; text-shadow: 0 3px 0 rgba(0,0,0,.55), 0 0 18px rgba(0,0,0,.6); }
+body[data-theme="solo"] .addon { font-family: 'Inter', sans-serif; font-size: 28px; right: 6px; top: -14px; -webkit-text-stroke: 1.5px rgba(0,0,0,.75); paint-order: stroke fill; text-shadow: 0 2px 0 rgba(0,0,0,.55); }
+
 /* ══════════ 2 · Neón (synthwave) ══════════ */
 body[data-theme="neon"] { --add: #00f0ff; --urgent: #ff3b6b; }
 body[data-theme="neon"] .widget { padding: 16px 68px 18px 28px; border-radius: 14px; background: linear-gradient(180deg, #1a0638 0%, #2b0a4f 60%, #3a0d5e 100%); border: 2px solid #ff2fd0; box-shadow: 0 0 0 1px rgba(0,240,255,.6), 0 0 22px rgba(255,47,208,.55), 0 0 46px rgba(0,240,255,.25), inset 0 0 22px rgba(255,47,208,.25); }
@@ -139,7 +146,7 @@ body[data-theme="oso"] .addon { font-family: 'Press Start 2P', monospace; font-s
   <div class="addon" id="addonPopup"></div>
 </div>
 <script>
-const THEMES = ['clasico','neon','cyber','glass','arcade','fuego','wolf','oso'];
+const THEMES = ['clasico','solo','neon','cyber','glass','arcade','fuego','wolf','oso'];
 const params = new URLSearchParams(location.search);
 const channel = decodeURIComponent(location.pathname.split('/').pop() || '').toLowerCase();
 const previewTheme = THEMES.includes(params.get('preview')) ? params.get('preview') : null; // vista previa desde el dashboard
@@ -150,7 +157,7 @@ const addonPopup = document.getElementById('addonPopup');
 
 let targetEndTime = null, staticRemaining = null, running = false, lastKnownSeconds = null;
 
-const ICONS = { clasico: '🕷️⏱️', neon: '⏱️', cyber: '⏱️', glass: '', arcade: '🪙', fuego: '🔥', wolf: '', oso: '' };
+const ICONS = { clasico: '🕷️⏱️', solo: '', neon: '⏱️', cyber: '⏱️', glass: '', arcade: '🪙', fuego: '🔥', wolf: '', oso: '' };
 function setTheme(t) {
   const th = THEMES.includes(t) ? t : 'clasico';
   document.body.setAttribute('data-theme', th);
