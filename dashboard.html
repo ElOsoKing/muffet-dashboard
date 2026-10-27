@@ -1310,6 +1310,17 @@ function setBottomNav(section) {
   if (btn) btn.classList.add('active');
 }
 
+async function loadChannelBotStatus() {
+  const el = document.getElementById('chBotStatus');
+  if (!el) return;
+  try {
+    const j = await (await fetch('/api/channel-bot-status')).json();
+    el.innerHTML = j.authorized
+      ? '<span style="color:var(--green);">✅ Muffet ya tiene tu permiso</span>'
+      : '<span style="color:var(--text-muted);">Sin autorizar todavía</span>';
+  } catch(e) {}
+}
+
 async function loadCustomBotBadgeStatus() {
   const el = document.getElementById('cbBadgeStatus');
   if (!el) return;
@@ -1324,6 +1335,7 @@ async function loadCustomBotBadgeStatus() {
 
 function showSection(name) {
   if (document.getElementById('cbBadgeStatus')) loadCustomBotBadgeStatus();
+  if (document.getElementById('chBotStatus')) loadChannelBotStatus();
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
   const clicked = event?.target?.closest('.nav-item');
@@ -4865,6 +4877,17 @@ function renderMain() {
         <div style="font-size:11px;color:var(--text-muted);margin-top:10px;">⚠️ Importar sobreescribirá tu configuración actual de las secciones incluidas en el archivo. No afecta tokens ni datos de cuenta.</div>
       </div>
     </div>
+
+    ${!s.custom_bot_username?`
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🏅 Insignia de bot para Muffet</span></div>
+      <div class="panel-body">
+        <div id="chBotStatus" style="margin-bottom:8px;font-weight:600;font-size:13px;"></div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;">Autoriza a Muffet en tu canal para que Twitch le muestre la <strong>insignia de bot</strong> en tu chat, sin que tengas que darle moderador. Es gratis, opcional y puedes retirar el permiso cuando quieras desde la configuración de conexiones de Twitch.</div>
+        <button class="btn btn-primary btn-sm" onclick="location.href='/auth/twitch/channel-bot'">🏅 Autorizar a Muffet</button>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Para que Muffet también modere (borrar mensajes, timeouts) sigue haciendo falta darle moderador: <code>/mod MuffetBot_</code></div>
+      </div>
+    </div>`:''}
 
     ${s.plan==='pro'||s.plan==='admin'?`
     <div class="panel">
