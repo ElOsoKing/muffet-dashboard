@@ -729,6 +729,52 @@ app.post('/api/admin/revoke/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// API admin — ELIMINAR una cuenta de streamer (borra fila, ajustes sueltos y archivos; devuelve un respaldo sin secretos)
+app.post('/api/admin/delete/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const rows = await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${encodeURIComponent(id)}&select=*&limit=1`, { headers: sbHeaders }).then(r => r.json()).catch(() => null);
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row) return res.status(404).json({ error: 'Cuenta no encontrada' });
+    if (String(row.twitch_id) === String(req.session.user.id)) return res.status(400).json({ error: 'No puedes eliminar tu propia cuenta' });
+    if (row.role === 'admin') return res.status(400).json({ error: 'No se puede eliminar una cuenta admin. Cámbiale el rol primero' });
+    const login = String(row.twitch_username || '').toLowerCase();
+    const typed = String(req.body?.confirm || '').trim().toLowerCase().replace(/^@/, '');
+    if (!login || typed !== login) return res.status(400).json({ error: 'Escribe el nombre del canal exactamente para confirmar' });
+
+    // Respaldo: toda la fila, pero sin tokens ni secretos
+    const backup = {};
+    for (const [k, v] of Object.entries(row)) backup[k] = /token|secret|refresh|password/i.test(k) ? '[oculto]' : v;
+
+    // 1) Borrar la fila principal (si falla, no se toca nada más)
+    const del = await fetch(`${SUPABASE_URL}/rest/v1/streamers?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE', headers: { ...sbHeaders, 'Prefer': 'return=minimal' } });
+    if (!del.ok) return res.status(500).json({ error: 'No se pudo borrar la cuenta en la base de datos' });
+
+    // 2) Ajustes sueltos y archivos: mejor esfuerzo (nunca rompen la respuesta)
+    const keys = ['channel_bot:' + login];
+    if (row.custom_bot_username) keys.push('bot_auth:' + String(row.custom_bot_username).toLowerCase());
+    for (const key of keys) {
+      try { await fetch(`${SUPABASE_URL}/rest/v1/app_settings?key=eq.${encodeURIComponent(key)}`, { method: 'DELETE', headers: { ...sbHeaders, 'Prefer': 'return=minimal' } }); } catch (e) {}
+    }
+    _ttlCache.delete('botauth');
+    let files = 0;
+    try {
+      const lr = await fetch(`${SUPABASE_URL}/storage/v1/object/list/alerts`, { method: 'POST', headers: sbHeaders, body: JSON.stringify({ prefix: login, limit: 1000 }) });
+      const list = lr.ok ? await lr.json() : [];
+      const paths = (Array.isArray(list) ? list : []).filter(o => o?.name).map(o => `${login}/${o.name}`);
+      if (paths.length) {
+        await fetch(`${SUPABASE_URL}/storage/v1/object/alerts`, { method: 'DELETE', headers: sbHeaders, body: JSON.stringify({ prefixes: paths }) });
+        files = paths.length;
+      }
+    } catch (e) {}
+
+    adminLog(req, 'eliminar cuenta', row.twitch_username, files ? `${files} archivos borrados` : null);
+    res.json({ success: true, name: row.twitch_username, files, backup });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // API admin — cambiar rol
 app.post('/api/admin/role/:id', requireAdmin, async (req, res) => {
   try {
