@@ -573,6 +573,7 @@ function renderTable(){
                     ${!s.approved||s.role==='pending' ? `<button class="btn-action btn-approve" onclick="approve(${s.id})">✓ Aprobar</button>` : ''}
                     ${s.approved&&s.role!=='blocked' ? `<button class="btn-action btn-revoke" onclick="revoke(${s.id})">Revocar</button>` : ''}
                     ${s.role==='blocked' ? `<button class="btn-action btn-restore" onclick="approve(${s.id})">Restaurar</button>` : ''}
+                    ${s.role!=='admin' ? `<button class="btn-action btn-revoke" onclick="deleteAccount(${s.id})" title="Eliminar cuenta">🗑</button>` : ''}
                     ${s.approved&&s.plan!=='pro'&&s.plan!=='admin' ? `<button class="btn-action btn-pro" onclick="openProModal(${s.id}, ${s.plan_expires_at ? `'${s.plan_expires_at}'` : 'null'})">⭐ Pro</button>` : ''}
                     ${s.plan==='pro' ? `<button class="btn-action btn-pro" onclick="openProModal(${s.id})">↻ Renovar</button><button class="btn-action btn-free" onclick="setPlan(${s.id},'free')">↓ Free</button>` : ''}
                   `}
@@ -657,6 +658,7 @@ function showDetails(id){
       ${s.approved&&s.plan!=='pro'?`<button class="btn-action btn-pro" style="flex:1;padding:9px;" onclick="openProModal(${s.id})">⭐ Activar Pro</button>`:''}
       ${s.plan==='pro'?`<button class="btn-action btn-pro" style="flex:1;padding:9px;" onclick="openProModal(${s.id})">↻ Renovar Pro</button><button class="btn-action btn-free" style="padding:9px 14px;" onclick="setPlan(${s.id},'free');document.getElementById('detailModal').style.display='none'">↓ Free</button>`:''}
       ${s.approved&&s.role!=='blocked'?`<button class="btn-action btn-revoke" style="padding:9px 14px;" onclick="revoke(${s.id});document.getElementById('detailModal').style.display='none'">Revocar</button>`:''}
+      ${s.role!=='admin'?`<button class="btn-action btn-revoke" style="padding:9px 14px;" onclick="document.getElementById('detailModal').style.display='none';deleteAccount(${s.id})">🗑 Eliminar cuenta</button>`:''}
     </div>`:''}
   `;
 
@@ -686,6 +688,25 @@ async function revoke(id){
   const res=await fetch(`/api/admin/revoke/${id}`,{method:'POST'});
   if(res.ok){showToast('Acceso revocado');loadStreamers();}
   else { const j=await res.json().catch(()=>({})); showToast(j.error||'Error','error'); }
+}
+
+async function deleteAccount(id){
+  const t=allStreamers.find(x=>x.id===id);
+  const name=t?.twitch_username||t?.display_name||'';
+  if(!name)return;
+  const typed=prompt('ELIMINAR la cuenta de "'+name+'"\n\nSe borran su configuración, comandos, puntos, ajustes y archivos subidos. No se puede deshacer (se descarga un respaldo sin tokens).\n\nEscribe el nombre del canal para confirmar:');
+  if(typed===null)return;
+  const res=await fetch(`/api/admin/delete/${id}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:typed})});
+  const j=await res.json().catch(()=>({}));
+  if(res.ok&&j.success){
+    try{
+      const blob=new Blob([JSON.stringify(j.backup,null,2)],{type:'application/json'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+      a.download='respaldo-'+String(j.name).toLowerCase()+'-'+new Date().toISOString().slice(0,10)+'.json';
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    }catch(e){}
+    showToast('Cuenta eliminada ✓ (respaldo descargado)');loadStreamers();
+  } else showToast(j.error||'Error al eliminar','error');
 }
 
 async function setPlan(id,plan){
