@@ -1015,7 +1015,7 @@ const NIGHTBOT_CLIENT_ID = process.env.NIGHTBOT_CLIENT_ID;
 const NIGHTBOT_CLIENT_SECRET = process.env.NIGHTBOT_CLIENT_SECRET;
 const nightbotData = new Map(); // twitch_id -> { ts, commands, timers }
 const NIGHTBOT_TTL = 15 * 60 * 1000;
-setInterval(() => { const now = Date.now(); for (const [k, v] of nightbotData) if (now - v.ts > NIGHTBOT_TTL) nightbotData.delete(k); }, 5 * 60 * 1000).unref?.();
+setInterval(() => { const now = Date.now(); for (const [k, v] of nightbotData) if (now - v.ts > NIGHTBOT_TTL) nightbotData.delete(k); for (const [k, v] of seData) if (now - v.ts > NIGHTBOT_TTL) seData.delete(k); }, 5 * 60 * 1000).unref?.();
 
 app.get('/auth/nightbot', requireAuth, (req, res) => {
   if (!NIGHTBOT_CLIENT_ID || !NIGHTBOT_CLIENT_SECRET) return res.redirect('/dashboard?nightbot=nocreds');
@@ -1075,6 +1075,81 @@ app.get('/api/import/nightbot/data', requireAuth, (req, res) => {
   if (!d || Date.now() - d.ts > NIGHTBOT_TTL) { nightbotData.delete(String(req.session.user.id)); return res.status(404).json({ error: 'sin_datos' }); }
   const kind = req.query.kind === 'timers' ? 'timers' : 'commands';
   const text = d[kind];
+  if (!text) return res.status(404).json({ error: 'sin_datos' });
+  res.json({ text });
+});
+
+// ── Importar directo desde StreamElements (OAuth, solo lectura) ──
+const SE_CLIENT_ID = process.env.SE_CLIENT_ID;
+const SE_CLIENT_SECRET = process.env.SE_CLIENT_SECRET;
+const SE_SCOPES = process.env.SE_SCOPES || 'bot:read';
+const seData = new Map(); // twitch_id -> { ts, commands, timers }
+
+app.get('/auth/streamelements', requireAuth, (req, res) => {
+  if (!SE_CLIENT_ID || !SE_CLIENT_SECRET) return res.redirect('/dashboard?streamelements=nocreds');
+  const state = require('crypto').randomBytes(16).toString('hex');
+  req.session.seState = state;
+  const url = 'https://api.streamelements.com/oauth2/authorize?response_type=code'
+    + '&client_id=' + encodeURIComponent(SE_CLIENT_ID)
+    + '&redirect_uri=' + encodeURIComponent(BASE_URL + '/auth/streamelements/callback')
+    + '&scope=' + encodeURIComponent(SE_SCOPES)
+    + '&state=' + state;
+  req.session.save(() => res.redirect(url));
+});
+
+app.get('/auth/streamelements/callback', requireAuth, async (req, res) => {
+  const { code, state, error } = req.query;
+  const expected = req.session.seState;
+  req.session.seState = null;
+  if (error || !code || !expected || state !== expected) return res.redirect('/dashboard?streamelements=error');
+  let accessToken = null;
+  try {
+    const tokenRes = await fetch('https://api.streamelements.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: SE_CLIENT_ID, client_secret: SE_CLIENT_SECRET, code: String(code),
+        grant_type: 'authorization_code', redirect_uri: BASE_URL + '/auth/streamelements/callback'
+      }).toString()
+    });
+    const tok = await tokenRes.json();
+    accessToken = tok.access_token;
+    if (!accessToken) { console.error('SE token sin access_token'); return res.redirect('/dashboard?streamelements=error'); }
+    const headers = { Authorization: 'oAuth ' + accessToken };
+    const vr = await fetch('https://api.streamelements.com/oauth2/validate', { headers });
+    const v = await vr.json().catch(() => ({}));
+    const channelId = String(v.channel_id || '').replace(/[^a-zA-Z0-9]/g, '');
+    if (!channelId) { console.error('SE validate sin channel_id'); return res.redirect('/dashboard?streamelements=error'); }
+    const base = 'https://api.streamelements.com/kappa/v2/bot/';
+    const [cr, tr] = await Promise.all([
+      fetch(base + 'commands/' + channelId, { headers }),
+      fetch(base + 'timers/' + channelId, { headers })
+    ]);
+    if (!cr.ok) console.error('SE commands status', cr.status);
+    if (!tr.ok) console.error('SE timers status', tr.status);
+    const commands = cr.ok ? JSON.stringify(await cr.json()) : '';
+    const timers = tr.ok ? JSON.stringify(await tr.json()) : '';
+    if (!commands && !timers) return res.redirect('/dashboard?streamelements=error');
+    seData.set(String(req.session.user.id), { ts: Date.now(), commands, timers });
+    res.redirect('/dashboard?streamelements=ok');
+  } catch (err) {
+    console.error('StreamElements callback:', err.message);
+    res.redirect('/dashboard?streamelements=error');
+  } finally {
+    if (accessToken) {
+      fetch('https://api.streamelements.com/oauth2/revoke', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ client_id: SE_CLIENT_ID, client_secret: SE_CLIENT_SECRET, token: accessToken }).toString()
+      }).catch(() => {});
+    }
+  }
+});
+
+app.get('/api/import/streamelements/data', requireAuth, (req, res) => {
+  const k = String(req.session.user.id);
+  const d = seData.get(k);
+  if (!d || Date.now() - d.ts > NIGHTBOT_TTL) { seData.delete(k); return res.status(404).json({ error: 'sin_datos' }); }
+  const text = d[req.query.kind === 'timers' ? 'timers' : 'commands'];
   if (!text) return res.status(404).json({ error: 'sin_datos' });
   res.json({ text });
 });
