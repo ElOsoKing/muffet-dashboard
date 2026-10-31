@@ -227,6 +227,8 @@ nav{position:sticky;top:0;z-index:100;padding:0 24px;height:60px;display:flex;al
 <div class="toast" id="toast">✓ Copiado al portapapeles</div>
 
 <script>
+function escH(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
 const socialIcons   = {twitch:'🎮',youtube:'📺',tiktok:'🎵',twitter:'🐦',instagram:'📸',discord:'💬',donaciones:'💸',fiverr:'💼'};
 const socialLabels  = {twitch:'Twitch',youtube:'YouTube',tiktok:'TikTok',twitter:'Twitter/X',instagram:'Instagram',discord:'Discord',donaciones:'Donaciones',fiverr:'Fiverr · Servicios'};
 const socialClasses = {twitch:'social-twitch',youtube:'social-youtube',tiktok:'social-tiktok',twitter:'social-twitter',instagram:'social-instagram',discord:'social-discord',donaciones:'social-discord',fiverr:'social-fiverr'};
@@ -493,9 +495,9 @@ async function loadCanal() {
             <div class="cmd-list">
               ${commands.map(([trigger, val]) => {
                 const resp = typeof val === 'object' ? val.response : val;
-                return `<div class="cmd-item" data-trigger="${trigger}" data-response="${(resp||'').replace(/"/g,'')}" onclick="copyCmd('${trigger}')">
+                return `<div class="cmd-item" data-trigger="${trigger}" data-response="${escH(resp||'')}" onclick="copyCmd('${trigger}')">
                   <span class="cmd-trigger">${trigger}</span>
-                  <span class="cmd-response">${resp||''}</span>
+                  <span class="cmd-response">${escH(resp||'')}</span>
                   <span class="cmd-copy">copiar</span>
                 </div>`;
               }).join('')}
