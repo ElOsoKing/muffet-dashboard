@@ -1193,7 +1193,7 @@ app.post('/api/import/preview', requireAuth, async (req, res) => {
     if (!st) return res.status(404).json({ error: 'Cuenta no encontrada' });
     if (kind === 'timers') {
       const r = importer.parseTimers(text);
-      const items = r.items.slice(0, 100).map(it => ({ ...it, selected: it.status === 'ok' || it.status === 'revisar' }));
+      const items = r.items.slice(0, 100).map(it => ({ ...it, selected: (it.status === 'ok' || it.status === 'revisar') && !it.disabledSrc }));
       return res.json({ items, errors: r.errors, truncated: r.items.length > 100, meta: { current: normalizeAutoMsgs(st.auto_messages).length, limit: MAX_AUTOMSGS } });
     }
     const r = importer.parseCommands(text);
