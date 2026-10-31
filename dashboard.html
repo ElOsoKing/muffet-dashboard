@@ -2072,7 +2072,7 @@ function renderMain() {
             const response = typeof val === 'object' ? val.response : val;
             const perms = typeof val === 'object' && val.perms ? val.perms : ['everyone'];
             const permIcons = {everyone:'👥',sub:'⭐',vip:'💎',mod:'🛡️',broadcaster:'👑'};
-            const permStr = perms.map(p => permIcons[p]||p).join(' ');
+            const permStr = perms.map(p => permIcons[p]||p).join(' ') + cmdMetaStr(trigger, val);
             return `
             <div class="cmd-card" data-trigger="${trigger}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);transition:all 0.15s;cursor:default;" onmouseover="this.style.borderColor='rgba(145,71,255,0.25)';this.style.background='var(--bg4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)';this.style.background='var(--bg3)'">
               <!-- Trigger badge -->
@@ -2107,8 +2107,9 @@ function renderMain() {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Comando <span style="color:var(--text-muted);font-size:11px;">(debe empezar con !)</span></label>
-          <input class="form-input" id="modalTrigger" placeholder="!saludo" style="font-family:monospace;font-weight:600;font-size:14px;color:var(--purple-light);">
+          <label class="form-label">Comando <span style="color:var(--text-muted);font-size:11px;">(con ! como !saludo, o una palabra suelta sin ! como f)</span></label>
+          <input class="form-input" id="modalTrigger" placeholder="!saludo" oninput="updateTriggerHint()" style="font-family:monospace;font-weight:600;font-size:14px;color:var(--purple-light);">
+          <div id="modalTriggerHint" style="display:none;font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Palabra suelta: el bot responde cuando alguien escribe <b>solo</b> esa palabra en el chat (sin !). Usa <code style="font-family:monospace;">{cmdcount}</code> para contar cuántas veces la escriben.</div>
         </div>
 
         <div class="form-group">
@@ -2133,6 +2134,12 @@ function renderMain() {
               </label>`;
             }).join('')}
           </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Espera entre respuestas <span style="color:var(--text-muted);font-size:11px;">(segundos, opcional)</span></label>
+          <input class="form-input" id="modalCooldown" type="number" min="0" max="3600" placeholder="vacío = sin espera (10 s en palabras sueltas)" style="max-width:260px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">El contador sigue sumando aunque el bot no conteste durante la espera.</div>
         </div>
 
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px;">
@@ -2509,6 +2516,7 @@ function renderMain() {
           </div>`).join('')}
         <div style="font-size:11px;color:var(--text-muted);padding-top:12px;line-height:1.5;">
           Las zonas horarias se escriben como <code style="font-family:monospace;">America/Santo_Domingo</code>, <code style="font-family:monospace;">America/Mexico_City</code>, <code style="font-family:monospace;">Europe/Madrid</code>…<br>
+          <b>Comandos sin !</b>: al crear un comando puedes poner una palabra suelta (por ejemplo <code style="font-family:monospace;">f</code>) y responde cuando alguien escribe solo esa palabra. Con <code style="font-family:monospace;">{cmdcount}</code> cuentas cuántas veces la escriben, ej: "🫡 Han presionado F {cmdcount} veces".<br>
           Por seguridad, si un viewer escribe <code style="font-family:monospace;">/</code>, <code style="font-family:monospace;">.</code> o <code style="font-family:monospace;">!</code> al inicio de lo que pone en {args}, el bot se lo quita.
         </div>
       </div>
@@ -5135,7 +5143,7 @@ function renderCommandsList() {
   list.innerHTML = entries.map(([trigger, val]) => {
     const response = typeof val === 'object' ? val.response : val;
     const perms = typeof val === 'object' && val.perms ? val.perms : ['everyone'];
-    const permStr = perms.map(p => permIcons[p]||p).join(' ');
+    const permStr = perms.map(p => permIcons[p]||p).join(' ') + cmdMetaStr(trigger, val);
     return `
       <div class="cmd-card" data-trigger="${trigger}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);transition:all 0.15s;" onmouseover="this.style.borderColor='rgba(145,71,255,0.25)';this.style.background='var(--bg4)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.05)';this.style.background='var(--bg3)'">
         <div style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:8px;padding:6px 12px;flex-shrink:0;min-width:80px;text-align:center;">
@@ -5288,6 +5296,21 @@ document.addEventListener('click', function(e) {
 // ── MODAL DE COMANDOS ──
 let cmdModalEditing = null; // trigger que se está editando
 
+function updateTriggerHint() {
+  const v = document.getElementById('modalTrigger')?.value.trim() || '';
+  const hint = document.getElementById('modalTriggerHint');
+  if (hint) hint.style.display = (v && !v.startsWith('!')) ? 'block' : 'none';
+}
+
+// Texto extra en la tarjeta del comando: si es palabra suelta y/o tiene espera
+function cmdMetaStr(trigger, val) {
+  const bits = [];
+  if (!String(trigger).startsWith('!')) bits.push('palabra suelta');
+  if (val && typeof val === 'object' && val.cooldown !== undefined && val.cooldown !== null && val.cooldown !== '') bits.push('espera ' + val.cooldown + 's');
+  else if (!String(trigger).startsWith('!')) bits.push('espera 10s');
+  return bits.length ? ' · ' + bits.join(' · ') : '';
+}
+
 function openCmdModal(trigger) {
   cmdModalEditing = trigger || null;
   const modal = document.getElementById('cmdModal');
@@ -5311,13 +5334,18 @@ function openCmdModal(trigger) {
     const perms = typeof cmd === 'object' && cmd.perms ? cmd.perms : ['everyone'];
     responseEl.value = response || '';
     perms.forEach(p => activateModalPerm(p));
+    const cdEl = document.getElementById('modalCooldown');
+    if (cdEl) cdEl.value = (typeof cmd === 'object' && cmd.cooldown !== undefined && cmd.cooldown !== null) ? cmd.cooldown : '';
   } else {
     titleEl.textContent = 'Nuevo comando';
     triggerEl.value = '!';
     responseEl.value = '';
     activateModalPerm('everyone');
+    const cdEl = document.getElementById('modalCooldown');
+    if (cdEl) cdEl.value = '';
   }
 
+  updateTriggerHint();
   updateModalPreview();
   modal.style.display = 'flex';
   setTimeout(() => responseEl.focus(), 100);
@@ -5399,8 +5427,14 @@ async function saveCmdModal() {
   const response = document.getElementById('modalResponse')?.value.trim();
   const perms = Array.from(document.querySelectorAll('#modalPerms input:checked')).map(i => i.dataset.perm);
 
-  if (!trigger || !trigger.startsWith('!')) { showToast('El comando debe empezar con !','error'); return; }
+  if (!trigger) { showToast('Escribe el comando','error'); return; }
+  const isPlain = !trigger.startsWith('!');
+  if (isPlain && !/^[\p{L}\p{N}\p{Extended_Pictographic} _-]{1,30}$/u.test(trigger)) { showToast('Sin ! solo se permiten letras, números y emojis (máx. 30)','error'); return; }
+  if (!isPlain && trigger.length < 2) { showToast('Escribe el nombre del comando después del !','error'); return; }
   if (!response) { showToast('Escribe una respuesta','error'); return; }
+  const cdRaw = document.getElementById('modalCooldown')?.value.trim();
+  const cooldown = cdRaw === '' || cdRaw === undefined ? null : Math.round(Number(cdRaw));
+  if (cooldown !== null && (!Number.isFinite(cooldown) || cooldown < 0 || cooldown > 3600)) { showToast('La espera debe estar entre 0 y 3600 segundos','error'); return; }
 
   const commands = { ...(streamerData.commands || {}) };
 
@@ -5408,6 +5442,7 @@ async function saveCmdModal() {
   if (cmdModalEditing && cmdModalEditing !== trigger) delete commands[cmdModalEditing];
 
   commands[trigger] = { response, perms: perms.length ? perms : ['everyone'] };
+  if (cooldown !== null) commands[trigger].cooldown = cooldown;
 
   const res = await fetch('/api/commands', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ commands }) });
   if (res.ok) {
