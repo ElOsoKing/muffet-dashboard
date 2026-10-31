@@ -120,6 +120,8 @@ function translateText(input, opts = {}) {
     if (r === null) unsupported.push(raw);
     return r;
   });
+  // StreamElements (motor nuevo): {user.name}, {touser.name}, {channel.name}
+  text = text.replace(/\{(user|touser|channel)\.name\}/gi, (m, v) => '{' + v.toLowerCase() + '}');
   text = streamlabsBasic(text);
   text = text.replace(/\s{2,}/g, ' ').trim();
 
@@ -231,7 +233,8 @@ function parseCommands(raw) {
     if (!list) { errors.push('No encontré una lista de comandos en ese JSON'); return { items, errors }; }
     for (const c of list) {
       if (!c || typeof c !== 'object') continue;
-      if (c.enabled === false) continue;
+      const wasOff = c.enabled === false;
+      const before = items.length;
       const info = [], warn = [];
       if (c.message !== undefined && c.name !== undefined) {                       // Nightbot
         items.push(buildCommandItem(normalizeName(c.name), c.message, mapNightbotLevel(c.userLevel, info, warn),
@@ -244,6 +247,11 @@ function parseCommands(raw) {
         const nm = c.name || c.command || c.trigger;
         const resp = c.response !== undefined ? c.response : (c.message !== undefined ? c.message : (c.reply !== undefined ? c.reply : c.text));
         if (nm !== undefined && resp !== undefined) items.push(buildCommandItem(normalizeName(nm), resp, ['everyone'], cleanCooldown(c.cooldown), 'texto', info, warn));
+      }
+      if (wasOff && items.length > before) {
+        const it = items[items.length - 1];
+        it.disabledSrc = true;
+        it.notes.unshift('Estaba desactivado en tu bot: lo dejé sin marcar');
       }
     }
     if (!items.length) errors.push('No encontré comandos que se puedan leer en ese JSON');
@@ -304,7 +312,8 @@ function parseTimers(raw) {
     const list = Array.isArray(json) ? json : (Array.isArray(json.timers) ? json.timers : null);
     if (!list) { errors.push('No encontré una lista de timers en ese JSON'); return { items, errors }; }
     for (const t of list) {
-      if (!t || typeof t !== 'object' || t.enabled === false) continue;
+      if (!t || typeof t !== 'object') continue;
+      const wasOff = t.enabled === false;
       const msgs = Array.isArray(t.messages) ? t.messages : [t.message !== undefined ? t.message : t.text];
       const source = Array.isArray(t.messages) ? 'streamelements' : 'nightbot';
       for (const msg of msgs) {
@@ -312,7 +321,9 @@ function parseTimers(raw) {
         const info = [];
         const interval = parseIntervalMinutes(t.interval, info);
         if (t.lines || t.chatLines) info.push('Pedía un mínimo de líneas de chat; SilklyBot ya espera a que haya actividad');
-        items.push(buildTimerItem(msg, interval, source, info));
+        const ti = buildTimerItem(msg, interval, source, info);
+        if (wasOff) { ti.disabledSrc = true; ti.notes.unshift('Estaba desactivado en tu bot: lo dejé sin marcar'); }
+        items.push(ti);
       }
     }
     if (!items.length) errors.push('No encontré timers que se puedan leer en ese JSON');
@@ -335,7 +346,7 @@ function annotateConflicts(items, existing) {
   const have = new Set(Object.keys(existing || {}));
   for (const it of items) {
     it.conflict = RESERVED.has(it.name) ? 'reserved' : (have.has(it.name) ? 'exists' : null);
-    it.selected = (it.status === 'ok' || it.status === 'revisar') && !it.conflict;
+    it.selected = (it.status === 'ok' || it.status === 'revisar') && !it.conflict && !it.disabledSrc;
     if (it.conflict === 'reserved') it.notes.unshift(it.name + ' ya es un comando propio de SilklyBot: cámbiale el nombre');
     if (it.conflict === 'exists') it.notes.unshift('Ya tienes ' + it.name + ': marca para reemplazarlo');
   }
