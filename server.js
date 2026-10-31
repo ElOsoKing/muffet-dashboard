@@ -1009,6 +1009,76 @@ function normalizeAutoMsgs(list) {
   }).filter(m => m.text);
 }
 
+// ── Importar directo desde Nightbot (OAuth, solo lectura) ──
+// El token se usa una sola vez para leer comandos y timers y se revoca enseguida; no se guarda.
+const NIGHTBOT_CLIENT_ID = process.env.NIGHTBOT_CLIENT_ID;
+const NIGHTBOT_CLIENT_SECRET = process.env.NIGHTBOT_CLIENT_SECRET;
+const nightbotData = new Map(); // twitch_id -> { ts, commands, timers }
+const NIGHTBOT_TTL = 15 * 60 * 1000;
+setInterval(() => { const now = Date.now(); for (const [k, v] of nightbotData) if (now - v.ts > NIGHTBOT_TTL) nightbotData.delete(k); }, 5 * 60 * 1000).unref?.();
+
+app.get('/auth/nightbot', requireAuth, (req, res) => {
+  if (!NIGHTBOT_CLIENT_ID || !NIGHTBOT_CLIENT_SECRET) return res.redirect('/dashboard?nightbot=nocreds');
+  const state = require('crypto').randomBytes(16).toString('hex');
+  req.session.nbState = state;
+  const url = 'https://api.nightbot.tv/oauth2/authorize?response_type=code'
+    + '&client_id=' + encodeURIComponent(NIGHTBOT_CLIENT_ID)
+    + '&redirect_uri=' + encodeURIComponent(BASE_URL + '/auth/nightbot/callback')
+    + '&scope=' + encodeURIComponent('commands timers')
+    + '&state=' + state;
+  req.session.save(() => res.redirect(url));
+});
+
+app.get('/auth/nightbot/callback', requireAuth, async (req, res) => {
+  const { code, state, error } = req.query;
+  const expected = req.session.nbState;
+  req.session.nbState = null;
+  if (error || !code || !expected || state !== expected) return res.redirect('/dashboard?nightbot=error');
+  let accessToken = null;
+  try {
+    const tokenRes = await fetch('https://api.nightbot.tv/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: NIGHTBOT_CLIENT_ID, client_secret: NIGHTBOT_CLIENT_SECRET, code: String(code),
+        grant_type: 'authorization_code', redirect_uri: BASE_URL + '/auth/nightbot/callback'
+      }).toString()
+    });
+    const tok = await tokenRes.json();
+    accessToken = tok.access_token;
+    if (!accessToken) return res.redirect('/dashboard?nightbot=error');
+    const headers = { Authorization: 'Bearer ' + accessToken };
+    const [cr, tr] = await Promise.all([
+      fetch('https://api.nightbot.tv/1/commands', { headers }),
+      fetch('https://api.nightbot.tv/1/timers', { headers })
+    ]);
+    const commands = cr.ok ? JSON.stringify(await cr.json()) : '';
+    const timers = tr.ok ? JSON.stringify(await tr.json()) : '';
+    if (!commands && !timers) return res.redirect('/dashboard?nightbot=error');
+    nightbotData.set(String(req.session.user.id), { ts: Date.now(), commands, timers });
+    res.redirect('/dashboard?nightbot=ok');
+  } catch (err) {
+    console.error('Nightbot callback:', err.message);
+    res.redirect('/dashboard?nightbot=error');
+  } finally {
+    if (accessToken) {
+      fetch('https://api.nightbot.tv/oauth2/token/revoke', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ token: accessToken }).toString()
+      }).catch(() => {});
+    }
+  }
+});
+
+app.get('/api/import/nightbot/data', requireAuth, (req, res) => {
+  const d = nightbotData.get(String(req.session.user.id));
+  if (!d || Date.now() - d.ts > NIGHTBOT_TTL) { nightbotData.delete(String(req.session.user.id)); return res.status(404).json({ error: 'sin_datos' }); }
+  const kind = req.query.kind === 'timers' ? 'timers' : 'commands';
+  const text = d[kind];
+  if (!text) return res.status(404).json({ error: 'sin_datos' });
+  res.json({ text });
+});
+
 app.post('/api/import/preview', requireAuth, async (req, res) => {
   try {
     if (!importer) return res.status(503).json({ error: 'El importador no está disponible (falta subir importer.js al servidor)' });
