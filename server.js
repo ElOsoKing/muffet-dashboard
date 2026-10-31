@@ -1145,6 +1145,35 @@ app.get('/auth/streamelements/callback', requireAuth, async (req, res) => {
   }
 });
 
+// Con token personal (JWT): se usa una sola vez y NO se guarda ni se escribe en logs
+app.post('/api/import/streamelements/token', requireAuth, async (req, res) => {
+  try {
+    const jwt = String(req.body?.token || '').trim();
+    if (!/^[A-Za-z0-9._-]{20,4000}$/.test(jwt)) return res.status(400).json({ error: 'Ese token no parece válido' });
+    const headers = { Authorization: 'Bearer ' + jwt, Accept: 'application/json' };
+    const me = await fetch('https://api.streamelements.com/kappa/v2/channels/me', { headers });
+    if (me.status === 401 || me.status === 403) return res.status(400).json({ error: 'StreamElements no aceptó el token. Cópialo de nuevo, completo' });
+    if (!me.ok) return res.status(502).json({ error: 'StreamElements no respondió. Intenta de nuevo' });
+    const channelId = String((await me.json().catch(() => ({})))._id || '').replace(/[^a-zA-Z0-9]/g, '');
+    if (!channelId) return res.status(502).json({ error: 'No pude leer tu canal de StreamElements' });
+    const base = 'https://api.streamelements.com/kappa/v2/bot/';
+    const [cr, tr] = await Promise.all([
+      fetch(base + 'commands/' + channelId, { headers }),
+      fetch(base + 'timers/' + channelId, { headers })
+    ]);
+    if (!cr.ok) console.error('SE(token) commands status', cr.status);
+    if (!tr.ok) console.error('SE(token) timers status', tr.status);
+    const commands = cr.ok ? JSON.stringify(await cr.json()) : '';
+    const timers = tr.ok ? JSON.stringify(await tr.json()) : '';
+    if (!commands && !timers) return res.status(502).json({ error: 'No pude leer tus comandos ni timers' });
+    seData.set(String(req.session.user.id), { ts: Date.now(), commands, timers });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('SE token import:', err.message);
+    res.status(500).json({ error: 'No se pudo conectar con StreamElements' });
+  }
+});
+
 app.get('/api/import/streamelements/data', requireAuth, (req, res) => {
   const k = String(req.session.user.id);
   const d = seData.get(k);
