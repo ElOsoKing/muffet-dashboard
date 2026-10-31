@@ -5323,6 +5323,7 @@ function ensureImportModal() {
           <textarea id="impText" class="form-input" spellcheck="false" style="min-height:220px;width:100%;font-family:monospace;font-size:12px;line-height:1.6;resize:vertical;"></textarea>
           <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap;">
             <button type="button" onclick="importFromNightbot()" title="Autoriza solo lectura; no guardamos tu acceso" style="padding:8px 14px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">🔗 Traer de Nightbot</button>
+            <button type="button" onclick="importFromStreamElements()" title="Autoriza solo lectura; no guardamos tu acceso" style="padding:8px 14px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">🔗 Traer de StreamElements</button>
             <label style="font-size:12px;color:var(--text-dim);">…o sube un archivo (.txt, .json, .csv):
               <input type="file" id="impFile" accept=".txt,.json,.csv,text/plain,application/json" onchange="importLoadFile(this)" style="margin-left:6px;font-size:12px;">
             </label>
@@ -5392,20 +5393,38 @@ async function importFromNightbot() {
   window.location.href = '/auth/nightbot';
 }
 
+async function importFromStreamElements() {
+  try {
+    const r = await fetch('/api/import/streamelements/data?kind=' + importState.kind);
+    if (r.ok) {
+      const j = await r.json();
+      document.getElementById('impText').value = j.text || '';
+      await importAnalyze();
+      return;
+    }
+  } catch (e) {}
+  window.location.href = '/auth/streamelements';
+}
+
 async function nightbotReturn() {
-  let q = '';
-  try { q = new URLSearchParams(location.search).get('nightbot') || ''; } catch (e) {}
+  let q = '', which = 'nightbot';
+  try {
+    const sp = new URLSearchParams(location.search);
+    q = sp.get('nightbot') || '';
+    if (!q) { q = sp.get('streamelements') || ''; which = 'streamelements'; }
+  } catch (e) {}
   if (!q) return;
+  const label = which === 'nightbot' ? 'Nightbot' : 'StreamElements';
   try { history.replaceState(null, '', location.pathname); } catch (e) {}
   if (q === 'ok') {
-    showToast('✓ Nightbot conectado: revisa tus comandos');
+    showToast('✓ ' + label + ' conectado: revisa tus comandos');
     if (typeof showSection === 'function') { try { showSection('commands'); } catch (e) {} }
     openImportModal('commands');
-    importFromNightbot();
+    if (which === 'nightbot') importFromNightbot(); else importFromStreamElements();
   } else if (q === 'nocreds') {
-    showToast('La conexión con Nightbot aún no está configurada en el servidor', 'error');
+    showToast('La conexión con ' + label + ' aún no está configurada en el servidor', 'error');
   } else {
-    showToast('No se pudo conectar con Nightbot', 'error');
+    showToast('No se pudo conectar con ' + label, 'error');
   }
 }
 window.addEventListener('load', () => setTimeout(nightbotReturn, 600));
