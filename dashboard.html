@@ -2480,6 +2480,40 @@ function renderMain() {
       </div>
     </div>
 
+    <!-- Variables avanzadas -->
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Variables avanzadas</span></div>
+      <div class="panel-body">
+        ${[
+          ['{args}', 'Todo lo que el viewer escribe después del comando (máx. 200 letras)', '!di hola mundo', '{user} dice: {args}', 'ElOsoKing1 dice: hola mundo'],
+          ['{1} … {9}', 'Una palabra concreta: {1} es la primera, {2} la segunda… Si falta, queda vacía', '!abrazo Wolf fuerte', '{user} abraza a {1} {2}', 'ElOsoKing1 abraza a Wolf fuerte'],
+          ['{cmd}', 'El comando que se usó', '!hola', 'Usaste {cmd}', 'Usaste !hola'],
+          ['{cmdcount}', 'Cuántas veces se ha usado ese comando (cuenta la actual)', '!abrazo', 'Van {cmdcount} abrazos', 'Van 12 abrazos'],
+          ['{points}', 'Los puntos de quien escribe el comando', '!misputos', '{user}, tienes {points} {pointsname}', 'ElOsoKing1, tienes 150 puntos'],
+          ['{pointsname}', 'Cómo se llaman los puntos en tu canal (se cambia en la sección de Puntos)', '!misputos', '{points} {pointsname}', '150 arañitas'],
+          ['{viewers}', 'Espectadores que tienes ahora mismo (0 si estás offline)', '!viewers', 'Somos {viewers} en el chat 👀', 'Somos 42 en el chat 👀'],
+          ['{time:Zona}', 'Hora actual en una zona horaria. Sin zona usa UTC', '!hora', 'Aquí son las {time:America/Santo_Domingo}', 'Aquí son las 21:30'],
+          ['{date:Zona}', 'Fecha actual en una zona horaria', '!fecha', 'Hoy es {date:America/Santo_Domingo}', 'Hoy es 30/10/2026'],
+        ].map(([variable, desc, ejemplo, comando, resultado]) => `
+          <div class="var-grid" style="display:grid;grid-template-columns:130px 1fr 1fr;gap:16px;align-items:start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div style="overflow:hidden;">
+              <code style="background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:4px;padding:4px 8px;font-size:12px;color:var(--purple-light);font-family:monospace;word-break:break-all;">${variable}</code>
+            </div>
+            <div>
+              <div style="font-size:13px;color:var(--text);margin-bottom:4px;">${desc}</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);margin-bottom:3px;">Ejemplo:</div>
+              <code style="font-size:11px;color:var(--text-dim);font-family:monospace;">${ejemplo} → "${resultado}"</code>
+            </div>
+          </div>`).join('')}
+        <div style="font-size:11px;color:var(--text-muted);padding-top:12px;line-height:1.5;">
+          Las zonas horarias se escriben como <code style="font-family:monospace;">America/Santo_Domingo</code>, <code style="font-family:monospace;">America/Mexico_City</code>, <code style="font-family:monospace;">Europe/Madrid</code>…<br>
+          Por seguridad, si un viewer escribe <code style="font-family:monospace;">/</code>, <code style="font-family:monospace;">.</code> o <code style="font-family:monospace;">!</code> al inicio de lo que pone en {args}, el bot se lo quita.
+        </div>
+      </div>
+    </div>
+
     <!-- Variables de contadores -->
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🔢 Variables de contadores</span></div>
@@ -5322,15 +5356,29 @@ function toggleModalPerm(p) {
   if (!anyChecked) activateModalPerm('everyone');
 }
 
+// Vista previa de las variables avanzadas (ejemplos fijos, solo para que veas cómo quedaría)
+function previewExtraVars(str) {
+  const zoneFmt = (z, opts) => { try { return new Intl.DateTimeFormat('es', { timeZone: z || 'UTC', ...opts }).format(new Date()); } catch (e) { return '?'; } };
+  return String(str)
+    .replace(/\{args\}/g, 'hola mundo')
+    .replace(/\{1\}/g, 'hola').replace(/\{2\}/g, 'mundo').replace(/\{[3-9]\}/g, '')
+    .replace(/\{cmdcount\}/g, '12').replace(/\{cmd\}/g, '!comando')
+    .replace(/\{pointsname\}/g, 'puntos').replace(/\{points\}/g, '150')
+    .replace(/\{viewers\}/g, '42').replace(/\{title\}/g, 'Mi stream').replace(/\{uptime\}/g, '1h 20m')
+    .replace(/\{redes\}/g, 'twitch.tv/tucanal')
+    .replace(/\{time(?::([A-Za-z_\/+-]+))?\}/g, (_, z) => zoneFmt(z, { hour: '2-digit', minute: '2-digit', hour12: false }) + (z ? '' : ' UTC'))
+    .replace(/\{date(?::([A-Za-z_\/+-]+))?\}/g, (_, z) => zoneFmt(z, { day: '2-digit', month: '2-digit', year: 'numeric' }));
+}
+
 function updateModalPreview() {
   const val = document.getElementById('modalResponse')?.value || '';
   const preview = document.getElementById('modalPreview');
   const previewText = document.getElementById('modalPreviewText');
   if (!preview || !previewText) return;
-  const hasVars = /\{user\}|\{touser\}|\{random|\{channel\}|\{game\}|\{count:|\{randomuser\}|\{randomlist/.test(val);
+  const hasVars = /\{user\}|\{touser\}|\{random|\{channel\}|\{game\}|\{count:|\{randomuser\}|\{randomlist|\{args\}|\{[1-9]\}|\{cmd|\{points|\{viewers\}|\{time|\{date|\{title\}|\{uptime\}|\{redes\}/.test(val);
   if (hasVars && val) {
     preview.style.display = 'block';
-    previewText.textContent = val
+    previewText.textContent = previewExtraVars(val)
       .replace(/\{user\}/g, userData?.username || 'ElOsoKing1')
       .replace(/\{touser\}/g, 'Wolf')
       .replace(/\{channel\}/g, userData?.username || 'elosoking1')
@@ -5505,10 +5553,10 @@ function updatePreview(input) {
   const previewText = item.querySelector('.preview-text');
   const val = input.value;
   if (!previewText || !preview) return;
-  const hasVars = /\{user\}|\{touser\}|\{random|\{channel\}|\{game\}|\{count:|\{randomuser\}|\{randomlist/.test(val);
+  const hasVars = /\{user\}|\{touser\}|\{random|\{channel\}|\{game\}|\{count:|\{randomuser\}|\{randomlist|\{args\}|\{[1-9]\}|\{cmd|\{points|\{viewers\}|\{time|\{date|\{title\}|\{uptime\}|\{redes\}/.test(val);
   if (hasVars) {
     preview.style.display = 'block';
-    previewText.textContent = val
+    previewText.textContent = previewExtraVars(val)
       .replace(/\{user\}/g, userData?.username || 'ElOsoKing1')
       .replace(/\{touser\}/g, 'Wolf')
       .replace(/\{channel\}/g, userData?.username || 'elosoking1')
