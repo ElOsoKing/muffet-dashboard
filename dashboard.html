@@ -5322,6 +5322,7 @@ function ensureImportModal() {
           <div id="impHelp" style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;"></div>
           <textarea id="impText" class="form-input" spellcheck="false" style="min-height:220px;width:100%;font-family:monospace;font-size:12px;line-height:1.6;resize:vertical;"></textarea>
           <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap;">
+            <button type="button" onclick="importFromNightbot()" title="Autoriza solo lectura; no guardamos tu acceso" style="padding:8px 14px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">🔗 Traer de Nightbot</button>
             <label style="font-size:12px;color:var(--text-dim);">…o sube un archivo (.txt, .json, .csv):
               <input type="file" id="impFile" accept=".txt,.json,.csv,text/plain,application/json" onchange="importLoadFile(this)" style="margin-left:6px;font-size:12px;">
             </label>
@@ -5377,6 +5378,37 @@ function importShowStep(n) {
   act.disabled = false; act.style.opacity = 1;
   document.getElementById('impCount').textContent = '';
 }
+
+async function importFromNightbot() {
+  try {
+    const r = await fetch('/api/import/nightbot/data?kind=' + importState.kind);
+    if (r.ok) {
+      const j = await r.json();
+      document.getElementById('impText').value = j.text || '';
+      await importAnalyze();
+      return;
+    }
+  } catch (e) {}
+  window.location.href = '/auth/nightbot';
+}
+
+async function nightbotReturn() {
+  let q = '';
+  try { q = new URLSearchParams(location.search).get('nightbot') || ''; } catch (e) {}
+  if (!q) return;
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  if (q === 'ok') {
+    showToast('✓ Nightbot conectado: revisa tus comandos');
+    if (typeof showSection === 'function') { try { showSection('commands'); } catch (e) {} }
+    openImportModal('commands');
+    importFromNightbot();
+  } else if (q === 'nocreds') {
+    showToast('La conexión con Nightbot aún no está configurada en el servidor', 'error');
+  } else {
+    showToast('No se pudo conectar con Nightbot', 'error');
+  }
+}
+window.addEventListener('load', () => setTimeout(nightbotReturn, 600));
 
 function importBack() { importShowStep(1); }
 
