@@ -968,6 +968,20 @@ app.post('/api/commands', requireAuth, async (req, res) => {
     const { commands } = req.body;
     if (!isValidObject(commands)) return res.status(400).json({ error: 'Comandos inválidos' });
     if (Object.keys(commands).length > 50) return res.status(400).json({ error: 'Máximo 50 comandos' });
+    // Palabras sueltas (sin "!"): solo letras, números, emojis y espacios — así no rompen la página ni chocan con nada
+    const PLAIN_TRIGGER = /^[\p{L}\p{N}\p{Extended_Pictographic} _-]{1,30}$/u;
+    for (const [key, val] of Object.entries(commands)) {
+      if (!key.startsWith('!') && (key !== key.toLowerCase() || !PLAIN_TRIGGER.test(key))) {
+        return res.status(400).json({ error: `"${String(key).slice(0, 30)}" no es válido: sin ! solo se permiten letras, números y emojis (máx. 30)` });
+      }
+      if (val && typeof val === 'object') {
+        if (val.cooldown !== undefined && val.cooldown !== null && val.cooldown !== '') {
+          const c = Number(val.cooldown);
+          if (!Number.isFinite(c) || c < 0 || c > 3600) return res.status(400).json({ error: 'La espera debe estar entre 0 y 3600 segundos' });
+          val.cooldown = Math.round(c);
+        } else delete val.cooldown;
+      }
+    }
     await sbUpdate('streamers', { commands }, { twitch_id: req.session.user.id });
     res.json({ success: true });
   } catch (err) {
