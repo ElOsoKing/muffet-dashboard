@@ -2050,7 +2050,7 @@ function renderMain() {
           <span class="panel-title-text">Mis comandos</span>
           <span id="cmdCount" style="font-size:11px;background:var(--purple-dim);color:var(--purple-light);padding:2px 8px;border-radius:10px;font-weight:600;">${Object.keys(commands).length}</span>
         </div>
-        <button class="btn btn-success btn-sm" onclick="openCmdModal()">+ Nuevo comando</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button onclick="openImportModal('commands')" title="Trae tus comandos de Nightbot, StreamElements u otro bot" style="padding:6px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">📥 Importar de otro bot</button><button class="btn btn-success btn-sm" onclick="openCmdModal()">+ Nuevo comando</button></div>
       </div>
 
       <!-- Buscador -->
@@ -2081,7 +2081,7 @@ function renderMain() {
               </div>
               <!-- Respuesta -->
               <div style="flex:1;min-width:0;">
-                <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${response}</div>
+                <div style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escCmdHtml(response)}</div>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${permStr}</div>
               </div>
               <!-- Acciones -->
@@ -2171,7 +2171,7 @@ function renderMain() {
           <span class="panel-title-text">Mensajes programados</span>
           <span id="autoMsgCount" style="font-size:11px;background:var(--purple-dim);color:var(--purple-light);padding:2px 8px;border-radius:10px;font-weight:600;">${Array.isArray(autoMessages)?autoMessages.length:0}</span>
         </div>
-        <button class="btn btn-success btn-sm" onclick="openAutoMsgModal()">+ Agregar</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button onclick="openImportModal('timers')" title="Trae tus timers de otro bot" style="padding:6px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">📥 Importar timers</button><button class="btn btn-success btn-sm" onclick="openAutoMsgModal()">+ Agregar</button></div>
       </div>
 
       <div class="panel-body" style="padding:12px 16px;">
@@ -5150,8 +5150,8 @@ function renderCommandsList() {
           <span style="font-family:monospace;font-size:13px;font-weight:700;color:var(--purple-light);">${trigger}</span>
         </div>
         <div style="flex:1;min-width:0;" onclick="toggleCmdExpand(this)">
-          <div class="cmd-response" style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" title="Click para expandir">${response.length > 50 ? response.slice(0,50)+'…' : response}</div>
-          <div class="cmd-response-full" style="font-size:13px;color:var(--text);display:none;word-break:break-word;white-space:pre-wrap;">${response}</div>
+          <div class="cmd-response" style="font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;" title="Click para expandir">${escCmdHtml(response.length > 50 ? response.slice(0,50)+'…' : response)}</div>
+          <div class="cmd-response-full" style="font-size:13px;color:var(--text);display:none;word-break:break-word;white-space:pre-wrap;">${escCmdHtml(response)}</div>
           <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">${permStr}${response.length > 50 ? ' · <span style="color:var(--purple-light);font-size:10px;">ver más</span>' : ''}</div>
         </div>
         <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -5295,6 +5295,238 @@ document.addEventListener('click', function(e) {
 
 // ── MODAL DE COMANDOS ──
 let cmdModalEditing = null; // trigger que se está editando
+
+// ───────── Importar comandos / timers de otros bots ─────────
+function escCmdHtml(v) {
+  return String(v === undefined || v === null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+let importState = { kind: 'commands', items: [], meta: {} };
+
+function ensureImportModal() {
+  if (document.getElementById('importModal')) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'importModal';
+  wrap.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:320;align-items:center;justify-content:center;backdrop-filter:blur(4px);padding:16px;';
+  wrap.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius);width:880px;max-width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 24px 48px rgba(0,0,0,0.5);">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 12px;">
+        <div>
+          <div id="impTitle" style="font-size:16px;font-weight:700;color:var(--text);">Importar</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Revisa todo antes de guardar: no se importa nada hasta que lo confirmes</div>
+        </div>
+        <button onclick="closeImportModal()" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;width:32px;height:32px;cursor:pointer;color:var(--text-dim);font-size:18px;">×</button>
+      </div>
+      <div style="padding:8px 24px 20px;overflow:auto;flex:1;">
+        <div id="impStep1">
+          <div id="impHelp" style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:12px;"></div>
+          <textarea id="impText" class="form-input" spellcheck="false" style="min-height:220px;width:100%;font-family:monospace;font-size:12px;line-height:1.6;resize:vertical;"></textarea>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap;">
+            <label style="font-size:12px;color:var(--text-dim);">…o sube un archivo (.txt, .json, .csv):
+              <input type="file" id="impFile" accept=".txt,.json,.csv,text/plain,application/json" onchange="importLoadFile(this)" style="margin-left:6px;font-size:12px;">
+            </label>
+          </div>
+        </div>
+        <div id="impStep2" style="display:none;">
+          <div id="impSummary" style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;"></div>
+          <div id="impList" style="display:flex;flex-direction:column;gap:8px;"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;align-items:center;padding:14px 24px;border-top:1px solid rgba(255,255,255,0.06);">
+        <span id="impCount" style="margin-right:auto;font-size:12px;color:var(--text-muted);"></span>
+        <button id="impBack" onclick="importBack()" style="display:none;padding:10px 18px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);font-size:13px;cursor:pointer;font-family:var(--sans);">← Volver</button>
+        <button onclick="closeImportModal()" style="padding:10px 18px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:var(--radius-sm);color:var(--text-dim);font-size:13px;cursor:pointer;font-family:var(--sans);">Cancelar</button>
+        <button id="impAction" style="padding:10px 24px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);">Analizar</button>
+      </div>
+    </div>`;
+  wrap.addEventListener('click', e => { if (e.target === wrap) closeImportModal(); });
+  document.body.appendChild(wrap);
+}
+
+function openImportModal(kind) {
+  if (typeof viewingAsChannel !== 'undefined' && viewingAsChannel) { showToast('Importa desde tu propio dashboard', 'error'); return; }
+  ensureImportModal();
+  importState = { kind: kind === 'timers' ? 'timers' : 'commands', items: [], meta: {} };
+  const isTimers = importState.kind === 'timers';
+  document.getElementById('impTitle').textContent = isTimers ? '📥 Importar timers (mensajes automáticos)' : '📥 Importar comandos de otro bot';
+  document.getElementById('impHelp').innerHTML = isTimers
+    ? 'Pega tus mensajes automáticos, <b>uno por línea</b>. Para elegir cada cuántos minutos, escribe <code>15 | tu mensaje</code> (sin número son 20 min). También acepta el JSON de timers de Nightbot. Las variables se traducen solas; las que no sirven en mensajes automáticos te las marco.'
+    : 'Pega tus comandos, <b>uno por línea</b>: <code>!comando respuesta</code>. También acepta el JSON de comandos de Nightbot o StreamElements.<br>Las variables de <b>Nightbot</b> (<code>$(user)</code>, <code>$(query)</code>, <code>$(count)</code>…) y de <b>StreamElements</b> (<code>&#36;{user}</code>, <code>&#36;{random.pick}</code>…) se traducen solas a las de SilklyBot. Lo que no se pueda traducir te lo marco antes de importar.';
+  const ta = document.getElementById('impText');
+  ta.value = '';
+  ta.placeholder = isTimers
+    ? 'Sigue el canal en todas mis redes\n30 | Usa !ask para hablar con Muffet'
+    : '!discord Únete a nuestro Discord: https://discord.gg/...\n!abrazo $(user) abraza a $(touser)\n!di $(user) dice: $(query)';
+  const f = document.getElementById('impFile'); if (f) f.value = '';
+  importShowStep(1);
+  document.getElementById('importModal').style.display = 'flex';
+}
+
+function closeImportModal() {
+  const m = document.getElementById('importModal');
+  if (m) m.style.display = 'none';
+}
+
+function importShowStep(n) {
+  document.getElementById('impStep1').style.display = n === 1 ? 'block' : 'none';
+  document.getElementById('impStep2').style.display = n === 2 ? 'block' : 'none';
+  document.getElementById('impBack').style.display = n === 2 ? 'inline-block' : 'none';
+  const act = document.getElementById('impAction');
+  act.textContent = n === 1 ? 'Analizar' : 'Importar seleccionados';
+  act.onclick = n === 1 ? importAnalyze : importApply;
+  act.disabled = false; act.style.opacity = 1;
+  document.getElementById('impCount').textContent = '';
+}
+
+function importBack() { importShowStep(1); }
+
+function importLoadFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  if (file.size > 1024 * 1024) { showToast('El archivo es muy grande (máx. 1 MB)', 'error'); input.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = () => { document.getElementById('impText').value = String(reader.result || ''); };
+  reader.readAsText(file);
+}
+
+async function importAnalyze() {
+  const text = document.getElementById('impText').value;
+  if (!text.trim()) { showToast('Pega primero tu lista', 'error'); return; }
+  const act = document.getElementById('impAction');
+  act.disabled = true; act.style.opacity = 0.6; act.textContent = 'Analizando…';
+  try {
+    const res = await fetch('/api/import/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, kind: importState.kind }) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(j.error || 'No se pudo analizar', 'error'); importShowStep(1); return; }
+    importState.items = j.items || [];
+    importState.meta = j.meta || {};
+    if (!importState.items.length) { showToast((j.errors && j.errors[0]) || 'No encontré nada que importar', 'error'); importShowStep(1); return; }
+    renderImportPreview(j);
+    importShowStep(2);
+    updateImportCount();
+  } catch (e) {
+    showToast('Error de conexión', 'error'); importShowStep(1);
+  }
+}
+
+function renderImportPreview(j) {
+  const isTimers = importState.kind === 'timers';
+  const items = importState.items;
+  const n = s => items.filter(i => i.status === s).length;
+  document.getElementById('impSummary').textContent =
+    `${items.length} encontrados · ${n('ok')} listos · ${n('revisar')} para revisar · ${n('no')} que no se pueden importar`
+    + (j.truncated ? ' (mostrando solo los primeros)' : '')
+    + ` · tienes ${importState.meta.current} de ${importState.meta.limit} ${isTimers ? 'mensajes' : 'comandos'}`;
+  const list = document.getElementById('impList');
+  list.innerHTML = '';
+  const badge = { ok: ['✓ lista', '#4ade80'], revisar: ['⚠ revisar', '#fbbf24'], no: ['✕ no se puede', '#f87171'] };
+  const permIcons = { everyone: '👥', sub: '⭐', vip: '💎', mod: '🛡️', broadcaster: '👑' };
+  const inputCss = 'font-size:12px;padding:6px 8px;';
+  items.forEach(it => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius-sm);';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = !!it.selected; cb.style.marginTop = '9px';
+    cb.onchange = () => { it.selected = cb.checked; updateImportCount(); };
+    row.appendChild(cb);
+    const body = document.createElement('div');
+    body.style.cssText = 'flex:1;min-width:0;';
+    const top = document.createElement('div');
+    top.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
+    if (isTimers) {
+      const iv = document.createElement('input');
+      iv.type = 'number'; iv.min = 5; iv.max = 1440; iv.value = it.interval; iv.className = 'form-input';
+      iv.style.cssText = 'width:76px;' + inputCss;
+      iv.oninput = () => { it.interval = iv.value; };
+      const lbl = document.createElement('span'); lbl.textContent = 'min'; lbl.style.cssText = 'font-size:11px;color:var(--text-muted);';
+      top.appendChild(iv); top.appendChild(lbl);
+      const tx = document.createElement('input');
+      tx.type = 'text'; tx.value = it.text || ''; tx.className = 'form-input';
+      tx.style.cssText = 'flex:1;min-width:200px;' + inputCss;
+      tx.oninput = () => { it.text = tx.value; };
+      top.appendChild(tx);
+    } else {
+      const nm = document.createElement('input');
+      nm.type = 'text'; nm.value = it.name || ''; nm.className = 'form-input';
+      nm.style.cssText = 'width:150px;font-family:monospace;font-weight:600;color:var(--purple-light);' + inputCss;
+      nm.oninput = () => { it.name = nm.value; };
+      top.appendChild(nm);
+      const rs = document.createElement('input');
+      rs.type = 'text'; rs.value = it.response || ''; rs.className = 'form-input';
+      rs.style.cssText = 'flex:1;min-width:200px;' + inputCss;
+      rs.oninput = () => { it.response = rs.value; };
+      top.appendChild(rs);
+    }
+    const st = document.createElement('span');
+    const b = badge[it.status] || badge.revisar;
+    st.textContent = b[0]; st.style.cssText = `font-size:11px;font-weight:600;color:${b[1]};white-space:nowrap;`;
+    top.appendChild(st);
+    body.appendChild(top);
+    const meta = [];
+    if (!isTimers) {
+      meta.push((it.perms || ['everyone']).map(p => permIcons[p] || p).join(' '));
+      if (it.cooldown) meta.push('espera ' + it.cooldown + 's');
+      if (it.conflict === 'exists') meta.push('reemplaza el que ya tienes');
+    }
+    if (it.source && it.source !== 'texto') meta.push('de ' + (it.source === 'nightbot' ? 'Nightbot' : 'StreamElements'));
+    const notes = (it.notes || []).slice(0, 4).map(String);
+    if (meta.length || notes.length) {
+      const info = document.createElement('div');
+      info.style.cssText = 'font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5;';
+      info.textContent = [meta.join(' · '), ...notes].filter(Boolean).join(' — ');
+      body.appendChild(info);
+    }
+    if (it.original && it.status !== 'no' && it.original !== (isTimers ? it.text : it.response)) {
+      const orig = document.createElement('div');
+      orig.style.cssText = 'font-size:11px;color:var(--text-muted);margin-top:4px;font-family:monospace;opacity:0.8;word-break:break-word;';
+      orig.textContent = 'Original: ' + it.original;
+      body.appendChild(orig);
+    }
+    row.appendChild(body);
+    list.appendChild(row);
+  });
+}
+
+function updateImportCount() {
+  const sel = importState.items.filter(i => i.selected);
+  const isTimers = importState.kind === 'timers';
+  const adding = isTimers ? sel.length : sel.filter(i => i.conflict !== 'exists').length;
+  const over = (importState.meta.current || 0) + adding > importState.meta.limit;
+  const el = document.getElementById('impCount');
+  el.textContent = `${sel.length} seleccionados` + (over ? ` · pasarías el máximo de ${importState.meta.limit}` : '');
+  el.style.color = over ? '#fbbf24' : 'var(--text-muted)';
+  const act = document.getElementById('impAction');
+  act.disabled = sel.length === 0; act.style.opacity = sel.length === 0 ? 0.5 : 1;
+}
+
+async function importApply() {
+  const sel = importState.items.filter(i => i.selected);
+  if (!sel.length) return;
+  const isTimers = importState.kind === 'timers';
+  const items = sel.map(i => isTimers
+    ? { text: i.text, interval: i.interval }
+    : { name: i.name, response: i.response, perms: i.perms, cooldown: i.cooldown, replace: i.conflict === 'exists' });
+  const act = document.getElementById('impAction');
+  const reset = () => { act.disabled = false; act.style.opacity = 1; act.textContent = 'Importar seleccionados'; };
+  act.disabled = true; act.style.opacity = 0.6; act.textContent = 'Importando…';
+  try {
+    const res = await fetch('/api/import/apply', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: importState.kind, items }) });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(j.error || 'No se pudo importar', 'error'); reset(); return; }
+    if (isTimers) {
+      streamerData.auto_messages = j.auto_messages;
+      if (typeof renderAutoMsgList === 'function') renderAutoMsgList();
+      showToast(`✓ ${j.imported} mensajes importados` + (j.skipped ? ` (${j.skipped} ya existían)` : ''));
+    } else {
+      streamerData.commands = j.commands;
+      if (typeof renderCommandsList === 'function') renderCommandsList();
+      showToast(`✓ ${j.imported} comandos importados` + (j.replaced ? `, ${j.replaced} reemplazados` : '') + (j.skipped ? `, ${j.skipped} omitidos` : ''));
+    }
+    closeImportModal();
+  } catch (e) {
+    showToast('Error de conexión', 'error'); reset();
+  }
+}
 
 function updateTriggerHint() {
   const v = document.getElementById('modalTrigger')?.value.trim() || '';
