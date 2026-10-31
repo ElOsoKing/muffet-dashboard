@@ -971,6 +971,9 @@ app.post('/api/commands', requireAuth, async (req, res) => {
     // Palabras sueltas (sin "!"): solo letras, números, emojis y espacios — así no rompen la página ni chocan con nada
     const PLAIN_TRIGGER = /^[\p{L}\p{N}\p{Extended_Pictographic} _-]{1,30}$/u;
     for (const [key, val] of Object.entries(commands)) {
+      if (key.startsWith('!') && !/^![^\s<>"'`\\]{1,40}$/.test(key)) {
+        return res.status(400).json({ error: `"${String(key).slice(0, 30)}" no es válido: sin espacios ni comillas ni < > (máx. 40)` });
+      }
       if (!key.startsWith('!') && (key !== key.toLowerCase() || !PLAIN_TRIGGER.test(key))) {
         return res.status(400).json({ error: `"${String(key).slice(0, 30)}" no es válido: sin ! solo se permiten letras, números y emojis (máx. 30)` });
       }
@@ -987,6 +990,91 @@ app.post('/api/commands', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('POST /api/commands:', err.message);
     res.status(500).json({ error: 'Error al guardar' });
+  }
+});
+
+// ══════════════════════════════════════════
+//  IMPORTAR comandos y mensajes automáticos desde otros bots (Nightbot, StreamElements, texto)
+//  La traducción de variables vive en importer.js; aquí solo se lee, se previsualiza y se guarda ya validado.
+// ══════════════════════════════════════════
+let importer = null;
+try { importer = require('./importer'); } catch (e) { console.error('[import] importer.js no se pudo cargar:', e.message); }
+const IMPORT_MAX_CHARS = 200000;
+const MAX_COMMANDS = 50, MAX_AUTOMSGS = 20;
+
+function normalizeAutoMsgs(list) {
+  return (Array.isArray(list) ? list : []).map(msg => {
+    if (typeof msg === 'string') return { text: msg, type: 'fixed', interval: 20 };
+    return { text: msg?.text || '', type: msg?.type || 'fixed', interval: Math.max(parseInt(msg?.interval) || 20, 5) };
+  }).filter(m => m.text);
+}
+
+app.post('/api/import/preview', requireAuth, async (req, res) => {
+  try {
+    if (!importer) return res.status(503).json({ error: 'El importador no está disponible (falta subir importer.js al servidor)' });
+    const { text, kind } = req.body || {};
+    if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Pega primero tu lista' });
+    if (text.length > IMPORT_MAX_CHARS) return res.status(400).json({ error: 'El texto es demasiado grande (máx. 200 mil caracteres)' });
+    const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'commands,auto_messages');
+    if (!st) return res.status(404).json({ error: 'Cuenta no encontrada' });
+    if (kind === 'timers') {
+      const r = importer.parseTimers(text);
+      const items = r.items.slice(0, 100).map(it => ({ ...it, selected: it.status === 'ok' || it.status === 'revisar' }));
+      return res.json({ items, errors: r.errors, truncated: r.items.length > 100, meta: { current: normalizeAutoMsgs(st.auto_messages).length, limit: MAX_AUTOMSGS } });
+    }
+    const r = importer.parseCommands(text);
+    const items = importer.annotateConflicts(r.items.slice(0, 300), st.commands || {});
+    res.json({ items, errors: r.errors, truncated: r.items.length > 300, meta: { current: Object.keys(st.commands || {}).length, limit: MAX_COMMANDS } });
+  } catch (err) {
+    console.error('POST /api/import/preview:', err.message);
+    res.status(500).json({ error: 'No se pudo analizar la lista' });
+  }
+});
+
+app.post('/api/import/apply', requireAuth, async (req, res) => {
+  try {
+    if (!importer) return res.status(503).json({ error: 'El importador no está disponible (falta subir importer.js al servidor)' });
+    const { kind, items } = req.body || {};
+    if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'No hay nada seleccionado' });
+    if (items.length > 100) return res.status(400).json({ error: 'Importa como máximo 100 a la vez' });
+    const st = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'commands,auto_messages');
+    if (!st) return res.status(404).json({ error: 'Cuenta no encontrada' });
+
+    if (kind === 'timers') {
+      const current = normalizeAutoMsgs(st.auto_messages);
+      const seen = new Set(current.map(m => m.text.toLowerCase()));
+      const additions = [], errors = [];
+      for (const it of items) {
+        const v = importer.sanitizeTimer(it);
+        if (!v.ok) { errors.push(v.error); continue; }
+        if (seen.has(v.value.text.toLowerCase())) continue; // ya lo tienes
+        seen.add(v.value.text.toLowerCase());
+        additions.push(v.value);
+      }
+      if (errors.length) return res.status(400).json({ error: errors[0] + (errors.length > 1 ? ` (y ${errors.length - 1} más)` : ''), errors });
+      const merged = current.concat(additions);
+      if (merged.length > MAX_AUTOMSGS) return res.status(400).json({ error: `Máximo ${MAX_AUTOMSGS} mensajes automáticos: tienes ${current.length} y quieres añadir ${additions.length}` });
+      await sbUpdate('streamers', { auto_messages: merged }, { twitch_id: req.session.user.id });
+      return res.json({ success: true, imported: additions.length, skipped: items.length - additions.length, auto_messages: merged });
+    }
+
+    const cmds = { ...(st.commands || {}) };
+    let imported = 0, replaced = 0, skipped = 0;
+    const errors = [];
+    for (const it of items) {
+      const v = importer.sanitizeCommand(it);
+      if (!v.ok) { errors.push(v.error); continue; }
+      if (cmds[v.name] !== undefined && !it.replace) { skipped++; continue; }
+      if (cmds[v.name] !== undefined) replaced++; else imported++;
+      cmds[v.name] = v.value;
+    }
+    if (errors.length) return res.status(400).json({ error: errors[0] + (errors.length > 1 ? ` (y ${errors.length - 1} más)` : ''), errors });
+    if (Object.keys(cmds).length > MAX_COMMANDS) return res.status(400).json({ error: `Máximo ${MAX_COMMANDS} comandos: tienes ${Object.keys(st.commands || {}).length} y al importar tendrías ${Object.keys(cmds).length}. Desmarca algunos.` });
+    await sbUpdate('streamers', { commands: cmds }, { twitch_id: req.session.user.id });
+    res.json({ success: true, imported, replaced, skipped, total: Object.keys(cmds).length, commands: cmds });
+  } catch (err) {
+    console.error('POST /api/import/apply:', err.message);
+    res.status(500).json({ error: 'No se pudo importar' });
   }
 });
 
