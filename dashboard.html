@@ -5324,6 +5324,13 @@ function ensureImportModal() {
           <div style="display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap;">
             <button type="button" onclick="importFromNightbot()" title="Autoriza solo lectura; no guardamos tu acceso" style="padding:8px 14px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">🔗 Traer de Nightbot</button>
             <button type="button" onclick="importFromStreamElements()" title="Autoriza solo lectura; no guardamos tu acceso" style="padding:8px 14px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">🔗 Traer de StreamElements</button>
+            <div id="impSePanel" style="display:none;width:100%;padding:12px;background:var(--bg3);border:1px solid rgba(251,191,36,0.3);border-radius:var(--radius-sm);">
+              <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;">En StreamElements: <b>Account → Personal Access Token</b>. Pégalo aquí <b>una sola vez</b>. Solo lo usamos para leer tus comandos y timers: no se guarda. Ese token da control total de tu cuenta de StreamElements, así que al terminar pulsa <b>"Reset my personal access token"</b> allí mismo.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <input id="impSeToken" type="password" autocomplete="off" spellcheck="false" placeholder="Pega tu token de StreamElements" class="form-input" style="flex:1;min-width:220px;font-size:12px;padding:8px 10px;">
+                <button type="button" onclick="importSeSubmit()" style="padding:8px 14px;background:var(--purple);border:none;border-radius:6px;color:white;font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">Traer</button>
+              </div>
+            </div>
             <label style="font-size:12px;color:var(--text-dim);">…o sube un archivo (.txt, .json, .csv):
               <input type="file" id="impFile" accept=".txt,.json,.csv,text/plain,application/json" onchange="importLoadFile(this)" style="margin-left:6px;font-size:12px;">
             </label>
@@ -5360,6 +5367,8 @@ function openImportModal(kind) {
     ? 'Sigue el canal en todas mis redes\n30 | Usa !ask para hablar con Muffet'
     : '!discord Únete a nuestro Discord: https://discord.gg/...\n!abrazo $(user) abraza a $(touser)\n!di $(user) dice: $(query)';
   const f = document.getElementById('impFile'); if (f) f.value = '';
+  const sp = document.getElementById('impSePanel'); if (sp) sp.style.display = 'none';
+  const stk = document.getElementById('impSeToken'); if (stk) stk.value = '';
   importShowStep(1);
   document.getElementById('importModal').style.display = 'flex';
 }
@@ -5403,7 +5412,23 @@ async function importFromStreamElements() {
       return;
     }
   } catch (e) {}
-  window.location.href = '/auth/streamelements';
+  const pn = document.getElementById('impSePanel');
+  if (pn) { pn.style.display = 'block'; const t = document.getElementById('impSeToken'); if (t) t.focus(); }
+}
+
+async function importSeSubmit() {
+  const t = document.getElementById('impSeToken');
+  const token = (t.value || '').trim();
+  if (!token) { showToast('Pega primero tu token', 'error'); return; }
+  try {
+    const r = await fetch('/api/import/streamelements/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
+    const j = await r.json().catch(() => ({}));
+    t.value = '';
+    if (!r.ok) { showToast(j.error || 'No se pudo conectar', 'error'); return; }
+    document.getElementById('impSePanel').style.display = 'none';
+    showToast('✓ Listo. Recuerda resetear tu token en StreamElements');
+    await importFromStreamElements();
+  } catch (e) { t.value = ''; showToast('Error de conexión', 'error'); }
 }
 
 async function nightbotReturn() {
