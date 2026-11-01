@@ -694,10 +694,17 @@ function setupMarquee(el) {
   el.classList.remove('animate');
   el.style.removeProperty('--marquee-dist');
   el.style.removeProperty('--marquee-dur');
+  el.style.removeProperty('animation-name');
   const wrap = el.parentElement;
   const overflowAmount = el.scrollWidth - wrap.clientWidth;
   if (overflowAmount > 4) {
     el.style.setProperty('--marquee-dist', `-${overflowAmount + 12}px`);
+    // Keyframes con el valor en píxeles escrito directo: con var() el navegador anima en el hilo principal (60 recálculos por segundo)
+    const kfName = 'mq-' + el.id;
+    let st = document.getElementById('st-' + kfName);
+    if (!st) { st = document.createElement('style'); st.id = 'st-' + kfName; document.head.appendChild(st); }
+    st.textContent = `@keyframes ${kfName} { 0%, 10% { transform: translateX(0); } 90%, 100% { transform: translateX(-${overflowAmount + 12}px); } }`;
+    el.style.setProperty('animation-name', kfName);
     // Duración proporcional: más texto = más tiempo, mínimo 6s
     const dur = Math.max(6, overflowAmount / 15);
     el.style.setProperty('--marquee-dur', `${dur}s`);
@@ -718,7 +725,9 @@ async function fetchStatus() {
   pollTimer = setTimeout(fetchStatus, next);
 }
 
+const urlLite = new URLSearchParams(location.search).get('lite') === '1';
 function updateWidget(data) {
+  document.body.classList.toggle('lite', urlLite || !!data.lite); // modo ligero: desde el dashboard o con ?lite=1
   const widget = document.getElementById('widget');
   const trackEl = document.getElementById('trackName');
   const artistEl = document.getElementById('artistName');
@@ -789,8 +798,6 @@ function updateWidget(data) {
     progressInterval = setInterval(updateProgress, 1000);
   }
 }
-
-if (new URLSearchParams(location.search).get('lite') === '1') document.body.classList.add('lite');
 
 // Modo demo (?demo=<estilo>): lo usa la galería del dashboard para mostrar cada estilo con una canción de ejemplo
 const demoTheme = new URLSearchParams(location.search).get('demo');
