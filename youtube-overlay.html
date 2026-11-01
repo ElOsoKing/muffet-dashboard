@@ -44,7 +44,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 
 /* Progress */
 #progressBar{height:3px;background:rgba(255,255,255,0.1);}
-#progressFill{height:100%;background:#FF0000;width:0%;transition:width 0.5s linear;}
+#progressFill{height:100%;background:#FF0000;width:0%;} /* sin transición de ancho: obligaba a recalcular el diseño sin parar */
 
 
 /* Modo "solo título": sin video visible, tarjeta compacta (el reproductor sigue activo fuera de pantalla para que suene el audio) */
@@ -216,7 +216,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 #overlay[data-theme="osoking"] #trackName { font-size: 11px; line-height: 1.4; color: #fff; font-weight: 400; margin-bottom: 6px; }
 #overlay[data-theme="osoking"] #trackMeta { font-size: 8px; color: #b9a6ff; margin-bottom: 10px; }
 #overlay[data-theme="osoking"] #progressBar { height: 10px; border-radius: 0; background: repeating-linear-gradient(90deg, rgba(255,204,51,.16) 0 8px, transparent 8px 10px); }
-#overlay[data-theme="osoking"] #progressFill { border-radius: 0; background: repeating-linear-gradient(90deg, #ffcc33 0 8px, transparent 8px 10px) !important; transition: width 1s steps(8, end); }
+#overlay[data-theme="osoking"] #progressFill { border-radius: 0; background: repeating-linear-gradient(90deg, #ffcc33 0 8px, transparent 8px 10px) !important;  }
 
 /* Diálogo retro (MuffetBot) */
 #overlay[data-theme="undertale"] { background: #000; box-shadow: inset 0 0 0 4px #fff; border-radius: 0; font-family: "VT323", "Courier New", monospace; }
@@ -331,6 +331,7 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;font
 }
 #overlay[data-cover="disc"][data-theme] #thumbWrap #thumb { position: relative; z-index: 1; width: 100%; height: 100%; aspect-ratio: 1; border: 0; border-radius: 50%; box-shadow: none; will-change: transform; animation: disc-spin 5s linear infinite; }
 #overlay.paused .vinyl, #overlay.paused #thumbWrap #thumb { animation-play-state: paused; }
+#overlay.paused .deco, #overlay.paused .deco *, #overlay.paused .deco::before, #overlay.paused .deco::after, #overlay.paused #thumb { animation-play-state: paused !important; } /* con la música en pausa no se anima la decoración */
 
 /* Modo demo (?demo=estilo): lo usa la galería del dashboard */
 html.demo, html.demo body { width: 100vw; height: 100vh; }
