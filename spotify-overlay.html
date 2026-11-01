@@ -187,7 +187,7 @@ body {
   height: 100%;
   background: #1ed760;
   border-radius: 2px;
-  transition: width 1s linear;
+  /* sin transición de ancho: una transición continua obliga a recalcular el diseño 60 veces por segundo; ahora es 1 vez por segundo */
   box-shadow: 0 0 6px rgba(30, 215, 96, 0.6);
 }
 
@@ -574,6 +574,21 @@ body[data-cover="disc"] .album-art-wrap .album-art {
 /* en pausa el disco se queda donde estaba; sin canción no gasta nada */
 .widget.paused .vinyl, .widget.paused .album-art-wrap .album-art,
 .widget.hidden .vinyl, .widget.hidden .album-art-wrap .album-art { animation-play-state: paused; }
+/* Ahorro de CPU: nada se anima si el widget está oculto (sin música) ni la decoración si la música está en pausa */
+.widget.hidden, .widget.hidden *, .widget.hidden *::before, .widget.hidden *::after,
+.widget.paused .deco, .widget.paused .deco *, .widget.paused .deco::before, .widget.paused .deco::after,
+.widget.paused .vinyl, .widget.paused .album-art { animation-play-state: paused !important; }
+.widget.hidden { visibility: hidden; transition: opacity 0.5s ease, transform 0.5s ease, visibility 0s linear 0.5s; }
+.widget.visible { visibility: visible; transition: opacity 0.5s ease, transform 0.5s ease, visibility 0s; }
+
+/* Modo ligero (?lite=1 en la URL): sin efectos decorativos que repinten cada fotograma. Se conserva el texto que se desplaza. */
+body.lite .deco, body.lite .deco *, body.lite .deco::before, body.lite .deco::after,
+body.lite .label-dot, body.lite .vinyl, body.lite .album-art-wrap .album-art, body.lite .album-art { animation: none !important; }
+body.lite .deco *::before, body.lite .deco *::after,
+body.lite[data-theme="glitch"] .track-name:not(.marquee), body.lite[data-theme="wolf"] .track-name:not(.marquee) { animation: none !important; }
+body.lite .deco, body.lite .deco * { filter: none !important; }
+body.lite .progress-bar { box-shadow: none !important; }
+body.lite .widget, body.lite .widget * { will-change: auto !important; }
 body.demo { align-items: center; justify-content: center; min-height: 100vh; padding: 10px; overflow: hidden; }
 </style>
 </head>
@@ -681,23 +696,26 @@ function setupMarquee(el) {
   el.style.removeProperty('--marquee-dur');
   const wrap = el.parentElement;
   const overflowAmount = el.scrollWidth - wrap.clientWidth;
-  console.log('[marquee]', el.id, 'scrollWidth:', el.scrollWidth, 'clientWidth:', wrap.clientWidth, 'overflow:', overflowAmount);
   if (overflowAmount > 4) {
     el.style.setProperty('--marquee-dist', `-${overflowAmount + 12}px`);
     // Duración proporcional: más texto = más tiempo, mínimo 6s
     const dur = Math.max(6, overflowAmount / 15);
     el.style.setProperty('--marquee-dur', `${dur}s`);
     el.classList.add('marquee');
-    console.log('[marquee] activado en', el.id, 'duración:', dur);
   }
 }
 
+let pollTimer = null;
 async function fetchStatus() {
+  clearTimeout(pollTimer);
+  let next = 15000; // si falla la red, se espera un poco más antes de reintentar
   try {
-    const res = await fetch(`/api/overlay/spotify/${username}`);
+    const res = await fetch(`/api/overlay/spotify/${username}`, { cache: 'no-store' });
     const data = await res.json();
     updateWidget(data);
+    next = Math.min(Math.max(Number(data.next_ms) || 10000, 1500), 15000);
   } catch(e) {}
+  pollTimer = setTimeout(fetchStatus, next);
 }
 
 function updateWidget(data) {
@@ -756,13 +774,14 @@ function updateWidget(data) {
 
   // Progreso
   clearInterval(progressInterval);
-  let progress = data.progress_ms || 0;
+  const baseProgress = data.progress_ms || 0;
+  const baseTime = Date.now();
   const duration = data.duration_ms || 1;
 
   function updateProgress() {
+    const progress = data.is_playing ? baseProgress + (Date.now() - baseTime) : baseProgress;
     const pct = Math.min((progress / duration) * 100, 100);
     progressEl.style.width = pct + '%';
-    if (data.is_playing) progress += 1000;
   }
 
   updateProgress();
@@ -770,6 +789,8 @@ function updateWidget(data) {
     progressInterval = setInterval(updateProgress, 1000);
   }
 }
+
+if (new URLSearchParams(location.search).get('lite') === '1') document.body.classList.add('lite');
 
 // Modo demo (?demo=<estilo>): lo usa la galería del dashboard para mostrar cada estilo con una canción de ejemplo
 const demoTheme = new URLSearchParams(location.search).get('demo');
@@ -780,7 +801,6 @@ if (demoTheme) {
 } else {
   // Iniciar
   fetchStatus();
-  setInterval(fetchStatus, 10000);
 }
 </script>
 </body>
