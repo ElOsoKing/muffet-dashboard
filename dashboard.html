@@ -1907,16 +1907,16 @@ function renderMain() {
       </div>
       <div class="panel-body" style="padding:0;">
         ${(() => { const update = {
-            version: 'v3.3',
-            date: '27 Octubre 2026',
+            version: 'v3.4',
+            date: '1 Noviembre 2026',
             badge: 'nuevo',
             items: [
-              '🏅 Insignia de bot: Muffet y los bots personalizados ahora aparecen en el chat con la insignia oficial de bot de Twitch',
-              '⚡ Bot propio con un solo clic (Plan Pro): conecta la cuenta de tu bot desde el dashboard, sin copiar tokens',
-              '🚀 Subatón: 9 estilos para el overlay y las raids suman tiempo por segundos según la cantidad de espectadores',
-              '🔢 Contadores revisados: más seguros y con estilos nuevos para el overlay',
-              '📢 Avisos del equipo dentro del dashboard para que no te pierdas ninguna novedad',
-              '🛠️ Muchas mejoras internas para que Muffet responda más rápido y sin fallos',
+              '📥 Importa tus comandos y timers de Nightbot o StreamElements con un clic: las variables se traducen solas y revisas todo antes de guardar',
+              '🔤 Comandos sin "!": una palabra suelta (como F) puede activar una respuesta, y {cmdcount} cuenta cuántas veces se ha usado',
+              '⏱️ Tiempo de espera propio por comando',
+              '🧩 Variables nuevas: {args}, {1}–{9}, {points}, {pointsname}, {viewers}, {time} y {date}, todas explicadas en Comandos → Variables',
+              '📣 Los mensajes automáticos ahora también entienden variables',
+              '🛡️ Moderación del bot (borrar mensajes y timeouts) más estable',
             ]
           }; return `
           <div style="padding:16px 20px;">
