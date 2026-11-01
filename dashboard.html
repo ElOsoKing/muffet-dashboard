@@ -7576,11 +7576,13 @@ function overlayLookControls(kind, cfg) {
   cfg = cfg || {};
   const layout = cfg.layout === 'vertical' ? 'vertical' : 'horizontal';
   const cover = cfg.cover === 'disc' ? 'disc' : 'square';
+  const lite = (cfg.lite === 'on' || cfg.lite === true) ? 'on' : 'off';
   const seg = (key, cur, opts) => `<div style="display:inline-flex;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:2px;">${opts.map(([v, label]) =>
     `<button type="button" onclick="setOverlayLook('${kind}','${key}','${v}')" style="padding:5px 12px;border:none;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);background:${cur === v ? '#1ed760' : 'transparent'};color:${cur === v ? '#000' : 'var(--text)'};">${label}</button>`).join('')}</div>`;
   return `<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
     <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:11px;color:var(--text-dim);">Distribución</span>${seg('layout', layout, [['horizontal', '▭ Horizontal'], ['vertical', '▯ Vertical']])}</div>
     <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:11px;color:var(--text-dim);">Portada</span>${seg('cover', cover, [['square', '🖼️ Cuadrada'], ['disc', '💿 Disco']])}</div>
+    ${kind === 'spotify' ? `<div style="display:flex;align-items:center;gap:8px;" title="Quita efectos decorativos para que OBS gaste menos CPU. El texto largo se sigue desplazando."><span style="font-size:11px;color:var(--text-dim);">Modo ligero</span>${seg('lite', lite, [['off', 'Normal'], ['on', '🍃 Ligero']])}</div>` : ''}
   </div>`;
 }
 async function setOverlayLook(kind, key, value) {
