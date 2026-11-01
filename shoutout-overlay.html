@@ -18,6 +18,8 @@ html,body{width:1920px;height:1080px;background:transparent;overflow:hidden;}
   transition:opacity 0.3s ease;
 }
 #overlay.show{opacity:var(--overlay-opacity,1);pointer-events:auto;}
+/* Ahorro de CPU: oculto, nada se anima (antes el brillo del marco seguía corriendo todo el stream) */
+#overlay:not(.show), #overlay:not(.show) *, #overlay:not(.show)::before, #overlay:not(.show)::after { animation-play-state: paused !important; }
 
 #clipVideo{
   position:absolute;inset:0;width:100%;height:100%;
