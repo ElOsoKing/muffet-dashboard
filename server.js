@@ -699,8 +699,12 @@ app.post('/api/admin/changelog', requireAdmin, async (req, res) => {
       body: JSON.stringify(payload)
     });
     if (r.ok || r.status === 204) { adminLog(req, 'publicar novedades', null, version); res.json({ success: true }); }
-    else res.status(400).json({ error: 'Error al enviar a Discord' });
-  } catch(err) { res.status(500).json({ error: err.message }); }
+    else {
+      const body = await r.text().catch(() => '');
+      console.error('Discord changelog webhook:', r.status, body.slice(0, 300));
+      res.status(400).json({ error: 'Discord respondió ' + r.status + (body ? ': ' + body.slice(0, 120) : '') });
+    }
+  } catch(err) { console.error('Discord changelog:', err.message); res.status(500).json({ error: err.message }); }
 });
 
 // API admin — aprobar streamer
