@@ -2010,6 +2010,13 @@ app.post('/api/subathon-config', requireAuth, async (req, res) => {
     const streamer = await sbSelect('streamers', { twitch_id: req.session.user.id });
     if (streamer?.plan !== 'pro' && streamer?.plan !== 'admin') return res.status(403).json({ error: 'Función exclusiva de Pro' });
     if (subathon_config.theme !== undefined && !subathonThemeAllowed(subathon_config.theme, streamer)) return res.status(400).json({ error: 'Ese estilo no está disponible para tu canal' });
+    if (subathon_config.linked_channels !== undefined) {
+      const own = String(streamer?.twitch_username || '').toLowerCase();
+      const raw = Array.isArray(subathon_config.linked_channels) ? subathon_config.linked_channels : [];
+      const clean = [...new Set(raw.map(c => String(c || '').toLowerCase().replace(/^[#@]+/, '').replace(/^https?:\/\/(www\.)?twitch\.tv\//, '').trim()).filter(c => /^[a-z0-9_]{3,25}$/.test(c) && c !== own))];
+      if (clean.length > 5) return res.status(400).json({ error: 'Máximo 5 canales vinculados' });
+      subathon_config.linked_channels = clean;
+    }
     const current = streamer?.subathon_config || {};
     // Solo actualizar los campos de configuración — nunca pisar running/target_end_time/remaining_seconds desde aquí
     const merged = { ...current, ...subathon_config };
