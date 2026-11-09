@@ -1963,39 +1963,6 @@ function renderMain() {
       </div>
     </div>
 
-    <!-- Mensajes activación/desactivación -->
-    <div style="background:var(--bg2);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius);padding:20px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--text);">⚡ Mensajes al encender/apagar</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Qué dice Muffet cuando usas !muffeton y !muffetoff</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:12px;color:var(--text-dim);">Usar IA</span>
-          <label class="toggle"><input type="checkbox" id="onOffAiToggle" ${s.on_off_ai !== false ? 'checked' : ''} onchange="toggleOnOffAi(this.checked)"><span class="toggle-slider"></span></label>
-        </div>
-      </div>
-
-      <div id="onOffMessages" style="${s.on_off_ai !== false ? 'display:none' : ''}">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-          <div>
-            <div style="font-size:11px;font-weight:600;color:var(--green);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">▶ Al encender (!muffeton)</div>
-            <textarea id="onMessage" style="width:100%;min-height:90px;background:var(--bg3);border:1px solid rgba(64,208,144,0.2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;line-height:1.6;padding:12px;resize:vertical;outline:none;transition:border-color 0.15s;" onfocus="this.style.borderColor='rgba(64,208,144,0.4)'" onblur="this.style.borderColor='rgba(64,208,144,0.2)'" placeholder="¡La guardiana ha despertado! 🕷️">${s.on_message||''}</textarea>
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:600;color:var(--pink);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">⏹ Al apagar (!muffetoff)</div>
-            <textarea id="offMessage" style="width:100%;min-height:90px;background:var(--bg3);border:1px solid rgba(224,90,122,0.2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;line-height:1.6;padding:12px;resize:vertical;outline:none;transition:border-color 0.15s;" onfocus="this.style.borderColor='rgba(224,90,122,0.4)'" onblur="this.style.borderColor='rgba(224,90,122,0.2)'" placeholder="¡La guardiana se va a descansar~ 🕷️">${s.off_message||''}</textarea>
-          </div>
-        </div>
-        <div style="display:flex;justify-content:flex-end;">
-          <button onclick="saveOnOffMessages()" style="padding:9px 24px;background:var(--purple);border:none;border-radius:var(--radius-sm);color:white;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--sans);transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">Guardar mensajes</button>
-        </div>
-      </div>
-
-      <div id="onOffAiNote" style="${s.on_off_ai !== false ? '' : 'display:none'};background:var(--bg3);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--text-dim);line-height:1.6;">
-        🤖 Con IA activa, Muffet genera un mensaje único y creativo cada vez que la enciendes o apagas — basado en su personalidad.
-      </div>
-    </div>
   </div>
 
   <!-- COMANDOS -->
@@ -2681,11 +2648,6 @@ function renderMain() {
       <div class="panel-body">
         <div style="display:flex;flex-direction:column;gap:6px;">
           ${[
-            ['!muffeton',          'Activa el bot',                                           'Mods', ''],
-            ['!muffetoff',         'Desactiva el bot',                                        'Mods', ''],
-            ['!muffetstatus',      'Ver si el bot está activo o en silencio',                 'Todos', ''],
-            ['!muffetsilencio',    'Modo silencio — solo responde comandos y menciones',       'Mods', 'Para streams compartidos'],
-            ['!muffethabla',       'Desactiva el modo silencio',                              'Mods', ''],
             ['!uptime',            'Ver cuánto tiempo llevan en vivo',                        'Todos', ''],
           ].map(([cmd, desc, who, note]) => `
             <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg3);border-radius:var(--radius-sm);">
