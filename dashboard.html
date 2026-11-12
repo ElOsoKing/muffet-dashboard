@@ -7476,9 +7476,10 @@ const SPOTIFY_THEME_GROUPS = [
   ['Neón y arcade', [['synthwave','Synthwave','Atardecer de neón'],['neoncity','Neon City','Ciudad nocturna'],['cyber','Cyber','Panel HUD cian/magenta'],['glitch','Glitch','Efecto VHS'],['retro','Retro','Papel viejo y arcoíris']]],
   ['Exclusivos SilklyBot ✨', [['muffet','Telaraña','Morado, rosa y arañita'],['osoking','Rey Pixel','Pixel art con corona'],['undertale','Diálogo retro','Caja blanca y negra']]],
   ['Exclusivo de Wolf 🐺', [['wolf','Lobo Rey','Glitch rojo con el lobo coronado']]],
-  ['Exclusivo de ElOsoKing 🐻', [['oso','Rey Oso','Marco dorado, brasas y el oso con corona']]]
+  ['Exclusivo de ElOsoKing 🐻', [['oso','Rey Oso','Marco dorado, brasas y el oso con corona']]],
+  ['Exclusivo de Diegunnerr 🏙️', [['ciudad','Ciudad','HUD de ciudad con la constructora rubia']]]
 ];
-const EXCLUSIVE_THEME_CHANNELS = { 'Exclusivo de Wolf': ['lordlonelywolf', 'elosoking1'], 'Exclusivo de ElOsoKing': ['elosoking1'] }; // diseño hecho a medida: solo se ofrece a estos canales
+const EXCLUSIVE_THEME_CHANNELS = { 'Exclusivo de Wolf': ['lordlonelywolf', 'elosoking1'], 'Exclusivo de ElOsoKing': ['elosoking1'], 'Exclusivo de Diegunnerr': ['diegunnerr', 'elosoking1'] }; // diseño hecho a medida: solo se ofrece a estos canales
 function spotifyThemeName(id) {
   for (const [, items] of SPOTIFY_THEME_GROUPS) { const f = items.find(t => t[0] === id); if (f) return f[1]; }
   return 'Clásico';
@@ -7502,7 +7503,7 @@ function openThemeGallery(kind) {
   const demoQs = lookOn ? `&layout=${vert ? 'vertical' : 'horizontal'}&cover=${lk?.cover === 'disc' ? 'disc' : 'square'}` : '';
   const user = (typeof userData !== 'undefined' && userData.username) ? userData.username : '';
   const userLc = String(user).toLowerCase();
-  const cards = SPOTIFY_THEME_GROUPS.filter(([group]) => { const k = Object.keys(EXCLUSIVE_THEME_CHANNELS).find(n => group.startsWith(n)); return !k || EXCLUSIVE_THEME_CHANNELS[k].includes(userLc) || (streamerData?.feature_flags?.themes || []).includes(k.includes('Wolf') ? 'wolf' : 'oso'); }).map(([group, items]) => `
+  const cards = SPOTIFY_THEME_GROUPS.filter(([group]) => kind !== 'youtube' || !group.includes('Diegunnerr')).filter(([group]) => { const k = Object.keys(EXCLUSIVE_THEME_CHANNELS).find(n => group.startsWith(n)); return !k || EXCLUSIVE_THEME_CHANNELS[k].includes(userLc) || (streamerData?.feature_flags?.themes || []).includes(k.includes('Wolf') ? 'wolf' : k.includes('Diegunnerr') ? 'ciudad' : 'oso'); }).map(([group, items]) => `
     <div style="font-size:11px;font-weight:700;color:var(--text-muted);letter-spacing:0.6px;margin:18px 0 8px;">${group}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">
       ${items.map(([id, name, desc]) => {
