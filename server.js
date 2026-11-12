@@ -818,7 +818,7 @@ app.post('/api/admin/plan/:id', requireAdmin, async (req, res) => {
 });
 
 // API admin — interruptores de funciones por canal (feature_flags)
-const FLAG_THEMES = ['wolf', 'oso']; // estilos exclusivos que se pueden dar a un canal
+const FLAG_THEMES = ['wolf', 'oso', 'ciudad']; // estilos exclusivos que se pueden dar a un canal
 app.post('/api/admin/flags/:id', requireAdmin, async (req, res) => {
   try {
     const f = req.body?.flags;
