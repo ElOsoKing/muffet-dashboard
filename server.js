@@ -210,8 +210,17 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'login.html'));
 });
 
+// Login de respaldo: si entras por la dirección de Render (*.onrender.com), Twitch te devuelve a esa misma dirección
+// en vez de a silklybot.com. Sirve cuando el internet de alguien no llega bien a silklybot.com (problemas de DNS).
+// Esa dirección tiene que estar en las "OAuth Redirect URLs" de la app en dev.twitch.tv.
+function loginRedirectUri(req) {
+  const host = String(req.hostname || '').toLowerCase();
+  if (/^[a-z0-9-]+\.onrender\.com$/.test(host)) return `https://${host}/auth/twitch/callback`;
+  return BASE_URL + '/auth/twitch/callback';
+}
+
 app.get('/auth/twitch', (req, res) => {
-  const redirectUri = BASE_URL + '/auth/twitch/callback';
+  const redirectUri = loginRedirectUri(req);
   const scopes = 'user:read:email channel:manage:broadcast clips:edit channel:read:redemptions channel:manage:redemptions moderator:read:followers channel:bot';
     const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${encodeURIComponent(scopes)}`;
   res.redirect(url);
@@ -393,7 +402,7 @@ app.get('/auth/twitch/callback', async (req, res) => {
   }
 
   try {
-    const redirectUri = BASE_URL + '/auth/twitch/callback';
+    const redirectUri = loginRedirectUri(req);
 
     const tokenRes = await fetch('https://id.twitch.tv/oauth2/token', {
       method: 'POST',
