@@ -121,12 +121,69 @@ async function init() {
     });
     markQuick();
     show('form');
-    loadPaypal();
+    loadPaypalV6();
   } catch (e) { $('offTitle').textContent = 'Algo falló'; $('offText').textContent = 'No se pudo cargar la página. Inténtalo de nuevo.'; show('off'); }
 }
 function markQuick() { const a = parseFloat($('amount').value); [...$('quick').children].forEach(b => b.classList.toggle('on', parseFloat(b.textContent.replace(/[^\d.]/g, '')) === a)); }
 $('amount').addEventListener('input', () => { markQuick(); setErr(''); });
 $('message').addEventListener('input', () => { $('count').textContent = $('message').value.length; });
+
+// ── SDK v6 (apps nuevas de PayPal). Si falla, se usa el SDK v5 de antes. ──
+async function createOrderId() {
+  const f = readForm();
+  try { localStorage.setItem('tip_name', f.name); } catch (e) {}
+  const r = await fetch(`/api/tip/${encodeURIComponent(username)}/order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) });
+  const d = await r.json();
+  if (!r.ok || !d.id) { setErr(d.error || 'No se pudo crear el pago.'); throw new Error(d.error || 'order'); }
+  return { orderId: d.id };
+}
+async function captureAndThank(orderId) {
+  setErr('');
+  const r = await fetch(`/api/tip/${encodeURIComponent(username)}/capture`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderID: orderId }) });
+  const d = await r.json();
+  if (!r.ok || !d.ok) return setErr(d.error || 'El pago no se completó.');
+  const money = `${(SYMBOL[d.currency] || '')}${Number(d.amount).toFixed(2)} ${d.currency}`;
+  $('thanksText').textContent = d.status === 'pending'
+    ? `Tu pago de ${money} quedó en revisión en PayPal. Cuando PayPal lo apruebe, ${info.display} lo recibirá.`
+    : `Tu propina de ${money} ya le llegó a ${info.display}. ¡Mira el stream! 🕷️`;
+  show('thanks');
+}
+function loadPaypalV6() {
+  $('paypal').innerHTML = '<div style="text-align:center;color:var(--dim);font-size:13px;padding:14px 0">Cargando PayPal…</div>';
+  const fallback = (why) => { console.warn('[tip] SDK v6 falló, probando v5:', why); loadPaypal(false); };
+  const s = document.createElement('script');
+  s.dataset.pp = '1';
+  s.src = info.sandbox ? 'https://www.sandbox.paypal.com/web-sdk/v6/core' : 'https://www.paypal.com/web-sdk/v6/core';
+  const timer = setTimeout(() => fallback('tardó demasiado'), 15000);
+  s.onerror = () => { clearTimeout(timer); fallback('no cargó el script'); };
+  s.onload = async () => {
+    clearTimeout(timer);
+    try {
+      if (!window.paypal || !paypal.createInstance) throw new Error('script vacío');
+      const tr = await fetch('/api/tip/client-token');
+      const { accessToken } = await tr.json();
+      if (!accessToken) throw new Error('sin token del servidor');
+      const sdk = await paypal.createInstance({ clientToken: accessToken, components: ['paypal-payments'], pageType: 'checkout' });
+      const methods = await sdk.findEligibleMethods({ currencyCode: info.currency });
+      if (!methods.isEligible('paypal')) throw new Error('PayPal no es elegible para ' + info.currency);
+      const session = sdk.createPayPalOneTimePaymentSession({
+        onApprove: async (data) => captureAndThank(data.orderId || data.orderID),
+        onCancel: () => setErr('Cancelaste el pago. No se te cobró nada.'),
+        onError: (err) => { console.warn(err); if (!$('err').textContent) setErr('PayPal tuvo un problema. No se te cobró nada; inténtalo de nuevo.'); }
+      });
+      $('paypal').innerHTML = '<style>paypal-button{--paypal-button-border-radius:999px;display:block;width:100%}</style><paypal-button id="ppBtn" class="paypal-gold" type="pay"></paypal-button>';
+      $('ppBtn').addEventListener('click', async () => {
+        const f = readForm();
+        if (!validAmount(f.amount)) return setErr(`El monto debe estar entre ${info.min} y ${info.max} ${info.currency}.`);
+        setErr('');
+        const orderPromise = createOrderId();
+        try { await session.start({ presentationMode: 'auto' }, orderPromise); }
+        catch (e) { console.warn('[tip] start:', e); if (!$('err').textContent) setErr('No se pudo abrir PayPal. Permite las ventanas emergentes e inténtalo de nuevo.'); }
+      });
+    } catch (e) { fallback(e && e.message ? e.message : String(e)); }
+  };
+  document.head.appendChild(s);
+}
 
 // Intento 1: SDK completo (con merchant-id = correo del streamer). Si PayPal lo rechaza, intento 2: SDK mínimo.
 function loadPaypal(simple) {
