@@ -1467,6 +1467,186 @@ app.get('/overlay/alerts/:username', (req, res) => {
 });
 
 // ══════════════════════════════════════════
+//  PROPINAS CON PAYPAL
+//  El dinero va DIRECTO a la cuenta PayPal del streamer (payee = su correo). SilklyBot no toca el dinero:
+//  solo crea la orden, confirma con PayPal que se pagó y dispara alerta, mensaje en el chat y tiempo al subatón.
+//  Variables en Render: PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET y PAYPAL_MODE ('live' o 'sandbox' para pruebas).
+// ══════════════════════════════════════════
+const PAYPAL_MODE = (process.env.PAYPAL_MODE || 'sandbox').toLowerCase() === 'live' ? 'live' : 'sandbox';
+const PAYPAL_API = PAYPAL_MODE === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+const TIP_CURRENCIES = ['USD', 'EUR', 'MXN', 'CAD', 'GBP'];
+const TIP_MAX_AMOUNT = 500;
+const paypalReady = () => !!(process.env.PAYPAL_CLIENT_ID && process.env.PAYPAL_CLIENT_SECRET);
+
+let _ppToken = null; // { token, exp }
+async function paypalToken() {
+  if (_ppToken && _ppToken.exp > Date.now() + 60000) return _ppToken.token;
+  const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
+  const r = await fetch(`${PAYPAL_API}/v1/oauth2/token`, {
+    method: 'POST', headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=client_credentials', signal: AbortSignal.timeout(15000)
+  });
+  const d = await r.json();
+  if (!d.access_token) throw new Error('PayPal no dio token (revisa PAYPAL_CLIENT_ID / PAYPAL_CLIENT_SECRET / PAYPAL_MODE)');
+  _ppToken = { token: d.access_token, exp: Date.now() + (d.expires_in || 3000) * 1000 };
+  return _ppToken.token;
+}
+async function paypalApi(method, pathUrl, body) {
+  const r = await fetch(`${PAYPAL_API}${pathUrl}`, {
+    method, signal: AbortSignal.timeout(20000),
+    headers: { Authorization: `Bearer ${await paypalToken()}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+    body: body ? JSON.stringify(body) : undefined
+  });
+  let data = {}; try { data = await r.json(); } catch (e) {}
+  return { status: r.status, data };
+}
+
+const cleanTipText = (v, max) => String(v || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+const validPaypalEmail = (e) => /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,}$/i.test(String(e || ''));
+
+// Config pública (sin el correo) + datos internos
+async function getTipStreamer(username) {
+  const u = String(username || '').toLowerCase();
+  if (!/^[a-z0-9_]{3,25}$/.test(u)) return null;
+  const s = await sbSelect('streamers', { twitch_username: u, approved: true }, 'twitch_username,public_name,tips_config,subathon_config');
+  if (!s) return null;
+  const t = s.tips_config || {};
+  return {
+    username: u, display: s.public_name || u,
+    enabled: !!t.enabled && validPaypalEmail(t.paypal_email),
+    email: t.paypal_email, currency: TIP_CURRENCIES.includes(t.currency) ? t.currency : 'USD',
+    min: Math.max(1, Math.min(100, Number(t.min_amount) || 1)),
+    subathon: s.subathon_config || {}
+  };
+}
+
+// Órdenes creadas y aún no pagadas (nombre y mensaje). Si Render se reinicia en medio, se usa el nombre de PayPal.
+const pendingTips = new Map(); // orderId -> { username, name, message, created }
+const tipRate = new Map(); // ip -> [timestamps]
+function tipRateOk(ip) {
+  const now = Date.now(), arr = (tipRate.get(ip) || []).filter(t => now - t < 10 * 60000);
+  if (arr.length >= 15) return false;
+  arr.push(now); tipRate.set(ip, arr);
+  if (tipRate.size > 2000) tipRate.clear();
+  return true;
+}
+
+app.get('/tip/:username', (req, res) => res.sendFile(path.join(__dirname, 'tip.html')));
+app.get('/propina/:username', (req, res) => res.redirect('/tip/' + encodeURIComponent(req.params.username)));
+
+app.get('/api/tip/:username/info', async (req, res) => {
+  try {
+    const s = await getTipStreamer(req.params.username);
+    if (!s) return res.status(404).json({ error: 'Canal no encontrado' });
+    if (!s.enabled || !paypalReady()) return res.json({ enabled: false, display: s.display });
+    // merchant: el SDK de PayPal necesita saber a quién se le paga (es el mismo correo que verá quien paga en PayPal)
+    res.json({ enabled: true, display: s.display, username: s.username, currency: s.currency, min: s.min, max: TIP_MAX_AMOUNT,
+      client_id: process.env.PAYPAL_CLIENT_ID, merchant: s.email, sandbox: PAYPAL_MODE !== 'live' });
+  } catch (e) { res.status(500).json({ error: 'Error del servidor' }); }
+});
+
+app.post('/api/tip/:username/order', async (req, res) => {
+  try {
+    if (!paypalReady()) return res.status(503).json({ error: 'Las propinas no están disponibles ahora' });
+    if (!tipRateOk(req.ip)) return res.status(429).json({ error: 'Demasiados intentos. Espera unos minutos.' });
+    const s = await getTipStreamer(req.params.username);
+    if (!s || !s.enabled) return res.status(404).json({ error: 'Este canal no recibe propinas' });
+    const amount = Math.round(Number(req.body?.amount) * 100) / 100;
+    if (!isFinite(amount) || amount < s.min || amount > TIP_MAX_AMOUNT) return res.status(400).json({ error: `El monto debe estar entre ${s.min} y ${TIP_MAX_AMOUNT} ${s.currency}` });
+    const name = cleanTipText(req.body?.name, 25) || 'Anónimo';
+    const message = cleanTipText(req.body?.message, 200);
+    const value = (s.currency === 'JPY' ? Math.round(amount) : amount).toFixed(2);
+    const r = await paypalApi('POST', '/v2/checkout/orders', {
+      intent: 'CAPTURE',
+      purchase_units: [{
+        amount: { currency_code: s.currency, value },
+        payee: { email_address: s.email },
+        description: `Propina para ${s.display} (SilklyBot)`.slice(0, 127),
+        custom_id: s.username
+      }],
+      application_context: { brand_name: `SilklyBot · ${s.display}`.slice(0, 127), shipping_preference: 'NO_SHIPPING', user_action: 'PAY_NOW' }
+    });
+    if (r.status >= 300 || !r.data.id) { console.error('[tips] crear orden:', r.status, JSON.stringify(r.data).slice(0, 300)); return res.status(502).json({ error: 'PayPal no aceptó la orden. Inténtalo de nuevo.' }); }
+    pendingTips.set(r.data.id, { username: s.username, name, message, created: Date.now() });
+    for (const [k, v] of pendingTips) if (Date.now() - v.created > 3 * 3600000) pendingTips.delete(k);
+    res.json({ id: r.data.id });
+  } catch (e) { console.error('[tips] order:', e.message); res.status(500).json({ error: 'Error del servidor' }); }
+});
+
+app.post('/api/tip/:username/capture', async (req, res) => {
+  try {
+    const orderId = String(req.body?.orderID || '');
+    if (!/^[A-Z0-9]{10,30}$/.test(orderId)) return res.status(400).json({ error: 'Orden inválida' });
+    const s = await getTipStreamer(req.params.username);
+    if (!s) return res.status(404).json({ error: 'Canal no encontrado' });
+    let r = await paypalApi('POST', `/v2/checkout/orders/${orderId}/capture`, {});
+    // Si ya estaba capturada (doble clic, reintento), leemos la orden tal cual está
+    if (r.status === 422 && JSON.stringify(r.data).includes('ORDER_ALREADY_CAPTURED')) r = await paypalApi('GET', `/v2/checkout/orders/${orderId}`);
+    if (r.status >= 300) { console.error('[tips] capturar:', r.status, JSON.stringify(r.data).slice(0, 300)); return res.status(502).json({ error: 'PayPal no completó el pago. No se te cobró.' }); }
+    const pu = r.data.purchase_units?.[0] || {};
+    const cap = pu.payments?.captures?.[0];
+    // Comprobaciones: la orden es de ESTE canal y el dinero fue a SU correo
+    const payeeOk = String(pu.payee?.email_address || '').toLowerCase() === String(s.email || '').toLowerCase();
+    if (pu.custom_id !== s.username || !payeeOk || !cap) { console.error('[tips] orden no coincide', orderId, pu.custom_id, s.username); return res.status(400).json({ error: 'La orden no corresponde a este canal' }); }
+    const status = cap.status === 'COMPLETED' ? 'completed' : cap.status === 'PENDING' ? 'pending' : null;
+    if (!status) return res.status(400).json({ error: 'El pago no se completó' });
+    const pend = pendingTips.get(orderId) || {};
+    const payerName = [r.data.payer?.name?.given_name].filter(Boolean).join(' ');
+    const tip = {
+      streamer: s.username, paypal_order_id: orderId, paypal_capture_id: cap.id,
+      name: pend.name || cleanTipText(payerName, 25) || 'Anónimo', message: pend.message || '',
+      amount: Number(cap.amount?.value), currency: cap.amount?.currency_code || s.currency, status
+    };
+    const ins = await sbInsert('tips', tip);
+    const firstTime = ins && ins.id; // si ya existía (código 23505), no se repiten alerta ni tiempo
+    pendingTips.delete(orderId);
+    if (firstTime && status === 'completed') {
+      console.log(`[tips] ✅ ${tip.name} → #${s.username}: ${tip.amount} ${tip.currency}`);
+      pushMediaAlert(s.username, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
+      const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+      fetch(botUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: 'tip.received', event: { channel: s.username, name: tip.name, amount: tip.amount, currency: tip.currency } })
+      }).catch(() => {});
+    } else if (!firstTime && !(ins && ins.code === '23505')) {
+      console.error('[tips] no se pudo guardar la propina', orderId, JSON.stringify(ins).slice(0, 200));
+    }
+    res.json({ ok: true, status, amount: tip.amount, currency: tip.currency });
+  } catch (e) { console.error('[tips] capture:', e.message); res.status(500).json({ error: 'Error del servidor. Si se te cobró, el streamer igual lo recibió.' }); }
+});
+
+// ── Dashboard: config y lista de propinas del streamer ──
+app.post('/api/tips-config', requireAuth, async (req, res) => {
+  try {
+    const t = req.body?.tips_config;
+    if (!isValidObject(t)) return res.status(400).json({ error: 'Inválido' });
+    const email = String(t.paypal_email || '').trim();
+    if (email && !validPaypalEmail(email)) return res.status(400).json({ error: 'Ese correo de PayPal no es válido' });
+    if (t.enabled && !email) return res.status(400).json({ error: 'Pon tu correo de PayPal para activar las propinas' });
+    const clean = {
+      enabled: !!t.enabled, paypal_email: email,
+      currency: TIP_CURRENCIES.includes(t.currency) ? t.currency : 'USD',
+      min_amount: Math.max(1, Math.min(100, Math.round(Number(t.min_amount) || 1))),
+      chat_thanks: t.chat_thanks !== false
+    };
+    await sbUpdate('streamers', { tips_config: clean }, { twitch_id: req.session.user.id });
+    res.json({ success: true, tips_config: clean });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/tips', requireAuth, async (req, res) => {
+  try {
+    const u = String(req.session.user.username || '').toLowerCase();
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?streamer=eq.${encodeURIComponent(u)}&select=created_at,name,amount,currency,message,status&order=created_at.desc&limit=50`, { headers: sbHeaders });
+    const list = await r.json();
+    res.json({ tips: Array.isArray(list) ? list : [], paypal_ready: paypalReady(), sandbox: PAYPAL_MODE !== 'live' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/tips/test', requireAuth, async (req, res) => {
+  const u = String(req.session.user.username || '').toLowerCase();
+  const sent = pushMediaAlert(u, { type: 'tip', name: 'Prueba', amount: 5, currency: 'USD', message: '¡Esto es una propina de prueba! 💸' });
+  res.json({ success: true, sent });
+});
+
+// ══════════════════════════════════════════
 //  RECOMPENSAS DE PUNTOS DE CANAL — crearlas desde Muffet y resolver sus canjes
 //  Twitch solo deja que una app administre las recompensas que ELLA misma creó (mismo Client-Id).
 //  Por eso solo las recompensas creadas por Muffet se pueden cumplir/reembolsar automáticamente.
