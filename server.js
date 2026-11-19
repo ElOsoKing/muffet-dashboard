@@ -1502,6 +1502,8 @@ async function paypalApi(method, pathUrl, body) {
 }
 
 const cleanTipText = (v, max) => String(v || '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+// Link de cobro de Mercado Pago (mpago.la, mpago.li, link.mercadopago.com.xx, www.mercadopago.com.xx)
+const validMpLink = (u) => /^https:\/\/([a-z0-9-]+\.)*(mercadopago\.com(\.[a-z]{2})?|mpago\.la|mpago\.li)(\/[^\s<>"']*)?$/i.test(String(u || '')) && String(u).length <= 300;
 const validPaypalEmail = (e) => /^[^\s@]{1,64}@[^\s@]{1,190}\.[a-z]{2,}$/i.test(String(e || ''));
 
 // Config pública (sin el correo) + datos internos
@@ -1511,9 +1513,12 @@ async function getTipStreamer(username) {
   const s = await sbSelect('streamers', { twitch_username: u, approved: true }, 'twitch_username,public_name,tips_config,subathon_config');
   if (!s) return null;
   const t = s.tips_config || {};
+  const paypalOk = !!t.enabled && validPaypalEmail(t.paypal_email);
+  const mpLink = t.enabled && validMpLink(t.mp_link) ? t.mp_link : '';
   return {
     username: u, display: s.public_name || u,
-    enabled: !!t.enabled && validPaypalEmail(t.paypal_email),
+    enabled: paypalOk, // PayPal (pago automático)
+    mpLink,            // Mercado Pago (link externo, el streamer confirma a mano)
     email: t.paypal_email, currency: TIP_CURRENCIES.includes(t.currency) ? t.currency : 'USD',
     min: Math.max(1, Math.min(100, Number(t.min_amount) || 1)),
     subathon: s.subathon_config || {}
@@ -1559,10 +1564,12 @@ app.get('/api/tip/:username/info', async (req, res) => {
   try {
     const s = await getTipStreamer(req.params.username);
     if (!s) return res.status(404).json({ error: 'Canal no encontrado' });
-    if (!s.enabled || !paypalReady()) return res.json({ enabled: false, display: s.display });
+    const paypalOn = s.enabled && paypalReady();
+    if (!paypalOn && !s.mpLink) return res.json({ enabled: false, display: s.display });
+    const out = { enabled: true, paypal: paypalOn, mp_link: s.mpLink || null, display: s.display, username: s.username, currency: s.currency, min: s.min, max: TIP_MAX_AMOUNT };
     // merchant: el SDK de PayPal necesita saber a quién se le paga (es el mismo correo que verá quien paga en PayPal)
-    res.json({ enabled: true, display: s.display, username: s.username, currency: s.currency, min: s.min, max: TIP_MAX_AMOUNT,
-      client_id: process.env.PAYPAL_CLIENT_ID, merchant: s.email, sandbox: PAYPAL_MODE !== 'live' });
+    if (paypalOn) Object.assign(out, { client_id: process.env.PAYPAL_CLIENT_ID, merchant: s.email, sandbox: PAYPAL_MODE !== 'live' });
+    res.json(out);
   } catch (e) { res.status(500).json({ error: 'Error del servidor' }); }
 });
 
@@ -1641,10 +1648,12 @@ app.post('/api/tips-config', requireAuth, async (req, res) => {
     const t = req.body?.tips_config;
     if (!isValidObject(t)) return res.status(400).json({ error: 'Inválido' });
     const email = String(t.paypal_email || '').trim();
+    const mp = String(t.mp_link || '').trim();
     if (email && !validPaypalEmail(email)) return res.status(400).json({ error: 'Ese correo de PayPal no es válido' });
-    if (t.enabled && !email) return res.status(400).json({ error: 'Pon tu correo de PayPal para activar las propinas' });
+    if (mp && !validMpLink(mp)) return res.status(400).json({ error: 'Ese link de Mercado Pago no es válido (debe empezar con https:// y ser de mercadopago o mpago.la)' });
+    if (t.enabled && !email && !mp) return res.status(400).json({ error: 'Pon tu correo de PayPal o tu link de Mercado Pago para activar las propinas' });
     const clean = {
-      enabled: !!t.enabled, paypal_email: email,
+      enabled: !!t.enabled, paypal_email: email, mp_link: mp,
       currency: TIP_CURRENCIES.includes(t.currency) ? t.currency : 'USD',
       min_amount: Math.max(1, Math.min(100, Math.round(Number(t.min_amount) || 1))),
       chat_thanks: t.chat_thanks !== false
@@ -1656,11 +1665,34 @@ app.post('/api/tips-config', requireAuth, async (req, res) => {
 app.get('/api/tips', requireAuth, async (req, res) => {
   try {
     const u = String(req.session.user.username || '').toLowerCase();
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?streamer=eq.${encodeURIComponent(u)}&select=id,created_at,name,amount,currency,message,status&order=created_at.desc&limit=50`, { headers: sbHeaders });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?streamer=eq.${encodeURIComponent(u)}&select=id,paypal_order_id,created_at,name,amount,currency,message,status&order=created_at.desc&limit=50`, { headers: sbHeaders });
     const list = await r.json();
     res.json({ tips: Array.isArray(list) ? list : [], paypal_ready: paypalReady(), sandbox: PAYPAL_MODE !== 'live' });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
+// Registrar a mano una propina que llegó por fuera (Mercado Pago, etc.): sale la alerta, Muffet agradece y suma al subatón
+app.post('/api/tips/manual', requireAuth, async (req, res) => {
+  try {
+    const u = String(req.session.user.username || '').toLowerCase();
+    const amount = Math.round(Number(req.body?.amount) * 100) / 100;
+    if (!isFinite(amount) || amount <= 0 || amount > 100000) return res.status(400).json({ error: 'Monto inválido' });
+    const currency = String(req.body?.currency || 'USD').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3) || 'USD';
+    const tip = {
+      streamer: u, paypal_order_id: 'MANUAL-' + require('crypto').randomBytes(9).toString('hex').toUpperCase(),
+      name: cleanTipText(req.body?.name, 25) || 'Anónimo', message: cleanTipText(req.body?.message, 200),
+      amount, currency, status: 'completed'
+    };
+    const ins = await sbInsert('tips', tip);
+    if (!ins || !ins.id) return res.status(500).json({ error: 'No se pudo guardar' });
+    pushMediaAlert(u, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
+    const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+    fetch(botUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: 'tip.received', event: { channel: u, name: tip.name, amount: tip.amount, currency: tip.currency } })
+    }).catch(() => {});
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Borrar una propina del historial (solo la quita de la lista: el dinero en PayPal no se toca)
 app.delete('/api/tips/:id', requireAuth, async (req, res) => {
   try {
