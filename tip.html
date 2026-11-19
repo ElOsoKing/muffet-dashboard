@@ -128,17 +128,31 @@ function markQuick() { const a = parseFloat($('amount').value); [...$('quick').c
 $('amount').addEventListener('input', () => { markQuick(); setErr(''); });
 $('message').addEventListener('input', () => { $('count').textContent = $('message').value.length; });
 
-function loadPaypal() {
-  const p = new URLSearchParams({ 'client-id': info.client_id, currency: info.currency, intent: 'capture', components: 'buttons', 'merchant-id': info.merchant, 'enable-funding': 'card', 'disable-funding': 'paylater,venmo', locale: 'es_ES' });
+// Intento 1: SDK completo (con merchant-id = correo del streamer). Si PayPal lo rechaza, intento 2: SDK mínimo.
+function loadPaypal(simple) {
+  $('paypal').innerHTML = '<div style="text-align:center;color:var(--dim);font-size:13px;padding:14px 0">Cargando PayPal…</div>';
+  const opts = { 'client-id': info.client_id, currency: info.currency, intent: 'capture', components: 'buttons' };
+  if (!simple) Object.assign(opts, { 'merchant-id': info.merchant, 'enable-funding': 'card', 'disable-funding': 'paylater,venmo', locale: 'es_ES' });
+  document.querySelectorAll('script[data-pp]').forEach(x => x.remove()); delete window.paypal;
   const s = document.createElement('script');
-  s.src = 'https://www.paypal.com/sdk/js?' + p.toString();
-  s.onload = renderButtons;
-  s.onerror = () => setErr('No se pudo cargar PayPal. Desactiva el bloqueador de anuncios e inténtalo de nuevo.');
+  s.dataset.pp = '1';
+  s.src = 'https://www.paypal.com/sdk/js?' + new URLSearchParams(opts).toString();
+  const timer = setTimeout(() => fail('PayPal tardó demasiado en cargar (¿bloqueador de anuncios o protección contra rastreo?)'), 15000);
+  const fail = (why) => {
+    clearTimeout(timer);
+    console.warn('[tip] PayPal falló' + (simple ? ' (modo simple)' : '') + ':', why);
+    if (!simple) return loadPaypal(true);
+    $('paypal').innerHTML = '';
+    setErr('No se pudo mostrar PayPal: ' + why + '. Prueba desactivando el bloqueador de anuncios o con otro navegador.');
+  };
+  s.onload = () => { clearTimeout(timer); if (!window.paypal || !paypal.Buttons) return fail('el script de PayPal cargó vacío'); renderButtons(fail); };
+  s.onerror = () => fail('PayPal rechazó la carga del script');
   document.head.appendChild(s);
 }
 
-function renderButtons() {
-  paypal.Buttons({
+function renderButtons(fail) {
+  $('paypal').innerHTML = '';
+  const btns = paypal.Buttons({
     style: { layout: 'vertical', color: 'gold', shape: 'pill', label: 'paypal', height: 45 },
     onClick: (data, actions) => {
       const f = readForm();
@@ -166,7 +180,9 @@ function renderButtons() {
     },
     onCancel: () => setErr('Cancelaste el pago. No se te cobró nada.'),
     onError: (err) => { if (!$('err').textContent) setErr('PayPal tuvo un problema. No se te cobró nada; inténtalo de nuevo.'); console.warn(err); }
-  }).render('#paypal');
+  });
+  if (btns.isEligible && !btns.isEligible()) return fail('PayPal dice que este pago no es elegible');
+  btns.render('#paypal').catch(e => fail((e && e.message ? e.message : String(e)).slice(0, 160)));
 }
 $('again').addEventListener('click', e => { e.preventDefault(); $('message').value = ''; $('count').textContent = '0'; show('form'); });
 init();
