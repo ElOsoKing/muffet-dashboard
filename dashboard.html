@@ -516,6 +516,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
       <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin <span class="pro-badge" id="badge-primerin" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('emojigame')"><span class="nav-icon">🎮</span> Mini juegos <span class="pro-badge" id="badge-emojigame" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('mediaalerts')"><span class="nav-icon">🔊</span> Alertas multimedia <span class="pro-badge" id="badge-mediaalerts" style="display:none;">PRO</span></div>
+      <div class="nav-item" onclick="showSection('tips')"><span class="nav-icon">💸</span> Propinas</div>
       <div class="nav-item" onclick="showSection('subathon')"><span class="nav-icon">⏱️</span> Subatón <span class="pro-badge" id="badge-subathon" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
     </div>
@@ -1359,6 +1360,7 @@ function showSection(name) {
   if(name === 'primerin') renderPrimerinRanking();
   if(name === 'emojigame') renderPokedleRanking();
   if(name === 'mediaalerts') initMediaAlertsSection();
+  if(name === 'tips') initTipsSection();
   if(name === 'subathon') initSubathonSection();
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
@@ -1622,6 +1624,8 @@ async function saveSubathonConfig() {
     minutes_per_sub_t3: parseFloat(document.getElementById('subathonT3')?.value) || 0,
     bits_unit: parseInt(document.getElementById('subathonBitsUnit')?.value) || 100,
     minutes_per_bits_unit: parseFloat(document.getElementById('subathonBitsMin')?.value) || 0,
+    tip_unit: Math.max(0.01, parseFloat(document.getElementById('subathonTipUnit')?.value) || 1),
+    minutes_per_tip_unit: Math.max(0, parseFloat(document.getElementById('subathonTipMin')?.value) || 0),
     max_minutes: Math.round((parseFloat(document.getElementById('subathonMax')?.value) || 0) * 60),
     raid_enabled: document.getElementById('subathonRaidOn')?.checked || false,
     seconds_per_raid_viewer: Math.max(0, parseFloat(document.getElementById('subathonRaidSecs')?.value) || 0),
@@ -1633,6 +1637,57 @@ async function saveSubathonConfig() {
     if (res.ok) { streamerData.subathon_config = { ...(streamerData.subathon_config||{}), ...config }; showToast('Guardado ✓'); }
     else showToast('Error al guardar', 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
+}
+
+// ── Propinas (PayPal) ──
+async function initTipsSection() {
+  const u = streamerData?.twitch_username || '';
+  document.getElementById('tipsPageUrl').value = `${location.origin}/tip/${u}`;
+  document.getElementById('tipsOverlayUrl').value = `${location.origin}/overlay/alerts/${u}`;
+  loadTipsList();
+}
+async function saveTipsConfig() {
+  const tips_config = {
+    enabled: document.getElementById('tipsEnabled').checked,
+    paypal_email: document.getElementById('tipsEmail').value.trim(),
+    currency: document.getElementById('tipsCurrency').value,
+    min_amount: parseInt(document.getElementById('tipsMin').value) || 1,
+    chat_thanks: document.getElementById('tipsChat').checked,
+  };
+  try {
+    const res = await fetch('/api/tips-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tips_config }) });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) { streamerData.tips_config = d.tips_config || tips_config; showToast('Guardado ✓'); }
+    else showToast(d.error || 'Error al guardar', 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+async function testTipAlert() {
+  try {
+    const d = await (await fetch('/api/tips/test', { method:'POST' })).json();
+    showToast(d.sent ? 'Alerta de prueba enviada ✓' : 'No hay overlay de alertas abierto en OBS', d.sent ? undefined : 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+async function loadTipsList() {
+  const box = document.getElementById('tipsList');
+  try {
+    const d = await (await fetch('/api/tips')).json();
+    document.getElementById('tipsSandbox').style.display = d.paypal_ready && d.sandbox ? 'block' : 'none';
+    document.getElementById('tipsNotReady').style.display = d.paypal_ready ? 'none' : 'block';
+    const list = d.tips || [];
+    if (!list.length) { box.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Todavía no hay propinas. ¡Comparte tu enlace! 💜</div>'; document.getElementById('tipsTotal').textContent = ''; return; }
+    const totals = {};
+    list.filter(t => t.status === 'completed').forEach(t => { totals[t.currency] = (totals[t.currency] || 0) + Number(t.amount); });
+    document.getElementById('tipsTotal').textContent = 'Total (últimas 50): ' + Object.entries(totals).map(([c, v]) => `${v.toFixed(2)} ${c}`).join(' · ');
+    box.innerHTML = list.map(t => `
+      <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <div style="font-weight:800;color:#7dffb2;min-width:92px;">${Number(t.amount).toFixed(2)} ${escCmdHtml(t.currency)}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:600;">${escCmdHtml(t.name || 'Anónimo')}${t.status === 'pending' ? ' <span style="font-size:10px;color:#ffd27a;">(en revisión en PayPal)</span>' : ''}</div>
+          ${t.message ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px;word-wrap:break-word;">${escCmdHtml(t.message)}</div>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${new Date(t.created_at).toLocaleString('es', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
+      </div>`).join('');
+  } catch(e) { box.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">No se pudieron cargar las propinas.</div>'; }
 }
 
 async function subathonControl(action) {
@@ -3456,6 +3511,16 @@ function renderMain() {
             <input type="number" id="subathonBitsMin" class="form-input" min="0" step="0.5" value="${s.subathon_config?.minutes_per_bits_unit??1}" onchange="saveSubathonConfig()">
           </div>
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">💸 Propina necesaria (${s.tips_config?.currency||'USD'})</div>
+            <input type="number" id="subathonTipUnit" class="form-input" min="0.01" step="0.5" value="${s.subathon_config?.tip_unit??1}" onchange="saveSubathonConfig()">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Minutos por esa propina</div>
+            <input type="number" id="subathonTipMin" class="form-input" min="0" step="0.5" value="${s.subathon_config?.minutes_per_tip_unit??1}" onchange="saveSubathonConfig()">
+          </div>
+        </div>
         <div class="toggle-row" style="margin-bottom:12px;">
           <div><div class="toggle-label">🚀 Las raids suman tiempo</div><div class="toggle-sub">Opcional. Suma segundos por cada persona que trae la raid: más gente, más tiempo</div></div>
           <label class="toggle"><input type="checkbox" id="subathonRaidOn" ${s.subathon_config?.raid_enabled?'checked':''} onchange="saveSubathonConfig()"><span class="toggle-slider"></span></label>
@@ -4246,6 +4311,74 @@ function renderMain() {
   </div>
 
   <!-- SHOUTOUT -->
+  <div id="sec-tips" class="section">
+    <div class="page-header">
+      <div class="page-title">💸 Propinas</div>
+      <div class="page-subtitle">Tus viewers te dejan propinas con PayPal o tarjeta. El dinero va directo a tu PayPal y sale en tu stream</div>
+    </div>
+    <div id="tipsSandbox" style="display:none;background:rgba(255,190,60,.1);border:1px solid rgba(255,190,60,.35);color:#ffd27a;font-size:12px;border-radius:10px;padding:10px 14px;margin-bottom:14px;">🧪 Las propinas están en <b>modo de prueba</b>: los pagos todavía no son reales.</div>
+    <div id="tipsNotReady" style="display:none;background:rgba(255,107,138,.1);border:1px solid rgba(255,107,138,.35);color:#ffb3c4;font-size:12px;border-radius:10px;padding:10px 14px;margin-bottom:14px;">⚠️ Las propinas todavía no están disponibles en SilklyBot. Puedes dejar todo configurado y se activarán solas.</div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
+      <div class="panel-body">
+        <div class="toggle-row" style="margin-bottom:16px;">
+          <div><div class="toggle-label">Recibir propinas</div><div class="toggle-sub">Activa tu página de propinas y el comando !propina</div></div>
+          <label class="toggle"><input type="checkbox" id="tipsEnabled" ${s.tips_config?.enabled?'checked':''}><span class="toggle-slider"></span></label>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Correo de tu cuenta PayPal</div>
+        <input type="email" id="tipsEmail" class="form-input" placeholder="tucorreo@ejemplo.com" value="${String(s.tips_config?.paypal_email||'').replace(/[^a-zA-Z0-9@._+\-]/g,'')}">
+        <div style="font-size:11px;color:var(--text-dim);margin:6px 0 16px;line-height:1.5;">Es donde te llega el dinero. Quien te dé una propina verá este correo en PayPal, igual que con un PayPal.me.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Moneda</div>
+            <select id="tipsCurrency" class="form-input">${['USD','EUR','MXN','CAD','GBP'].map(c=>`<option value="${c}" ${(s.tips_config?.currency||'USD')===c?'selected':''}>${c}</option>`).join('')}</select>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Propina mínima</div>
+            <input type="number" id="tipsMin" class="form-input" min="1" max="100" value="${s.tips_config?.min_amount??1}">
+          </div>
+        </div>
+        <div class="toggle-row" style="margin-bottom:16px;">
+          <div><div class="toggle-label">Muffet agradece en el chat</div><div class="toggle-sub">"💸 ¡Fulano dejó una propina de 5.00 USD! Muchas gracias…"</div></div>
+          <label class="toggle"><input type="checkbox" id="tipsChat" ${s.tips_config?.chat_thanks!==false?'checked':''}><span class="toggle-slider"></span></label>
+        </div>
+        <button class="btn btn-primary" onclick="saveTipsConfig()">Guardar</button>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:12px;line-height:1.5;">💡 SilklyBot no cobra nada. PayPal sí descuenta su comisión normal de cada pago que recibes.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🔗 Tu página de propinas</span></div>
+      <div class="panel-body">
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="tipsPageUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('tipsPageUrl').value);showToast('Enlace copiado ✓')">📋 Copiar</button>
+          <button class="btn btn-secondary" onclick="window.open(document.getElementById('tipsPageUrl').value,'_blank')">↗ Abrir</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;">Ponlo en tus paneles de Twitch o en tus redes. En el chat, <b>!propina</b> (o !tip / !donar) responde con este enlace.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📺 Alerta en OBS</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">Las propinas salen en el overlay de <b>alertas</b>. Si ya lo tienes en OBS, no hagas nada. Si no, agrégalo como <strong style="color:var(--text);">Browser Source</strong> (1920x1080):</div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="tipsOverlayUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('tipsOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
+          <button class="btn btn-secondary" onclick="testTipAlert()">🧪 Probar</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;">⏱️ Si tienes el subatón activo, las propinas también suman tiempo (se configura en la sección Subatón).</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🧾 Últimas propinas</span><span id="tipsTotal" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
+      <div class="panel-body" id="tipsList"><div style="color:var(--text-dim);font-size:13px;">Cargando…</div></div>
+    </div>
+  </div>
+
   <div id="sec-shoutout" class="section">
     <div class="page-header">
       <div class="page-title">📣 Shoutout</div>
