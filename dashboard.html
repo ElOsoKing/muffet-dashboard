@@ -1667,6 +1667,15 @@ async function testTipAlert() {
     showToast(d.sent ? 'Alerta de prueba enviada ✓' : 'No hay overlay de alertas abierto en OBS', d.sent ? undefined : 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
+async function deleteTip(id) {
+  if (!id) return;
+  if (!confirm('¿Quitar esta propina del historial? (El dinero en PayPal no se toca)')) return;
+  try {
+    const res = await fetch('/api/tips/' + id, { method: 'DELETE' });
+    if (res.ok) { showToast('Propina quitada ✓'); loadTipsList(); }
+    else { const d = await res.json().catch(() => ({})); showToast(d.error || 'No se pudo borrar', 'error'); }
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
 async function loadTipsList() {
   const box = document.getElementById('tipsList');
   try {
@@ -1686,6 +1695,7 @@ async function loadTipsList() {
           ${t.message ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px;word-wrap:break-word;">${escCmdHtml(t.message)}</div>` : ''}
         </div>
         <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${new Date(t.created_at).toLocaleString('es', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
+        <button class="btn btn-secondary" title="Quitar del historial" style="padding:4px 9px;font-size:12px;" onclick="deleteTip(${parseInt(t.id) || 0})">🗑️</button>
       </div>`).join('');
   } catch(e) { box.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">No se pudieron cargar las propinas.</div>'; }
 }
