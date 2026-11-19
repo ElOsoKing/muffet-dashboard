@@ -128,6 +128,7 @@ function markQuick() { const a = parseFloat($('amount').value); [...$('quick').c
 $('amount').addEventListener('input', () => { markQuick(); setErr(''); });
 $('message').addEventListener('input', () => { $('count').textContent = $('message').value.length; });
 
+const ppScripts = []; // etiquetas <script> de PayPal que pusimos (sin atributos data-*: PayPal los lee como configuración)
 // ── SDK v6 (apps nuevas de PayPal). Si falla, se usa el SDK v5 de antes. ──
 async function createOrderId() {
   const f = readForm();
@@ -152,14 +153,15 @@ function loadPaypalV6() {
   $('paypal').innerHTML = '<div style="text-align:center;color:var(--dim);font-size:13px;padding:14px 0">Cargando PayPal…</div>';
   const fallback = (why) => { console.warn('[tip] SDK v6 falló, probando v5:', why); loadPaypal(false); };
   const s = document.createElement('script');
-  s.dataset.pp = '1';
+  ppScripts.push(s);
   s.src = info.sandbox ? 'https://www.sandbox.paypal.com/web-sdk/v6/core' : 'https://www.paypal.com/web-sdk/v6/core';
   const timer = setTimeout(() => fallback('tardó demasiado'), 15000);
   s.onerror = () => { clearTimeout(timer); fallback('no cargó el script'); };
   s.onload = async () => {
     clearTimeout(timer);
     try {
-      if (!window.paypal || !paypal.createInstance) throw new Error('script vacío');
+      if (!window.paypal) throw new Error('script vacío (no existe window.paypal)');
+      if (!paypal.createInstance) throw new Error('window.paypal sin createInstance: ' + Object.keys(window.paypal).slice(0, 8).join(','));
       const tr = await fetch('/api/tip/client-token');
       const { accessToken } = await tr.json();
       if (!accessToken) throw new Error('sin token del servidor');
@@ -190,9 +192,9 @@ function loadPaypal(simple) {
   $('paypal').innerHTML = '<div style="text-align:center;color:var(--dim);font-size:13px;padding:14px 0">Cargando PayPal…</div>';
   const opts = { 'client-id': info.client_id, currency: info.currency, intent: 'capture', components: 'buttons' };
   if (!simple) Object.assign(opts, { 'merchant-id': info.merchant, 'enable-funding': 'card', 'disable-funding': 'paylater,venmo', locale: 'es_ES' });
-  document.querySelectorAll('script[data-pp]').forEach(x => x.remove()); delete window.paypal;
+  ppScripts.splice(0).forEach(x => x.remove()); try { delete window.paypal; } catch (e) { window.paypal = undefined; }
   const s = document.createElement('script');
-  s.dataset.pp = '1';
+  ppScripts.push(s);
   s.src = 'https://www.paypal.com/sdk/js?' + new URLSearchParams(opts).toString();
   const timer = setTimeout(() => fail('PayPal tardó demasiado en cargar (¿bloqueador de anuncios o protección contra rastreo?)'), 15000);
   const fail = (why) => {
