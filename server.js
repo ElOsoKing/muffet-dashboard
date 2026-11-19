@@ -1531,6 +1531,27 @@ function tipRateOk(ip) {
   return true;
 }
 
+// Token "browser-safe" para el SDK v6 de PayPal (las apps nuevas de PayPal usan v6). Dura 15 min; lo guardamos 10 por dominio.
+const _ppClientTokens = new Map(); // rootDomain -> { token, exp }
+const rootDomainOf = (host) => { const parts = String(host || '').toLowerCase().split(':')[0].split('.').filter(Boolean); return parts.length >= 2 ? parts.slice(-2).join('.') : ''; };
+app.get('/api/tip/client-token', async (req, res) => {
+  try {
+    if (!paypalReady()) return res.status(503).json({ error: 'PayPal no está configurado' });
+    const domains = [...new Set([rootDomainOf(req.hostname), rootDomainOf(new URL(BASE_URL).hostname)].filter(Boolean))];
+    const key = domains.join(',');
+    const c = _ppClientTokens.get(key);
+    if (c && c.exp > Date.now()) return res.json({ accessToken: c.token });
+    const auth = Buffer.from(`${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_CLIENT_SECRET}`).toString('base64');
+    const body = new URLSearchParams({ grant_type: 'client_credentials', response_type: 'client_token' });
+    body.append('domains[]', domains.join(','));
+    const r = await fetch(`${PAYPAL_API}/v1/oauth2/token`, { method: 'POST', headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(), signal: AbortSignal.timeout(15000) });
+    const d = await r.json().catch(() => ({}));
+    if (!d.access_token) { console.error('[tips] client token:', r.status, JSON.stringify(d).slice(0, 300)); return res.status(502).json({ error: 'PayPal no dio el token' }); }
+    _ppClientTokens.set(key, { token: d.access_token, exp: Date.now() + 10 * 60000 });
+    res.json({ accessToken: d.access_token });
+  } catch (e) { console.error('[tips] client token:', e.message); res.status(500).json({ error: 'Error del servidor' }); }
+});
+
 app.get('/tip/:username', (req, res) => res.sendFile(path.join(__dirname, 'tip.html')));
 app.get('/propina/:username', (req, res) => res.redirect('/tip/' + encodeURIComponent(req.params.username)));
 
