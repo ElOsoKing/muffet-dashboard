@@ -1644,12 +1644,14 @@ async function initTipsSection() {
   const u = streamerData?.twitch_username || '';
   document.getElementById('tipsPageUrl').value = `${location.origin}/tip/${u}`;
   document.getElementById('tipsOverlayUrl').value = `${location.origin}/overlay/alerts/${u}`;
+  const mc = document.getElementById('tipManCurrency'); if (mc && streamerData?.tips_config?.currency) mc.value = streamerData.tips_config.currency;
   loadTipsList();
 }
 async function saveTipsConfig() {
   const tips_config = {
     enabled: document.getElementById('tipsEnabled').checked,
     paypal_email: document.getElementById('tipsEmail').value.trim(),
+    mp_link: document.getElementById('tipsMpLink').value.trim(),
     currency: document.getElementById('tipsCurrency').value,
     min_amount: parseInt(document.getElementById('tipsMin').value) || 1,
     chat_thanks: document.getElementById('tipsChat').checked,
@@ -1665,6 +1667,21 @@ async function testTipAlert() {
   try {
     const d = await (await fetch('/api/tips/test', { method:'POST' })).json();
     showToast(d.sent ? 'Alerta de prueba enviada ✓' : 'No hay overlay de alertas abierto en OBS', d.sent ? undefined : 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+async function registerManualTip() {
+  const name = document.getElementById('tipManName').value.trim();
+  const amount = parseFloat(document.getElementById('tipManAmount').value);
+  if (!(amount > 0)) return showToast('Pon el monto', 'error');
+  const body = { name, amount, currency: document.getElementById('tipManCurrency').value, message: document.getElementById('tipManMsg').value.trim() };
+  try {
+    const res = await fetch('/api/tips/manual', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast('Propina registrada ✓');
+      ['tipManName','tipManAmount','tipManMsg'].forEach(id => document.getElementById(id).value = '');
+      loadTipsList();
+    } else showToast(d.error || 'No se pudo registrar', 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
 async function deleteTip(id) {
@@ -1691,7 +1708,7 @@ async function loadTipsList() {
       <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
         <div style="font-weight:800;color:#7dffb2;min-width:92px;">${Number(t.amount).toFixed(2)} ${escCmdHtml(t.currency)}</div>
         <div style="flex:1;min-width:0;">
-          <div style="font-size:13px;font-weight:600;">${escCmdHtml(t.name || 'Anónimo')}${t.status === 'pending' ? ' <span style="font-size:10px;color:#ffd27a;">(en revisión en PayPal)</span>' : ''}</div>
+          <div style="font-size:13px;font-weight:600;">${escCmdHtml(t.name || 'Anónimo')}${t.status === 'pending' ? ' <span style="font-size:10px;color:#ffd27a;">(en revisión en PayPal)</span>' : ''}${String(t.paypal_order_id||'').startsWith('MANUAL-') ? ' <span style="font-size:10px;color:#7fc8ff;">(registrada a mano)</span>' : ''}</div>
           ${t.message ? `<div style="font-size:12px;color:var(--text-dim);margin-top:2px;word-wrap:break-word;">${escCmdHtml(t.message)}</div>` : ''}
         </div>
         <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${new Date(t.created_at).toLocaleString('es', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</div>
@@ -4341,6 +4358,9 @@ function renderMain() {
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Correo de tu cuenta PayPal</div>
         <input type="email" id="tipsEmail" class="form-input" placeholder="tucorreo@ejemplo.com" value="${String(s.tips_config?.paypal_email||'').replace(/[^a-zA-Z0-9@._+\-]/g,'')}">
         <div style="font-size:11px;color:var(--text-dim);margin:6px 0 16px;line-height:1.5;">Es donde te llega el dinero. Quien te dé una propina verá este correo en PayPal, igual que con un PayPal.me.</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Link de Mercado Pago (opcional)</div>
+        <input type="url" id="tipsMpLink" class="form-input" placeholder="https://mpago.la/..." value="${String(s.tips_config?.mp_link||'').replace(/[<>"']/g,'')}">
+        <div style="font-size:11px;color:var(--text-dim);margin:6px 0 16px;line-height:1.5;">Si tienes Mercado Pago, crea un <b>link de cobro</b> en su app y pégalo aquí: tu página mostrará un botón "Pagar con Mercado Pago". Ese pago no avisa solo — cuando te llegue, regístralo abajo en <b>Registrar propina</b> para que salga en el stream.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Moneda</div>
@@ -4382,6 +4402,20 @@ function renderMain() {
           <button class="btn btn-secondary" onclick="testTipAlert()">🧪 Probar</button>
         </div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:8px;">⏱️ Si tienes el subatón activo, las propinas también suman tiempo (se configura en la sección Subatón).</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">✍️ Registrar propina</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">¿Te llegó una propina por <b>Mercado Pago</b> u otro medio? Regístrala aquí: sale la alerta en OBS, Muffet agradece en el chat y suma tiempo al subatón.</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+          <input type="text" id="tipManName" class="form-input" maxlength="25" placeholder="Nombre de quien te dio">
+          <input type="number" id="tipManAmount" class="form-input" min="0.01" step="0.01" placeholder="Monto">
+          <select id="tipManCurrency" class="form-input">${['USD','ARS','MXN','CLP','COP','PEN','UYU','BRL','EUR','DOP'].map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+        </div>
+        <input type="text" id="tipManMsg" class="form-input" maxlength="200" placeholder="Mensaje (opcional)" style="margin-bottom:10px;">
+        <button class="btn btn-primary" onclick="registerManualTip()">💸 Registrar y mostrar en el stream</button>
       </div>
     </div>
 
