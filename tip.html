@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Propina — SilklyBot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--purple:#9147ff;--purple-l:#b794ff;--bg:#0d0d0f;--bg2:#141416;--bg3:#1c1c21;--line:rgba(255,255,255,.08);--text:#e8e8f0;--dim:#8a8aa0;--ok:#3ecf8e;--err:#ff6b8a}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif}
+body{background:radial-gradient(ellipse at 20% 0%,rgba(145,71,255,.14),transparent 55%),radial-gradient(ellipse at 90% 100%,rgba(145,71,255,.08),transparent 50%),var(--bg);display:flex;justify-content:center;padding:32px 16px 48px}
+.card{width:100%;max-width:440px;background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:26px 24px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+.head{display:flex;align-items:center;gap:14px;margin-bottom:22px}
+.avatar{width:54px;height:54px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:800;font-size:22px;color:#fff;background:linear-gradient(135deg,var(--purple),#5b2bd1);box-shadow:0 0 0 3px rgba(145,71,255,.25)}
+.head h1{font-size:19px;font-weight:800;line-height:1.2}
+.head p{font-size:13px;color:var(--dim);margin-top:3px}
+label{display:block;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);margin:16px 0 7px}
+input,textarea{width:100%;background:var(--bg3);border:1px solid var(--line);border-radius:10px;color:var(--text);font:500 15px 'Inter',sans-serif;padding:11px 13px;outline:none;transition:border-color .15s}
+input:focus,textarea:focus{border-color:var(--purple)}
+textarea{resize:none;height:84px;line-height:1.4}
+.amount-row{display:flex;align-items:center;background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding-left:13px}
+.amount-row:focus-within{border-color:var(--purple)}
+.amount-row span{font-weight:700;color:var(--purple-l);font-size:15px}
+.amount-row input{border:0;background:transparent;font-size:22px;font-weight:800;padding:10px 10px}
+.amount-row small{padding-right:13px;color:var(--dim);font-weight:700;font-size:13px}
+.quick{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+.quick button{flex:1;min-width:52px;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:7px 0;font:600 13px 'Inter';cursor:pointer}
+.quick button:hover,.quick button.on{border-color:var(--purple);background:rgba(145,71,255,.15)}
+.count{font-size:11px;color:var(--dim);text-align:right;margin-top:4px}
+.err{color:var(--err);font-size:13px;margin-top:12px;min-height:18px}
+#paypal{margin-top:18px;min-height:50px}
+.note{font-size:11.5px;color:var(--dim);line-height:1.5;margin-top:14px;text-align:center}
+.sandbox{background:rgba(255,190,60,.12);border:1px solid rgba(255,190,60,.35);color:#ffd27a;font-size:12px;border-radius:9px;padding:8px 11px;margin-bottom:16px}
+.done{text-align:center;padding:16px 0 6px}
+.done .big{font-size:52px}
+.done h2{font-size:21px;margin:10px 0 6px}
+.done p{color:var(--dim);font-size:14px;line-height:1.5}
+.done a{display:inline-block;margin-top:18px;color:var(--purple-l);font-weight:600;font-size:14px;text-decoration:none}
+.foot{text-align:center;font-size:11px;color:#55556a;margin-top:18px}
+.foot a{color:#7a7a92}
+.hidden{display:none}
+.loading{color:var(--dim);text-align:center;padding:30px 0}
+</style>
+</head>
+<body>
+<div class="card">
+  <div id="loading" class="loading">Cargando…</div>
+
+  <div id="off" class="hidden done">
+    <div class="big">🕸️</div>
+    <h2 id="offTitle">Propinas no disponibles</h2>
+    <p id="offText">Este canal todavía no activó las propinas.</p>
+  </div>
+
+  <div id="form" class="hidden">
+    <div class="head">
+      <div class="avatar" id="avatar">?</div>
+      <div><h1 id="title">Deja una propina</h1><p id="subtitle">Tu apoyo sale en el stream 💸</p></div>
+    </div>
+    <div id="sandboxNote" class="sandbox hidden">🧪 Modo de prueba: los pagos no son reales.</div>
+
+    <label for="name">Tu nombre</label>
+    <input id="name" maxlength="25" placeholder="¿Cómo te llamas en el chat?" autocomplete="nickname">
+
+    <label for="amount">Monto</label>
+    <div class="amount-row"><span id="cur1">$</span><input id="amount" type="number" inputmode="decimal" min="1" step="0.01" value="5"><small id="cur2">USD</small></div>
+    <div class="quick" id="quick"></div>
+
+    <label for="message">Mensaje (opcional)</label>
+    <textarea id="message" maxlength="200" placeholder="Sale en pantalla junto con tu propina"></textarea>
+    <div class="count"><span id="count">0</span>/200</div>
+
+    <div class="err" id="err"></div>
+    <div id="paypal"></div>
+    <div class="note">El pago lo procesa PayPal y va <b>directo</b> a la cuenta del streamer. Puedes pagar con tu cuenta PayPal o con tarjeta.</div>
+  </div>
+
+  <div id="thanks" class="hidden done">
+    <div class="big">💜</div>
+    <h2>¡Gracias por tu propina!</h2>
+    <p id="thanksText"></p>
+    <a href="#" id="again">Dejar otra propina</a>
+  </div>
+</div>
+<div class="foot" style="position:fixed;bottom:12px;left:0;right:0">Hecho con <a href="/">SilklyBot</a></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const username = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '').toLowerCase();
+const SYMBOL = { USD: '$', EUR: '€', MXN: '$', CAD: '$', GBP: '£' };
+let info = null;
+
+function show(id) { ['loading', 'off', 'form', 'thanks'].forEach(x => $(x).classList.toggle('hidden', x !== id)); }
+function readForm() {
+  const amount = Math.round(parseFloat($('amount').value) * 100) / 100;
+  return { name: $('name').value.trim(), amount, message: $('message').value.trim() };
+}
+function validAmount(a) { return isFinite(a) && a >= info.min && a <= info.max; }
+function setErr(t) { $('err').textContent = t || ''; }
+
+async function init() {
+  try {
+    const r = await fetch(`/api/tip/${encodeURIComponent(username)}/info`);
+    if (r.status === 404) { $('offTitle').textContent = 'Canal no encontrado'; $('offText').textContent = 'Revisa que el enlace esté bien escrito.'; return show('off'); }
+    info = await r.json();
+    document.title = `Propina para ${info.display} — SilklyBot`;
+    if (!info.enabled) { $('offText').textContent = `${info.display} todavía no activó las propinas.`; return show('off'); }
+    $('avatar').textContent = (info.display[0] || '?').toUpperCase();
+    $('title').textContent = `Propina para ${info.display}`;
+    $('cur1').textContent = SYMBOL[info.currency] || '';
+    $('cur2').textContent = info.currency;
+    $('amount').min = info.min; $('amount').max = info.max;
+    if (parseFloat($('amount').value) < info.min) $('amount').value = info.min;
+    $('sandboxNote').classList.toggle('hidden', !info.sandbox);
+    try { $('name').value = localStorage.getItem('tip_name') || ''; } catch (e) {}
+    [1, 3, 5, 10, 20].filter(v => v >= info.min).forEach(v => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = (SYMBOL[info.currency] || '') + v;
+      b.onclick = () => { $('amount').value = v; markQuick(); setErr(''); };
+      $('quick').appendChild(b);
+    });
+    markQuick();
+    show('form');
+    loadPaypal();
+  } catch (e) { $('offTitle').textContent = 'Algo falló'; $('offText').textContent = 'No se pudo cargar la página. Inténtalo de nuevo.'; show('off'); }
+}
+function markQuick() { const a = parseFloat($('amount').value); [...$('quick').children].forEach(b => b.classList.toggle('on', parseFloat(b.textContent.replace(/[^\d.]/g, '')) === a)); }
+$('amount').addEventListener('input', () => { markQuick(); setErr(''); });
+$('message').addEventListener('input', () => { $('count').textContent = $('message').value.length; });
+
+function loadPaypal() {
+  const p = new URLSearchParams({ 'client-id': info.client_id, currency: info.currency, intent: 'capture', components: 'buttons', 'merchant-id': info.merchant, 'enable-funding': 'card', 'disable-funding': 'paylater,venmo', locale: 'es_ES' });
+  const s = document.createElement('script');
+  s.src = 'https://www.paypal.com/sdk/js?' + p.toString();
+  s.onload = renderButtons;
+  s.onerror = () => setErr('No se pudo cargar PayPal. Desactiva el bloqueador de anuncios e inténtalo de nuevo.');
+  document.head.appendChild(s);
+}
+
+function renderButtons() {
+  paypal.Buttons({
+    style: { layout: 'vertical', color: 'gold', shape: 'pill', label: 'paypal', height: 45 },
+    onClick: (data, actions) => {
+      const f = readForm();
+      if (!validAmount(f.amount)) { setErr(`El monto debe estar entre ${info.min} y ${info.max} ${info.currency}.`); return actions.reject(); }
+      setErr(''); return actions.resolve();
+    },
+    createOrder: async () => {
+      const f = readForm();
+      try { localStorage.setItem('tip_name', f.name); } catch (e) {}
+      const r = await fetch(`/api/tip/${encodeURIComponent(username)}/order`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(f) });
+      const d = await r.json();
+      if (!r.ok || !d.id) { setErr(d.error || 'No se pudo crear el pago.'); throw new Error(d.error || 'order'); }
+      return d.id;
+    },
+    onApprove: async (data) => {
+      setErr('');
+      const r = await fetch(`/api/tip/${encodeURIComponent(username)}/capture`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderID: data.orderID }) });
+      const d = await r.json();
+      if (!r.ok || !d.ok) return setErr(d.error || 'El pago no se completó.');
+      const money = `${(SYMBOL[d.currency] || '')}${Number(d.amount).toFixed(2)} ${d.currency}`;
+      $('thanksText').textContent = d.status === 'pending'
+        ? `Tu pago de ${money} quedó en revisión en PayPal. Cuando PayPal lo apruebe, ${info.display} lo recibirá.`
+        : `Tu propina de ${money} ya le llegó a ${info.display}. ¡Mira el stream! 🕷️`;
+      show('thanks');
+    },
+    onCancel: () => setErr('Cancelaste el pago. No se te cobró nada.'),
+    onError: (err) => { if (!$('err').textContent) setErr('PayPal tuvo un problema. No se te cobró nada; inténtalo de nuevo.'); console.warn(err); }
+  }).render('#paypal');
+}
+$('again').addEventListener('click', e => { e.preventDefault(); $('message').value = ''; $('count').textContent = '0'; show('form'); });
+init();
+</script>
+</body>
+</html>
