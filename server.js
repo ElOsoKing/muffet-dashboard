@@ -1656,9 +1656,22 @@ app.post('/api/tips-config', requireAuth, async (req, res) => {
 app.get('/api/tips', requireAuth, async (req, res) => {
   try {
     const u = String(req.session.user.username || '').toLowerCase();
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?streamer=eq.${encodeURIComponent(u)}&select=created_at,name,amount,currency,message,status&order=created_at.desc&limit=50`, { headers: sbHeaders });
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?streamer=eq.${encodeURIComponent(u)}&select=id,created_at,name,amount,currency,message,status&order=created_at.desc&limit=50`, { headers: sbHeaders });
     const list = await r.json();
     res.json({ tips: Array.isArray(list) ? list : [], paypal_ready: paypalReady(), sandbox: PAYPAL_MODE !== 'live' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// Borrar una propina del historial (solo la quita de la lista: el dinero en PayPal no se toca)
+app.delete('/api/tips/:id', requireAuth, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (!id) return res.status(400).json({ error: 'Inválido' });
+    const u = String(req.session.user.username || '').toLowerCase();
+    // El filtro streamer=eq.<usuario> asegura que solo puedes borrar TUS propinas
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?id=eq.${id}&streamer=eq.${encodeURIComponent(u)}`, { method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=representation' } });
+    const del = await r.json().catch(() => []);
+    if (!Array.isArray(del) || !del.length) return res.status(404).json({ error: 'No encontrada' });
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.post('/api/tips/test', requireAuth, async (req, res) => {
