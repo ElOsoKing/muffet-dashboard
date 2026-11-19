@@ -1560,13 +1560,35 @@ app.get('/api/tip/client-token', async (req, res) => {
 app.get('/tip/:username', (req, res) => res.sendFile(path.join(__dirname, 'tip.html')));
 app.get('/propina/:username', (req, res) => res.redirect('/tip/' + encodeURIComponent(req.params.username)));
 
+// Foto y portada de Twitch para la página de propinas (se guardan 6 horas para no preguntarle a Twitch en cada visita)
+function twitchProfileFor(login) {
+  return ttlCache('tipprofile:' + login, 6 * 3600000, async () => {
+    const token = await ttlCache('twitch-app-token', 3 * 3600000, async () => { const t = await getTwitchAppToken(); if (!t) throw new Error('sin token de Twitch'); return t; });
+    if (!token) return {};
+    const r = await fetch(`https://api.twitch.tv/helix/users?login=${encodeURIComponent(login)}`, { headers: { Authorization: `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID }, signal: AbortSignal.timeout(8000) });
+    const u = (await r.json())?.data?.[0] || {};
+    return { avatar: u.profile_image_url || null, banner: u.offline_image_url || null, display_name: u.display_name || null };
+  }).catch(() => ({}));
+}
+// Últimos que apoyaron (solo nombre y monto, nada de mensajes)
+function recentTipsFor(login) {
+  return ttlCache('tiprecent:' + login, 60000, async () => {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?streamer=eq.${encodeURIComponent(login)}&status=eq.completed&select=name,amount,currency&order=created_at.desc&limit=6`, { headers: sbHeaders, signal: AbortSignal.timeout(8000) });
+    const list = await r.json();
+    return Array.isArray(list) ? list : [];
+  }).catch(() => []);
+}
+
 app.get('/api/tip/:username/info', async (req, res) => {
   try {
     const s = await getTipStreamer(req.params.username);
     if (!s) return res.status(404).json({ error: 'Canal no encontrado' });
     const paypalOn = s.enabled && paypalReady();
-    if (!paypalOn && !s.mpLink) return res.json({ enabled: false, display: s.display });
-    const out = { enabled: true, paypal: paypalOn, mp_link: s.mpLink || null, display: s.display, username: s.username, currency: s.currency, min: s.min, max: TIP_MAX_AMOUNT };
+    const [prof, recent] = await Promise.all([twitchProfileFor(s.username), (paypalOn || s.mpLink) ? recentTipsFor(s.username) : []]);
+    const display = s.display === s.username && prof.display_name ? prof.display_name : s.display;
+    if (!paypalOn && !s.mpLink) return res.json({ enabled: false, display, avatar: prof.avatar || null, banner: prof.banner || null });
+    const out = { enabled: true, paypal: paypalOn, mp_link: s.mpLink || null, display, username: s.username, currency: s.currency, min: s.min, max: TIP_MAX_AMOUNT,
+      avatar: prof.avatar || null, banner: prof.banner || null, recent };
     // merchant: el SDK de PayPal necesita saber a quién se le paga (es el mismo correo que verá quien paga en PayPal)
     if (paypalOn) Object.assign(out, { client_id: process.env.PAYPAL_CLIENT_ID, merchant: s.email, sandbox: PAYPAL_MODE !== 'live' });
     res.json(out);
