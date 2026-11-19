@@ -74,6 +74,10 @@ textarea{resize:none;height:84px;line-height:1.4}
     <div class="err" id="err"></div>
     <div id="paypal"></div>
     <div class="note">El pago lo procesa PayPal y va <b>directo</b> a la cuenta del streamer. Puedes pagar con tu cuenta PayPal o con tarjeta.</div>
+    <div id="mpBox" class="hidden" style="margin-top:12px">
+      <a id="mpBtn" href="#" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:8px;height:45px;border-radius:999px;background:#00b1ea;color:#fff;font-weight:700;font-size:15px;text-decoration:none">Pagar con Mercado Pago</a>
+      <div class="note" style="margin-top:8px">Con Mercado Pago la propina no sale al instante: el streamer la confirma cuando le llega. Escribe tu nombre en el mensaje del pago para que sepa que fuiste tú.</div>
+    </div>
   </div>
 
   <div id="thanks" class="hidden done">
@@ -121,7 +125,14 @@ async function init() {
     });
     markQuick();
     show('form');
-    loadPaypalV6();
+    if (info.mp_link) { $('mpBtn').href = info.mp_link; $('mpBox').classList.remove('hidden'); }
+    if (info.paypal) loadPaypalV6();
+    else {
+      // Solo Mercado Pago: el monto y el mensaje se ponen en Mercado Pago, aquí no hacen falta
+      $('paypal').style.display = 'none';
+      document.querySelectorAll('#form > .note, #form > label, #form > input, #form > textarea, .amount-row, .quick, .count, #sandboxNote').forEach(el => el.classList.add('hidden'));
+      $('subtitle').textContent = 'Apoya el canal con Mercado Pago 💸';
+    }
   } catch (e) { $('offTitle').textContent = 'Algo falló'; $('offText').textContent = 'No se pudo cargar la página. Inténtalo de nuevo.'; show('off'); }
 }
 function markQuick() { const a = parseFloat($('amount').value); [...$('quick').children].forEach(b => b.classList.toggle('on', parseFloat(b.textContent.replace(/[^\d.]/g, '')) === a)); }
