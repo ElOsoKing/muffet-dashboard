@@ -7,44 +7,95 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--purple:#9147ff;--purple-l:#b794ff;--bg:#0d0d0f;--bg2:#141416;--bg3:#1c1c21;--line:rgba(255,255,255,.08);--text:#e8e8f0;--dim:#8a8aa0;--ok:#3ecf8e;--err:#ff6b8a}
+:root{--purple:#9147ff;--purple-l:#c4a6ff;--pink:#ff6fb5;--bg:#09090c;--bg2:#121217;--bg3:#1b1b22;--line:rgba(255,255,255,.08);--text:#f1f0f7;--dim:#9a99ad;--err:#ff6b8a}
 html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif}
-body{background:radial-gradient(ellipse at 20% 0%,rgba(145,71,255,.14),transparent 55%),radial-gradient(ellipse at 90% 100%,rgba(145,71,255,.08),transparent 50%),var(--bg);display:flex;justify-content:center;padding:32px 16px 48px}
-.card{width:100%;max-width:440px;background:var(--bg2);border:1px solid var(--line);border-radius:18px;padding:26px 24px;box-shadow:0 20px 60px rgba(0,0,0,.45)}
-.head{display:flex;align-items:center;gap:14px;margin-bottom:22px}
-.avatar{width:54px;height:54px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:800;font-size:22px;color:#fff;background:linear-gradient(135deg,var(--purple),#5b2bd1);box-shadow:0 0 0 3px rgba(145,71,255,.25)}
-.head h1{font-size:19px;font-weight:800;line-height:1.2}
-.head p{font-size:13px;color:var(--dim);margin-top:3px}
-label{display:block;font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);margin:16px 0 7px}
-input,textarea{width:100%;background:var(--bg3);border:1px solid var(--line);border-radius:10px;color:var(--text);font:500 15px 'Inter',sans-serif;padding:11px 13px;outline:none;transition:border-color .15s}
-input:focus,textarea:focus{border-color:var(--purple)}
-textarea{resize:none;height:84px;line-height:1.4}
-.amount-row{display:flex;align-items:center;background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding-left:13px}
-.amount-row:focus-within{border-color:var(--purple)}
-.amount-row span{font-weight:700;color:var(--purple-l);font-size:15px}
-.amount-row input{border:0;background:transparent;font-size:22px;font-weight:800;padding:10px 10px}
-.amount-row small{padding-right:13px;color:var(--dim);font-weight:700;font-size:13px}
-.quick{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
-.quick button{flex:1;min-width:52px;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:999px;padding:7px 0;font:600 13px 'Inter';cursor:pointer}
-.quick button:hover,.quick button.on{border-color:var(--purple);background:rgba(145,71,255,.15)}
-.count{font-size:11px;color:var(--dim);text-align:right;margin-top:4px}
-.err{color:var(--err);font-size:13px;margin-top:12px;min-height:18px}
-#paypal{margin-top:18px;min-height:50px}
-.note{font-size:11.5px;color:var(--dim);line-height:1.5;margin-top:14px;text-align:center}
-.sandbox{background:rgba(255,190,60,.12);border:1px solid rgba(255,190,60,.35);color:#ffd27a;font-size:12px;border-radius:9px;padding:8px 11px;margin-bottom:16px}
-.done{text-align:center;padding:16px 0 6px}
-.done .big{font-size:52px}
-.done h2{font-size:21px;margin:10px 0 6px}
-.done p{color:var(--dim);font-size:14px;line-height:1.5}
+body{display:flex;flex-direction:column;align-items:center;padding:28px 16px 24px;
+  background:
+    radial-gradient(900px 500px at 15% -10%,rgba(145,71,255,.22),transparent 60%),
+    radial-gradient(700px 500px at 110% 110%,rgba(255,111,181,.10),transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.035'%3E%3Cpath d='M0 0L240 240M240 0L0 240M120 0V240M0 120H240'/%3E%3Ccircle cx='120' cy='120' r='40'/%3E%3Ccircle cx='120' cy='120' r='80'/%3E%3Ccircle cx='120' cy='120' r='118'/%3E%3C/g%3E%3C/svg%3E"),
+    var(--bg)}
+.card{width:100%;max-width:460px;background:linear-gradient(180deg,rgba(28,24,40,.96),rgba(18,18,23,.97));border:1px solid rgba(183,148,255,.16);border-radius:24px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.3);backdrop-filter:blur(6px)}
+/* Portada + foto */
+.hero{position:relative;text-align:center;padding-bottom:6px}
+.banner{height:128px;background:linear-gradient(135deg,#5b2bd1,#9147ff 50%,#ff6fb5);background-size:cover;background-position:center;position:relative}
+.banner::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='128' viewBox='0 0 160 128'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='.18'%3E%3Cpath d='M0 0L80 64L160 0M80 64V128M0 64H160M0 128L80 64L160 128'/%3E%3Cpath d='M48 38Q80 52 112 38M38 64Q80 80 122 64M48 90Q80 76 112 90'/%3E%3C/g%3E%3C/svg%3E") right top/160px 128px no-repeat}
+.banner.img::before{display:none}
+.banner::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(9,9,12,0) 35%,rgba(22,20,30,.95))}
+.avatar{width:92px;height:92px;border-radius:50%;margin:-50px auto 0;position:relative;z-index:1;display:grid;place-items:center;font-weight:800;font-size:36px;color:#fff;
+  background:linear-gradient(135deg,var(--purple),#5b2bd1);border:4px solid #17151f;box-shadow:0 0 0 2px rgba(183,148,255,.55),0 10px 30px rgba(145,71,255,.45);overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.hero h1{font-size:23px;font-weight:800;margin-top:12px;letter-spacing:-.2px}
+.hero .chan{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;font-weight:600;color:var(--purple-l);text-decoration:none;background:rgba(145,71,255,.12);border:1px solid rgba(145,71,255,.28);padding:4px 10px;border-radius:999px}
+.hero .chan:hover{background:rgba(145,71,255,.2)}
+.hero p{font-size:13px;color:var(--dim);margin-top:10px}
+.body{padding:18px 24px 24px}
+label{display:block;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--dim);margin:18px 0 8px}
+input,textarea{width:100%;background:var(--bg3);border:1px solid var(--line);border-radius:12px;color:var(--text);font:500 15px 'Inter',sans-serif;padding:12px 14px;outline:none;transition:border-color .15s,box-shadow .15s}
+input:focus,textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(145,71,255,.18)}
+textarea{resize:none;height:84px;line-height:1.45}
+/* Monto grande */
+.amount-box{margin-top:6px;background:radial-gradient(120% 140% at 50% 0%,rgba(145,71,255,.16),rgba(145,71,255,.03));border:1px solid rgba(145,71,255,.25);border-radius:18px;padding:16px 14px 14px}
+.amount-row{display:flex;align-items:center;justify-content:center;gap:4px}
+.amount-row span{font-weight:800;color:var(--purple-l);font-size:30px;line-height:1}
+.amount-row input{border:0;background:transparent;box-shadow:none!important;font-size:46px;font-weight:800;padding:0;width:2.2ch;min-width:1.2ch;max-width:7ch;text-align:center;letter-spacing:-1px;-moz-appearance:textfield}
+.amount-row input::-webkit-outer-spin-button,.amount-row input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.amount-row small{color:var(--dim);font-weight:700;font-size:13px;align-self:flex-end;margin-bottom:9px}
+.quick{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap;justify-content:center}
+.quick button{flex:1;min-width:54px;max-width:86px;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--text);border-radius:999px;padding:8px 0;font:700 13px 'Inter';cursor:pointer;transition:all .15s}
+.quick button:hover{border-color:rgba(145,71,255,.6);transform:translateY(-1px)}
+.quick button.on{border-color:transparent;background:linear-gradient(135deg,var(--purple),#b06bff);box-shadow:0 6px 18px rgba(145,71,255,.45)}
+.count{font-size:11px;color:var(--dim);text-align:right;margin-top:5px}
+.err{color:var(--err);font-size:13px;margin-top:12px;min-height:18px;text-align:center}
+#paypal{margin-top:12px;min-height:50px}
+.note{font-size:11.5px;color:var(--dim);line-height:1.5;margin-top:12px;text-align:center}
+.secure{text-align:center;font-size:11.5px;line-height:1.5;color:#7fd8a6;margin-top:10px}
+.sandbox{background:rgba(255,190,60,.12);border:1px solid rgba(255,190,60,.35);color:#ffd27a;font-size:12px;border-radius:10px;padding:8px 11px;margin-bottom:6px;text-align:center}
+/* Últimos que apoyaron */
+.recent{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.recent h3{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;text-align:center}
+.recent .list{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.recent .pill{font-size:12px;font-weight:600;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:999px;padding:5px 10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recent .pill b{color:#7dffb2;font-weight:700;margin-left:4px}
+.done{text-align:center;padding:22px 24px 28px}
+.done .big{font-size:54px}
+.done h2{font-size:22px;margin:10px 0 6px}
+.done p{color:var(--dim);font-size:14px;line-height:1.55}
 .done a{display:inline-block;margin-top:18px;color:var(--purple-l);font-weight:600;font-size:14px;text-decoration:none}
-.foot{text-align:center;font-size:11px;color:#55556a;margin-top:18px}
-.foot a{color:#7a7a92}
-.hidden{display:none}
-.loading{color:var(--dim);text-align:center;padding:30px 0}
+.foot{text-align:center;font-size:11.5px;color:#5c5b70;margin-top:18px}
+.foot a{color:#8c8ba3;text-decoration:none;font-weight:600}
+.hidden{display:none!important}
+.loading{color:var(--dim);text-align:center;padding:60px 0}
+/* PC: dos columnas — perfil a la izquierda, formulario a la derecha */
+@media (min-width:900px){
+  body{justify-content:center;min-height:100vh;padding:40px 24px}
+  .card{max-width:900px;display:grid;grid-template-columns:340px 1fr;align-items:stretch}
+  .hero{grid-column:1;grid-row:1 / span 5;border-right:1px solid var(--line);padding-bottom:28px;background:linear-gradient(180deg,rgba(145,71,255,.06),transparent 60%)}
+  .banner{height:170px}
+  .avatar{width:120px;height:120px;margin-top:-64px;font-size:46px}
+  .hero h1{font-size:27px;margin-top:16px}
+  .hero p{margin:12px 24px 0}
+  .card > :not(.hero){grid-column:2}
+  .body{padding:28px 32px 30px}
+  .done{padding:60px 40px}
+  .loading{padding:120px 0}
+  .amount-row input{font-size:54px}
+  .amount-row span{font-size:34px}
+}
+/* Celular */
+@media (max-width:420px){.body{padding:16px 18px 22px}.amount-row input{font-size:40px}}
 </style>
 </head>
 <body>
 <div class="card">
+  <div id="hero" class="hero hidden">
+    <div class="banner" id="banner"></div>
+    <div class="avatar" id="avatar">?</div>
+    <h1 id="title">Deja una propina</h1>
+    <a class="chan" id="chan" href="#" target="_blank" rel="noopener noreferrer">twitch.tv/…</a>
+    <p id="subtitle">Tu apoyo sale en el stream 💸</p>
+  </div>
+
   <div id="loading" class="loading">Cargando…</div>
 
   <div id="off" class="hidden done">
@@ -53,30 +104,33 @@ textarea{resize:none;height:84px;line-height:1.4}
     <p id="offText">Este canal todavía no activó las propinas.</p>
   </div>
 
-  <div id="form" class="hidden">
-    <div class="head">
-      <div class="avatar" id="avatar">?</div>
-      <div><h1 id="title">Deja una propina</h1><p id="subtitle">Tu apoyo sale en el stream 💸</p></div>
-    </div>
+  <div id="form" class="hidden body">
     <div id="sandboxNote" class="sandbox hidden">🧪 Modo de prueba: los pagos no son reales.</div>
+    <div id="fields">
+      <div class="amount-box">
+        <div class="amount-row"><span id="cur1">$</span><input id="amount" type="number" inputmode="decimal" min="1" step="0.01" value="5" aria-label="Monto"><small id="cur2">USD</small></div>
+        <div class="quick" id="quick"></div>
+      </div>
 
-    <label for="name">Tu nombre</label>
-    <input id="name" maxlength="25" placeholder="¿Cómo te llamas en el chat?" autocomplete="nickname">
+      <label for="name">Tu nombre</label>
+      <input id="name" maxlength="25" placeholder="¿Cómo te llamas en el chat?" autocomplete="nickname">
 
-    <label for="amount">Monto</label>
-    <div class="amount-row"><span id="cur1">$</span><input id="amount" type="number" inputmode="decimal" min="1" step="0.01" value="5"><small id="cur2">USD</small></div>
-    <div class="quick" id="quick"></div>
-
-    <label for="message">Mensaje (opcional)</label>
-    <textarea id="message" maxlength="200" placeholder="Sale en pantalla junto con tu propina"></textarea>
-    <div class="count"><span id="count">0</span>/200</div>
+      <label for="message">Mensaje (opcional)</label>
+      <textarea id="message" maxlength="200" placeholder="Sale en pantalla junto con tu propina ✨"></textarea>
+      <div class="count"><span id="count">0</span>/200</div>
+    </div>
 
     <div class="err" id="err"></div>
     <div id="paypal"></div>
-    <div class="note">El pago lo procesa PayPal y va <b>directo</b> a la cuenta del streamer. Puedes pagar con tu cuenta PayPal o con tarjeta.</div>
+    <div class="secure" id="ppSecure">🔒 Pago seguro con PayPal · va directo al streamer · cuenta PayPal o tarjeta</div>
     <div id="mpBox" class="hidden" style="margin-top:12px">
-      <a id="mpBtn" href="#" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:8px;height:45px;border-radius:999px;background:#00b1ea;color:#fff;font-weight:700;font-size:15px;text-decoration:none">Pagar con Mercado Pago</a>
+      <a id="mpBtn" href="#" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:8px;height:48px;border-radius:999px;background:#00b1ea;color:#fff;font-weight:700;font-size:15px;text-decoration:none;box-shadow:0 8px 22px rgba(0,177,234,.3)">Pagar con Mercado Pago</a>
       <div class="note" style="margin-top:8px">Con Mercado Pago la propina no sale al instante: el streamer la confirma cuando le llega. Escribe tu nombre en el mensaje del pago para que sepa que fuiste tú.</div>
+    </div>
+
+    <div class="recent hidden" id="recent">
+      <h3>💜 Últimos que apoyaron</h3>
+      <div class="list" id="recentList"></div>
     </div>
   </div>
 
@@ -87,7 +141,7 @@ textarea{resize:none;height:84px;line-height:1.4}
     <a href="#" id="again">Dejar otra propina</a>
   </div>
 </div>
-<div class="foot" style="position:fixed;bottom:12px;left:0;right:0">Hecho con <a href="/">SilklyBot</a></div>
+<div class="foot">Hecho con 🕷️ <a href="/">SilklyBot</a></div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -109,9 +163,10 @@ async function init() {
     if (r.status === 404) { $('offTitle').textContent = 'Canal no encontrado'; $('offText').textContent = 'Revisa que el enlace esté bien escrito.'; return show('off'); }
     info = await r.json();
     document.title = `Propina para ${info.display} — SilklyBot`;
+    fillHero();
     if (!info.enabled) { $('offText').textContent = `${info.display} todavía no activó las propinas.`; return show('off'); }
-    $('avatar').textContent = (info.display[0] || '?').toUpperCase();
-    $('title').textContent = `Propina para ${info.display}`;
+    $('title').textContent = info.display;
+    renderRecent();
     $('cur1').textContent = SYMBOL[info.currency] || '';
     $('cur2').textContent = info.currency;
     $('amount').min = info.min; $('amount').max = info.max;
@@ -130,12 +185,35 @@ async function init() {
     else {
       // Solo Mercado Pago: el monto y el mensaje se ponen en Mercado Pago, aquí no hacen falta
       $('paypal').style.display = 'none';
-      document.querySelectorAll('#form > .note, #form > label, #form > input, #form > textarea, .amount-row, .quick, .count, #sandboxNote').forEach(el => el.classList.add('hidden'));
+      ['fields', 'ppSecure', 'sandboxNote'].forEach(id => $(id).classList.add('hidden'));
       $('subtitle').textContent = 'Apoya el canal con Mercado Pago 💸';
     }
   } catch (e) { $('offTitle').textContent = 'Algo falló'; $('offText').textContent = 'No se pudo cargar la página. Inténtalo de nuevo.'; show('off'); }
 }
-function markQuick() { const a = parseFloat($('amount').value); [...$('quick').children].forEach(b => b.classList.toggle('on', parseFloat(b.textContent.replace(/[^\d.]/g, '')) === a)); }
+function fillHero() {
+  $('title').textContent = info.display || username;
+  const ch = $('chan'); ch.textContent = 'twitch.tv/' + username; ch.href = 'https://twitch.tv/' + encodeURIComponent(username);
+  const av = $('avatar'); av.textContent = '';
+  if (info.avatar && /^https:\/\//.test(info.avatar)) { const img = document.createElement('img'); img.src = info.avatar; img.alt = ''; av.appendChild(img); }
+  else av.textContent = ((info.display || username)[0] || '?').toUpperCase();
+  if (info.banner && /^https:\/\//.test(info.banner)) { const b = $('banner'); b.style.backgroundImage = `url("${info.banner.replace(/"/g, '')}")`; b.classList.add('img'); }
+  $('hero').classList.remove('hidden');
+}
+function renderRecent() {
+  const list = Array.isArray(info.recent) ? info.recent : [];
+  if (!list.length) return;
+  const box = $('recentList'); box.textContent = '';
+  list.forEach(t => {
+    const p = document.createElement('span'); p.className = 'pill';
+    p.append(String(t.name || 'Anónimo'));
+    const b = document.createElement('b'); b.textContent = (SYMBOL[t.currency] || '') + Number(t.amount || 0).toFixed(Number(t.amount) % 1 ? 2 : 0) + (SYMBOL[t.currency] ? '' : ' ' + t.currency);
+    p.appendChild(b); box.appendChild(p);
+  });
+  $('recent').classList.remove('hidden');
+}
+function fitAmount() { const a = $('amount'); a.style.width = Math.max(1.2, String(a.value || '').length + 0.4) + 'ch'; }
+function markQuick() {
+  fitAmount(); const a = parseFloat($('amount').value); [...$('quick').children].forEach(b => b.classList.toggle('on', parseFloat(b.textContent.replace(/[^\d.]/g, '')) === a)); }
 $('amount').addEventListener('input', () => { markQuick(); setErr(''); });
 $('message').addEventListener('input', () => { $('count').textContent = $('message').value.length; });
 
