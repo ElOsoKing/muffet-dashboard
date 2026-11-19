@@ -161,11 +161,18 @@ function loadPaypalV6() {
     clearTimeout(timer);
     try {
       if (!window.paypal) throw new Error('script vacío (no existe window.paypal)');
-      if (!paypal.createInstance) throw new Error('window.paypal sin createInstance: ' + Object.keys(window.paypal).slice(0, 8).join(','));
+      // createInstance puede estar en window.paypal o en window.paypal.v6, y a veces aparece un momento después
+      let ns = null;
+      for (let i = 0; i < 50 && !ns; i++) {
+        if (typeof window.paypal?.createInstance === 'function') ns = window.paypal;
+        else if (typeof window.paypal?.v6?.createInstance === 'function') ns = window.paypal.v6;
+        else await new Promise(res => setTimeout(res, 100));
+      }
+      if (!ns) throw new Error('sin createInstance. paypal: ' + Object.keys(window.paypal).join(',') + ' | paypal.v6: ' + Object.keys(window.paypal.v6 || {}).join(','));
       const tr = await fetch('/api/tip/client-token');
       const { accessToken } = await tr.json();
       if (!accessToken) throw new Error('sin token del servidor');
-      const sdk = await paypal.createInstance({ clientToken: accessToken, components: ['paypal-payments'], pageType: 'checkout' });
+      const sdk = await ns.createInstance({ clientToken: accessToken, components: ['paypal-payments'], pageType: 'checkout' });
       const methods = await sdk.findEligibleMethods({ currencyCode: info.currency });
       if (!methods.isEligible('paypal')) throw new Error('PayPal no es elegible para ' + info.currency);
       const session = sdk.createPayPalOneTimePaymentSession({
