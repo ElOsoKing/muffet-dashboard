@@ -8,12 +8,25 @@
   #stage { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
   video { max-width:90%; max-height:90%; border-radius:12px; opacity:0; transition:opacity 0.3s; }
   video.show { opacity:1; }
+  /* Alerta de propina (PayPal) */
+  #tip { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.85); opacity:0; transition:opacity .35s, transform .35s cubic-bezier(.2,1.4,.4,1);
+    min-width:360px; max-width:640px; padding:22px 30px 24px; border-radius:20px; text-align:center; font-family:'Inter',system-ui,sans-serif; color:#fff;
+    background:linear-gradient(160deg,rgba(32,20,58,.94),rgba(18,12,30,.94)); border:2px solid rgba(183,148,255,.7); box-shadow:0 0 40px rgba(145,71,255,.55), 0 12px 40px rgba(0,0,0,.5); }
+  #tip.show { opacity:1; transform:translate(-50%,-50%) scale(1); }
+  #tip .ic { font-size:46px; line-height:1; animation:tipBounce 1s ease-in-out infinite; display:inline-block; }
+  #tip.hidden .ic { animation:none; }
+  #tip .who { font-size:28px; font-weight:800; margin-top:8px; text-shadow:0 2px 0 rgba(0,0,0,.4); }
+  #tip .amt { color:#7dffb2; }
+  #tip .msg { font-size:20px; font-weight:500; margin-top:10px; color:#e6dcff; line-height:1.35; word-wrap:break-word; }
+  @keyframes tipBounce { 0%,100% { transform:translateY(0) rotate(-6deg); } 50% { transform:translateY(-8px) rotate(6deg); } }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <div id="stage">
   <video id="player" playsinline></video>
   <audio id="audioPlayer"></audio>
+  <div id="tip" class="hidden"><div class="ic">💸</div><div class="who"></div><div class="msg"></div></div>
 </div>
 <script>
 const channel = decodeURIComponent(location.pathname.split('/').pop() || '').toLowerCase();
@@ -28,7 +41,10 @@ function connect() {
   es.onmessage = (e) => {
     try {
       const data = JSON.parse(e.data);
-      if (data.type === 'alert' && data.media_url) {
+      if (data.type === 'tip') {
+        if (queue.length < 10) queue.push(data);
+        processQueue();
+      } else if (data.type === 'alert' && data.media_url) {
         if (queue.length < 10) queue.push(data); // límite de cola anti-spam
         processQueue();
       }
@@ -44,6 +60,7 @@ async function processQueue() {
   if (playing || !queue.length) return;
   playing = true;
   const alert = queue.shift();
+  if (alert.type === 'tip') return showTip(alert);
   const vol = Math.min(100, Math.max(0, alert.volume ?? 80)) / 100;
 
   const el = alert.media_type === 'video' ? video : audio;
@@ -77,6 +94,37 @@ async function processQueue() {
 
   if (alert.media_type === 'video') video.classList.add('show');
   try { await el.play(); } catch(e) { cleanup(); }
+}
+
+// ── Propina: tarjeta en pantalla + sonidito, 7 segundos ──
+const tipEl = document.getElementById('tip');
+const SYM = { USD:'$', EUR:'€', MXN:'$', CAD:'$', GBP:'£' };
+function chime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1175, 1568].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + i * 0.12;
+      o.type = 'triangle'; o.frequency.value = f; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.start(t); o.stop(t + 0.55);
+    });
+    setTimeout(() => ctx.close(), 1500);
+  } catch (e) {}
+}
+function showTip(t) {
+  const money = (SYM[t.currency] || '') + Number(t.amount || 0).toFixed(2) + ' ' + String(t.currency || '');
+  const who = tipEl.querySelector('.who'); who.textContent = '';
+  const n = document.createElement('span'); n.textContent = String(t.name || 'Anónimo');
+  const a = document.createElement('span'); a.className = 'amt'; a.textContent = money;
+  who.append(n, ' dejó ', a);
+  tipEl.querySelector('.msg').textContent = String(t.message || '');
+  tipEl.classList.remove('hidden');
+  requestAnimationFrame(() => tipEl.classList.add('show'));
+  chime();
+  setTimeout(() => {
+    tipEl.classList.remove('show');
+    setTimeout(() => { tipEl.classList.add('hidden'); playing = false; setTimeout(processQueue, 800); }, 400);
+  }, 7000);
 }
 
 connect();
