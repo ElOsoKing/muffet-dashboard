@@ -6,8 +6,8 @@
 <style>
   html, body { margin:0; padding:0; background:transparent; overflow:hidden; width:100vw; height:100vh; }
   #stage { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-  video { max-width:90%; max-height:90%; border-radius:12px; opacity:0; transition:opacity 0.3s; }
-  video.show { opacity:1; }
+  #player { max-width:90%; max-height:90%; border-radius:12px; opacity:0; transition:opacity 0.3s; }
+  #player.show { opacity:1; }
   /* Alerta de propina (PayPal) */
   #tip { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) scale(.85); opacity:0; transition:opacity .35s, transform .35s cubic-bezier(.2,1.4,.4,1);
     min-width:360px; max-width:640px; padding:22px 30px 24px; border-radius:20px; text-align:center; font-family:'Inter',system-ui,sans-serif; color:#fff;
@@ -244,11 +244,15 @@ async function renderBox(a) {
   const hx = (c.color_accent || '#b794ff').slice(1), rgb = [0, 2, 4].map(i => parseInt(hx.substr(i, 2), 16) || 0).join(',');
   box.style.setProperty('--glow', `rgba(${rgb},.6)`); box.style.setProperty('--glow2', `rgba(${rgb},.35)`);
   box.style.setProperty('--font', `"${c.font || 'Inter'}"`);
-  const media = box.querySelector('.media'); media.textContent = '';
+  const media = box.querySelector('.media');
+  // Un video quitado de la página sigue sonando si no se pausa
+  media.querySelectorAll('video').forEach(v => { try { v.pause(); } catch(e) {} v.removeAttribute('src'); v.load(); });
+  media.textContent = '';
   let vid = null;
   if (c.image && c.image_type === 'video') {
-    vid = document.createElement('video'); vid.src = c.image; vid.autoplay = true; vid.loop = true; vid.playsInline = true;
-    vid.muted = c.sound !== 'video'; vid.volume = Math.min(1, (c.volume ?? 70) / 100); media.appendChild(vid);
+    // Sin autoplay: showBox decide si se reproduce (alerta real) o se queda quieto y mudo (vista previa del editor)
+    vid = document.createElement('video'); vid.src = c.image; vid.playsInline = true; vid.preload = 'auto'; vid.muted = true;
+    vid.volume = Math.min(1, (c.volume ?? 70) / 100); media.appendChild(vid);
   } else if (c.image) {
     const img = document.createElement('img'); img.src = c.image; img.alt = ''; media.appendChild(img);
   } else {
@@ -266,21 +270,40 @@ async function showBox(a, { still = false, silent = false } = {}) {
   clearTimeout(hideTimer); stopBoxSound();
   const c = a.cfg || {};
   const vid = await renderBox(a);
-  if (still) { box.classList.add('still'); return; }
+  if (still) {
+    // Vista previa mientras editas: quieta y en silencio (se ve el primer cuadro del video)
+    box.classList.add('still');
+    if (vid) { vid.muted = true; vid.addEventListener('loadeddata', () => { try { vid.currentTime = Math.min(0.1, vid.duration || 0); } catch(e) {} }, { once: true }); }
+    return;
+  }
   void box.offsetWidth; // reinicia la animación de entrada
   box.classList.add('in-' + (c.anim || 'rebote'));
   if (!silent) {
     const vol = Math.min(1, Math.max(0, (c.volume ?? 70) / 100));
     if (c.sound === 'archivo' && c.sound_url) { boxSound = new Audio(c.sound_url); boxSound.volume = vol; boxSound.play().catch(() => {}); }
     else if (c.sound === 'campanita') chime(vol);
-  } else if (vid) vid.muted = true;
+  }
+  let ms = Math.min(20, Math.max(3, Number(c.duration) || 7)) * 1000;
+  if (vid) {
+    // Con video: la alerta dura lo que dura el video completo (máx 30 s), y suena si eligió "el sonido del video"
+    vid.muted = silent || c.sound !== 'video';
+    const len = await new Promise(r => {
+      if (vid.readyState >= 1) return r(vid.duration);
+      vid.addEventListener('loadedmetadata', () => r(vid.duration), { once: true });
+      vid.addEventListener('error', () => r(0), { once: true });
+      setTimeout(() => r(0), 4000);
+    });
+    if (isFinite(len) && len > 0) ms = Math.min(30, Math.max(2, len)) * 1000 + 300;
+    try { vid.currentTime = 0; } catch(e) {}
+    vid.play().catch(() => { vid.muted = true; vid.play().catch(() => {}); });
+  }
   setTimeout(() => effect(c.effect || 'ninguno', c.color_accent || '#b794ff'), 250);
-  const ms = Math.min(20, Math.max(3, Number(c.duration) || 7)) * 1000;
   return new Promise(done => {
     hideTimer = setTimeout(() => {
       box.classList.add('out');
       if (boxSound) { const s = boxSound; let v = s.volume; const f = setInterval(() => { v -= .1; if (v <= 0) { clearInterval(f); s.pause(); } else s.volume = v; }, 50); boxSound = null; }
       setTimeout(() => {
+        const v = box.querySelector('.media video'); if (v) { try { v.pause(); } catch(e) {} v.removeAttribute('src'); v.load(); }
         box.className = ''; box.querySelector('.media').textContent = '';
         if (!PREVIEW) { playing = false; setTimeout(processQueue, 800); }
         done();
