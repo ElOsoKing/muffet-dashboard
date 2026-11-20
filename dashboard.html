@@ -1999,10 +1999,12 @@ const AB_VOICES = [['es-DO-RamonaNeural','🇩🇴 Ramona (Rep. Dominicana)'],['
   ['es-ES-ElviraNeural','🇪🇸 Elvira (España)'],['es-ES-AlvaroNeural','🇪🇸 Álvaro (España)'],['es-AR-ElenaNeural','🇦🇷 Elena (Argentina)'],['es-AR-TomasNeural','🇦🇷 Tomás (Argentina)'],
   ['es-CO-SalomeNeural','🇨🇴 Salomé (Colombia)'],['es-CO-GonzaloNeural','🇨🇴 Gonzalo (Colombia)'],['es-US-PalomaNeural','🇺🇸 Paloma (latino EE.UU.)'],['es-US-AlonsoNeural','🇺🇸 Alonso (latino EE.UU.)'],
   ['en-US-AriaNeural','🇺🇸 Aria (inglés)'],['en-US-GuyNeural','🇺🇸 Guy (inglés)']];
-let abTtsAudio = null;
+let abTtsAudio = null, abVoicesOk = null;
 function abRenderTts() {
   const t = abState.tts, el = document.getElementById('abTtsPanel'); if (!el) return;
+  if (abVoicesOk === null) fetch('/api/tts-voices').then(r => r.json()).then(d => { abVoicesOk = !!d.voices_available; abRenderTts(); }).catch(() => {});
   el.innerHTML = `
+    ${abVoicesOk === false ? `<div style="font-size:12px;color:#f0c060;background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.25);border-radius:10px;padding:10px 12px;margin-bottom:14px;line-height:1.6;">⚠ Por ahora suena la <b>voz básica</b> (una sola voz en español). La lista de voces se activa pronto.</div>` : ''}
     <div class="ab-row2">
       <div class="ab-field"><div class="ab-label">🎙️ Voz</div><select class="form-input" onchange="abTtsSet('voice',this.value)">${AB_VOICES.map(([v,l]) => `<option value="${v}" ${t.voice===v?'selected':''}>${l}</option>`).join('')}</select></div>
       <div class="ab-field"><div class="ab-label">🔉 Volumen de la voz</div><div class="ab-range"><input type="range" min="0" max="100" value="${t.volume}" oninput="document.getElementById('abTtsVol').textContent=this.value+'%'" onchange="abTtsSet('volume',parseInt(this.value))"><span class="ab-val" id="abTtsVol">${t.volume}%</span></div></div>
@@ -2021,7 +2023,8 @@ async function abTtsTest() {
     if (abTtsAudio) { abTtsAudio.pause(); abTtsAudio = null; }
     const res = await fetch('/api/tts/preview', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ voice: abState.tts.voice, text: document.getElementById('abTtsText')?.value || '' }) });
     if (!res.ok) { const d = await res.json().catch(() => ({})); showToast(d.error || 'No se pudo generar la voz', 'error'); return; }
-    if (res.headers.get('X-TTS-Engine') === 'google') { const why = decodeURIComponent(res.headers.get('X-TTS-Error') || ''); console.warn('[voz] Edge falló:', why); showToast('La voz elegida no respondió: usé la de respaldo (Google)' + (why ? ' — ' + why : ''), 'error'); }
+    const why = decodeURIComponent(res.headers.get('X-TTS-Error') || '');
+    if (res.headers.get('X-TTS-Engine') === 'google' && why) showToast('Las voces no respondieron: usé la voz básica — ' + why, 'error');
     abTtsAudio = new Audio(URL.createObjectURL(await res.blob())); abTtsAudio.volume = Math.min(1, (abState.tts.volume ?? 80) / 100);
     abTtsAudio.play().catch(() => {});
   } catch (e) { showToast('Error de conexión', 'error'); }
