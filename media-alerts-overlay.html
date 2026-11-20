@@ -68,6 +68,54 @@
   @keyframes outSlide { to { opacity:0; transform:translate(60%,-50%) } }
   @keyframes outZoom { to { opacity:0; transform:translate(-50%,-50%) scale(.6) } }
   #box.still { animation:none !important; }
+  /* ── Estilos de las plantillas ── */
+  /* Telaraña (Muffet): morado oscuro con telarañas en las esquinas y una arañita colgando */
+  #box.st-telarana { background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' fill='none' stroke='%23ffffff' stroke-opacity='.22' stroke-width='1.5'%3E%3Cpath d='M0 0L120 120M0 0L120 40M0 0L40 120M0 0L120 0M0 0L0 120'/%3E%3Cpath d='M30 0Q22 22 0 30M60 0Q45 45 0 60M95 0Q70 70 0 95'/%3E%3C/svg%3E") left top / 120px no-repeat,
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' fill='none' stroke='%23ffffff' stroke-opacity='.22' stroke-width='1.5'%3E%3Cpath d='M120 120L0 0M120 120L0 80M120 120L80 0M120 120L0 120M120 120L120 0'/%3E%3Cpath d='M90 120Q98 98 120 90M60 120Q75 75 120 60M25 120Q50 50 120 25'/%3E%3C/svg%3E") right bottom / 120px no-repeat,
+      linear-gradient(160deg,#2a1248,#12081f);
+    border:3px solid var(--accent); box-shadow:0 0 36px var(--glow),0 14px 40px rgba(0,0,0,.55); border-radius:28px; }
+  #box.st-telarana::before { content:"🕷️"; position:absolute; top:-58px; left:50%; font-size:38px; transform-origin:50% -60px; animation:spiderSwing 2.4s ease-in-out infinite; }
+  #box.st-telarana::after { content:""; position:absolute; top:-60px; left:calc(50% + 18px); width:2px; height:28px; background:rgba(255,255,255,.55); }
+  @keyframes spiderSwing { 0%,100% { transform:translateX(-50%) rotate(-10deg) } 50% { transform:translateX(-50%) rotate(10deg) } }
+  /* Arcade: bordes de píxel, sin redondeo */
+  #box.st-arcade { background:#0b0b1a; border-radius:0; border:none;
+    box-shadow:0 -6px 0 0 var(--accent),0 6px 0 0 var(--accent),-6px 0 0 0 var(--accent),6px 0 0 0 var(--accent),0 0 0 6px #0b0b1a,0 0 0 12px rgba(255,255,255,.85),0 14px 0 6px rgba(0,0,0,.5); }
+  #box.st-arcade .title { text-shadow:4px 4px 0 rgba(0,0,0,.8); }
+  #box.st-arcade .media .emo { animation:pixelBob .5s steps(2) infinite; }
+  #box.st-arcade .chip { border-radius:0; }
+  @keyframes pixelBob { 50% { transform:translateY(-8px) } }
+  /* Cristal: translúcido y elegante */
+  #box.st-cristal { background:linear-gradient(135deg,rgba(255,255,255,.22),rgba(255,255,255,.06)); border:2px solid rgba(255,255,255,.55);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 18px 50px rgba(0,0,0,.35); border-radius:30px; }
+  #box.st-cristal .title, #box.st-cristal .msg { text-shadow:0 2px 12px rgba(0,0,0,.55); }
+  #box.st-cristal .chip { background:rgba(255,255,255,.15); border-color:rgba(255,255,255,.6); }
+  /* Fuego: brasas con brillo que parpadea */
+  #box.st-fuego { background:linear-gradient(180deg,#3a0a00,#1a0500 70%); border:3px solid var(--accent); border-radius:22px; }
+  #box.st-fuego.on { box-shadow:0 0 30px #ff5a00,0 0 70px rgba(255,90,0,.45),0 14px 40px rgba(0,0,0,.5); }
+  #box.st-fuego .title { text-shadow:0 0 10px #ff7a00,0 0 24px #ff3c00,0 3px 0 #000; }
+  #box.st-fuego::after { content:""; position:absolute; inset:-3px; border-radius:22px; pointer-events:none; box-shadow:0 0 24px 4px #ff7a00; animation:flicker 1.1s ease-in-out infinite alternate; }
+  @keyframes flicker { 0% { opacity:.35 } 40% { opacity:.9 } 70% { opacity:.5 } 100% { opacity:1 } }
+  /* Kawaii: pastel con corazones */
+  #box.st-kawaii { background:linear-gradient(160deg,#fff0f7,#ffd9ec); border:4px solid var(--accent); border-radius:36px; box-shadow:0 8px 0 rgba(0,0,0,.12),0 0 30px var(--glow2); }
+  #box.st-kawaii .chip { background:#fff; color:#5a2a48; }
+  #box.st-kawaii::before, #box.st-kawaii::after { content:"💖"; position:absolute; font-size:34px; animation:emoFloat 1.8s ease-in-out infinite; }
+  #box.st-kawaii::before { top:-20px; left:-14px; } #box.st-kawaii::after { bottom:-18px; right:-12px; animation-delay:.6s; }
+  /* Cyber: esquinas cortadas y línea de escáner */
+  #box.st-cyber { background:linear-gradient(135deg,rgba(0,40,40,.92),rgba(5,8,20,.95)); border-radius:0; overflow:hidden;
+    clip-path:polygon(22px 0,100% 0,100% calc(100% - 22px),calc(100% - 22px) 100%,0 100%,0 22px); box-shadow:inset 0 0 0 2px var(--accent); }
+  #box.st-cyber .title { text-shadow:0 0 10px var(--glow); letter-spacing:.5px; }
+  #box.st-cyber .chip { border-radius:3px; }
+  #box.st-cyber::after { content:""; position:absolute; left:0; right:0; height:40%; top:-40%; background:linear-gradient(180deg,transparent,var(--glow2),transparent); animation:scan 2.2s linear infinite; pointer-events:none; }
+  @keyframes scan { to { top:100% } }
+  /* Oro: negro y dorado */
+  #box.st-oro { background:linear-gradient(160deg,#151109,#060503); border:2px solid #d4af37; border-radius:16px;
+    box-shadow:0 0 0 6px #060503,0 0 0 8px rgba(212,175,55,.6),0 0 40px rgba(212,175,55,.35),0 16px 40px rgba(0,0,0,.6); }
+  #box.st-oro .title .hl { background:linear-gradient(180deg,#fff3b0,#d4af37 55%,#a67c00); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  #box.st-oro .chip { border-color:#d4af37; }
+  #box.still::before, #box.still::after { animation:none; }
+  body.lite #box::before, body.lite #box::after { animation:none; }
+
   /* Código propio del streamer: iframe aislado del tamaño de todo el overlay */
   #custom { position:absolute; inset:0; width:100%; height:100%; border:0; background:transparent; pointer-events:none; }
   .burst { position:absolute; width:12px; height:12px; border-radius:3px; pointer-events:none; animation:fly 1.8s ease-out forwards; }
@@ -216,8 +264,27 @@ function fillTitle(el, a) {
     else if (part) el.appendChild(document.createTextNode(part));
   });
 }
-let boxSound = null, hideTimer = null;
-function stopBoxSound() { if (boxSound) { try { boxSound.pause(); } catch(e) {} boxSound = null; } }
+let boxSound = null, hideTimer = null, ttsAudio = null, boxRun = 0;
+function stopBoxSound() {
+  if (boxSound) { try { boxSound.pause(); } catch(e) {} boxSound = null; }
+  if (ttsAudio) { try { ttsAudio.pause(); } catch(e) {} ttsAudio = null; }
+}
+// Voz: suena después del sonido de la alerta, y la alerta se queda en pantalla hasta que termina de hablar (máx 30 s)
+function playTTS(a) {
+  return new Promise(res => {
+    const start = () => {
+      const au = new Audio(a.tts_url); ttsAudio = au;
+      au.volume = Math.min(1, Math.max(0, (a.tts_volume ?? 80) / 100));
+      const cap = setTimeout(() => { try { au.pause(); } catch(e) {} res(); }, 30000);
+      const end = () => { clearTimeout(cap); if (ttsAudio === au) ttsAudio = null; setTimeout(res, 500); };
+      au.onended = end; au.onerror = end; au.play().catch(end);
+    };
+    if (boxSound && !boxSound.ended) {
+      let go = false; const once = () => { if (!go) { go = true; start(); } };
+      boxSound.addEventListener('ended', once, { once: true }); setTimeout(once, 6000);
+    } else setTimeout(start, a.cfg?.sound === 'campanita' ? 900 : a.cfg?.sound === 'video' ? 1200 : 300);
+  });
+}
 function effect(kind, accent) {
   if (kind === 'ninguno' || params.get('lite') === '1') return;
   const r = box.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -297,6 +364,7 @@ async function renderBox(a) {
 }
 async function showBox(a, { still = false, silent = false } = {}) {
   clearTimeout(hideTimer); stopBoxSound();
+  const run = ++boxRun;
   const c = a.cfg || {};
   removeCustom(); box.className = '';
   if (c.custom) {
@@ -308,14 +376,15 @@ async function showBox(a, { still = false, silent = false } = {}) {
       else if (c.sound === 'campanita') chime(vol);
     }
     const ms = Math.min(20, Math.max(3, Number(c.duration) || 7)) * 1000;
-    return new Promise(done => {
-      hideTimer = setTimeout(() => {
-        // Avisa al código del streamer para que haga su animación de salida (body.salir), y medio segundo después se quita
-        const f = document.getElementById('custom'); if (f) try { f.contentWindow.postMessage('alerta-salir', '*'); } catch(e) {}
-        if (boxSound) { const s = boxSound; let v = s.volume; const fd = setInterval(() => { v -= .1; if (v <= 0) { clearInterval(fd); s.pause(); } else s.volume = v; }, 50); boxSound = null; }
-        setTimeout(() => { removeCustom(); if (!PREVIEW) { playing = false; setTimeout(processQueue, 800); } done(); }, 600);
-      }, ms);
-    });
+    await Promise.all([new Promise(r => { hideTimer = setTimeout(r, ms); }), (!silent && a.tts_url) ? playTTS(a) : null]);
+    if (run !== boxRun) return;
+    // Avisa al código del streamer para que haga su animación de salida (body.salir), y medio segundo después se quita
+    const f = document.getElementById('custom'); if (f) try { f.contentWindow.postMessage('alerta-salir', '*'); } catch(e) {}
+    if (boxSound) { const s = boxSound; let v = s.volume; const fd = setInterval(() => { v -= .1; if (v <= 0) { clearInterval(fd); s.pause(); } else s.volume = v; }, 50); boxSound = null; }
+    await new Promise(r => setTimeout(r, 600));
+    if (run !== boxRun) return;
+    removeCustom(); if (!PREVIEW) { playing = false; setTimeout(processQueue, 800); }
+    return;
   }
   const vid = await renderBox(a);
   if (still) {
@@ -346,18 +415,15 @@ async function showBox(a, { still = false, silent = false } = {}) {
     vid.play().catch(() => { vid.muted = true; vid.play().catch(() => {}); });
   }
   setTimeout(() => effect(c.effect || 'ninguno', c.color_accent || '#b794ff'), 250);
-  return new Promise(done => {
-    hideTimer = setTimeout(() => {
-      box.classList.add('out');
-      if (boxSound) { const s = boxSound; let v = s.volume; const f = setInterval(() => { v -= .1; if (v <= 0) { clearInterval(f); s.pause(); } else s.volume = v; }, 50); boxSound = null; }
-      setTimeout(() => {
-        const v = box.querySelector('.media video'); if (v) { try { v.pause(); } catch(e) {} v.removeAttribute('src'); v.load(); }
-        box.className = ''; box.querySelector('.media').textContent = '';
-        if (!PREVIEW) { playing = false; setTimeout(processQueue, 800); }
-        done();
-      }, 520);
-    }, ms);
-  });
+  await Promise.all([new Promise(r => { hideTimer = setTimeout(r, ms); }), (!silent && a.tts_url) ? playTTS(a) : null]);
+  if (run !== boxRun) return;
+  box.classList.add('out');
+  if (boxSound) { const s = boxSound; let v = s.volume; const f = setInterval(() => { v -= .1; if (v <= 0) { clearInterval(f); s.pause(); } else s.volume = v; }, 50); boxSound = null; }
+  await new Promise(r => setTimeout(r, 520));
+  if (run !== boxRun) return;
+  const v = box.querySelector('.media video'); if (v) { try { v.pause(); } catch(e) {} v.removeAttribute('src'); v.load(); }
+  box.className = ''; box.querySelector('.media').textContent = '';
+  if (!PREVIEW) { playing = false; setTimeout(processQueue, 800); }
 }
 
 // Vista previa del dashboard (?preview=1): no se conecta a nada, solo dibuja lo que le manda el editor
