@@ -2021,7 +2021,7 @@ async function abTtsTest() {
     if (abTtsAudio) { abTtsAudio.pause(); abTtsAudio = null; }
     const res = await fetch('/api/tts/preview', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ voice: abState.tts.voice, text: document.getElementById('abTtsText')?.value || '' }) });
     if (!res.ok) { const d = await res.json().catch(() => ({})); showToast(d.error || 'No se pudo generar la voz', 'error'); return; }
-    if (res.headers.get('X-TTS-Engine') === 'google') showToast('La voz elegida no respondió: usé la de respaldo (Google)', 'error');
+    if (res.headers.get('X-TTS-Engine') === 'google') { const why = decodeURIComponent(res.headers.get('X-TTS-Error') || ''); console.warn('[voz] Edge falló:', why); showToast('La voz elegida no respondió: usé la de respaldo (Google)' + (why ? ' — ' + why : ''), 'error'); }
     abTtsAudio = new Audio(URL.createObjectURL(await res.blob())); abTtsAudio.volume = Math.min(1, (abState.tts.volume ?? 80) / 100);
     abTtsAudio.play().catch(() => {});
   } catch (e) { showToast('Error de conexión', 'error'); }
