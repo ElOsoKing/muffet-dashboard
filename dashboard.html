@@ -1781,7 +1781,7 @@ function abRenderChecks() {
   const hint = document.getElementById('abChecksHint');
   if (hint) hint.innerHTML = abState.enabled && !n
     ? '<span style="color:#f0c060;">⚠ No marcaste ninguna: no va a salir nada. Marca al menos una.</span>'
-    : 'Marca solo las que quieras. Si alguna ya la tienes en StreamElements o Streamlabs, déjala sin marcar para que no salga doble.';
+    : 'Marca solo las que quieras. Si alguna ya la tienes en otro programa de alertas, déjala sin marcar para que no salga doble.';
 }
 function abCheck(ev, on) {
   abState.events[ev].enabled = on;
@@ -1841,7 +1841,7 @@ function abRenderForm() {
   const soundOpts = [['campanita','🔔 Campanita de Muffet'],['archivo','🎵 Mi sonido'],['ninguno','🔇 Sin sonido']].concat(isVid ? [['video','🎬 El sonido del video']] : []);
   document.getElementById('abForm').innerHTML = `
     ${abToggle('enabled', `Mostrar la alerta de ${name}`, '')}
-    ${abToggle('custom', '🧑‍💻 Usar mi propio código (HTML, CSS y JS)', 'Para quien sabe programar: diseña la alerta a tu gusto, como en StreamElements')}
+    ${abToggle('custom', '🧑‍💻 Usar mi propio código (HTML, CSS y JS)', 'Para quien sabe programar: diseña la alerta 100% a tu gusto')}
     ${c.custom ? abCodeEditor(c) : ''}
     <div class="ab-field" style="margin-top:12px;">
       <div class="ab-label">✏️ Texto</div>
@@ -5084,7 +5084,7 @@ function renderMain() {
         </div>
         <div class="ab-label" style="margin-top:14px;">✅ ¿Qué alertas quieres que salgan aquí?</div>
         <div class="ab-checks" id="abChecks"></div>
-        <div id="abChecksHint" style="font-size:11px;color:var(--text-dim);margin:8px 0 0;line-height:1.6;">Marca solo las que quieras. Si alguna ya la tienes en StreamElements o Streamlabs, déjala sin marcar para que no salga doble.</div>
+        <div id="abChecksHint" style="font-size:11px;color:var(--text-dim);margin:8px 0 0;line-height:1.6;">Marca solo las que quieras. Si alguna ya la tienes en otro programa de alertas, déjala sin marcar para que no salga doble.</div>
         <div class="ab-label" style="margin-top:16px;">📺 URL para OBS · Browser Source 1920×1080</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input class="form-input" id="abOverlayUrl" readonly value="" style="flex:1;min-width:200px;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
