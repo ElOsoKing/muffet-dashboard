@@ -1340,6 +1340,7 @@ app.post('/webhook/twitch', (req, res) => {
     if (eventType === 'channel.follow' && event?.broadcaster_user_login && event?.user_login
         && !seenRecently(recentWebhookIds, String(req.headers['twitch-eventsub-message-id']), 600000)
         && !seenRecently(recentFollowAlerts, `${event.broadcaster_user_login}:${event.user_login}`.toLowerCase(), 12 * 3600000)) {
+      recordRecent(event.broadcaster_user_login, { event: 'follow', user: event.user_name || event.user_login });
       sendBoxAlert(event.broadcaster_user_login, { event: 'follow', user: event.user_name || event.user_login }).catch(() => {});
     }
 
@@ -1488,10 +1489,15 @@ const AB_DEFAULT_TEXT = {
   gift: '¡{usuario} regaló {cantidad} subs!', bits: '¡{usuario} donó {cantidad} bits!', raid: '¡{usuario} llegó con {viewers} personas!',
   tip: '¡{usuario} dejó {cantidad}!'
 };
-const AB_LAYOUTS = ['arriba', 'lado', 'texto'], AB_STYLES = ['tarjeta', 'neon', 'limpio'];
+const AB_LAYOUTS = ['arriba', 'lado', 'texto'], AB_STYLES = ['tarjeta', 'neon', 'limpio', 'telarana', 'arcade', 'cristal', 'fuego', 'kawaii', 'cyber', 'oro'];
 const AB_ANIMS = ['rebote', 'deslizar', 'zoom', 'caer', 'aparecer'], AB_EFFECTS = ['ninguno', 'confeti', 'brillos'];
 const AB_FONTS = ['Inter', 'Poppins', 'Fredoka', 'Bangers', 'Luckiest Guy', 'Press Start 2P'];
 const AB_SOUNDS = ['campanita', 'ninguno', 'archivo', 'video'];
+
+// Variaciones: alertas distintas según la condición (bits desde 1000, regalo desde 10 subs, sub Tier 3...). Máx 5 por evento.
+const AB_TIERS = ['Prime', 'Tier 1', 'Tier 2', 'Tier 3'];
+const AB_VAR_EVENTS = ['sub', 'resub', 'gift', 'bits', 'raid', 'tip'];
+const AB_DESIGN_KEYS = ['text', 'image', 'image_type', 'sound', 'sound_url', 'volume', 'duration', 'layout', 'style', 'anim', 'effect', 'font', 'color_accent', 'color_text', 'custom', 'html', 'css', 'js'];
 
 function cleanAlertBox(input, channel) {
   const prefix = `${SUPABASE_URL}/storage/v1/object/public/alerts/${channel}/`;
@@ -1499,12 +1505,10 @@ function cleanAlertBox(input, channel) {
   const num = (v, min, max, def) => { const n = Math.round(Number(v)); return v !== '' && v !== null && v !== undefined && isFinite(n) ? Math.min(max, Math.max(min, n)) : def; };
   const hex = (v, def) => /^#[0-9a-fA-F]{6}$/.test(String(v || '')) ? String(v) : def;
   const pick = (v, list, def) => list.includes(v) ? v : def;
-  const out = { enabled: !!input?.enabled, events: {} };
-  for (const ev of ALERT_EVENTS) {
-    const e = (input?.events && typeof input.events[ev] === 'object' && input.events[ev]) || {};
+  // Lo que se ve y se oye de una alerta (lo comparten la alerta principal y sus variaciones)
+  const design = (e, ev) => {
     const image = url(e.image);
-    out.events[ev] = {
-      enabled: e.enabled === true, // empiezan apagadas: cada streamer elige cuáles quiere (así no salen dobles con StreamElements)
+    return {
       text: String(e.text ?? AB_DEFAULT_TEXT[ev]).replace(/[\r\n]+/g, ' ').slice(0, 150) || AB_DEFAULT_TEXT[ev],
       image, image_type: image && e.image_type === 'video' ? 'video' : 'image',
       sound: pick(e.sound, AB_SOUNDS, 'campanita'), sound_url: url(e.sound_url),
@@ -1512,21 +1516,215 @@ function cleanAlertBox(input, channel) {
       layout: pick(e.layout, AB_LAYOUTS, 'arriba'), style: pick(e.style, AB_STYLES, 'tarjeta'),
       anim: pick(e.anim, AB_ANIMS, 'rebote'), effect: pick(e.effect, AB_EFFECTS, ['gift', 'bits', 'raid', 'tip'].includes(ev) ? 'confeti' : 'ninguno'), font: pick(e.font, AB_FONTS, 'Inter'),
       color_accent: hex(e.color_accent, '#b794ff'), color_text: hex(e.color_text, '#ffffff'),
-      show_message: e.show_message !== false, show_subathon: e.show_subathon !== false, show_goal: e.show_goal !== false,
-      min: Math.max(0, Math.min(1000000, Number(e.min) || 0)),
-      // Código propio (como StreamElements). Corre en un iframe aislado (sandbox sin allow-same-origin): no puede tocar cuentas ni la API
+      // Código propio. Corre en un iframe aislado (sandbox sin allow-same-origin): no puede tocar cuentas ni la API
       custom: e.custom === true,
       html: String(e.html || '').slice(0, 20000), css: String(e.css || '').slice(0, 20000), js: String(e.js || '').slice(0, 20000),
+    };
+  };
+  const out = { enabled: !!input?.enabled, events: {},
+    tts: { voice: TTS_VOICES[input?.tts?.voice] ? input.tts.voice : TTS_DEFAULT_VOICE, volume: num(input?.tts?.volume, 0, 100, 80), say_name: input?.tts?.say_name !== false },
+    // Opciones del overlay de últimos apoyos (solo para recordar lo que eligió en el dashboard; el overlay las lee de su URL)
+    ticker: { estilo: pick(input?.ticker?.estilo, ['rotar', 'barra', 'tarjetas'], 'rotar'), color: hex(input?.ticker?.color, '#b794ff'),
+      mostrar: (Array.isArray(input?.ticker?.mostrar) ? input.ticker.mostrar : ['follow', 'sub', 'gift', 'bits', 'tip', 'raid']).filter(k => ['follow', 'sub', 'gift', 'bits', 'tip', 'raid'].includes(k)) } };
+  for (const ev of ALERT_EVENTS) {
+    const e = (input?.events && typeof input.events[ev] === 'object' && input.events[ev]) || {};
+    const variations = AB_VAR_EVENTS.includes(ev) && Array.isArray(e.variations) ? e.variations.filter(v => v && typeof v === 'object').slice(0, 5).map((v, i) => ({
+      id: String(v.id || `v${i}`).replace(/[^a-z0-9_-]/gi, '').slice(0, 20) || `v${i}`,
+      name: String(v.name || `Variación ${i + 1}`).replace(/[<>\r\n]/g, '').slice(0, 30),
+      enabled: v.enabled !== false,
+      cond: ev === 'sub' ? pick(v.cond, AB_TIERS, 'Tier 3') : num(v.cond, 1, 1000000, 1),
+      ...design(v, ev),
+    })) : [];
+    out.events[ev] = {
+      enabled: e.enabled === true, // empiezan apagadas: cada streamer elige cuáles quiere (así no salen dobles con otro programa)
+      ...design(e, ev),
+      show_message: e.show_message !== false, show_subathon: e.show_subathon !== false, show_goal: e.show_goal !== false,
+      min: Math.max(0, Math.min(1000000, Number(e.min) || 0)),
+      // Voz: leer el mensaje del viewer (resub, bits, propina). tts_min = desde cuántos bits / qué monto
+      tts: ['resub', 'bits', 'tip'].includes(ev) && e.tts === true, tts_min: Math.max(0, Math.min(1000000, Number(e.tts_min) || 0)),
+      variations,
     };
   }
   return out;
 }
 
+// ¿Qué variación toca? La que cumple la condición con el número más alto (1500 bits → "desde 1000" gana a "desde 500")
+function pickVariation(cfg, d) {
+  const vs = (cfg.variations || []).filter(v => v.enabled);
+  if (!vs.length) return null;
+  if (d.event === 'sub') return vs.find(v => v.cond === (d.tier || 'Tier 1')) || null;
+  const val = d.event === 'gift' ? (parseInt(d.count) || 1) : d.event === 'resub' ? (parseInt(d.months) || 0)
+    : d.event === 'raid' ? (parseInt(d.viewers) || 0) : (Number(d.amount) || 0);
+  return vs.filter(v => val >= v.cond).sort((a, b) => b.cond - a.cond)[0] || null;
+}
+
 const alertBoxRow = (channel) => ttlCache('alertbox:' + channel, 20000, async () => {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=alert_box,subathon_config&limit=1`, { headers: sbHeaders });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=alert_box,subathon_config,banned_words&limit=1`, { headers: sbHeaders });
   const rows = await r.json();
   return Array.isArray(rows) ? rows[0] || null : null;
 });
+
+
+// ══════════════════════════════════════════
+//  VOZ (TTS) — lee en voz alta el mensaje de propinas, bits y resubs
+//  1º voces de Microsoft Edge ("Leer en voz alta"): gratis, sin clave, muchas voces en español (hasta dominicanas).
+//  2º si Edge falla: la voz de Google Traductor. El audio se guarda unos minutos en memoria y el overlay lo pide por /api/tts/:id
+// ══════════════════════════════════════════
+const TTS_VOICES = {
+  'es-DO-RamonaNeural': 'Ramona (Rep. Dominicana)', 'es-DO-EmilioNeural': 'Emilio (Rep. Dominicana)',
+  'es-MX-DaliaNeural': 'Dalia (México)', 'es-MX-JorgeNeural': 'Jorge (México)',
+  'es-ES-ElviraNeural': 'Elvira (España)', 'es-ES-AlvaroNeural': 'Álvaro (España)',
+  'es-AR-ElenaNeural': 'Elena (Argentina)', 'es-AR-TomasNeural': 'Tomás (Argentina)',
+  'es-CO-SalomeNeural': 'Salomé (Colombia)', 'es-CO-GonzaloNeural': 'Gonzalo (Colombia)',
+  'es-US-PalomaNeural': 'Paloma (EE.UU. latino)', 'es-US-AlonsoNeural': 'Alonso (EE.UU. latino)',
+  'en-US-AriaNeural': 'Aria (inglés)', 'en-US-GuyNeural': 'Guy (inglés)',
+};
+const TTS_DEFAULT_VOICE = 'es-MX-DaliaNeural';
+const EDGE_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
+const EDGE_VERSION = '130.0.2849.68';
+
+// Cliente WebSocket mínimo (sin dependencias): Edge exige cabeceras (Origin, User-Agent) que el WebSocket de Node no deja poner
+function miniWebSocket(urlStr, headers, onMessage, timeoutMs) {
+  const tls = require('tls');
+  return new Promise((resolve, reject) => {
+    const u = new URL(urlStr);
+    const sock = tls.connect({ host: u.hostname, port: Number(u.port) || 443, servername: u.hostname });
+    const key = crypto.randomBytes(16).toString('base64');
+    let buf = Buffer.alloc(0), open = false, frag = null, fragOp = 0, done = false;
+    const timer = setTimeout(() => finish(new Error('tiempo agotado')), timeoutMs);
+    const finish = (err) => { if (done) return; done = true; clearTimeout(timer); try { sock.destroy(); } catch (e) {} err ? reject(err) : resolve(); };
+    const sendFrame = (op, payload) => {
+      const data = Buffer.isBuffer(payload) ? payload : Buffer.from(payload, 'utf8');
+      const mask = crypto.randomBytes(4), len = data.length;
+      const head = len < 126 ? Buffer.from([0x80 | op, 0x80 | len])
+        : len < 65536 ? Buffer.from([0x80 | op, 0x80 | 126, len >> 8, len & 255])
+        : (() => { const h = Buffer.alloc(10); h[0] = 0x80 | op; h[1] = 0x80 | 127; h.writeBigUInt64BE(BigInt(len), 2); return h; })();
+      const masked = Buffer.alloc(len); for (let i = 0; i < len; i++) masked[i] = data[i] ^ mask[i & 3];
+      sock.write(Buffer.concat([head, mask, masked]));
+    };
+    const api = { send: (t) => sendFrame(1, t), close: () => { try { sendFrame(8, Buffer.alloc(0)); } catch (e) {} finish(); } };
+    sock.on('secureConnect', () => {
+      const extra = Object.entries(headers || {}).map(([k, v]) => `${k}: ${v}\r\n`).join('');
+      sock.write(`GET ${u.pathname}${u.search} HTTP/1.1\r\nHost: ${u.host}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${key}\r\nSec-WebSocket-Version: 13\r\n${extra}\r\n`);
+    });
+    sock.on('data', (chunk) => {
+      buf = Buffer.concat([buf, chunk]);
+      if (!open) {
+        const end = buf.indexOf('\r\n\r\n'); if (end < 0) return;
+        const status = buf.slice(0, end).toString().split('\r\n')[0];
+        if (!/ 101 /.test(status)) return finish(new Error('handshake: ' + status));
+        open = true; buf = buf.slice(end + 4);
+        try { onMessage(null, null, api); } catch (e) { return finish(e); } // conectado: avisar para mandar los mensajes
+      }
+      while (buf.length >= 2) {
+        const op = buf[0] & 15, fin = (buf[0] & 128) !== 0, masked = (buf[1] & 128) !== 0;
+        let len = buf[1] & 127, off = 2;
+        if (len === 126) { if (buf.length < 4) return; len = buf.readUInt16BE(2); off = 4; }
+        else if (len === 127) { if (buf.length < 10) return; len = Number(buf.readBigUInt64BE(2)); off = 10; }
+        const mOff = off; if (masked) off += 4;
+        if (buf.length < off + len) return;
+        let payload = buf.slice(off, off + len);
+        if (masked) { const m = buf.slice(mOff, mOff + 4); payload = Buffer.from(payload.map((b, i) => b ^ m[i & 3])); }
+        buf = buf.slice(off + len);
+        if (op === 8) return finish();
+        if (op === 9) { sendFrame(10, payload); continue; }
+        if (op === 10) continue;
+        if (op === 0) { frag = Buffer.concat([frag || Buffer.alloc(0), payload]); if (!fin) continue; payload = frag; frag = null; }
+        else if (!fin) { frag = payload; fragOp = op; continue; }
+        const isBin = (op === 0 ? fragOp : op) === 2;
+        try { if (onMessage(isBin, payload, api) === 'fin') return finish(); } catch (e) { return finish(e); }
+      }
+    });
+    sock.on('error', finish);
+    sock.on('close', () => finish(open ? null : new Error('conexión cerrada')));
+  });
+}
+
+const xmlEsc = (t) => String(t).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
+async function edgeTTS(text, voice, wsBase) {
+  // Sec-MS-GEC: SHA-256 de (tiempo de Windows redondeado a 5 min + token), como lo hace el navegador Edge
+  let ticks = Math.floor(Date.now() / 1000) + 11644473600; ticks -= ticks % 300;
+  const gec = crypto.createHash('sha256').update(`${ticks}0000000${EDGE_TOKEN}`).digest('hex').toUpperCase();
+  const connId = crypto.randomUUID().replace(/-/g, '');
+  const url = `${wsBase || 'wss://speech.platform.bing.com'}/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${EDGE_TOKEN}&Sec-MS-GEC=${gec}&Sec-MS-GEC-Version=1-${EDGE_VERSION}&ConnectionId=${connId}`;
+  const lang = voice.split('-').slice(0, 2).join('-'), short = voice.split('-').slice(2).join('-');
+  const date = new Date().toUTCString();
+  const parts = [];
+  await miniWebSocket(url, {
+    'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache',
+    'User-Agent': `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${EDGE_VERSION.split('.')[0]}.0.0.0 Safari/537.36 Edg/${EDGE_VERSION.split('.')[0]}.0.0.0`,
+  }, (isBin, data, ws) => {
+    if (data === null) { // recién conectado
+      ws.send(`X-Timestamp:${date}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`);
+      ws.send(`X-RequestId:${connId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${date}Z\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='Microsoft Server Speech Text to Speech Voice (${lang}, ${short})'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>${xmlEsc(text)}</prosody></voice></speak>`);
+      return;
+    }
+    if (isBin) {
+      const hl = data.readUInt16BE(0);
+      if (data.slice(2, 2 + hl).toString().includes('Path:audio')) parts.push(data.slice(2 + hl));
+      return;
+    }
+    if (data.toString().includes('Path:turn.end')) { ws.close(); return 'fin'; }
+  }, 9000);
+  const audio = Buffer.concat(parts);
+  if (audio.length < 500) throw new Error('Edge no devolvió audio');
+  return audio;
+}
+async function googleTTS(text, voice) {
+  const tl = String(voice || 'es').startsWith('en') ? 'en' : 'es';
+  const r = await fetch(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${encodeURIComponent(text.slice(0, 200))}`, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' }, signal: AbortSignal.timeout(7000) });
+  if (!r.ok) throw new Error('Google TTS ' + r.status);
+  const b = Buffer.from(await r.arrayBuffer());
+  if (b.length < 500) throw new Error('Google no devolvió audio');
+  return b;
+}
+let edgeDownUntil = 0; // si Edge falla, se prueba de nuevo en 10 min (mientras tanto, Google)
+async function makeTTS(text, voice) {
+  voice = TTS_VOICES[voice] ? voice : TTS_DEFAULT_VOICE;
+  if (Date.now() > edgeDownUntil) {
+    try { return { audio: await edgeTTS(text, voice), engine: 'edge' }; }
+    catch (e) { console.error('[tts] Edge falló, uso Google:', e.message); edgeDownUntil = Date.now() + 10 * 60000; }
+  }
+  return { audio: await googleTTS(text, voice), engine: 'google' };
+}
+const ttsStore = new Map(); // id -> { audio, ts }
+function storeTTS(audio) {
+  const now = Date.now();
+  for (const [k, v] of ttsStore) if (now - v.ts > 15 * 60000 || ttsStore.size > 200) ttsStore.delete(k);
+  const id = crypto.randomBytes(12).toString('hex');
+  ttsStore.set(id, { audio, ts: now });
+  return id;
+}
+app.get('/api/tts/:id', (req, res) => {
+  const it = ttsStore.get(String(req.params.id));
+  if (!it) return res.status(404).end();
+  res.set({ 'Content-Type': 'audio/mpeg', 'Cache-Control': 'no-store' });
+  res.send(it.audio);
+});
+// Limpia el mensaje antes de leerlo: sin links, sin letras repetidas, sin las palabras prohibidas del canal
+function cleanTTSText(msg, bannedWords) {
+  let t = String(msg || '').replace(/https?:\/\/\S+|www\.\S+/gi, ' ').replace(/(.)\1{3,}/g, '$1$1$1').replace(/\s+/g, ' ').trim();
+  for (const w of (Array.isArray(bannedWords) ? bannedWords : []).slice(0, 300)) {
+    const word = String(w || '').trim(); if (word.length < 2) continue;
+    t = t.replace(new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), 'piii');
+  }
+  return t.slice(0, 200);
+}
+// Probar voz desde el dashboard
+const ttsTestLimit = new Map();
+app.post('/api/tts/preview', requireAuth, async (req, res) => {
+  try {
+    const uid = req.session.user.id;
+    if (Date.now() - (ttsTestLimit.get(uid) || 0) < 2500) return res.status(429).json({ error: 'Espera un segundo…' });
+    ttsTestLimit.set(uid, Date.now());
+    const text = cleanTTSText(req.body?.text || '¡Hola! Así sueno cuando leo los mensajes de tu chat.', []) || 'Hola';
+    const { audio, engine } = await makeTTS(text, req.body?.voice);
+    res.set({ 'Content-Type': 'audio/mpeg', 'X-TTS-Engine': engine, 'Cache-Control': 'no-store' });
+    res.send(audio);
+  } catch (e) { res.status(502).json({ error: 'No se pudo generar la voz ahora. Intenta en un rato.' }); }
+});
+app.get('/api/tts-voices', (req, res) => res.json({ voices: TTS_VOICES, default: TTS_DEFAULT_VOICE }));
 
 // "+90 s" / "+5 min" / "+1 h 20 min"
 function fmtSubathonChip(min) {
@@ -1550,14 +1748,18 @@ function seenRecently(map, key, ms) {
 
 // Devuelve null si el canal no tiene la caja de alertas activada (así la propina usa su tarjeta clásica);
 // true/false = se mandó o no al overlay.
-async function sendBoxAlert(channel, d, { force = false } = {}) {
+async function sendBoxAlert(channel, d, { force = false, variation = null } = {}) {
   channel = String(channel || '').toLowerCase();
   if (!channel || !ALERT_EVENTS.includes(d.event)) return false;
   const row = await alertBoxRow(channel).catch(() => null);
   const box = row?.alert_box;
   if (!force && !box?.enabled) return null;
-  const cfg = cleanAlertBox(box || { enabled: true }, channel).events[d.event];
-  if (!force && !cfg.enabled) return null; // propina sin marcar: sale la tarjeta clásica de propina
+  const base = cleanAlertBox(box || { enabled: true }, channel).events[d.event];
+  if (!force && !base.enabled) return null; // propina sin marcar: sale la tarjeta clásica de propina
+  // La variación reemplaza solo el diseño (texto, imagen, sonido...); mínimos y avisos son de la alerta principal
+  const v = variation !== null ? (base.variations || [])[variation] || null : pickVariation(base, d);
+  const cfg = { ...base, variations: undefined };
+  if (v) for (const k of AB_DESIGN_KEYS) cfg[k] = v[k];
   const amount = Number(d.amount) || 0, viewers = parseInt(d.viewers) || 0;
   if (!force && cfg.min > 0 && ((d.event === 'bits' && amount < cfg.min) || (d.event === 'tip' && amount < cfg.min) || (d.event === 'raid' && viewers < cfg.min))) return false;
 
@@ -1573,8 +1775,20 @@ async function sendBoxAlert(channel, d, { force = false } = {}) {
     }
   }
   const clip = (s, n) => String(s ?? '').replace(/[\r\n]+/g, ' ').slice(0, n);
+  // Voz: solo si hay mensaje, la alerta la tiene prendida y se llega al mínimo (bits/propina)
+  let tts_url = null, tts_volume = 80;
+  const ttsCfg = cleanAlertBox(box || {}, channel).tts;
+  const ttsText = cleanTTSText(d.message, row?.banned_words);
+  const ttsAmountOk = !(base.tts_min > 0) || d.event === 'resub' || amount >= base.tts_min;
+  if (base.tts && ttsText && ttsAmountOk) {
+    try {
+      const say = ttsCfg.say_name && d.user ? `${clip(d.user, 30)} dice: ${ttsText}` : ttsText;
+      const { audio } = await Promise.race([makeTTS(say, ttsCfg.voice), new Promise((_, rej) => setTimeout(() => rej(new Error('lento')), 12000))]);
+      tts_url = `/api/tts/${storeTTS(audio)}`; tts_volume = ttsCfg.volume;
+    } catch (e) { console.error('[tts]', e.message); } // sin voz, la alerta sale igual
+  }
   return pushMediaAlert(channel, {
-    type: 'box', event: d.event, cfg,
+    type: 'box', event: d.event, cfg, variation: v ? v.name : null, tts_url, tts_volume,
     user: clip(d.user || 'Anónimo', 30), amount, currency: clip(d.currency, 3), viewers,
     months: parseInt(d.months) || 0, count: parseInt(d.count) || 0, tier: clip(d.tier, 10),
     message: cfg.show_message ? clip(d.message, 200) : '',
@@ -1583,8 +1797,9 @@ async function sendBoxAlert(channel, d, { force = false } = {}) {
 }
 
 // Propinas: si el canal activó la caja de alertas, sale con su diseño; si no, la tarjeta clásica de propina
-async function tipAlertFor(channel, tip) {
+async function tipAlertFor(channel, tip, { test = false } = {}) {
   channel = String(channel || '').toLowerCase();
+  if (!test) recordRecent(channel, { event: 'tip', user: tip.name, amount: tip.amount, currency: tip.currency });
   const row = await alertBoxRow(channel).catch(() => null);
   let subathon_min = 0;
   const sc = row?.subathon_config;
@@ -1594,15 +1809,68 @@ async function tipAlertFor(channel, tip) {
   return pushMediaAlert(channel, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
 }
 
+
+// ══════════════════════════════════════════
+//  ÚLTIMOS APOYOS (ticker para OBS): último follow, sub, regalo, bits, propina y raid de cada canal
+//  Se guarda en streamers.alert_recent (ticker.sql). Se anota aunque la caja de alertas esté apagada.
+// ══════════════════════════════════════════
+const recentMem = new Map(); // canal -> objeto ya cargado
+async function recordRecent(channel, d) {
+  channel = String(channel || '').toLowerCase();
+  if (!channel || !ALERT_EVENTS.includes(d.event)) return;
+  const key = d.event === 'resub' ? 'sub' : d.event; // un resub cuenta como "última sub"
+  const clip = (x, n) => String(x ?? '').replace(/[\r\n<>]+/g, ' ').slice(0, n);
+  const item = { user: clip(d.user || 'Anónimo', 30), ts: new Date().toISOString() };
+  if (key === 'sub') { item.tier = clip(d.tier, 10); if (d.months) item.months = parseInt(d.months) || 0; }
+  if (key === 'gift') item.count = parseInt(d.count) || 1;
+  if (key === 'bits') item.amount = Number(d.amount) || 0;
+  if (key === 'tip') { item.amount = Number(d.amount) || 0; item.currency = clip(d.currency, 3); }
+  if (key === 'raid') item.viewers = parseInt(d.viewers) || 0;
+  return withServerLock('recent:' + channel, async () => {
+    let cur = recentMem.get(channel);
+    if (!cur) {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=alert_recent&limit=1`, { headers: sbHeaders });
+      const rows = await r.json().catch(() => []);
+      if (!Array.isArray(rows) || !rows[0]) return; // canal desconocido (o la columna aún no existe)
+      cur = rows[0].alert_recent || {};
+    }
+    cur = { ...cur, [key]: item };
+    recentMem.set(channel, cur);
+    _ttlCache.delete('recent:' + channel);
+    await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ alert_recent: cur })
+    }).catch(() => {});
+  }).catch(e => console.error('[recent]', e.message));
+}
+const _serverLocks = {};
+function withServerLock(k, fn) { const prev = _serverLocks[k] || Promise.resolve(); const next = prev.then(fn, fn); _serverLocks[k] = next.catch(() => {}); return next; }
+
+app.get('/api/recent/:username', async (req, res) => {
+  try {
+    const u = String(req.params.username || '').toLowerCase();
+    if (!/^[a-z0-9_]{3,25}$/.test(u)) return res.status(400).json({});
+    const data = await ttlCache('recent:' + u, 3000, async () => {
+      if (recentMem.has(u)) return recentMem.get(u);
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${u}&select=alert_recent&limit=1`, { headers: sbHeaders });
+      const rows = await r.json().catch(() => []);
+      return (Array.isArray(rows) && rows[0]?.alert_recent) || {};
+    });
+    res.set('Cache-Control', 'no-store');
+    res.json(data);
+  } catch (e) { res.json({}); }
+});
+app.get('/overlay/ultimos/:username', (req, res) => res.sendFile(path.join(__dirname, 'ticker-overlay.html')));
+
 // El bot avisa aquí de subs, resubs, regalos, bits y raids (ya filtró el chat compartido)
 app.post('/api/internal/alert', (req, res) => {
   const d = req.body || {};
   if (d.secret !== (process.env.BOT_SECRET || 'muffetbot-internal-2026')) return res.status(403).end();
   res.status(204).end();
+  recordRecent(d.channel, d);
   sendBoxAlert(d.channel, d).catch(e => console.error('[alert-box]', e.message));
 });
 
-app.post('/api/alert-box', requireAuth, express.json({ limit: '500kb' }), async (req, res) => {
+app.post('/api/alert-box', requireAuth, express.json({ limit: '2mb' }), async (req, res) => {
   try {
     if (!isValidObject(req.body?.alert_box)) return res.status(400).json({ error: 'Inválido' });
     const channel = String(req.session.user.username || '').toLowerCase();
@@ -1627,12 +1895,21 @@ app.post('/api/alert-box/test', requireAuth, async (req, res) => {
     const channel = String(req.session.user.username || '').toLowerCase();
     _ttlCache.delete('alertbox:' + channel);
     const sample = { event: ev, ...AB_SAMPLES[ev] };
+    const vi = Number.isInteger(req.body?.variation) ? req.body.variation : null;
+    if (vi !== null) {
+      const row = await alertBoxRow(channel).catch(() => null);
+      const vv = cleanAlertBox(row?.alert_box || {}, channel).events[ev].variations[vi];
+      if (vv) {
+        if (ev === 'sub') sample.tier = vv.cond; else if (ev === 'gift') sample.count = vv.cond; else if (ev === 'resub') sample.months = vv.cond;
+        else if (ev === 'raid') sample.viewers = vv.cond; else sample.amount = vv.cond;
+      }
+    }
     if (ev === 'sub' || ev === 'resub' || ev === 'gift' || ev === 'bits') {
       const st = await goalStateCached(channel).catch(() => null);
       const kind = ev === 'bits' ? 'bits' : 'subs';
       if (st?.enabled && st.type === kind) sample.goal = { title: st.title, target: st.target, after: st.current + (ev === 'bits' ? 500 : ev === 'gift' ? 5 : 1) };
     }
-    const sent = await sendBoxAlert(channel, sample, { force: true });
+    const sent = await sendBoxAlert(channel, sample, { force: true, variation: vi });
     res.json({ success: true, sent: !!sent });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -2005,7 +2282,7 @@ app.delete('/api/tips/:id', requireAuth, async (req, res) => {
 });
 app.post('/api/tips/test', requireAuth, async (req, res) => {
   const u = String(req.session.user.username || '').toLowerCase();
-  const sent = await tipAlertFor(u, { name: 'Prueba', amount: 5, currency: 'USD', message: '¡Esto es una propina de prueba! 💸' });
+  const sent = await tipAlertFor(u, { name: 'Prueba', amount: 5, currency: 'USD', message: '¡Esto es una propina de prueba! 💸' }, { test: true });
   res.json({ success: true, sent });
 });
 
