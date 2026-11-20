@@ -1458,6 +1458,32 @@ async function loadOverviewLive() {
   } catch (e) {}
 }
 
+
+// ── Encender / apagar a Muffet en el canal (system_commands.muffet) ──
+async function toggleMuffetPower() {
+  const on = (streamerData.system_commands || {}).muffet !== false;
+  if (on && !confirm('¿Apagar a Muffet?\n\nNo hablará en tu chat: ni comandos, ni mensajes automáticos, ni agradecimientos.\nEl subatón y las metas siguen contando.\n\nPuedes encenderla cuando quieras desde aquí.')) return;
+  const sys = { ...(streamerData.system_commands || {}), muffet: !on };
+  try {
+    const res = await fetch('/api/system-commands', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ system_commands: sys }) });
+    if (!res.ok) return showToast('No se pudo cambiar', 'error');
+    streamerData.system_commands = sys;
+    const nowOn = !on;
+    const lbl = document.getElementById('muffetStateLbl');
+    if (lbl) { lbl.textContent = '● Muffet ' + (nowOn ? 'activa' : 'apagada'); lbl.style.color = nowOn ? 'var(--green)' : '#ff6b8a'; }
+    const btn = document.getElementById('muffetPowerBtn');
+    if (btn) {
+      btn.textContent = '⏻ ' + (nowOn ? 'Apagar Muffet' : 'Encender Muffet');
+      btn.style.background = nowOn ? 'rgba(255,107,138,0.10)' : 'rgba(64,208,144,0.12)';
+      btn.style.border = '1px solid ' + (nowOn ? 'rgba(255,107,138,0.35)' : 'rgba(64,208,144,0.4)');
+      btn.style.color = nowOn ? '#ff9db4' : '#40d090';
+    }
+    const ban = document.getElementById('muffetOffBanner'); if (ban) ban.style.display = nowOn ? 'none' : 'flex';
+    const dot = document.getElementById('muffetDot'); if (dot) { dot.style.background = nowOn ? 'var(--green)' : '#ff6b8a'; dot.style.boxShadow = '0 0 6px ' + (nowOn ? 'rgba(62,207,142,0.8)' : 'rgba(255,107,138,0.8)'); }
+    showToast(nowOn ? 'Muffet encendida 🕷️ (en menos de 30 s)' : 'Muffet apagada 😴 (en menos de 30 s)');
+  } catch (e) { showToast('Error de conexión', 'error'); }
+}
+
 function showSection(name) {
   if (document.getElementById('cbBadgeStatus')) loadCustomBotBadgeStatus();
   if (document.getElementById('chBotStatus')) loadChannelBotStatus();
@@ -2068,19 +2094,23 @@ function renderMain() {
         <!-- Avatar -->
         <div style="position:relative;flex-shrink:0;">
           <img src="${userData.profile_image_url||''}" style="width:72px;height:72px;border-radius:50%;border:3px solid var(--gold-border);box-shadow:0 0 24px rgba(139,92,246,0.35);" onerror="this.style.display='none'">
-          <div style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;border-radius:50%;background:var(--green);border:2px solid var(--bg);box-shadow:0 0 6px rgba(62,207,142,0.8);"></div>
+          <div id="muffetDot" style="position:absolute;bottom:2px;right:2px;width:16px;height:16px;border-radius:50%;background:${(s.system_commands||{}).muffet!==false?'var(--green)':'#ff6b8a'};border:2px solid var(--bg);box-shadow:0 0 6px ${(s.system_commands||{}).muffet!==false?'rgba(62,207,142,0.8)':'rgba(255,107,138,0.8)'};"></div>
         </div>
 
         <!-- Info -->
         <div style="flex:1;min-width:0;">
           <div style="font-size:22px;font-weight:800;color:var(--text);letter-spacing:-0.5px;line-height:1.1;">¡Hola, ${userData.display_name}! 🕷️</div>
           <div style="font-size:13px;color:var(--text-dim);margin-top:4px;">
-            <span style="color:var(--green);font-weight:600;">● Online</span>
+            <span id="muffetStateLbl" style="color:${(s.system_commands||{}).muffet!==false?'var(--green)':'#ff6b8a'};font-weight:600;">● Muffet ${(s.system_commands||{}).muffet!==false?'activa':'apagada'}</span>
             <span style="margin:0 8px;color:var(--text-muted);">•</span>
             <span>Plan ${s.plan==='pro'?'<span style="color:var(--gold);font-weight:600;">Pro ⭐</span>':'Gratuito'}</span>
             <span style="margin:0 8px;color:var(--text-muted);">•</span>
             <span style="color:var(--text-muted);">@${userData.username}</span>
           </div>
+          <button id="muffetPowerBtn" onclick="toggleMuffetPower()" style="margin-top:10px;display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;font-weight:600;font-size:12px;font-family:inherit;cursor:pointer;transition:all .15s;
+            ${(s.system_commands||{}).muffet!==false?'background:rgba(255,107,138,0.10);border:1px solid rgba(255,107,138,0.35);color:#ff9db4;':'background:rgba(64,208,144,0.12);border:1px solid rgba(64,208,144,0.4);color:#40d090;'}">
+            ⏻ ${(s.system_commands||{}).muffet!==false?'Apagar Muffet':'Encender Muffet'}
+          </button>
         </div>
 
         <!-- Métricas rápidas -->
@@ -2099,6 +2129,12 @@ function renderMain() {
           </div>
         </div>
       </div>
+    </div>
+
+    <div id="muffetOffBanner" style="display:${(s.system_commands||{}).muffet===false?'flex':'none'};align-items:center;gap:12px;margin:-4px 0 16px;padding:12px 16px;background:rgba(255,107,138,0.08);border:1px solid rgba(255,107,138,0.3);border-radius:var(--radius-sm);font-size:13px;color:#ffb3c4;">
+      <span style="font-size:20px;">😴</span>
+      <div style="flex:1;"><b style="color:#fff;">Muffet está apagada en tu chat.</b> No responde comandos ni manda mensajes. El subatón y las metas siguen contando.</div>
+      <button class="btn btn-primary" onclick="toggleMuffetPower()">⏻ Encender</button>
     </div>
 
     <!-- Alerta plan por vencer -->
