@@ -1567,8 +1567,10 @@ const alertBoxRow = (channel) => ttlCache('alertbox:' + channel, 20000, async ()
 
 // ══════════════════════════════════════════
 //  VOZ (TTS) — lee en voz alta el mensaje de propinas, bits y resubs
-//  1º voces de Microsoft Edge ("Leer en voz alta"): gratis, sin clave, muchas voces en español (hasta dominicanas).
-//  2º si Edge falla: la voz de Google Traductor. El audio se guarda unos minutos en memoria y el overlay lo pide por /api/tts/:id
+//  1º Microsoft Azure Speech (servicio OFICIAL, voces neuronales en español, incluso dominicanas) si en Render están
+//     AZURE_SPEECH_KEY y AZURE_SPEECH_REGION. Tiene una capa gratis mensual.
+//  2º si no hay clave (o falla): la voz de Google Traductor (una sola voz). El audio se guarda unos minutos en memoria
+//     y el overlay lo pide por /api/tts/:id
 // ══════════════════════════════════════════
 const TTS_VOICES = {
   'es-DO-RamonaNeural': 'Ramona (Rep. Dominicana)', 'es-DO-EmilioNeural': 'Emilio (Rep. Dominicana)',
@@ -1580,112 +1582,21 @@ const TTS_VOICES = {
   'en-US-AriaNeural': 'Aria (inglés)', 'en-US-GuyNeural': 'Guy (inglés)',
 };
 const TTS_DEFAULT_VOICE = 'es-MX-DaliaNeural';
-const EDGE_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
-const EDGE_VERSION = '143.0.3650.75'; // como el proyecto edge-tts (nov 2026). Si Microsoft lo cambia, se actualiza aquí
-let edgeClockSkew = 0; // segundos: si el reloj del servidor está corrido, Microsoft rechaza el token
-
-// Cliente WebSocket mínimo (sin dependencias): Edge exige cabeceras (Origin, User-Agent) que el WebSocket de Node no deja poner
-function miniWebSocket(urlStr, headers, onMessage, timeoutMs) {
-  const tls = require('tls');
-  return new Promise((resolve, reject) => {
-    const u = new URL(urlStr);
-    const sock = tls.connect({ host: u.hostname, port: Number(u.port) || 443, servername: u.hostname });
-    const key = crypto.randomBytes(16).toString('base64');
-    let buf = Buffer.alloc(0), open = false, frag = null, fragOp = 0, done = false;
-    const timer = setTimeout(() => finish(new Error('tiempo agotado')), timeoutMs);
-    const finish = (err) => { if (done) return; done = true; clearTimeout(timer); try { sock.destroy(); } catch (e) {} err ? reject(err) : resolve(); };
-    const sendFrame = (op, payload) => {
-      const data = Buffer.isBuffer(payload) ? payload : Buffer.from(payload, 'utf8');
-      const mask = crypto.randomBytes(4), len = data.length;
-      const head = len < 126 ? Buffer.from([0x80 | op, 0x80 | len])
-        : len < 65536 ? Buffer.from([0x80 | op, 0x80 | 126, len >> 8, len & 255])
-        : (() => { const h = Buffer.alloc(10); h[0] = 0x80 | op; h[1] = 0x80 | 127; h.writeBigUInt64BE(BigInt(len), 2); return h; })();
-      const masked = Buffer.alloc(len); for (let i = 0; i < len; i++) masked[i] = data[i] ^ mask[i & 3];
-      sock.write(Buffer.concat([head, mask, masked]));
-    };
-    const api = { send: (t) => sendFrame(1, t), close: () => { try { sendFrame(8, Buffer.alloc(0)); } catch (e) {} finish(); } };
-    sock.on('secureConnect', () => {
-      const extra = Object.entries(headers || {}).map(([k, v]) => `${k}: ${v}\r\n`).join('');
-      sock.write(`GET ${u.pathname}${u.search} HTTP/1.1\r\nHost: ${u.host}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ${key}\r\nSec-WebSocket-Version: 13\r\n${extra}\r\n`);
-    });
-    sock.on('data', (chunk) => {
-      buf = Buffer.concat([buf, chunk]);
-      if (!open) {
-        const end = buf.indexOf('\r\n\r\n'); if (end < 0) return;
-        const status = buf.slice(0, end).toString().split('\r\n')[0];
-        if (!/ 101 /.test(status)) {
-          const err = new Error('handshake: ' + status);
-          const dm = buf.slice(0, end).toString().match(/\r\ndate:\s*([^\r\n]+)/i); err.serverDate = dm ? dm[1] : null; err.code403 = / 403 /.test(status);
-          return finish(err);
-        }
-        open = true; buf = buf.slice(end + 4);
-        try { onMessage(null, null, api); } catch (e) { return finish(e); } // conectado: avisar para mandar los mensajes
-      }
-      while (buf.length >= 2) {
-        const op = buf[0] & 15, fin = (buf[0] & 128) !== 0, masked = (buf[1] & 128) !== 0;
-        let len = buf[1] & 127, off = 2;
-        if (len === 126) { if (buf.length < 4) return; len = buf.readUInt16BE(2); off = 4; }
-        else if (len === 127) { if (buf.length < 10) return; len = Number(buf.readBigUInt64BE(2)); off = 10; }
-        const mOff = off; if (masked) off += 4;
-        if (buf.length < off + len) return;
-        let payload = buf.slice(off, off + len);
-        if (masked) { const m = buf.slice(mOff, mOff + 4); payload = Buffer.from(payload.map((b, i) => b ^ m[i & 3])); }
-        buf = buf.slice(off + len);
-        if (op === 8) return finish();
-        if (op === 9) { sendFrame(10, payload); continue; }
-        if (op === 10) continue;
-        if (op === 0) { frag = Buffer.concat([frag || Buffer.alloc(0), payload]); if (!fin) continue; payload = frag; frag = null; }
-        else if (!fin) { frag = payload; fragOp = op; continue; }
-        const isBin = (op === 0 ? fragOp : op) === 2;
-        try { if (onMessage(isBin, payload, api) === 'fin') return finish(); } catch (e) { return finish(e); }
-      }
-    });
-    sock.on('error', finish);
-    sock.on('close', () => finish(open ? null : new Error('conexión cerrada')));
-  });
-}
-
+const AZURE_KEY = process.env.AZURE_SPEECH_KEY || '', AZURE_REGION = (process.env.AZURE_SPEECH_REGION || '').replace(/[^a-z0-9]/gi, '');
+const azureReady = () => !!(AZURE_KEY && AZURE_REGION);
 const xmlEsc = (t) => String(t).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
-async function edgeTTS(text, voice, wsBase, retry = true) {
-  try { return await edgeTTSOnce(text, voice, wsBase); }
-  catch (e) {
-    // 403 por reloj corrido: se ajusta con la hora que manda Microsoft y se reintenta una vez
-    if (retry && e.code403 && e.serverDate && !isNaN(Date.parse(e.serverDate))) {
-      edgeClockSkew += (Date.parse(e.serverDate) - Date.now()) / 1000;
-      return edgeTTS(text, voice, wsBase, false);
-    }
-    throw e;
-  }
-}
-async function edgeTTSOnce(text, voice, wsBase) {
-  // Sec-MS-GEC: SHA-256 de (tiempo de Windows redondeado a 5 min + token), como lo hace el navegador Edge
-  let ticks = Math.floor(Date.now() / 1000 + edgeClockSkew) + 11644473600; ticks -= ticks % 300;
-  const gec = crypto.createHash('sha256').update(`${ticks}0000000${EDGE_TOKEN}`).digest('hex').toUpperCase();
-  const connId = crypto.randomUUID().replace(/-/g, '');
-  const url = `${wsBase || 'wss://speech.platform.bing.com'}/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${EDGE_TOKEN}&Sec-MS-GEC=${gec}&Sec-MS-GEC-Version=2-${EDGE_VERSION}&ConnectionId=${connId}`;
-  const lang = voice.split('-').slice(0, 2).join('-'), short = voice.split('-').slice(2).join('-');
-  const date = new Date().toUTCString();
-  const parts = [];
-  await miniWebSocket(url, {
-    'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache',
-    'Accept-Language': 'en-US,en;q=0.9', 'Cookie': `muid=${crypto.randomBytes(16).toString('hex').toUpperCase()};`,
-    'User-Agent': `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${EDGE_VERSION.split('.')[0]}.0.0.0 Safari/537.36 Edg/${EDGE_VERSION.split('.')[0]}.0.0.0`,
-  }, (isBin, data, ws) => {
-    if (data === null) { // recién conectado
-      ws.send(`X-Timestamp:${date}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}`);
-      ws.send(`X-RequestId:${connId}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${date}Z\r\nPath:ssml\r\n\r\n<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='${lang}'><voice name='Microsoft Server Speech Text to Speech Voice (${lang}, ${short})'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>${xmlEsc(text)}</prosody></voice></speak>`);
-      return;
-    }
-    if (isBin) {
-      const hl = data.readUInt16BE(0);
-      if (data.slice(2, 2 + hl).toString().includes('Path:audio')) parts.push(data.slice(2 + hl));
-      return;
-    }
-    if (data.toString().includes('Path:turn.end')) { ws.close(); return 'fin'; }
-  }, 9000);
-  const audio = Buffer.concat(parts);
-  if (audio.length < 500) throw new Error('Edge no devolvió audio');
-  return audio;
+async function azureTTS(text, voice) {
+  const lang = voice.split('-').slice(0, 2).join('-');
+  const r = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+    method: 'POST',
+    headers: { 'Ocp-Apim-Subscription-Key': AZURE_KEY, 'Content-Type': 'application/ssml+xml', 'X-Microsoft-OutputFormat': 'audio-24khz-48kbitrate-mono-mp3', 'User-Agent': 'SilklyBot' },
+    body: `<speak version='1.0' xml:lang='${lang}'><voice name='${voice}'>${xmlEsc(text)}</voice></speak>`,
+    signal: AbortSignal.timeout(9000),
+  });
+  if (!r.ok) throw new Error('Azure ' + r.status);
+  const b = Buffer.from(await r.arrayBuffer());
+  if (b.length < 500) throw new Error('Azure no devolvió audio');
+  return b;
 }
 async function googleTTS(text, voice) {
   const tl = String(voice || 'es').startsWith('en') ? 'en' : 'es';
@@ -1696,13 +1607,12 @@ async function googleTTS(text, voice) {
   if (b.length < 500) throw new Error('Google no devolvió audio');
   return b;
 }
-let lastEdgeError = '';
-let edgeDownUntil = 0; // si Edge falla, se prueba de nuevo en 10 min (mientras tanto, Google)
-async function makeTTS(text, voice, { tryEdge = false } = {}) {
+let lastAzureError = '';
+async function makeTTS(text, voice) {
   voice = TTS_VOICES[voice] ? voice : TTS_DEFAULT_VOICE;
-  if (tryEdge || Date.now() > edgeDownUntil) {
-    try { return { audio: await edgeTTS(text, voice), engine: 'edge' }; }
-    catch (e) { console.error('[tts] Edge falló, uso Google:', e.message); edgeDownUntil = Date.now() + 10 * 60000; lastEdgeError = e.message; }
+  if (azureReady()) {
+    try { return { audio: await azureTTS(text, voice), engine: 'azure' }; }
+    catch (e) { console.error('[tts] Azure falló, uso Google:', e.message); lastAzureError = e.message; }
   }
   return { audio: await googleTTS(text, voice), engine: 'google' };
 }
@@ -1737,12 +1647,12 @@ app.post('/api/tts/preview', requireAuth, async (req, res) => {
     if (Date.now() - (ttsTestLimit.get(uid) || 0) < 2500) return res.status(429).json({ error: 'Espera un segundo…' });
     ttsTestLimit.set(uid, Date.now());
     const text = cleanTTSText(req.body?.text || '¡Hola! Así sueno cuando leo los mensajes de tu chat.', []) || 'Hola';
-    const { audio, engine } = await makeTTS(text, req.body?.voice, { tryEdge: true }); // al probar siempre se intenta con Edge
-    res.set({ 'Content-Type': 'audio/mpeg', 'X-TTS-Engine': engine, 'X-TTS-Error': engine === 'google' ? encodeURIComponent(lastEdgeError.slice(0, 120)) : '', 'Cache-Control': 'no-store' });
+    const { audio, engine } = await makeTTS(text, req.body?.voice);
+    res.set({ 'Content-Type': 'audio/mpeg', 'X-TTS-Engine': engine, 'X-TTS-Error': engine === 'google' && azureReady() ? encodeURIComponent(lastAzureError.slice(0, 120)) : '', 'Cache-Control': 'no-store' });
     res.send(audio);
   } catch (e) { res.status(502).json({ error: 'No se pudo generar la voz ahora. Intenta en un rato.' }); }
 });
-app.get('/api/tts-voices', (req, res) => res.json({ voices: TTS_VOICES, default: TTS_DEFAULT_VOICE }));
+app.get('/api/tts-voices', (req, res) => res.json({ voices: TTS_VOICES, default: TTS_DEFAULT_VOICE, voices_available: azureReady() }));
 
 // "+90 s" / "+5 min" / "+1 h 20 min"
 function fmtSubathonChip(min) {
