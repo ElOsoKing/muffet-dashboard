@@ -1826,7 +1826,7 @@ function abRenderForm() {
     <div class="ab-field" style="margin-top:10px;">
       <div class="ab-label">🖼️ Imagen, GIF o video</div>
       <div class="ab-media">
-        <div class="ab-thumb">${c.image ? (isVid ? `<video src="${escCmdHtml(c.image)}" muted autoplay loop playsinline></video>` : `<img src="${escCmdHtml(c.image)}" alt="">`) : AB_EVENTS.find(x=>x[0]===ev)[1]}</div>
+        <div class="ab-thumb">${c.image ? (isVid ? `<video src="${escCmdHtml(c.image)}#t=0.1" muted playsinline preload="metadata"></video>` : `<img src="${escCmdHtml(c.image)}" alt="">`) : AB_EVENTS.find(x=>x[0]===ev)[1]}</div>
         <label class="btn btn-secondary" style="font-size:12px;cursor:pointer;">📁 ${c.image?'Cambiar':'Subir'}<input type="file" accept="image/png,image/gif,image/webp,image/jpeg,video/webm,video/mp4" style="display:none;" onchange="abUpload(this,'image')"></label>
         ${c.image ? `<button class="btn btn-secondary" style="font-size:12px;" onclick="abSet('image','',true);abSet('image_type','image',true);abRenderForm()">✕ Quitar</button>` : ''}
       </div>
@@ -1838,7 +1838,8 @@ function abRenderForm() {
       </div>
       <div class="ab-field"><div class="ab-label">Volumen: <span id="abVol">${c.volume}</span>%</div><input type="range" min="0" max="100" value="${c.volume}" style="width:100%;accent-color:var(--purple);" oninput="document.getElementById('abVol').textContent=this.value" onchange="abSet('volume',parseInt(this.value))"></div>
     </div>
-    <div class="ab-field"><div class="ab-label">⏱️ Duración: <span id="abDur">${c.duration}</span> s</div><input type="range" min="3" max="20" value="${c.duration}" style="width:100%;accent-color:var(--purple);" oninput="document.getElementById('abDur').textContent=this.value" onchange="abSet('duration',parseInt(this.value))"></div>
+    ${isVid ? `<div class="ab-field"><div class="ab-label">⏱️ Duración</div><div style="font-size:13px;color:var(--text-muted);">🎬 Lo que dure el video completo (máximo 30 s)</div></div>`
+      : `<div class="ab-field"><div class="ab-label">⏱️ Duración: <span id="abDur">${c.duration}</span> s</div><input type="range" min="3" max="20" value="${c.duration}" style="width:100%;accent-color:var(--purple);" oninput="document.getElementById('abDur').textContent=this.value" onchange="abSet('duration',parseInt(this.value))"></div>`}
     <div class="ab-field"><div class="ab-label">📐 Diseño</div>${abSeg('layout', [['arriba','Imagen arriba'],['lado','Al lado'],['texto','Solo texto']])}</div>
     <div class="ab-field"><div class="ab-label">🎨 Estilo</div>${abSeg('style', [['tarjeta','Tarjeta'],['neon','Neón'],['limpio','Limpio']])}</div>
     <div class="ab-row2">
