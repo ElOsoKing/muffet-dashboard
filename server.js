@@ -888,7 +888,7 @@ const EXPORTABLE_FIELDS = [
   'shoutout_config', 'spotify_config', 'youtube_config', 'primerin_config', 'emojigame_config', 'media_alerts',
   'points_config', 'raffle_settings', 'mod_config', 'personality_prompt',
   'on_message', 'off_message', 'auto_messages', 'auto_message_interval',
-  'on_off_ai', 'system_commands', 'welcome_config'
+  'on_off_ai', 'system_commands', 'welcome_config', 'alert_box'
 ];
 
 app.get('/api/config/export', requireAuth, async (req, res) => {
@@ -1336,6 +1336,13 @@ app.post('/webhook/twitch', (req, res) => {
     const eventType = body.subscription?.type;
     const event = body.event;
 
+    // Alerta en pantalla de follow (sin repetir: Twitch puede reenviar el mismo aviso, y hay quien sigue/deja de seguir para spamear)
+    if (eventType === 'channel.follow' && event?.broadcaster_user_login && event?.user_login
+        && !seenRecently(recentWebhookIds, String(req.headers['twitch-eventsub-message-id']), 600000)
+        && !seenRecently(recentFollowAlerts, `${event.broadcaster_user_login}:${event.user_login}`.toLowerCase(), 12 * 3600000)) {
+      sendBoxAlert(event.broadcaster_user_login, { event: 'follow', user: event.user_name || event.user_login }).catch(() => {});
+    }
+
     // Manejar canje de puntos para sorteo
     if (eventType === 'channel.channel_points_custom_reward_redemption.add') {
       handleRewardRedemption(event).catch(e => console.error('[redemption]', e.message));
@@ -1388,7 +1395,9 @@ app.get('/api/media-alerts/events/:username', (req, res) => {
 });
 
 // Subir archivo de audio/video a Supabase Storage (base64, máx 15MB — suficiente para clips de hasta ~40-50s)
-const MEDIA_ALERT_TYPES = { 'audio/mpeg':'mp3', 'audio/ogg':'ogg', 'audio/wav':'wav', 'video/mp4':'mp4', 'video/webm':'webm' };
+const MEDIA_ALERT_TYPES = { 'audio/mpeg':'mp3', 'audio/ogg':'ogg', 'audio/wav':'wav', 'video/mp4':'mp4', 'video/webm':'webm',
+  'image/png':'png', 'image/gif':'gif', 'image/webp':'webp', 'image/jpeg':'jpg' }; // imágenes y GIF para la caja de alertas
+const MEDIA_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const MEDIA_ALERT_MAX_BYTES = 15 * 1024 * 1024;
 let alertsBucketReady = false;
 
@@ -1415,9 +1424,10 @@ app.post('/api/media-alerts/upload', requireAuth, express.json({ limit: '21mb' }
     const { filename, mime, data } = req.body;
     if (!filename || !mime || !data) return res.status(400).json({ error: 'Datos incompletos' });
     const ext = MEDIA_ALERT_TYPES[mime];
-    if (!ext) return res.status(400).json({ error: 'Formato no soportado — usa MP3, OGG, WAV, MP4 o WebM' });
+    if (!ext) return res.status(400).json({ error: 'Formato no soportado — usa MP3, OGG, WAV, MP4, WebM, PNG, GIF, WebP o JPG' });
     const buffer = Buffer.from(data, 'base64');
     if (buffer.length > MEDIA_ALERT_MAX_BYTES) return res.status(400).json({ error: 'El archivo supera los 15MB' });
+    if (mime.startsWith('image/') && buffer.length > MEDIA_IMAGE_MAX_BYTES) return res.status(400).json({ error: 'La imagen supera los 5MB' });
 
     await ensureAlertsBucket();
     const channelName = req.session.user.username?.toLowerCase() || req.session.user.id;
@@ -1434,7 +1444,7 @@ app.post('/api/media-alerts/upload', requireAuth, express.json({ limit: '21mb' }
       return res.status(500).json({ error: 'Error al subir el archivo' });
     }
     const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/alerts/${path}`;
-    res.json({ success: true, url: publicUrl, type: mime.startsWith('video') ? 'video' : 'audio' });
+    res.json({ success: true, url: publicUrl, type: mime.startsWith('video') ? 'video' : mime.startsWith('image') ? 'image' : 'audio' });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1464,6 +1474,164 @@ app.post('/api/media-alerts/test', requireAuth, async (req, res) => {
 // Servir el overlay
 app.get('/overlay/alerts/:username', (req, res) => {
   res.sendFile(path.join(__dirname, 'media-alerts-overlay.html'));
+});
+
+// ══════════════════════════════════════════
+//  ALERTAS EN PANTALLA (caja de alertas, gratis para todos) — follows, subs, resubs, regalos, bits, raids y propinas
+//  Config en streamers.alert_box. Usan el MISMO overlay y la misma URL de OBS que las alertas multimedia.
+//  Follows: llegan por EventSub aquí mismo. Subs/bits/raids: el bot los lee del chat y avisa a /api/internal/alert.
+//  La alerta viaja con su diseño completo dentro del aviso SSE: el overlay no tiene que pedir nada más.
+// ══════════════════════════════════════════
+const ALERT_EVENTS = ['follow', 'sub', 'resub', 'gift', 'bits', 'raid', 'tip'];
+const AB_DEFAULT_TEXT = {
+  follow: '¡{usuario} ahora sigue el canal!', sub: '¡{usuario} se suscribió!', resub: '¡{usuario} lleva {meses} meses suscrito!',
+  gift: '¡{usuario} regaló {cantidad} subs!', bits: '¡{usuario} donó {cantidad} bits!', raid: '¡{usuario} llegó con {viewers} personas!',
+  tip: '¡{usuario} dejó {cantidad}!'
+};
+const AB_LAYOUTS = ['arriba', 'lado', 'texto'], AB_STYLES = ['tarjeta', 'neon', 'limpio'];
+const AB_ANIMS = ['rebote', 'deslizar', 'zoom', 'caer', 'aparecer'], AB_EFFECTS = ['ninguno', 'confeti', 'brillos'];
+const AB_FONTS = ['Inter', 'Poppins', 'Fredoka', 'Bangers', 'Luckiest Guy', 'Press Start 2P'];
+const AB_SOUNDS = ['campanita', 'ninguno', 'archivo', 'video'];
+
+function cleanAlertBox(input, channel) {
+  const prefix = `${SUPABASE_URL}/storage/v1/object/public/alerts/${channel}/`;
+  const url = (u) => typeof u === 'string' && u.startsWith(prefix) && u.length < 400 && !/["'<>\s]/.test(u) ? u : '';
+  const num = (v, min, max, def) => { const n = Math.round(Number(v)); return v !== '' && v !== null && v !== undefined && isFinite(n) ? Math.min(max, Math.max(min, n)) : def; };
+  const hex = (v, def) => /^#[0-9a-fA-F]{6}$/.test(String(v || '')) ? String(v) : def;
+  const pick = (v, list, def) => list.includes(v) ? v : def;
+  const out = { enabled: !!input?.enabled, events: {} };
+  for (const ev of ALERT_EVENTS) {
+    const e = (input?.events && typeof input.events[ev] === 'object' && input.events[ev]) || {};
+    const image = url(e.image);
+    out.events[ev] = {
+      enabled: e.enabled === true, // empiezan apagadas: cada streamer elige cuáles quiere (así no salen dobles con StreamElements)
+      text: String(e.text ?? AB_DEFAULT_TEXT[ev]).replace(/[\r\n]+/g, ' ').slice(0, 150) || AB_DEFAULT_TEXT[ev],
+      image, image_type: image && e.image_type === 'video' ? 'video' : 'image',
+      sound: pick(e.sound, AB_SOUNDS, 'campanita'), sound_url: url(e.sound_url),
+      volume: num(e.volume, 0, 100, 70), duration: num(e.duration, 3, 20, 7),
+      layout: pick(e.layout, AB_LAYOUTS, 'arriba'), style: pick(e.style, AB_STYLES, 'tarjeta'),
+      anim: pick(e.anim, AB_ANIMS, 'rebote'), effect: pick(e.effect, AB_EFFECTS, ['gift', 'bits', 'raid', 'tip'].includes(ev) ? 'confeti' : 'ninguno'), font: pick(e.font, AB_FONTS, 'Inter'),
+      color_accent: hex(e.color_accent, '#b794ff'), color_text: hex(e.color_text, '#ffffff'),
+      show_message: e.show_message !== false, show_subathon: e.show_subathon !== false, show_goal: e.show_goal !== false,
+      min: Math.max(0, Math.min(1000000, Number(e.min) || 0)),
+    };
+  }
+  return out;
+}
+
+const alertBoxRow = (channel) => ttlCache('alertbox:' + channel, 20000, async () => {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}&select=alert_box,subathon_config&limit=1`, { headers: sbHeaders });
+  const rows = await r.json();
+  return Array.isArray(rows) ? rows[0] || null : null;
+});
+
+// "+90 s" / "+5 min" / "+1 h 20 min"
+function fmtSubathonChip(min) {
+  if (!(min > 0)) return null;
+  if (min < 1) return `+${Math.round(min * 60)} s al subatón`;
+  const m = Math.round(min), h = Math.floor(m / 60);
+  return `+${h ? h + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '') : m + ' min'} al subatón`;
+}
+const goalChip = (title, cur, target, done) => target > 0
+  ? (done || cur >= target ? `🎯 ¡${String(title || 'Meta').slice(0, 30)} cumplida!` : `🎯 ${String(title || 'Meta').slice(0, 30)}: ${Math.min(99, Math.floor(cur / target * 100))}%`) : null;
+
+// Recientes: Twitch a veces reenvía el mismo follow, y hay quien sigue/deja de seguir para spamear la alerta
+const recentFollowAlerts = new Map(); // 'canal:usuario' -> ts
+const recentWebhookIds = new Map();   // message-id de EventSub -> ts
+function seenRecently(map, key, ms) {
+  const now = Date.now();
+  if (map.size > 5000) for (const [k, t] of map) if (now - t > ms) map.delete(k);
+  if (map.has(key) && now - map.get(key) < ms) return true;
+  map.set(key, now); return false;
+}
+
+// Devuelve null si el canal no tiene la caja de alertas activada (así la propina usa su tarjeta clásica);
+// true/false = se mandó o no al overlay.
+async function sendBoxAlert(channel, d, { force = false } = {}) {
+  channel = String(channel || '').toLowerCase();
+  if (!channel || !ALERT_EVENTS.includes(d.event)) return false;
+  const row = await alertBoxRow(channel).catch(() => null);
+  const box = row?.alert_box;
+  if (!force && !box?.enabled) return null;
+  const cfg = cleanAlertBox(box || { enabled: true }, channel).events[d.event];
+  if (!force && !cfg.enabled) return null; // propina sin marcar: sale la tarjeta clásica de propina
+  const amount = Number(d.amount) || 0, viewers = parseInt(d.viewers) || 0;
+  if (!force && cfg.min > 0 && ((d.event === 'bits' && amount < cfg.min) || (d.event === 'tip' && amount < cfg.min) || (d.event === 'raid' && viewers < cfg.min))) return false;
+
+  // Lo que nadie más tiene: la alerta dice cuánto sumó al subatón y cómo va la meta
+  const chips = [];
+  if (cfg.show_subathon && row?.subathon_config?.enabled) chips.push(fmtSubathonChip(Number(d.subathon_min) || 0));
+  if (cfg.show_goal) {
+    if (d.goal && Number(d.goal.target) > 0) chips.push(goalChip(d.goal.title, Number(d.goal.after), Number(d.goal.target)));
+    else if (d.event === 'tip') {
+      invalidateGoal(channel);
+      const st = await goalStateCached(channel).catch(() => null);
+      if (st?.enabled && st.type === 'money') chips.push(goalChip(st.title, st.current, st.target, st.done));
+    }
+  }
+  const clip = (s, n) => String(s ?? '').replace(/[\r\n]+/g, ' ').slice(0, n);
+  return pushMediaAlert(channel, {
+    type: 'box', event: d.event, cfg,
+    user: clip(d.user || 'Anónimo', 30), amount, currency: clip(d.currency, 3), viewers,
+    months: parseInt(d.months) || 0, count: parseInt(d.count) || 0, tier: clip(d.tier, 10),
+    message: cfg.show_message ? clip(d.message, 200) : '',
+    chips: chips.filter(Boolean),
+  });
+}
+
+// Propinas: si el canal activó la caja de alertas, sale con su diseño; si no, la tarjeta clásica de propina
+async function tipAlertFor(channel, tip) {
+  channel = String(channel || '').toLowerCase();
+  const row = await alertBoxRow(channel).catch(() => null);
+  let subathon_min = 0;
+  const sc = row?.subathon_config;
+  if (sc?.enabled) { const unit = Number(sc.tip_unit) > 0 ? Number(sc.tip_unit) : 1; subathon_min = Math.floor(Number(tip.amount) / unit) * (Number(sc.minutes_per_tip_unit ?? 1) || 0); }
+  const sent = await sendBoxAlert(channel, { event: 'tip', user: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message, subathon_min }).catch(() => null);
+  if (sent !== null) return sent;
+  return pushMediaAlert(channel, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
+}
+
+// El bot avisa aquí de subs, resubs, regalos, bits y raids (ya filtró el chat compartido)
+app.post('/api/internal/alert', (req, res) => {
+  const d = req.body || {};
+  if (d.secret !== (process.env.BOT_SECRET || 'muffetbot-internal-2026')) return res.status(403).end();
+  res.status(204).end();
+  sendBoxAlert(d.channel, d).catch(e => console.error('[alert-box]', e.message));
+});
+
+app.post('/api/alert-box', requireAuth, async (req, res) => {
+  try {
+    if (!isValidObject(req.body?.alert_box)) return res.status(400).json({ error: 'Inválido' });
+    const channel = String(req.session.user.username || '').toLowerCase();
+    const alert_box = cleanAlertBox(req.body.alert_box, channel);
+    await sbUpdate('streamers', { alert_box }, { twitch_id: req.session.user.id });
+    _ttlCache.delete('alertbox:' + channel);
+    res.json({ success: true, alert_box });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Probar desde el dashboard: sale aunque la caja esté apagada, con datos de ejemplo
+const AB_SAMPLES = {
+  follow: { user: 'Silkly_Fan' }, sub: { user: 'Silkly_Fan', tier: 'Tier 1', subathon_min: 5 },
+  resub: { user: 'Silkly_Fan', months: 7, message: '¡7 meses ya! Me encanta este canal 🕷️', subathon_min: 5 },
+  gift: { user: 'Silkly_Fan', count: 5, subathon_min: 25 }, bits: { user: 'Silkly_Fan', amount: 500, message: '¡Toma bits! 💎', subathon_min: 5 },
+  raid: { user: 'Silkly_Fan', viewers: 42, subathon_min: 4 }, tip: { user: 'Silkly_Fan', amount: 5, currency: 'USD', message: '¡Una propina de prueba! 💸', subathon_min: 5 },
+};
+app.post('/api/alert-box/test', requireAuth, async (req, res) => {
+  try {
+    const ev = String(req.body?.event || '');
+    if (!ALERT_EVENTS.includes(ev)) return res.status(400).json({ error: 'Evento inválido' });
+    const channel = String(req.session.user.username || '').toLowerCase();
+    _ttlCache.delete('alertbox:' + channel);
+    const sample = { event: ev, ...AB_SAMPLES[ev] };
+    if (ev === 'sub' || ev === 'resub' || ev === 'gift' || ev === 'bits') {
+      const st = await goalStateCached(channel).catch(() => null);
+      const kind = ev === 'bits' ? 'bits' : 'subs';
+      if (st?.enabled && st.type === kind) sample.goal = { title: st.title, target: st.target, after: st.current + (ev === 'bits' ? 500 : ev === 'gift' ? 5 : 1) };
+    }
+    const sent = await sendBoxAlert(channel, sample, { force: true });
+    res.json({ success: true, sent: !!sent });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ══════════════════════════════════════════
@@ -1653,7 +1821,7 @@ app.post('/api/tip/:username/capture', async (req, res) => {
     if (firstTime && status === 'completed') {
       console.log(`[tips] ✅ ${tip.name} → #${s.username}: ${tip.amount} ${tip.currency}`);
       checkGoalReached(s.username, tip.amount, tip.currency);
-      pushMediaAlert(s.username, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
+      tipAlertFor(s.username, tip);
       const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
       fetch(botUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: 'tip.received', event: { channel: s.username, name: tip.name, amount: tip.amount, currency: tip.currency } })
@@ -1809,7 +1977,7 @@ app.post('/api/tips/manual', requireAuth, async (req, res) => {
     const ins = await sbInsert('tips', tip);
     if (!ins || !ins.id) return res.status(500).json({ error: 'No se pudo guardar' });
     checkGoalReached(u, tip.amount, tip.currency);
-    pushMediaAlert(u, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
+    tipAlertFor(u, tip);
     const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
     fetch(botUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: 'tip.received', event: { channel: u, name: tip.name, amount: tip.amount, currency: tip.currency } })
@@ -1834,7 +2002,7 @@ app.delete('/api/tips/:id', requireAuth, async (req, res) => {
 });
 app.post('/api/tips/test', requireAuth, async (req, res) => {
   const u = String(req.session.user.username || '').toLowerCase();
-  const sent = pushMediaAlert(u, { type: 'tip', name: 'Prueba', amount: 5, currency: 'USD', message: '¡Esto es una propina de prueba! 💸' });
+  const sent = await tipAlertFor(u, { name: 'Prueba', amount: 5, currency: 'USD', message: '¡Esto es una propina de prueba! 💸' });
   res.json({ success: true, sent });
 });
 
