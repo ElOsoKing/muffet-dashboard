@@ -111,7 +111,7 @@ app.post('/webhooks/lemonsqueezy', express.raw({ type: '*/*' }), async (req, res
 const globalJsonParser = express.json({ limit: '50kb' });
 app.use((req, res, next) => {
   // El upload de media alerts usa su propio parser con límite de 8MB — el global lo saltea
-  if (req.path === '/api/media-alerts/upload') return next();
+  if (req.path === '/api/media-alerts/upload' || req.path === '/api/alert-box') return next(); // estas traen su propio parser (archivos / código de alertas)
   return globalJsonParser(req, res, next);
 });
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
@@ -1514,6 +1514,9 @@ function cleanAlertBox(input, channel) {
       color_accent: hex(e.color_accent, '#b794ff'), color_text: hex(e.color_text, '#ffffff'),
       show_message: e.show_message !== false, show_subathon: e.show_subathon !== false, show_goal: e.show_goal !== false,
       min: Math.max(0, Math.min(1000000, Number(e.min) || 0)),
+      // Código propio (como StreamElements). Corre en un iframe aislado (sandbox sin allow-same-origin): no puede tocar cuentas ni la API
+      custom: e.custom === true,
+      html: String(e.html || '').slice(0, 20000), css: String(e.css || '').slice(0, 20000), js: String(e.js || '').slice(0, 20000),
     };
   }
   return out;
@@ -1599,7 +1602,7 @@ app.post('/api/internal/alert', (req, res) => {
   sendBoxAlert(d.channel, d).catch(e => console.error('[alert-box]', e.message));
 });
 
-app.post('/api/alert-box', requireAuth, async (req, res) => {
+app.post('/api/alert-box', requireAuth, express.json({ limit: '500kb' }), async (req, res) => {
   try {
     if (!isValidObject(req.body?.alert_box)) return res.status(400).json({ error: 'Inválido' });
     const channel = String(req.session.user.username || '').toLowerCase();
