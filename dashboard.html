@@ -169,6 +169,39 @@ html,body{width:100%;min-height:100%;background:
 
 /* ── TOGGLE ── */
 .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+/* Alertas (caja de alertas) */
+.ab-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.ab-tab{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-muted);font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);}
+.ab-tab.active{background:rgba(145,71,255,0.16);border-color:var(--purple-border);color:var(--text);}
+.ab-tab .ab-dot{width:7px;height:7px;border-radius:50%;background:#40d090;}
+.ab-tab.off .ab-dot{background:rgba(255,255,255,0.2);}
+.ab-checks{display:flex;gap:8px;flex-wrap:wrap;}
+.ab-check{display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:10px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;}
+.ab-check input{accent-color:var(--purple);width:16px;height:16px;margin:0;cursor:pointer;}
+.ab-check.on{border-color:var(--purple-border);background:rgba(145,71,255,0.12);color:var(--text);}
+.ab-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px;align-items:start;}
+.ab-preview-wrap{position:sticky;top:12px;}
+.ab-stage{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);
+  background:radial-gradient(circle at 25% 30%,#3b2a63 0,transparent 55%),radial-gradient(circle at 80% 75%,#123a4a 0,transparent 50%),linear-gradient(135deg,#17122a,#0d1420);}
+.ab-stage::after{content:"TU STREAM";position:absolute;left:12px;bottom:10px;font-size:10px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,0.18);}
+.ab-stage iframe{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0;transform-origin:0 0;background:transparent;}
+.ab-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+.ab-field{margin-bottom:14px;}
+.ab-row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.ab-seg{display:flex;gap:4px;background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:3px;}
+.ab-seg button{flex:1;padding:7px 6px;border:0;border-radius:8px;background:none;color:var(--text-muted);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);white-space:nowrap;}
+.ab-seg button.on{background:rgba(145,71,255,0.25);color:var(--text);}
+.ab-vars{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
+.ab-vars button{padding:3px 9px;border-radius:7px;border:1px dashed var(--purple-border);background:none;color:var(--purple-light);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--mono,monospace);}
+.ab-media{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.ab-thumb{width:64px;height:64px;border-radius:10px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:28px;overflow:hidden;flex-shrink:0;}
+.ab-thumb img,.ab-thumb video{width:100%;height:100%;object-fit:contain;}
+.ab-colors{display:flex;gap:10px;}
+.ab-colors label{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);}
+.ab-colors input[type=color]{width:38px;height:30px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:none;padding:2px;cursor:pointer;}
+.ab-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+@media (max-width: 900px){ .ab-grid{grid-template-columns:minmax(0,1fr);} .ab-preview-wrap{position:static;order:-1;} }
+@media (max-width: 520px){ .ab-row2{grid-template-columns:minmax(0,1fr);} .ab-seg button{font-size:11px;padding:7px 3px;} }
 .toggle-row:last-child{border-bottom:none;padding-bottom:0;}
 .toggle-row:first-child{padding-top:0;}
 .toggle-label{font-size:14px;color:var(--text);font-weight:500;}
@@ -200,6 +233,10 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
 .btn-success{background:transparent;color:var(--green);border:1px solid rgba(62,207,142,0.3);}
 .btn-success:hover{background:rgba(62,207,142,0.1);}
 .btn-sm{padding:6px 12px;font-size:12px;}
+.btn-secondary{background:rgba(255,255,255,0.05);color:var(--text);border:1px solid rgba(255,255,255,0.12);}
+.btn-secondary:hover{background:rgba(145,71,255,0.12);border-color:var(--purple-border);}
+label.btn{display:inline-flex;align-items:center;gap:6px;}
+.toggle-sub{font-size:12px;color:var(--text-dim);margin-top:3px;}
 
 /* ── COMMANDS ── */
 .command-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
@@ -540,6 +577,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
     <div class="nav-section collapsible active" onclick="toggleNav(this)">En vivo <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
       <div class="nav-item" onclick="showSection('music')"><span class="nav-icon">🎵</span> Música <span class="pro-badge" id="badge-music" style="display:none;">PRO</span></div>
+      <div class="nav-item" onclick="showSection('alertbox')"><span class="nav-icon">🔔</span> Alertas <span style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;background:rgba(64,208,144,0.15);color:#40d090;margin-left:4px;">NUEVO</span></div>
       <div class="nav-item" onclick="showSection('mediaalerts')"><span class="nav-icon">🔊</span> Alertas multimedia <span class="pro-badge" id="badge-mediaalerts" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('live')"><span class="nav-icon">🔴</span> Anuncios y agradecimientos</div>
       <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
@@ -1509,6 +1547,7 @@ function showSection(name) {
   if(name === 'overview') loadOverviewLive();
   if(name === 'tips') initTipsSection();
   if(name === 'goals') initGoalsSection();
+  if(name === 'alertbox') initAlertBoxSection();
   if(name === 'subathon') initSubathonSection();
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
@@ -1677,6 +1716,222 @@ function previewMediaAlert(i) {
   box.style.display = 'block';
   const el = box.firstChild;
   el.volume = vol;
+}
+
+// ── Alertas (caja de alertas: follow, sub, resub, regalo, bits, raid, propina) ──
+const AB_EVENTS = [['follow','💜','Follow'],['sub','⭐','Sub'],['resub','🔁','Resub'],['gift','🎁','Regalo'],['bits','💎','Bits'],['raid','🚀','Raid'],['tip','💸','Propina']];
+const AB_TEXT = { follow:'¡{usuario} ahora sigue el canal!', sub:'¡{usuario} se suscribió!', resub:'¡{usuario} lleva {meses} meses suscrito!', gift:'¡{usuario} regaló {cantidad} subs!', bits:'¡{usuario} donó {cantidad} bits!', raid:'¡{usuario} llegó con {viewers} personas!', tip:'¡{usuario} dejó {cantidad}!' };
+const AB_VARS = { follow:['usuario'], sub:['usuario','nivel'], resub:['usuario','meses'], gift:['usuario','cantidad'], bits:['usuario','cantidad'], raid:['usuario','viewers'], tip:['usuario','cantidad'] };
+const AB_SAMPLE = { follow:{ user:'Silkly_Fan' }, sub:{ user:'Silkly_Fan', tier:'Tier 1' }, resub:{ user:'Silkly_Fan', months:7, message:'¡7 meses ya! Me encanta este canal 🕷️' },
+  gift:{ user:'Silkly_Fan', count:5 }, bits:{ user:'Silkly_Fan', amount:500, message:'¡Toma bits! 💎' }, raid:{ user:'Silkly_Fan', viewers:42 }, tip:{ user:'Silkly_Fan', amount:5, currency:'USD', message:'¡Una propina de prueba! 💸' } };
+const AB_SUB_SAMPLE = { sub:'+5 min al subatón', resub:'+5 min al subatón', gift:'+25 min al subatón', bits:'+5 min al subatón', raid:'+4 min al subatón', tip:'+5 min al subatón' };
+const AB_FONTS = ['Inter','Poppins','Fredoka','Bangers','Luckiest Guy','Press Start 2P'];
+let abState = null, abCur = 'follow', abSaveTimer = null, abFrameReady = false;
+
+function abDefaults(ev) {
+  return { enabled:false, text:AB_TEXT[ev], image:'', image_type:'image', sound:'campanita', sound_url:'', volume:70, duration:7, layout:'arriba', style:'tarjeta',
+    anim:'rebote', effect:['gift','bits','raid','tip'].includes(ev)?'confeti':'ninguno', font:'Inter', color_accent:'#b794ff', color_text:'#ffffff',
+    show_message:true, show_subathon:true, show_goal:true, min:0 };
+}
+function abLoad() {
+  const src = streamerData.alert_box || {};
+  abState = { enabled: !!src.enabled, events: {} };
+  AB_EVENTS.forEach(([ev]) => { abState.events[ev] = { ...abDefaults(ev), ...((src.events || {})[ev] || {}) }; });
+}
+function initAlertBoxSection() {
+  if (!abState) abLoad();
+  document.getElementById('abEnabled').checked = abState.enabled;
+  document.getElementById('abOverlayUrl').value = `${location.origin}/overlay/alerts/${(userData.username||'').toLowerCase()}`;
+  const fr = document.getElementById('abFrame');
+  if (!fr.src) fr.src = `/overlay/alerts/${encodeURIComponent((userData.username||'').toLowerCase())}?preview=1`;
+  abFit();
+  abRenderChecks(); abRenderTabs(); abRenderForm();
+}
+function abRenderChecks() {
+  document.getElementById('abChecks').innerHTML = AB_EVENTS.map(([ev, ic, name]) => {
+    const on = abState.events[ev].enabled;
+    return `<label class="ab-check ${on?'on':''}"><input type="checkbox" ${on?'checked':''} onchange="abCheck('${ev}',this.checked)">${ic} ${name}</label>`;
+  }).join('');
+  const n = AB_EVENTS.filter(([ev]) => abState.events[ev].enabled).length;
+  const hint = document.getElementById('abChecksHint');
+  if (hint) hint.innerHTML = abState.enabled && !n
+    ? '<span style="color:#f0c060;">⚠ No marcaste ninguna: no va a salir nada. Marca al menos una.</span>'
+    : 'Marca solo las que quieras. Si alguna ya la tienes en StreamElements o Streamlabs, déjala sin marcar para que no salga doble.';
+}
+function abCheck(ev, on) {
+  abState.events[ev].enabled = on;
+  if (on) abCur = ev; // abre esa alerta para diseñarla
+  abRenderChecks(); abRenderTabs(); abRenderForm(); abPreview('still');
+  abQueueSave(true);
+}
+// El overlay mide 1920×1080 (como en OBS); aquí se encoge para caber
+function abFit() {
+  const st = document.getElementById('abStage'), fr = document.getElementById('abFrame');
+  if (!st || !fr) return;
+  const sc = st.clientWidth / 1920 || 0.3;
+  fr.style.transform = `scale(${sc})`;
+}
+window.addEventListener('resize', () => { if (document.getElementById('sec-alertbox')?.classList.contains('active')) abFit(); });
+window.addEventListener('message', (e) => {
+  if (e.origin !== location.origin || e.data?.kind !== 'alertbox-ready') return;
+  abFrameReady = true; abFit(); abPreview('still');
+});
+function abAlert() {
+  const c = abState.events[abCur];
+  const chips = [];
+  if (c.show_subathon && AB_SUB_SAMPLE[abCur]) chips.push(AB_SUB_SAMPLE[abCur]);
+  if (c.show_goal && ['sub','resub','gift','bits','tip'].includes(abCur)) chips.push('🎯 Meta: 46%');
+  return { type:'box', event:abCur, cfg:c, ...AB_SAMPLE[abCur], message: c.show_message ? (AB_SAMPLE[abCur].message || '') : '', chips };
+}
+function abPreview(mode) {
+  const fr = document.getElementById('abFrame');
+  if (!abFrameReady || !fr?.contentWindow) return;
+  fr.contentWindow.postMessage({ kind:'alertbox', mode, alert: abAlert() }, location.origin);
+}
+function abPlay() { abFit(); abPreview('play'); }
+
+function abRenderTabs() {
+  document.getElementById('abTabs').innerHTML = AB_EVENTS.map(([ev, ic, name]) =>
+    `<button class="ab-tab ${ev===abCur?'active':''} ${abState.events[ev].enabled?'':'off'}" onclick="abPick('${ev}')"><span class="ab-dot"></span>${ic} ${name}</button>`).join('');
+}
+function abPick(ev) { abCur = ev; abRenderTabs(); abRenderForm(); abPreview('still'); }
+
+function abSeg(field, opts) {
+  const c = abState.events[abCur];
+  return `<div class="ab-seg">${opts.map(([v,l]) => `<button class="${c[field]===v?'on':''}" onclick="abSet('${field}','${v}',true)">${l}</button>`).join('')}</div>`;
+}
+function abSelect(field, opts) {
+  const c = abState.events[abCur];
+  return `<select class="form-input" onchange="abSet('${field}',this.value,true)">${opts.map(([v,l]) => `<option value="${escCmdHtml(v)}" ${c[field]===v?'selected':''}>${l}</option>`).join('')}</select>`;
+}
+function abToggle(field, label, sub) {
+  const c = abState.events[abCur];
+  return `<div class="toggle-row" style="padding:10px 0;"><div><div class="toggle-label" style="font-size:13px;">${label}</div>${sub?`<div class="toggle-sub">${sub}</div>`:''}</div>
+    <label class="toggle"><input type="checkbox" ${c[field]?'checked':''} onchange="abSet('${field}',this.checked,true)"><span class="toggle-slider"></span></label></div>`;
+}
+function abRenderForm() {
+  const ev = abCur, c = abState.events[ev], name = AB_EVENTS.find(x => x[0] === ev)[2];
+  const isVid = c.image && c.image_type === 'video';
+  const minLabel = { bits:'Mínimo de bits', raid:'Mínimo de personas en la raid', tip:'Monto mínimo' }[ev];
+  const soundOpts = [['campanita','🔔 Campanita de Muffet'],['archivo','🎵 Mi sonido'],['ninguno','🔇 Sin sonido']].concat(isVid ? [['video','🎬 El sonido del video']] : []);
+  document.getElementById('abForm').innerHTML = `
+    ${abToggle('enabled', `Mostrar la alerta de ${name}`, '')}
+    <div class="ab-field" style="margin-top:12px;">
+      <div class="ab-label">✏️ Texto</div>
+      <input class="form-input" id="abText" maxlength="150" value="${escCmdHtml(c.text)}" oninput="abSet('text',this.value)">
+      <div class="ab-vars">${AB_VARS[ev].map(v => `<button onclick="abInsertVar('${v}')" title="Insertar">{${v}}</button>`).join('')}</div>
+    </div>
+    ${minLabel ? `<div class="ab-field"><div class="ab-label">${minLabel}</div><input type="number" class="form-input" min="0" value="${c.min||0}" onchange="abSet('min',Math.max(0,Number(this.value)||0),true)" style="max-width:160px;"><div style="font-size:11px;color:var(--text-dim);margin-top:5px;">0 = todas salen</div></div>` : ''}
+    ${['resub','bits','tip'].includes(ev) ? abToggle('show_message', 'Mostrar el mensaje del viewer', '') : ''}
+    <div class="ab-field" style="margin-top:10px;">
+      <div class="ab-label">🖼️ Imagen, GIF o video</div>
+      <div class="ab-media">
+        <div class="ab-thumb">${c.image ? (isVid ? `<video src="${escCmdHtml(c.image)}" muted autoplay loop playsinline></video>` : `<img src="${escCmdHtml(c.image)}" alt="">`) : AB_EVENTS.find(x=>x[0]===ev)[1]}</div>
+        <label class="btn btn-secondary" style="font-size:12px;cursor:pointer;">📁 ${c.image?'Cambiar':'Subir'}<input type="file" accept="image/png,image/gif,image/webp,image/jpeg,video/webm,video/mp4" style="display:none;" onchange="abUpload(this,'image')"></label>
+        ${c.image ? `<button class="btn btn-secondary" style="font-size:12px;" onclick="abSet('image','',true);abSet('image_type','image',true);abRenderForm()">✕ Quitar</button>` : ''}
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">PNG, GIF, WebP o JPG hasta 5MB · WebM o MP4 hasta 15MB. Sin imagen sale un emoji animado.</div>
+    </div>
+    <div class="ab-row2">
+      <div class="ab-field"><div class="ab-label">🔊 Sonido</div>${abSelect('sound', soundOpts)}
+        ${c.sound==='archivo' ? `<div class="ab-media" style="margin-top:8px;"><label class="btn btn-secondary" style="font-size:12px;cursor:pointer;">📁 ${c.sound_url?'Cambiar sonido':'Subir MP3/OGG/WAV'}<input type="file" accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav" style="display:none;" onchange="abUpload(this,'sound')"></label>${c.sound_url?'<span style="font-size:12px;color:#40d090;">✓ listo</span>':''}</div>` : ''}
+      </div>
+      <div class="ab-field"><div class="ab-label">Volumen: <span id="abVol">${c.volume}</span>%</div><input type="range" min="0" max="100" value="${c.volume}" style="width:100%;accent-color:var(--purple);" oninput="document.getElementById('abVol').textContent=this.value" onchange="abSet('volume',parseInt(this.value))"></div>
+    </div>
+    <div class="ab-field"><div class="ab-label">⏱️ Duración: <span id="abDur">${c.duration}</span> s</div><input type="range" min="3" max="20" value="${c.duration}" style="width:100%;accent-color:var(--purple);" oninput="document.getElementById('abDur').textContent=this.value" onchange="abSet('duration',parseInt(this.value))"></div>
+    <div class="ab-field"><div class="ab-label">📐 Diseño</div>${abSeg('layout', [['arriba','Imagen arriba'],['lado','Al lado'],['texto','Solo texto']])}</div>
+    <div class="ab-field"><div class="ab-label">🎨 Estilo</div>${abSeg('style', [['tarjeta','Tarjeta'],['neon','Neón'],['limpio','Limpio']])}</div>
+    <div class="ab-row2">
+      <div class="ab-field"><div class="ab-label">✨ Entrada</div>${abSelect('anim', [['rebote','Rebote'],['zoom','Zoom'],['deslizar','Deslizar'],['caer','Caer'],['aparecer','Aparecer']])}</div>
+      <div class="ab-field"><div class="ab-label">🎉 Efecto</div>${abSelect('effect', [['ninguno','Ninguno'],['confeti','Confeti'],['brillos','Brillos']])}</div>
+    </div>
+    <div class="ab-row2">
+      <div class="ab-field"><div class="ab-label">🔤 Letra</div>${abSelect('font', AB_FONTS.map(f => [f, f]))}</div>
+      <div class="ab-field"><div class="ab-label">🌈 Colores</div><div class="ab-colors">
+        <label><input type="color" value="${c.color_accent}" oninput="abSet('color_accent',this.value)"> Resaltado</label>
+        <label><input type="color" value="${c.color_text}" oninput="abSet('color_text',this.value)"> Texto</label></div></div>
+    </div>
+    ${ev !== 'follow' ? abToggle('show_subathon', '⏱️ Mostrar el tiempo que sumó al subatón', 'Ej: “+5 min al subatón”') : ''}
+    ${['sub','resub','gift','bits','tip'].includes(ev) ? abToggle('show_goal', '🎯 Mostrar cómo va tu meta', 'Si la meta cuenta este tipo de apoyo') : ''}
+    <div class="ab-actions"><button class="btn btn-secondary" onclick="abCopyStyle()">🎨 Usar este estilo en todas las alertas</button></div>`;
+}
+function abInsertVar(v) {
+  const el = document.getElementById('abText'); if (!el) return;
+  const a = el.selectionStart ?? el.value.length, b = el.selectionEnd ?? el.value.length;
+  el.value = (el.value.slice(0, a) + `{${v}}` + el.value.slice(b)).slice(0, 150);
+  el.focus(); el.selectionStart = el.selectionEnd = a + v.length + 2;
+  abSet('text', el.value);
+}
+function abSet(field, value, rerender) {
+  abState.events[abCur][field] = value;
+  if (field === 'enabled') { abRenderTabs(); abRenderChecks(); }
+  if (rerender && ['sound','layout','style','enabled'].includes(field)) abRenderForm();
+  abPreview('still');
+  abQueueSave();
+}
+function abSetGlobal(on) { abState.enabled = on; abRenderChecks(); abQueueSave(true); }
+function abCopyStyle() {
+  const c = abState.events[abCur];
+  if (!confirm('¿Poner este diseño (estilo, letra, colores, animación, efecto, duración y sonido) en todas las alertas? Los textos e imágenes de cada una no cambian.')) return;
+  AB_EVENTS.forEach(([ev]) => {
+    const t = abState.events[ev];
+    ['layout','style','anim','effect','font','color_accent','color_text','duration','volume'].forEach(k => t[k] = c[k]);
+    if (c.sound !== 'video') { t.sound = c.sound; t.sound_url = c.sound_url; }
+  });
+  abQueueSave(true); showToast('Estilo aplicado a todas ✓');
+}
+function abQueueSave(now) {
+  const st = document.getElementById('abSaveState'); if (st) st.textContent = 'Guardando…';
+  clearTimeout(abSaveTimer);
+  abSaveTimer = setTimeout(abSave, now ? 0 : 900);
+}
+async function abSave() {
+  const st = document.getElementById('abSaveState');
+  try {
+    const res = await fetch('/api/alert-box', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ alert_box: abState }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { if (st) st.textContent = ''; showToast(data.error || 'No se pudo guardar', 'error'); return false; }
+    streamerData.alert_box = data.alert_box || abState;
+    if (st) st.textContent = 'Guardado ✓';
+    return true;
+  } catch (e) { if (st) st.textContent = ''; showToast('Error de conexión', 'error'); return false; }
+}
+async function abUpload(input, kind) {
+  const file = input.files?.[0]; input.value = '';
+  if (!file) return;
+  const isImg = file.type.startsWith('image/');
+  if (file.size > (isImg ? 5 : 15) * 1024 * 1024) { showToast(isImg ? 'La imagen supera los 5MB' : 'El archivo supera los 15MB', 'error'); return; }
+  const ev = abCur;
+  showToast('Subiendo…');
+  try {
+    const base64 = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = fail; r.readAsDataURL(file); });
+    const res = await fetch('/api/media-alerts/upload', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ filename: file.name, mime: file.type, data: base64 }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { showToast(data.error || 'Error al subir', 'error'); return; }
+    const c = abState.events[ev];
+    if (kind === 'image') {
+      if (data.type === 'audio') { showToast('Eso es un audio: súbelo en Sonido 🔊', 'error'); return; }
+      c.image = data.url; c.image_type = data.type === 'video' ? 'video' : 'image';
+      if (c.image_type !== 'video' && c.sound === 'video') c.sound = 'campanita';
+    } else {
+      if (data.type !== 'audio') { showToast('Sube un MP3, OGG o WAV', 'error'); return; }
+      c.sound_url = data.url; c.sound = 'archivo';
+    }
+    if (abCur === ev) abRenderForm();
+    abPreview('still'); await abSave();
+    showToast('Subido ✓');
+  } catch (e) { showToast('Error al subir', 'error'); }
+}
+async function abTestObs() {
+  clearTimeout(abSaveTimer);
+  if (!(await abSave())) return;
+  try {
+    const res = await fetch('/api/alert-box/test', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ event: abCur }) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) showToast(data.error || 'Error al probar', 'error');
+    else if (!data.sent) showToast('No hay ningún OBS conectado con la URL de alertas', 'error');
+    else showToast('Alerta enviada — mírala en OBS ▶️');
+  } catch (e) { showToast('Error de conexión', 'error'); }
 }
 
 // ── Subatón ──
@@ -4700,6 +4955,50 @@ function renderMain() {
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🧾 Últimas propinas</span><span id="tipsTotal" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
       <div class="panel-body" id="tipsList"><div style="color:var(--text-dim);font-size:13px;">Cargando…</div></div>
+    </div>
+  </div>
+
+  <div id="sec-alertbox" class="section">
+    <div class="page-header">
+      <div class="page-title">🔔 Alertas</div>
+      <div class="page-subtitle">Follows, subs, bits, raids y propinas en tu stream — gratis, con tu diseño, y conectadas con tu subatón y tus metas</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-body">
+        <div class="toggle-row" style="padding-top:0;">
+          <div><div class="toggle-label">Activar alertas en pantalla</div><div class="toggle-sub">Cuando alguien te sigue, se suscribe, regala, da bits, hace raid o deja propina, sale una alerta en OBS</div></div>
+          <label class="toggle"><input type="checkbox" id="abEnabled" onchange="abSetGlobal(this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        <div class="ab-label" style="margin-top:14px;">✅ ¿Qué alertas quieres que salgan aquí?</div>
+        <div class="ab-checks" id="abChecks"></div>
+        <div id="abChecksHint" style="font-size:11px;color:var(--text-dim);margin:8px 0 0;line-height:1.6;">Marca solo las que quieras. Si alguna ya la tienes en StreamElements o Streamlabs, déjala sin marcar para que no salga doble.</div>
+        <div class="ab-label" style="margin-top:16px;">📺 URL para OBS · Browser Source 1920×1080</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input class="form-input" id="abOverlayUrl" readonly value="" style="flex:1;min-width:200px;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('abOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6;">💡 Es la <b>misma URL</b> de las Alertas multimedia: si ya la tienes en OBS, no agregues otra. Los agradecimientos de Muffet en el chat se configuran en <a href="#" onclick="showSection('live');return false;" style="color:var(--purple-light);">Anuncios y agradecimientos</a>.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🎨 Diseña cada alerta</span><span id="abSaveState" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
+      <div class="panel-body">
+        <div class="ab-tabs" id="abTabs"></div>
+        <div class="ab-grid">
+          <div id="abForm"></div>
+          <div class="ab-preview-wrap">
+            <div class="ab-label">👀 Vista previa en vivo</div>
+            <div class="ab-stage" id="abStage"><iframe id="abFrame" title="Vista previa de la alerta" allow="autoplay"></iframe></div>
+            <div class="ab-actions">
+              <button class="btn btn-primary" onclick="abPlay()">▶️ Reproducir aquí</button>
+              <button class="btn btn-secondary" onclick="abTestObs()">📺 Probar en OBS</button>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:10px;line-height:1.6;">Los cambios se guardan solos. Los avisos de <b>+min al subatón</b> y <b>🎯 meta</b> solo salen si tienes un subatón o una meta activos (aquí se ven de ejemplo).</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
