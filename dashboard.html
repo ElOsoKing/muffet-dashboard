@@ -1644,6 +1644,9 @@ async function initTipsSection() {
   const u = streamerData?.twitch_username || '';
   document.getElementById('tipsPageUrl').value = `${location.origin}/tip/${u}`;
   document.getElementById('tipsOverlayUrl').value = `${location.origin}/overlay/alerts/${u}`;
+  document.getElementById('goalOverlayUrl').value = `${location.origin}/overlay/goal/${u}`;
+  const ge = document.getElementById('goalEnds'); if (ge) ge.value = isoToLocalInput(streamerData?.tips_config?.goal?.ends_at);
+  loadGoalProgress();
   const mc = document.getElementById('tipManCurrency'); if (mc && streamerData?.tips_config?.currency) mc.value = streamerData.tips_config.currency;
   loadTipsList();
 }
@@ -1669,6 +1672,38 @@ async function testTipAlert() {
     showToast(d.sent ? 'Alerta de prueba enviada ✓' : 'No hay overlay de alertas abierto en OBS', d.sent ? undefined : 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
+async function loadGoalProgress() {
+  const el = document.getElementById('goalProgress'); if (!el) return;
+  try {
+    const st = await (await fetch(`/api/goal/state/${encodeURIComponent(streamerData?.twitch_username || '')}`)).json();
+    const f = v => st.type === 'money' ? Number(v).toFixed(2) : Math.floor(v);
+    el.textContent = st?.enabled ? `${f(st.current)} / ${f(st.target)} ${st.type === 'money' ? st.currency : st.unit} · ${st.percent}%${st.done ? ' 🎉' : st.expired ? ' ⌛ vencida' : ''}` : '';
+  } catch(e) { el.textContent = ''; }
+}
+function goalTypeChanged() {
+  const t = document.getElementById('goalType').value;
+  document.getElementById('goalTargetLabel').textContent = 'Meta (' + (t === 'subs' ? 'subs' : t === 'bits' ? 'bits' : (streamerData?.tips_config?.currency || 'USD')) + ')';
+}
+// datetime-local trabaja en hora local: convertimos ida y vuelta a ISO
+function isoToLocalInput(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+async function saveTipsGoal(reset) {
+  if (reset && !confirm('¿Empezar la meta desde 0? Las propinas anteriores ya no contarán para esta meta.')) return;
+  const goal = {
+    enabled: document.getElementById('goalEnabled').checked,
+    title: document.getElementById('goalTitle').value.trim(),
+    type: document.getElementById('goalType').value,
+    reward: document.getElementById('goalReward').value.trim(),
+    ends_at: document.getElementById('goalEnds').value ? new Date(document.getElementById('goalEnds').value).toISOString() : null,
+    target: parseFloat(document.getElementById('goalTarget').value) || 0,
+    theme: document.getElementById('goalTheme').value,
+  };
+  try {
+    const res = await fetch('/api/tips-goal', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ goal, reset: !!reset }) });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) { streamerData.tips_config = { ...(streamerData.tips_config || {}), goal: d.goal }; showToast(reset ? 'Meta reiniciada ✓' : 'Meta guardada ✓'); loadGoalProgress(); }
+    else showToast(d.error || 'Error al guardar', 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
 async function registerManualTip() {
   const name = document.getElementById('tipManName').value.trim();
   const amount = parseFloat(document.getElementById('tipManAmount').value);
@@ -1680,7 +1715,7 @@ async function registerManualTip() {
     if (res.ok) {
       showToast('Propina registrada ✓');
       ['tipManName','tipManAmount','tipManMsg'].forEach(id => document.getElementById(id).value = '');
-      loadTipsList();
+      loadTipsList(); setTimeout(loadGoalProgress, 800);
     } else showToast(d.error || 'No se pudo registrar', 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
@@ -1689,7 +1724,7 @@ async function deleteTip(id) {
   if (!confirm('¿Quitar esta propina del historial? (El dinero en PayPal no se toca)')) return;
   try {
     const res = await fetch('/api/tips/' + id, { method: 'DELETE' });
-    if (res.ok) { showToast('Propina quitada ✓'); loadTipsList(); }
+    if (res.ok) { showToast('Propina quitada ✓'); loadTipsList(); setTimeout(loadGoalProgress, 800); }
     else { const d = await res.json().catch(() => ({})); showToast(d.error || 'No se pudo borrar', 'error'); }
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
@@ -2412,7 +2447,7 @@ function renderMain() {
           { id:'poll',     icon:'📋', name:'!poll',     desc:'Crear una encuesta en el chat',             who:'Mods'  },
           { id:'so',       icon:'📣', name:'!so',       desc:'Shoutout con clip aleatorio + overlay OBS',  who:'Mods'  },
           { id:'cancion',  icon:'🎵', name:'!cancion',  desc:'Pedir canción en Spotify',                  who:'Según config' },
-          { id:'propina',  icon:'💸', name:'!propina',  desc:'Pasa el enlace de tu página de propinas (también !tip / !donar). Solo si activaste Propinas', who:'Todos' },
+          { id:'propina',  icon:'💸', name:'!propina',  desc:'Pasa el enlace de tu página de propinas (también !tip / !donar). Con meta activa, !meta dice cómo va. Solo si activaste Propinas', who:'Todos' },
           { id:'yt',       icon:'📺', name:'!yt',       desc:'Pedir canción de YouTube',                  who:'Según config' },
           { id:'social',   icon:'🤗', name:'Sociales',  desc:'!hug, !pat, !kiss, !slap, !bite, !highfive',who:'Todos' },
           { id:'dados',    icon:'🎲', name:'Dados',     desc:'!d6, !d20, !2d6',                           who:'Todos' },
@@ -4377,6 +4412,55 @@ function renderMain() {
         </div>
         <button class="btn btn-primary" onclick="saveTipsConfig()">Guardar</button>
         <div style="font-size:11px;color:var(--text-dim);margin-top:12px;line-height:1.5;">💡 SilklyBot no cobra nada. PayPal sí descuenta su comisión normal de cada pago que recibes.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🎯 Meta de propinas</span><span id="goalProgress" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
+      <div class="panel-body">
+        <div class="toggle-row" style="margin-bottom:16px;">
+          <div><div class="toggle-label">Mostrar una meta</div><div class="toggle-sub">Una barra en OBS que se llena con propinas, subs o bits — con reto y fecha límite si quieres</div></div>
+          <label class="toggle"><input type="checkbox" id="goalEnabled" ${s.tips_config?.goal?.enabled?'checked':''}><span class="toggle-slider"></span></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">¿Qué cuenta?</div>
+            <select id="goalType" class="form-input" onchange="goalTypeChanged()">${[['money','💸 Propinas (dinero)'],['subs','⭐ Subs'],['bits','💎 Bits']].map(([v,l])=>`<option value="${v}" ${(s.tips_config?.goal?.type||'money')===v?'selected':''}>${l}</option>`).join('')}</select>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Fecha límite (opcional)</div>
+            <div style="display:flex;gap:6px;"><input type="datetime-local" id="goalEnds" class="form-input" style="flex:1;" value=""><button class="btn btn-secondary" title="Sin fecha límite" onclick="document.getElementById('goalEnds').value=''">✕</button></div>
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">🎁 Reto al cumplirla (opcional)</div>
+          <input type="text" id="goalReward" class="form-input" maxlength="80" placeholder="Me rapo la cabeza, juego en dificultad máxima…" value="${String(s.tips_config?.goal?.reward||'').replace(/[<>"]/g,'')}">
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Nombre de la meta</div>
+            <input type="text" id="goalTitle" class="form-input" maxlength="40" placeholder="Nueva silla, 50 subs…" value="${String(s.tips_config?.goal?.title||'').replace(/[<>"]/g,'')}">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;" id="goalTargetLabel">Meta (${s.tips_config?.goal?.type==='subs'?'subs':s.tips_config?.goal?.type==='bits'?'bits':(s.tips_config?.currency||'USD')})</div>
+            <input type="number" id="goalTarget" class="form-input" min="1" step="1" placeholder="120" value="${s.tips_config?.goal?.target||''}">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Estilo</div>
+            <select id="goalTheme" class="form-input">${[['clasico','Clásico'],['neon','Neón'],['minimal','Minimal']].map(([v,l])=>`<option value="${v}" ${(s.tips_config?.goal?.theme||'clasico')===v?'selected':''}>${l}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="saveTipsGoal(false)">Guardar</button>
+          <button class="btn btn-secondary" onclick="saveTipsGoal(true)">🔄 Empezar de nuevo (desde 0)</button>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin:18px 0 6px;">Overlay para OBS (Browser Source 640×160)</div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="goalOverlayUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('goalOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
+          <button class="btn btn-secondary" onclick="window.open(document.getElementById('goalOverlayUrl').value+'?preview=1','_blank')">👁️ Vista previa</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6;">💸 <b>Propinas:</b> PayPal y las registradas a mano, en tu moneda. ⭐ <b>Subs:</b> cada sub, resub o sub regalada cuenta 1 (Prime incluido). 💎 <b>Bits:</b> se suman todos.<br>Cuenta desde que creaste o reiniciaste la meta (cambiar el tipo la reinicia). Con fecha límite, al vencer deja de contar. Las subs/bits del chat compartido no cuentan.<br>En el chat, <b>!meta</b> dice cómo va, y Muffet avisa cuando se cumple 🎉 <i>(las metas de subs/bits necesitan correr <b>metas.sql</b> en Supabase una vez)</i></div>
       </div>
     </div>
 
