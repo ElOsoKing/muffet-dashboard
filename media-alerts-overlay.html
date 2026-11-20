@@ -19,6 +19,59 @@
   #tip .amt { color:#7dffb2; }
   #tip .msg { font-size:20px; font-weight:500; margin-top:10px; color:#e6dcff; line-height:1.35; word-wrap:break-word; }
   @keyframes tipBounce { 0%,100% { transform:translateY(0) rotate(-6deg); } 50% { transform:translateY(-8px) rotate(6deg); } }
+
+  /* ── Caja de alertas (follow, sub, bits, raid, propina...) ── */
+  #box { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:none; align-items:center; justify-content:center; gap:22px;
+    flex-direction:column; text-align:center; max-width:1100px; padding:26px 38px 28px; border-radius:24px;
+    font-family:var(--font,'Inter'),system-ui,sans-serif; color:var(--text,#fff); --accent:#b794ff; }
+  #box.on { display:flex; }
+  #box.lay-lado { flex-direction:row; text-align:left; }
+  #box.lay-texto .media { display:none; }
+  #box .media { flex:0 0 auto; display:flex; align-items:center; justify-content:center; }
+  #box .media img, #box .media video { max-width:420px; max-height:300px; display:block; border-radius:14px; }
+  #box.lay-lado .media img, #box.lay-lado .media video { max-width:220px; max-height:220px; }
+  #box .media .emo { font-size:110px; line-height:1; filter:drop-shadow(0 6px 16px rgba(0,0,0,.45)); animation:emoFloat 1.6s ease-in-out infinite; }
+  #box.lay-lado .media .emo { font-size:86px; }
+  @keyframes emoFloat { 0%,100% { transform:translateY(0) rotate(-5deg) } 50% { transform:translateY(-10px) rotate(5deg) } }
+  #box .txt { display:flex; flex-direction:column; gap:10px; min-width:0; }
+  #box .title { font-size:40px; font-weight:800; line-height:1.15; word-break:break-word; }
+  #box .title .hl { color:var(--accent); }
+  #box .msg { font-size:24px; font-weight:500; line-height:1.35; opacity:.95; word-break:break-word; }
+  #box .msg:empty, #box .chips:empty { display:none; }
+  #box .chips { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  #box.lay-lado .chips { justify-content:flex-start; }
+  #box .chip { font-size:19px; font-weight:800; padding:6px 14px; border-radius:999px; background:rgba(0,0,0,.4); border:2px solid var(--accent); color:#fff; white-space:nowrap; }
+  /* Estilos */
+  #box.st-tarjeta { background:linear-gradient(160deg,rgba(32,20,58,.94),rgba(14,10,26,.94)); border:3px solid var(--accent); box-shadow:0 0 44px var(--glow),0 14px 40px rgba(0,0,0,.5); }
+  #box.st-neon { background:rgba(6,6,18,.9); border:3px solid var(--accent); box-shadow:0 0 22px var(--accent),inset 0 0 22px var(--glow2); }
+  #box.st-neon .title { text-shadow:0 0 12px var(--accent),0 0 2px var(--accent); }
+  #box.st-limpio { background:none; padding:10px; }
+  #box.st-limpio .title, #box.st-limpio .msg { text-shadow:0 3px 0 rgba(0,0,0,.85),0 0 12px rgba(0,0,0,.9),2px 2px 0 #000,-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000; }
+  #box.st-limpio .chip { background:rgba(0,0,0,.65); }
+  #box:not(.st-limpio) .title { text-shadow:0 3px 0 rgba(0,0,0,.4); }
+  #box.f-pixel .title { font-size:28px; line-height:1.5; } #box.f-pixel .msg { font-size:17px; line-height:1.6; } #box.f-pixel .chip { font-size:14px; }
+  /* Entradas y salidas */
+  #box.in-rebote { animation:inRebote .8s cubic-bezier(.2,1.5,.4,1) both; }
+  #box.in-zoom { animation:inZoom .55s cubic-bezier(.2,1.2,.4,1) both; }
+  #box.in-deslizar { animation:inSlide .6s cubic-bezier(.2,1,.3,1) both; }
+  #box.in-caer { animation:inDrop .8s cubic-bezier(.3,1.6,.5,1) both; }
+  #box.in-aparecer { animation:inFade .6s ease both; }
+  #box.out { animation:outFade .5s ease forwards; }
+  #box.out.in-deslizar { animation:outSlide .5s ease-in forwards; }
+  #box.out.in-zoom, #box.out.in-rebote { animation:outZoom .45s ease-in forwards; }
+  @keyframes inRebote { 0% { opacity:0; transform:translate(-50%,-50%) scale(.3) } 100% { opacity:1; transform:translate(-50%,-50%) scale(1) } }
+  @keyframes inZoom { 0% { opacity:0; transform:translate(-50%,-50%) scale(1.6) } 100% { opacity:1; transform:translate(-50%,-50%) scale(1) } }
+  @keyframes inSlide { 0% { opacity:0; transform:translate(-160%,-50%) } 100% { opacity:1; transform:translate(-50%,-50%) } }
+  @keyframes inDrop { 0% { opacity:0; transform:translate(-50%,-180%) } 100% { opacity:1; transform:translate(-50%,-50%) } }
+  @keyframes inFade { 0% { opacity:0 } 100% { opacity:1 } }
+  @keyframes outFade { to { opacity:0 } }
+  @keyframes outSlide { to { opacity:0; transform:translate(60%,-50%) } }
+  @keyframes outZoom { to { opacity:0; transform:translate(-50%,-50%) scale(.6) } }
+  #box.still { animation:none !important; }
+  .burst { position:absolute; width:12px; height:12px; border-radius:3px; pointer-events:none; animation:fly 1.8s ease-out forwards; }
+  .spark { position:absolute; pointer-events:none; font-size:26px; animation:spark 1.4s ease-out forwards; }
+  @keyframes fly { to { transform:translate(var(--x),var(--y)) rotate(600deg); opacity:0 } }
+  @keyframes spark { 0% { transform:scale(0); opacity:0 } 30% { transform:scale(1.2); opacity:1 } 100% { transform:scale(.4) translateY(-30px); opacity:0 } }
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;800&display=swap" rel="stylesheet">
 </head>
@@ -26,6 +79,7 @@
 <div id="stage">
   <video id="player" playsinline></video>
   <audio id="audioPlayer"></audio>
+  <div id="box"><div class="media"></div><div class="txt"><div class="title"></div><div class="msg"></div><div class="chips"></div></div></div>
   <div id="tip" class="hidden"><div class="ic">💸</div><div class="who"></div><div class="msg"></div></div>
 </div>
 <script>
@@ -41,8 +95,8 @@ function connect() {
   es.onmessage = (e) => {
     try {
       const data = JSON.parse(e.data);
-      if (data.type === 'tip') {
-        if (queue.length < 10) queue.push(data);
+      if (data.type === 'tip' || data.type === 'box') {
+        if (queue.length < 25) queue.push(data);
         processQueue();
       } else if (data.type === 'alert' && data.media_url) {
         if (queue.length < 10) queue.push(data); // límite de cola anti-spam
@@ -61,6 +115,7 @@ async function processQueue() {
   playing = true;
   const alert = queue.shift();
   if (alert.type === 'tip') return showTip(alert);
+  if (alert.type === 'box') return showBox(alert).catch(() => { box.className = ''; playing = false; setTimeout(processQueue, 800); });
   const vol = Math.min(100, Math.max(0, alert.volume ?? 80)) / 100;
 
   const el = alert.media_type === 'video' ? video : audio;
@@ -99,13 +154,13 @@ async function processQueue() {
 // ── Propina: tarjeta en pantalla + sonidito, 7 segundos ──
 const tipEl = document.getElementById('tip');
 const SYM = { USD:'$', EUR:'€', MXN:'$', CAD:'$', GBP:'£' };
-function chime() {
+function chime(vol = 1) {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     [880, 1175, 1568].forEach((f, i) => {
       const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + i * 0.12;
       o.type = 'triangle'; o.frequency.value = f; o.connect(g); g.connect(ctx.destination);
-      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.25, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.001, 0.25 * vol), t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
       o.start(t); o.stop(t + 0.55);
     });
     setTimeout(() => ctx.close(), 1500);
@@ -127,7 +182,124 @@ function showTip(t) {
   }, 7000);
 }
 
-connect();
+// ── Caja de alertas ──
+const box = document.getElementById('box');
+const EMO = { follow:'💜', sub:'⭐', resub:'🔁', gift:'🎁', bits:'💎', raid:'🚀', tip:'💸' };
+const FONT_CSS = { 'Inter':'Inter:wght@500;800', 'Poppins':'Poppins:wght@500;800', 'Fredoka':'Fredoka:wght@500;700', 'Bangers':'Bangers', 'Luckiest Guy':'Luckiest+Guy', 'Press Start 2P':'Press+Start+2P' };
+const loadedFonts = new Set(['Inter']);
+function ensureFont(name) {
+  if (!FONT_CSS[name] || loadedFonts.has(name)) return Promise.resolve();
+  loadedFonts.add(name);
+  const l = document.createElement('link'); l.rel = 'stylesheet';
+  l.href = `https://fonts.googleapis.com/css2?family=${FONT_CSS[name]}&display=swap`;
+  document.head.appendChild(l);
+  // Esperar la fuente un ratito (máx 1.2s) para que la alerta no salga con otra letra y luego cambie
+  return Promise.race([new Promise(r => { l.onload = () => document.fonts.load(`800 40px "${name}"`).then(r, r); l.onerror = r; }), new Promise(r => setTimeout(r, 1200))]);
+}
+const fmtMoney = (v, c) => (SYM[c] || '') + (Number(v) % 1 ? Number(v).toFixed(2) : Number(v).toFixed(0)) + (c ? ' ' + c : '');
+// "{usuario} regaló {cantidad} subs" → nodos de texto seguros, con el nombre y la cantidad resaltados
+function fillTitle(el, a) {
+  const vals = {
+    usuario: a.user || 'Anónimo',
+    cantidad: a.event === 'tip' ? fmtMoney(a.amount, a.currency) : a.event === 'gift' ? String(a.count || 1) : Number(a.amount || 0).toLocaleString('es'),
+    meses: String(a.months || 0), viewers: Number(a.viewers || 0).toLocaleString('es'), nivel: a.tier || ''
+  };
+  el.textContent = '';
+  let text = String(a.cfg.text || '');
+  if (a.event === 'gift' && (a.count || 1) === 1) text = text.replace(/\{cantidad\}\s+subs\b/gi, '{cantidad} sub');
+  if (a.event === 'resub' && a.months === 1) text = text.replace(/\{meses\}\s+meses\b/gi, '{meses} mes');
+  text.split(/(\{(?:usuario|cantidad|meses|viewers|nivel)\})/).forEach(part => {
+    const m = part.match(/^\{(\w+)\}$/);
+    if (m) { const s = document.createElement('span'); s.className = 'hl'; s.textContent = vals[m[1]]; el.appendChild(s); }
+    else if (part) el.appendChild(document.createTextNode(part));
+  });
+}
+let boxSound = null, hideTimer = null;
+function stopBoxSound() { if (boxSound) { try { boxSound.pause(); } catch(e) {} boxSound = null; } }
+function effect(kind, accent) {
+  if (kind === 'ninguno' || params.get('lite') === '1') return;
+  const r = box.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const colors = [accent, '#ffffff', '#ffd23f', '#7dffb2', '#ff6fb5'];
+  for (let i = 0; i < (kind === 'confeti' ? 60 : 18); i++) {
+    const d = document.createElement('i');
+    if (kind === 'confeti') {
+      d.className = 'burst'; d.style.left = cx + 'px'; d.style.top = cy + 'px'; d.style.background = colors[i % colors.length];
+      const ang = Math.random() * Math.PI * 2, dist = 200 + Math.random() * 420;
+      d.style.setProperty('--x', Math.cos(ang) * dist + 'px'); d.style.setProperty('--y', Math.sin(ang) * dist * .7 + 'px');
+    } else {
+      d.className = 'spark'; d.textContent = '✨';
+      d.style.left = (r.left + Math.random() * r.width) + 'px'; d.style.top = (r.top + Math.random() * r.height) + 'px';
+      d.style.animationDelay = (Math.random() * .8) + 's';
+    }
+    document.body.appendChild(d); setTimeout(() => d.remove(), 2700);
+  }
+}
+async function renderBox(a) {
+  const c = a.cfg || {};
+  await ensureFont(c.font || 'Inter');
+  box.className = '';
+  box.style.setProperty('--accent', c.color_accent || '#b794ff');
+  box.style.setProperty('--text', c.color_text || '#ffffff');
+  // Brillo del color (sin color-mix: OBS usa un Chrome viejo que no lo entiende)
+  const hx = (c.color_accent || '#b794ff').slice(1), rgb = [0, 2, 4].map(i => parseInt(hx.substr(i, 2), 16) || 0).join(',');
+  box.style.setProperty('--glow', `rgba(${rgb},.6)`); box.style.setProperty('--glow2', `rgba(${rgb},.35)`);
+  box.style.setProperty('--font', `"${c.font || 'Inter'}"`);
+  const media = box.querySelector('.media'); media.textContent = '';
+  let vid = null;
+  if (c.image && c.image_type === 'video') {
+    vid = document.createElement('video'); vid.src = c.image; vid.autoplay = true; vid.loop = true; vid.playsInline = true;
+    vid.muted = c.sound !== 'video'; vid.volume = Math.min(1, (c.volume ?? 70) / 100); media.appendChild(vid);
+  } else if (c.image) {
+    const img = document.createElement('img'); img.src = c.image; img.alt = ''; media.appendChild(img);
+  } else {
+    const e = document.createElement('div'); e.className = 'emo'; e.textContent = EMO[a.event] || '🎉'; media.appendChild(e);
+  }
+  fillTitle(box.querySelector('.title'), a);
+  box.querySelector('.msg').textContent = a.message || '';
+  const chips = box.querySelector('.chips'); chips.textContent = '';
+  (a.chips || []).forEach(t => { const s = document.createElement('span'); s.className = 'chip'; s.textContent = t; chips.appendChild(s); });
+  box.classList.add('on', 'lay-' + (c.layout || 'arriba'), 'st-' + (c.style || 'tarjeta'));
+  if (c.font === 'Press Start 2P') box.classList.add('f-pixel');
+  return vid;
+}
+async function showBox(a, { still = false, silent = false } = {}) {
+  clearTimeout(hideTimer); stopBoxSound();
+  const c = a.cfg || {};
+  const vid = await renderBox(a);
+  if (still) { box.classList.add('still'); return; }
+  void box.offsetWidth; // reinicia la animación de entrada
+  box.classList.add('in-' + (c.anim || 'rebote'));
+  if (!silent) {
+    const vol = Math.min(1, Math.max(0, (c.volume ?? 70) / 100));
+    if (c.sound === 'archivo' && c.sound_url) { boxSound = new Audio(c.sound_url); boxSound.volume = vol; boxSound.play().catch(() => {}); }
+    else if (c.sound === 'campanita') chime(vol);
+  } else if (vid) vid.muted = true;
+  setTimeout(() => effect(c.effect || 'ninguno', c.color_accent || '#b794ff'), 250);
+  const ms = Math.min(20, Math.max(3, Number(c.duration) || 7)) * 1000;
+  return new Promise(done => {
+    hideTimer = setTimeout(() => {
+      box.classList.add('out');
+      if (boxSound) { const s = boxSound; let v = s.volume; const f = setInterval(() => { v -= .1; if (v <= 0) { clearInterval(f); s.pause(); } else s.volume = v; }, 50); boxSound = null; }
+      setTimeout(() => {
+        box.className = ''; box.querySelector('.media').textContent = '';
+        if (!PREVIEW) { playing = false; setTimeout(processQueue, 800); }
+        done();
+      }, 520);
+    }, ms);
+  });
+}
+
+// Vista previa del dashboard (?preview=1): no se conecta a nada, solo dibuja lo que le manda el editor
+const params = new URLSearchParams(location.search);
+const PREVIEW = params.get('preview') === '1';
+if (PREVIEW) {
+  window.addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !e.data || e.data.kind !== 'alertbox') return;
+    const a = e.data.alert; if (!a || !a.cfg) return;
+    showBox(a, { still: e.data.mode === 'still' });
+  });
+  parent.postMessage({ kind: 'alertbox-ready' }, location.origin);
+} else connect();
 </script>
 </body>
 </html>
