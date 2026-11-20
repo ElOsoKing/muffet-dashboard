@@ -805,6 +805,8 @@ app.post('/api/admin/role/:id', requireAdmin, async (req, res) => {
 // ══════════════════════════════════════════
 //  RUTAS PROTEGIDAS
 // ══════════════════════════════════════════
+// Idiomas (español / inglés): diccionario + traductor que usan todas las páginas
+app.get('/i18n.js', (req, res) => { res.set('Cache-Control', 'public, max-age=300'); res.sendFile(path.join(__dirname, 'i18n.js')); });
 app.get('/plans', (req, res) => res.sendFile(path.join(__dirname, 'plans.html')));
 app.get('/guia', (req, res) => res.sendFile(path.join(__dirname, 'guia.html'))); // guía rápida para streamers nuevos (pública)
 app.get('/dashboard', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'dashboard.html')));
