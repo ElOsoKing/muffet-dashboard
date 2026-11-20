@@ -237,6 +237,26 @@ input:checked+.toggle-slider:before{transform:translateX(18px);background:white;
 .btn-secondary:hover{background:rgba(145,71,255,0.12);border-color:var(--purple-border);}
 label.btn{display:inline-flex;align-items:center;gap:6px;}
 .toggle-sub{font-size:12px;color:var(--text-dim);margin-top:3px;}
+/* Barras deslizantes: morada llena hasta donde vas (--p lo pone el JS), riel oscuro, bolita con brillo */
+input[type=range]{-webkit-appearance:none;appearance:none;height:22px;background:transparent;cursor:pointer;--p:50%;}
+input[type=range]:focus{outline:none;}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border-radius:999px;border:1px solid rgba(255,255,255,0.08);
+  background:linear-gradient(90deg,#7c4de8,#c86bff var(--p),rgba(255,255,255,0.07) var(--p));}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;margin-top:-6px;border-radius:50%;background:#fff;border:3px solid #9b6bff;box-shadow:0 0 0 4px rgba(145,71,255,0.18),0 2px 6px rgba(0,0,0,0.4);transition:transform .15s;}
+input[type=range]:hover::-webkit-slider-thumb,input[type=range]:active::-webkit-slider-thumb{transform:scale(1.15);}
+input[type=range]::-moz-range-track{height:8px;border-radius:999px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.08);}
+input[type=range]::-moz-range-progress{height:8px;border-radius:999px;background:linear-gradient(90deg,#7c4de8,#c86bff);}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid #9b6bff;box-shadow:0 0 0 4px rgba(145,71,255,0.18);}
+.ab-range{display:flex;align-items:center;gap:10px;}
+.ab-range input{flex:1;min-width:0;}
+.ab-range .ab-val{min-width:46px;text-align:center;font-size:12px;font-weight:800;color:var(--purple-light);background:rgba(145,71,255,0.12);border:1px solid var(--purple-border);border-radius:8px;padding:4px 6px;}
+.ab-range .ab-listen{flex:0 0 auto;width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.05);color:var(--text);cursor:pointer;font-size:15px;}
+.ab-range .ab-listen:hover{background:rgba(145,71,255,0.15);border-color:var(--purple-border);}
+.ab-code-tabs{display:flex;gap:4px;margin-bottom:-1px;}
+.ab-code-tabs button{padding:7px 14px;border:1px solid rgba(255,255,255,0.08);border-bottom:none;border-radius:8px 8px 0 0;background:var(--bg3);color:var(--text-muted);font-size:12px;font-weight:800;cursor:pointer;font-family:var(--mono,monospace);}
+.ab-code-tabs button.on{background:#0d0b16;color:var(--purple-light);}
+.ab-code{width:100%;min-height:260px;resize:vertical;background:#0d0b16;color:#e6dcff;border:1px solid rgba(255,255,255,0.08);border-radius:0 10px 10px 10px;padding:12px;font-family:var(--mono,ui-monospace,monospace);font-size:12.5px;line-height:1.55;tab-size:2;white-space:pre;overflow:auto;}
+.ab-code:focus{outline:none;border-color:var(--purple-border);}
 
 /* ── COMMANDS ── */
 .command-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
@@ -1718,6 +1738,11 @@ function previewMediaAlert(i) {
   el.volume = vol;
 }
 
+// ── Barras deslizantes: pintar la parte llena (--p) al moverlas y al aparecer en pantalla ──
+function paintRange(el) { const min = +el.min || 0, max = +el.max || 100; el.style.setProperty('--p', ((+el.value - min) / ((max - min) || 1) * 100) + '%'); }
+document.addEventListener('input', e => { if (e.target?.type === 'range') paintRange(e.target); }, true);
+new MutationObserver(() => document.querySelectorAll('input[type=range]').forEach(paintRange)).observe(document.documentElement, { childList: true, subtree: true });
+
 // ── Alertas (caja de alertas: follow, sub, resub, regalo, bits, raid, propina) ──
 const AB_EVENTS = [['follow','💜','Follow'],['sub','⭐','Sub'],['resub','🔁','Resub'],['gift','🎁','Regalo'],['bits','💎','Bits'],['raid','🚀','Raid'],['tip','💸','Propina']];
 const AB_TEXT = { follow:'¡{usuario} ahora sigue el canal!', sub:'¡{usuario} se suscribió!', resub:'¡{usuario} lleva {meses} meses suscrito!', gift:'¡{usuario} regaló {cantidad} subs!', bits:'¡{usuario} donó {cantidad} bits!', raid:'¡{usuario} llegó con {viewers} personas!', tip:'¡{usuario} dejó {cantidad}!' };
@@ -1816,6 +1841,8 @@ function abRenderForm() {
   const soundOpts = [['campanita','🔔 Campanita de Muffet'],['archivo','🎵 Mi sonido'],['ninguno','🔇 Sin sonido']].concat(isVid ? [['video','🎬 El sonido del video']] : []);
   document.getElementById('abForm').innerHTML = `
     ${abToggle('enabled', `Mostrar la alerta de ${name}`, '')}
+    ${abToggle('custom', '🧑‍💻 Usar mi propio código (HTML, CSS y JS)', 'Para quien sabe programar: diseña la alerta a tu gusto, como en StreamElements')}
+    ${c.custom ? abCodeEditor(c) : ''}
     <div class="ab-field" style="margin-top:12px;">
       <div class="ab-label">✏️ Texto</div>
       <input class="form-input" id="abText" maxlength="150" value="${escCmdHtml(c.text)}" oninput="abSet('text',this.value)">
@@ -1836,10 +1863,11 @@ function abRenderForm() {
       <div class="ab-field"><div class="ab-label">🔊 Sonido</div>${abSelect('sound', soundOpts)}
         ${c.sound==='archivo' ? `<div class="ab-media" style="margin-top:8px;"><label class="btn btn-secondary" style="font-size:12px;cursor:pointer;">📁 ${c.sound_url?'Cambiar sonido':'Subir MP3/OGG/WAV'}<input type="file" accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav" style="display:none;" onchange="abUpload(this,'sound')"></label>${c.sound_url?'<span style="font-size:12px;color:#40d090;">✓ listo</span>':''}</div>` : ''}
       </div>
-      <div class="ab-field"><div class="ab-label">Volumen: <span id="abVol">${c.volume}</span>%</div><input type="range" min="0" max="100" value="${c.volume}" style="width:100%;accent-color:var(--purple);" oninput="document.getElementById('abVol').textContent=this.value" onchange="abSet('volume',parseInt(this.value))"></div>
+      <div class="ab-field"><div class="ab-label">🔉 Volumen</div><div class="ab-range"><input type="range" min="0" max="100" value="${c.volume}" oninput="document.getElementById('abVol').textContent=this.value+'%'" onchange="abSet('volume',parseInt(this.value))"><span class="ab-val" id="abVol">${c.volume}%</span>${c.sound!=='ninguno'?`<button class="ab-listen" title="Escuchar a este volumen" onclick="abListen()">▶</button>`:''}</div></div>
     </div>
-    ${isVid ? `<div class="ab-field"><div class="ab-label">⏱️ Duración</div><div style="font-size:13px;color:var(--text-muted);">🎬 Lo que dure el video completo (máximo 30 s)</div></div>`
-      : `<div class="ab-field"><div class="ab-label">⏱️ Duración: <span id="abDur">${c.duration}</span> s</div><input type="range" min="3" max="20" value="${c.duration}" style="width:100%;accent-color:var(--purple);" oninput="document.getElementById('abDur').textContent=this.value" onchange="abSet('duration',parseInt(this.value))"></div>`}
+    ${isVid && !c.custom ? `<div class="ab-field"><div class="ab-label">⏱️ Duración</div><div style="font-size:13px;color:var(--text-muted);">🎬 Lo que dure el video completo (máximo 30 s)</div></div>`
+      : `<div class="ab-field"><div class="ab-label">⏱️ Duración</div><div class="ab-range"><input type="range" min="3" max="20" value="${c.duration}" oninput="document.getElementById('abDur').textContent=this.value+' s'" onchange="abSet('duration',parseInt(this.value))"><span class="ab-val" id="abDur">${c.duration} s</span></div></div>`}
+    ${c.custom ? '' : `
     <div class="ab-field"><div class="ab-label">📐 Diseño</div>${abSeg('layout', [['arriba','Imagen arriba'],['lado','Al lado'],['texto','Solo texto']])}</div>
     <div class="ab-field"><div class="ab-label">🎨 Estilo</div>${abSeg('style', [['tarjeta','Tarjeta'],['neon','Neón'],['limpio','Limpio']])}</div>
     <div class="ab-row2">
@@ -1852,9 +1880,92 @@ function abRenderForm() {
         <label><input type="color" value="${c.color_accent}" oninput="abSet('color_accent',this.value)"> Resaltado</label>
         <label><input type="color" value="${c.color_text}" oninput="abSet('color_text',this.value)"> Texto</label></div></div>
     </div>
+    `}
     ${ev !== 'follow' ? abToggle('show_subathon', '⏱️ Mostrar el tiempo que sumó al subatón', 'Ej: “+5 min al subatón”') : ''}
     ${['sub','resub','gift','bits','tip'].includes(ev) ? abToggle('show_goal', '🎯 Mostrar cómo va tu meta', 'Si la meta cuenta este tipo de apoyo') : ''}
     <div class="ab-actions"><button class="btn btn-secondary" onclick="abCopyStyle()">🎨 Usar este estilo en todas las alertas</button></div>`;
+}
+
+// ── Código propio de cada alerta ──
+let abCodeTab = 'html', abPvTimer = null, abListenAudio = null;
+const AB_CODE_VARS = ['usuario','cantidad','meses','viewers','nivel','mensaje','imagen','texto','avisos'];
+const AB_EXAMPLE = {
+  html: `<div class="alerta">
+  <img class="foto" src="{imagen}" onerror="this.remove()">
+  <div class="titulo">{texto}</div>
+  <div class="mensaje">{mensaje}</div>
+  <div class="avisos">{avisos}</div>
+</div>`,
+  css: `.alerta {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center; padding: 28px 44px; border-radius: 26px;
+  background: linear-gradient(160deg, #2a1650ee, #120c22ee);
+  border: 3px solid #c86bff;
+  box-shadow: 0 0 40px #9147ff99;
+  animation: entra .7s cubic-bezier(.2,1.4,.4,1) both;
+}
+.foto { max-width: 300px; max-height: 260px; border-radius: 16px; }
+.titulo { font-size: 42px; font-weight: 800; margin-top: 12px; }
+.mensaje { font-size: 24px; opacity: .9; margin-top: 8px; }
+.mensaje:empty, .avisos:empty { display: none; }
+.avisos { margin-top: 12px; font-size: 18px; font-weight: 800; color: #7dffb2; }
+/* Cuando se acaba el tiempo, Muffet le pone la clase "salir" al body */
+body.salir .alerta { animation: sale .5s ease-in forwards; }
+@keyframes entra { from { opacity: 0; transform: translate(-50%, -50%) scale(.4) rotate(-8deg); } }
+@keyframes sale { to { opacity: 0; transform: translate(-50%, -50%) scale(.6); } }`,
+  js: `// "alerta" trae todos los datos de esta alerta:
+// alerta.evento ('follow', 'sub', 'resub', 'gift', 'bits', 'raid', 'tip'), alerta.usuario,
+// alerta.cantidad, alerta.monto, alerta.moneda, alerta.meses, alerta.viewers, alerta.mensaje, alerta.duracion...
+if (alerta.evento === 'bits' && alerta.monto >= 1000) {
+  document.querySelector('.titulo').textContent += ' 🔥';
+}`
+};
+function abCodeEditor(c) {
+  const tab = abCodeTab;
+  return `<div class="ab-field" style="margin-top:6px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:8px;flex-wrap:wrap;">
+      <div class="ab-code-tabs">${['html','css','js'].map(t => `<button class="${t===tab?'on':''}" onclick="abCodeTab='${t}';abRenderForm()">${t.toUpperCase()}</button>`).join('')}</div>
+      <button class="btn btn-secondary btn-sm" style="margin-bottom:6px;" onclick="abLoadExample()">📄 Cargar ejemplo</button>
+    </div>
+    <textarea class="ab-code" id="abCode" spellcheck="false" placeholder="${tab==='html'?'<div>{usuario} ...</div>':tab==='css'?'.mi-alerta { ... }':'// alerta.usuario, alerta.monto...'}" oninput="abCodeInput(this.value)" onkeydown="abCodeKey(event)">${escCmdHtml(c[tab] || '')}</textarea>
+    <div class="ab-vars">${AB_CODE_VARS.map(v => `<button onclick="abCodeInsert('{${v}}')" title="Insertar">{${v}}</button>`).join('')}</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6;">Las variables entre llaves funcionan en el HTML. En el JS tienes todo en el objeto <code>alerta</code>. Al terminar el tiempo, el <code>body</code> recibe la clase <code>salir</code> para tu animación de salida. Tu código corre aislado: puede dibujar lo que quieras, pero no puede tocar cuentas ni el dashboard. El sonido y la duración se eligen abajo.</div>
+  </div>`;
+}
+function abCodeInput(v) { abState.events[abCur][abCodeTab] = v.slice(0, 20000); abQueueSave(); clearTimeout(abPvTimer); abPvTimer = setTimeout(() => abPreview('still'), 450); }
+function abCodeInsert(txt) {
+  const el = document.getElementById('abCode'); if (!el) return;
+  const a = el.selectionStart, b = el.selectionEnd;
+  el.value = el.value.slice(0, a) + txt + el.value.slice(b); el.focus(); el.selectionStart = el.selectionEnd = a + txt.length;
+  abCodeInput(el.value);
+}
+function abCodeKey(e) { if (e.key === 'Tab') { e.preventDefault(); abCodeInsert('  '); } }
+function abLoadExample() {
+  const c = abState.events[abCur];
+  if ((c.html || c.css || c.js) && !confirm('¿Reemplazar tu código con el ejemplo?')) return;
+  Object.assign(c, AB_EXAMPLE); abRenderForm(); abPreview('still'); abQueueSave(true);
+}
+// Escuchar el sonido elegido al volumen elegido
+function abListen() {
+  const c = abState.events[abCur], vol = Math.min(1, Math.max(0, (c.volume ?? 70) / 100));
+  if (abListenAudio) { try { abListenAudio.pause(); } catch(e) {} abListenAudio = null; }
+  if (c.sound === 'campanita') {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      [880, 1175, 1568].forEach((f, i) => { const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + i * 0.12;
+        o.type = 'triangle'; o.frequency.value = f; o.connect(g); g.connect(ctx.destination);
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(0.001, 0.25 * vol), t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+        o.start(t); o.stop(t + 0.55); });
+      setTimeout(() => ctx.close(), 1500);
+    } catch(e) {}
+    return;
+  }
+  const src = c.sound === 'archivo' ? c.sound_url : c.sound === 'video' ? c.image : '';
+  if (!src) { showToast('Primero sube tu sonido', 'error'); return; }
+  abListenAudio = new Audio(src); abListenAudio.volume = vol;
+  abListenAudio.play().catch(() => showToast('No se pudo reproducir', 'error'));
+  setTimeout(() => { if (abListenAudio) { abListenAudio.pause(); abListenAudio = null; } }, 6000); // solo una muestra
 }
 function abInsertVar(v) {
   const el = document.getElementById('abText'); if (!el) return;
@@ -1866,7 +1977,7 @@ function abInsertVar(v) {
 function abSet(field, value, rerender) {
   abState.events[abCur][field] = value;
   if (field === 'enabled') { abRenderTabs(); abRenderChecks(); }
-  if (rerender && ['sound','layout','style','enabled'].includes(field)) abRenderForm();
+  if (rerender && ['sound','layout','style','enabled','custom'].includes(field)) abRenderForm();
   abPreview('still');
   abQueueSave();
 }
