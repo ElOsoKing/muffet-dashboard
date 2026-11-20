@@ -68,6 +68,8 @@
   @keyframes outSlide { to { opacity:0; transform:translate(60%,-50%) } }
   @keyframes outZoom { to { opacity:0; transform:translate(-50%,-50%) scale(.6) } }
   #box.still { animation:none !important; }
+  /* Código propio del streamer: iframe aislado del tamaño de todo el overlay */
+  #custom { position:absolute; inset:0; width:100%; height:100%; border:0; background:transparent; pointer-events:none; }
   .burst { position:absolute; width:12px; height:12px; border-radius:3px; pointer-events:none; animation:fly 1.8s ease-out forwards; }
   .spark { position:absolute; pointer-events:none; font-size:26px; animation:spark 1.4s ease-out forwards; }
   @keyframes fly { to { transform:translate(var(--x),var(--y)) rotate(600deg); opacity:0 } }
@@ -234,6 +236,33 @@ function effect(kind, accent) {
     document.body.appendChild(d); setTimeout(() => d.remove(), 2700);
   }
 }
+// ── Código propio (HTML/CSS/JS) ──
+// Va en un iframe con sandbox="allow-scripts" SIN allow-same-origin: corre en un origen vacío, sin cookies ni acceso
+// a silklybot.com. Así nadie puede usar su código para hacer cosas en la cuenta de otro.
+const escH = (v) => String(v ?? '').replace(/[&<>"']/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[ch]));
+function alertVals(a) {
+  return {
+    usuario: a.user || 'Anónimo',
+    cantidad: a.event === 'tip' ? fmtMoney(a.amount, a.currency) : a.event === 'gift' ? String(a.count || 1) : Number(a.amount || 0).toLocaleString('es'),
+    meses: String(a.months || 0), viewers: Number(a.viewers || 0).toLocaleString('es'), nivel: a.tier || ''
+  };
+}
+function plainTitle(a) { const t = document.createElement('div'); fillTitle(t, a); return t.textContent; }
+function removeCustom() { const f = document.getElementById('custom'); if (f) f.remove(); }
+function renderCustom(a, still) {
+  removeCustom();
+  const c = a.cfg || {}, v = alertVals(a);
+  const vars = { ...v, mensaje: a.message || '', imagen: c.image || '', texto: plainTitle(a), avisos: (a.chips || []).join(' · '), evento: a.event };
+  const html = String(c.html || '').replace(/\{(usuario|cantidad|meses|viewers|nivel|mensaje|imagen|texto|avisos|evento)\}/g, (m, k) => escH(vars[k]));
+  const data = { evento: a.event, ...vars, monto: Number(a.amount) || 0, moneda: a.currency || '', subs: a.count || 0, color: c.color_accent, color_texto: c.color_text,
+    duracion: Number(c.duration) || 7, vista_previa: !!PREVIEW || !!still };
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  const f = document.createElement('iframe');
+  f.id = 'custom'; f.setAttribute('sandbox', 'allow-scripts'); f.setAttribute('allow', 'autoplay');
+  f.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:transparent;overflow:hidden;width:100%;height:100%;color:#fff;font-family:Inter,system-ui,sans-serif}</style><style>${c.css || ''}</style></head><body>${html}<script>window.alerta=${json};addEventListener('message',function(e){if(e.data==='alerta-salir')document.body.classList.add('salir')});<\/script><script>${String(c.js || '').replace(/<\/script/gi, '<\\/script')}<\/script></body></html>`;
+  document.getElementById('stage').appendChild(f);
+}
+
 async function renderBox(a) {
   const c = a.cfg || {};
   await ensureFont(c.font || 'Inter');
@@ -269,6 +298,25 @@ async function renderBox(a) {
 async function showBox(a, { still = false, silent = false } = {}) {
   clearTimeout(hideTimer); stopBoxSound();
   const c = a.cfg || {};
+  removeCustom(); box.className = '';
+  if (c.custom) {
+    renderCustom(a, still);
+    if (still) return;
+    if (!silent) {
+      const vol = Math.min(1, Math.max(0, (c.volume ?? 70) / 100));
+      if (c.sound === 'archivo' && c.sound_url) { boxSound = new Audio(c.sound_url); boxSound.volume = vol; boxSound.play().catch(() => {}); }
+      else if (c.sound === 'campanita') chime(vol);
+    }
+    const ms = Math.min(20, Math.max(3, Number(c.duration) || 7)) * 1000;
+    return new Promise(done => {
+      hideTimer = setTimeout(() => {
+        // Avisa al código del streamer para que haga su animación de salida (body.salir), y medio segundo después se quita
+        const f = document.getElementById('custom'); if (f) try { f.contentWindow.postMessage('alerta-salir', '*'); } catch(e) {}
+        if (boxSound) { const s = boxSound; let v = s.volume; const fd = setInterval(() => { v -= .1; if (v <= 0) { clearInterval(fd); s.pause(); } else s.volume = v; }, 50); boxSound = null; }
+        setTimeout(() => { removeCustom(); if (!PREVIEW) { playing = false; setTimeout(processQueue, 800); } done(); }, 600);
+      }, ms);
+    });
+  }
   const vid = await renderBox(a);
   if (still) {
     // Vista previa mientras editas: quieta y en silencio (se ve el primer cuadro del video)
