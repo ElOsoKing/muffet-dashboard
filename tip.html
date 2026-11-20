@@ -66,6 +66,14 @@ textarea{resize:none;height:84px;line-height:1.45}
 .foot a{color:#8c8ba3;text-decoration:none;font-weight:600}
 .hidden{display:none!important}
 .loading{color:var(--dim);text-align:center;padding:60px 0}
+/* Meta de propinas */
+.goalbox{margin:16px 24px 0;text-align:left;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.goalbox .gt{display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:700;margin-bottom:8px}
+.goalbox .gt span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.goalbox .gt b{color:#7dffb2}
+.goalbox .gtrack{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+.goalbox .gfill{height:100%;width:100%;transform-origin:left;transform:scaleX(0);transition:transform 1s cubic-bezier(.2,.9,.2,1);background:linear-gradient(90deg,#9147ff,#c86bff,#ff6fb5);border-radius:999px}
+.goalbox .gsub{font-size:11.5px;color:var(--dim);margin-top:6px}
 /* PC: dos columnas — perfil a la izquierda, formulario a la derecha */
 @media (min-width:900px){
   body{justify-content:center;min-height:100vh;padding:40px 24px}
@@ -94,6 +102,11 @@ textarea{resize:none;height:84px;line-height:1.45}
     <h1 id="title">Deja una propina</h1>
     <a class="chan" id="chan" href="#" target="_blank" rel="noopener noreferrer">twitch.tv/…</a>
     <p id="subtitle">Tu apoyo sale en el stream 💸</p>
+    <div class="goalbox hidden" id="goalBox">
+      <div class="gt"><span id="goalTitle">🎯 Meta</span><span><b id="goalCur">$0</b> / <span id="goalTarget">$0</span></span></div>
+      <div class="gtrack"><div class="gfill" id="goalFill"></div></div>
+      <div class="gsub" id="goalSub"></div>
+    </div>
   </div>
 
   <div id="loading" class="loading">Cargando…</div>
@@ -198,6 +211,18 @@ function fillHero() {
   else av.textContent = ((info.display || username)[0] || '?').toUpperCase();
   if (info.banner && /^https:\/\//.test(info.banner)) { const b = $('banner'); b.style.backgroundImage = `url("${info.banner.replace(/"/g, '')}")`; b.classList.add('img'); }
   $('hero').classList.remove('hidden');
+  renderGoal();
+}
+function renderGoal() {
+  const g = info.goal;
+  if (!g || !g.enabled) return;
+  const m = v => (SYMBOL[g.currency] || '') + (Number(v) % 1 ? Number(v).toFixed(2) : Number(v).toFixed(0)) + (SYMBOL[g.currency] ? '' : ' ' + g.currency);
+  $('goalTitle').textContent = '🎯 ' + g.title;
+  $('goalCur').textContent = m(g.current);
+  $('goalTarget').textContent = m(g.target);
+  $('goalSub').textContent = g.done ? '¡Meta cumplida! 🎉 Gracias a todos' : `${g.percent}% — faltan ${m(Math.max(0, g.target - g.current))}`;
+  $('goalBox').classList.remove('hidden');
+  requestAnimationFrame(() => requestAnimationFrame(() => { $('goalFill').style.transform = `scaleX(${Math.min(1, g.current / g.target)})`; }));
 }
 function renderRecent() {
   const list = Array.isArray(info.recent) ? info.recent : [];
