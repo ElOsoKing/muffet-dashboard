@@ -695,11 +695,11 @@ app.post('/api/admin/changelog', requireAdmin, async (req, res) => {
     const fields = items.map(item => ({ name: item, value: '​', inline: false }));
     const payload = {
       embeds: [{
-        title: `🕷️ MuffetBot ${version} — Novedades`,
+        title: `🕷️ SilklyBot ${version} — Novedades`,
         description: `Nueva actualización disponible — ${date}`,
         color: 9519103,
         fields: items.map(item => ({ name: item, value: '​', inline: false })),
-        footer: { text: `MuffetBot • ${date}` }
+        footer: { text: `SilklyBot • ${date}` }
       }]
     };
     const r = await fetch(webhookUrl, {
