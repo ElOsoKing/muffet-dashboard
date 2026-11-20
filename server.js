@@ -1584,11 +1584,11 @@ app.get('/api/tip/:username/info', async (req, res) => {
     const s = await getTipStreamer(req.params.username);
     if (!s) return res.status(404).json({ error: 'Canal no encontrado' });
     const paypalOn = s.enabled && paypalReady();
-    const [prof, recent] = await Promise.all([twitchProfileFor(s.username), (paypalOn || s.mpLink) ? recentTipsFor(s.username) : []]);
+    const [prof, recent, goal] = await Promise.all([twitchProfileFor(s.username), (paypalOn || s.mpLink) ? recentTipsFor(s.username) : [], goalStateCached(s.username).catch(() => null)]);
     const display = s.display === s.username && prof.display_name ? prof.display_name : s.display;
     if (!paypalOn && !s.mpLink) return res.json({ enabled: false, display, avatar: prof.avatar || null, banner: prof.banner || null });
     const out = { enabled: true, paypal: paypalOn, mp_link: s.mpLink || null, display, username: s.username, currency: s.currency, min: s.min, max: TIP_MAX_AMOUNT,
-      avatar: prof.avatar || null, banner: prof.banner || null, recent };
+      avatar: prof.avatar || null, banner: prof.banner || null, recent, goal: goal?.enabled && goal.type === 'money' ? goal : null };
     // merchant: el SDK de PayPal necesita saber a quién se le paga (es el mismo correo que verá quien paga en PayPal)
     if (paypalOn) Object.assign(out, { client_id: process.env.PAYPAL_CLIENT_ID, merchant: s.email, sandbox: PAYPAL_MODE !== 'live' });
     res.json(out);
@@ -1652,6 +1652,7 @@ app.post('/api/tip/:username/capture', async (req, res) => {
     pendingTips.delete(orderId);
     if (firstTime && status === 'completed') {
       console.log(`[tips] ✅ ${tip.name} → #${s.username}: ${tip.amount} ${tip.currency}`);
+      checkGoalReached(s.username, tip.amount, tip.currency);
       pushMediaAlert(s.username, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
       const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
       fetch(botUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1662,6 +1663,105 @@ app.post('/api/tip/:username/capture', async (req, res) => {
     }
     res.json({ ok: true, status, amount: tip.amount, currency: tip.currency });
   } catch (e) { console.error('[tips] capture:', e.message); res.status(500).json({ error: 'Error del servidor. Si se te cobró, el streamer igual lo recibió.' }); }
+});
+
+
+// ══════════════════════════════════════════
+//  META DE PROPINAS  (tips_config.goal = { enabled, title, target, started_at })
+//  Cuentan las propinas completadas (PayPal y registradas a mano) en la moneda del streamer desde started_at.
+// ══════════════════════════════════════════
+async function computeGoalState(username) {
+  const u = String(username || '').toLowerCase();
+  if (!/^[a-z0-9_]{3,25}$/.test(u)) return null;
+  const s = await sbSelect('streamers', { twitch_username: u }, 'twitch_username,tips_config,goal_progress');
+  if (!s) return null;
+  const tc = s.tips_config || {}, g = tc.goal || {};
+  if (!g.enabled || !(Number(g.target) > 0)) return { enabled: false };
+  const type = ['money', 'subs', 'bits'].includes(g.type) ? g.type : 'money';
+  const currency = TIP_CURRENCIES.includes(tc.currency) ? tc.currency : 'USD';
+  const since = g.started_at || '1970-01-01T00:00:00Z';
+  const endsAt = g.ends_at && !isNaN(Date.parse(g.ends_at)) ? new Date(g.ends_at).toISOString() : null;
+  let current = 0;
+  if (type === 'money') {
+    // Propinas completadas en la moneda del streamer, desde que empezó la meta (y hasta la fecha límite si hay)
+    const until = endsAt ? `&created_at=lte.${encodeURIComponent(endsAt)}` : '';
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?streamer=eq.${u}&status=eq.completed&currency=eq.${currency}&created_at=gte.${encodeURIComponent(since)}${until}&select=amount&limit=10000`, { headers: sbHeaders, signal: AbortSignal.timeout(8000) });
+    const rows = await r.json().catch(() => []);
+    current = Math.round((Array.isArray(rows) ? rows : []).reduce((a, t) => a + (Number(t.amount) || 0), 0) * 100) / 100;
+  } else {
+    // Subs y bits los va sumando el bot en goal_progress (solo si es de esta misma meta)
+    const gp = s.goal_progress || {};
+    current = gp.goal_id === since ? Number(gp.count) || 0 : 0;
+  }
+  const target = Math.round(Number(g.target) * 100) / 100;
+  const done = current >= target;
+  return {
+    enabled: true, type, title: g.title || 'Meta', reward: g.reward || '', target, current,
+    currency: type === 'money' ? currency : null, unit: type === 'subs' ? 'subs' : type === 'bits' ? 'bits' : null,
+    percent: Math.min(100, Math.floor(current / target * 100)), done,
+    ends_at: endsAt, expired: !!(endsAt && Date.now() > Date.parse(endsAt) && !done),
+    theme: g.theme || 'clasico'
+  };
+}
+const goalStateCached = (u) => ttlCache('goal:' + String(u).toLowerCase(), 4000, () => computeGoalState(u));
+function invalidateGoal(u) { _ttlCache.delete('goal:' + String(u).toLowerCase()); }
+
+// Después de registrar una propina: si con esta se cumplió la meta, avisar al bot (Muffet lo anuncia en el chat)
+async function checkGoalReached(username, amountAdded, currency) {
+  try {
+    invalidateGoal(username);
+    const st = await computeGoalState(username);
+    if (!st?.enabled || st.type !== 'money' || st.currency !== currency) return;
+    if (st.current >= st.target && st.current - amountAdded < st.target) {
+      console.log(`[tips] 🎯 meta cumplida en #${username}: ${st.title}`);
+      const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+      fetch(botUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: 'goal.reached', event: { channel: String(username).toLowerCase(), title: st.title, target: st.target, currency: st.currency } })
+      }).catch(() => {});
+    }
+  } catch (e) { console.error('[tips] meta:', e.message); }
+}
+
+app.get('/overlay/goal/:username', (req, res) => res.sendFile(path.join(__dirname, 'goal-overlay.html')));
+app.get('/api/goal/state/:username', async (req, res) => {
+  try {
+    const st = await goalStateCached(req.params.username);
+    if (!st) return res.status(404).json({ enabled: false });
+    res.set('Cache-Control', 'no-store');
+    res.json(st);
+  } catch (e) { res.status(500).json({ enabled: false }); }
+});
+app.post('/api/tips-goal', requireAuth, async (req, res) => {
+  try {
+    const g = req.body?.goal;
+    if (!isValidObject(g)) return res.status(400).json({ error: 'Inválido' });
+    const target = Math.round(Number(g.target) * 100) / 100;
+    if (g.enabled && !(target > 0 && target <= 10000000)) return res.status(400).json({ error: 'Pon el monto de la meta' });
+    const prev = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'tips_config,twitch_username');
+    const tc = prev?.tips_config || {};
+    const old = tc.goal || {};
+    let endsAt = null;
+    if (g.ends_at) {
+      const t = Date.parse(g.ends_at);
+      if (isNaN(t)) return res.status(400).json({ error: 'Fecha límite inválida' });
+      if (t < Date.now() - 60000 && (req.body?.reset || String(g.ends_at) !== String(old.ends_at))) return res.status(400).json({ error: 'La fecha límite ya pasó' });
+      endsAt = new Date(t).toISOString();
+    }
+    const goal = {
+      enabled: !!g.enabled,
+      type: ['money', 'subs', 'bits'].includes(g.type) ? g.type : 'money',
+      reward: cleanTipText(g.reward, 80),
+      ends_at: endsAt,
+      title: cleanTipText(g.title, 40) || 'Meta',
+      target: target > 0 ? target : (old.target || 0),
+      theme: ['clasico', 'neon', 'minimal'].includes(g.theme) ? g.theme : (old.theme || 'clasico'),
+      // Empieza a contar desde ahora si es nueva o si pidieron reiniciarla
+      started_at: (req.body?.reset || !old.started_at || (old.type || 'money') !== (['money', 'subs', 'bits'].includes(g.type) ? g.type : 'money')) ? new Date().toISOString() : old.started_at
+    };
+    await sbUpdate('streamers', { tips_config: { ...tc, goal } }, { twitch_id: req.session.user.id });
+    invalidateGoal(prev?.twitch_username || req.session.user.username);
+    res.json({ success: true, goal, state: await computeGoalState(prev?.twitch_username || req.session.user.username) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Dashboard: config y lista de propinas del streamer ──
@@ -1680,6 +1780,8 @@ app.post('/api/tips-config', requireAuth, async (req, res) => {
       min_amount: Math.max(1, Math.min(100, Math.round(Number(t.min_amount) || 1))),
       chat_thanks: t.chat_thanks !== false
     };
+    const prev = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'tips_config');
+    if (prev?.tips_config?.goal) clean.goal = prev.tips_config.goal; // la meta se guarda aparte; no se pierde
     await sbUpdate('streamers', { tips_config: clean }, { twitch_id: req.session.user.id });
     res.json({ success: true, tips_config: clean });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -1706,6 +1808,7 @@ app.post('/api/tips/manual', requireAuth, async (req, res) => {
     };
     const ins = await sbInsert('tips', tip);
     if (!ins || !ins.id) return res.status(500).json({ error: 'No se pudo guardar' });
+    checkGoalReached(u, tip.amount, tip.currency);
     pushMediaAlert(u, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
     const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
     fetch(botUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1725,6 +1828,7 @@ app.delete('/api/tips/:id', requireAuth, async (req, res) => {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?id=eq.${id}&streamer=eq.${encodeURIComponent(u)}`, { method: 'DELETE', headers: { ...sbHeaders, Prefer: 'return=representation' } });
     const del = await r.json().catch(() => []);
     if (!Array.isArray(del) || !del.length) return res.status(404).json({ error: 'No encontrada' });
+    invalidateGoal(u);
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
