@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Meta — SilklyBot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:transparent;overflow:hidden;font-family:'Inter',system-ui,sans-serif;color:#fff}
+#goal{position:absolute;left:16px;top:16px;width:600px;padding:14px 18px 16px;border-radius:18px;opacity:0;transition:opacity .4s}
+#goal.show{opacity:1}
+.top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:10px}
+.title{font-size:20px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.title::before{content:"🎯 "}
+.nums{font-size:16px;font-weight:800;white-space:nowrap;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.nums .cur{color:#7dffb2}
+.nums .pct{opacity:.75;margin-left:6px;font-weight:600}
+.track{position:relative;height:22px;border-radius:999px;overflow:hidden}
+/* La barra se llena con transform (lo hace la GPU), no cambiando el ancho */
+.fill{position:absolute;inset:0;transform-origin:left center;transform:scaleX(0);transition:transform 1.2s cubic-bezier(.2,.9,.2,1);border-radius:999px}
+.shine{position:absolute;inset:0;border-radius:999px;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);transform:translateX(-100%);animation:shine 3.2s ease-in-out infinite}
+@keyframes shine{0%,40%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.sub{display:flex;justify-content:space-between;gap:12px;margin-top:9px;font-size:14px;font-weight:600;opacity:.92;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.sub:empty{display:none}
+.reward{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reward::before{content:"🎁 Reto: ";opacity:.75}
+.timer{white-space:nowrap;font-variant-numeric:tabular-nums}
+.timer::before{content:"⏳ "}
+#goal.expired .fill{filter:grayscale(.8) brightness(.7)}
+#goal.expired .timer{color:#ff9db4}
+.done-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;letter-spacing:1.5px;color:#1b1030;opacity:0;transition:opacity .4s}
+#goal.done .done-msg{opacity:1}
+/* Temas */
+#goal[data-theme="clasico"]{background:linear-gradient(160deg,rgba(32,20,58,.92),rgba(18,12,30,.92));border:2px solid rgba(183,148,255,.6);box-shadow:0 0 30px rgba(145,71,255,.4),0 10px 30px rgba(0,0,0,.45)}
+#goal[data-theme="clasico"] .track{background:rgba(255,255,255,.1);box-shadow:inset 0 2px 6px rgba(0,0,0,.4)}
+#goal[data-theme="clasico"] .fill{background:linear-gradient(90deg,#9147ff,#c86bff,#ff6fb5)}
+#goal[data-theme="neon"]{background:rgba(5,6,20,.88);border:2px solid #00f0ff;box-shadow:0 0 18px #00f0ff,inset 0 0 18px rgba(0,240,255,.25)}
+#goal[data-theme="neon"] .title,#goal[data-theme="neon"] .nums{text-shadow:0 0 8px #00f0ff}
+#goal[data-theme="neon"] .title{padding:6px 8px;margin:-6px -8px}
+#goal[data-theme="neon"] .track{background:rgba(0,240,255,.08);border:1px solid rgba(0,240,255,.5)}
+#goal[data-theme="neon"] .fill{background:linear-gradient(90deg,#00f0ff,#ff00e5);box-shadow:0 0 14px #ff00e5}
+#goal[data-theme="minimal"]{background:transparent;padding:6px 4px}
+#goal[data-theme="minimal"] .track{background:rgba(0,0,0,.45);height:14px}
+#goal[data-theme="minimal"] .fill{background:#fff}
+#goal[data-theme="minimal"] .shine{display:none}
+#goal[data-theme="minimal"] .done-msg{display:none}
+/* Celebración */
+.hidden{display:none!important}
+.burst{position:absolute;width:10px;height:10px;border-radius:2px;pointer-events:none;animation:fly 1.6s ease-out forwards}
+@keyframes fly{to{transform:translate(var(--x),var(--y)) rotate(540deg);opacity:0}}
+body.lite .shine,body.paused .shine{animation:none;display:none}
+</style>
+</head>
+<body>
+<div id="goal" data-theme="clasico">
+  <div class="top"><div class="title" id="title">Meta</div><div class="nums"><span class="cur" id="cur">$0</span> / <span id="target">$0</span><span class="pct" id="pct">0%</span></div></div>
+  <div class="track"><div class="fill" id="fill"><div class="shine"></div></div><div class="done-msg">¡META CUMPLIDA! 🎉</div></div>
+  <div class="sub" id="sub"><span class="reward hidden" id="reward"></span><span class="timer hidden" id="timer"></span></div>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+const username = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '').toLowerCase();
+const SYM = { USD:'$', EUR:'€', MXN:'$', CAD:'$', GBP:'£' };
+const $ = id => document.getElementById(id);
+if (params.get('lite') === '1') document.body.classList.add('lite');
+let wasDone = null, timer = null;
+const money = (v, c) => (SYM[c] || '') + (Number(v) % 1 ? Number(v).toFixed(2) : Number(v).toFixed(0)) + (SYM[c] ? '' : ' ' + c);
+// Dinero → "$40"; subs → "12 subs"; bits → "3,400 bits"
+const fmtVal = (v, st) => st.type === 'subs' || st.type === 'bits' ? Math.floor(v).toLocaleString('en-US') + ' ' + st.unit : money(v, st.currency);
+let endsAt = null, tick = null;
+function updateTimer() {
+  const el = $('timer');
+  if (!endsAt) { el.classList.add('hidden'); return; }
+  const ms = endsAt - Date.now();
+  el.classList.remove('hidden');
+  if (ms <= 0) { el.textContent = 'Tiempo terminado'; return; }
+  const d = Math.floor(ms / 86400000), h = Math.floor(ms / 3600000) % 24, m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60;
+  el.textContent = d > 0 ? `${d}d ${h}h ${m}m` : `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function render(st) {
+  const g = $('goal');
+  if (!st || !st.enabled) { g.classList.remove('show'); return; }
+  g.dataset.theme = params.get('theme') || st.theme || 'clasico';
+  $('title').textContent = st.title;
+  $('cur').textContent = st.type === 'subs' || st.type === 'bits' ? Math.floor(st.current).toLocaleString('en-US') : fmtVal(st.current, st);
+  $('target').textContent = fmtVal(st.target, st);
+  $('reward').textContent = st.reward || ''; $('reward').classList.toggle('hidden', !st.reward);
+  endsAt = st.ends_at && !st.done ? Date.parse(st.ends_at) : null;
+  g.classList.toggle('expired', !!st.expired);
+  updateTimer();
+  clearInterval(tick); if (endsAt) tick = setInterval(updateTimer, endsAt - Date.now() > 86400000 ? 30000 : 1000);
+  $('pct').textContent = st.percent + '%';
+  $('fill').style.transform = `scaleX(${Math.max(0, Math.min(1, st.current / st.target))})`;
+  g.classList.toggle('done', !!st.done);
+  if (st.done && wasDone === false) celebrate();
+  wasDone = !!st.done;
+  document.body.classList.toggle('paused', !!st.done && document.body.classList.contains('lite'));
+  g.classList.add('show');
+}
+function celebrate() {
+  if (document.body.classList.contains('lite')) return;
+  const g = $('goal'), colors = ['#9147ff', '#ff6fb5', '#7dffb2', '#ffd23f', '#00f0ff'];
+  for (let i = 0; i < 40; i++) {
+    const d = document.createElement('i'); d.className = 'burst';
+    d.style.left = (20 + Math.random() * 560) + 'px'; d.style.top = '40px';
+    d.style.background = colors[i % colors.length];
+    d.style.setProperty('--x', (Math.random() * 300 - 150) + 'px'); d.style.setProperty('--y', (Math.random() * -120 - 20) + 'px');
+    g.appendChild(d); setTimeout(() => d.remove(), 1700);
+  }
+}
+async function poll() {
+  clearTimeout(timer);
+  if (document.hidden) { timer = setTimeout(poll, 15000); return; }
+  try {
+    const r = await fetch(`/api/goal/state/${encodeURIComponent(username)}`, { cache: 'no-store' });
+    render(await r.json());
+  } catch (e) {}
+  timer = setTimeout(poll, 8000);
+}
+// Vista previa sin datos reales: ?preview=1
+if (params.get('preview') === '1') {
+  let v = 40;
+  const ends = new Date(Date.now() + 2 * 3600000 + 15 * 60000).toISOString();
+  const demo = v => ({ enabled: true, type: 'subs', unit: 'subs', title: '50 subs', reward: 'me rapo la cabeza', current: v, target: 50, percent: Math.floor(v / 50 * 100), done: v >= 50, ends_at: ends });
+  v = 20; render(demo(v));
+  setInterval(() => { v = v >= 50 ? 20 : Math.min(50, v + 10); render(demo(v)); }, 2500);
+} else poll();
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+</script>
+</body>
+</html>
