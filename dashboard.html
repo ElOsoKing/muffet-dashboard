@@ -179,6 +179,33 @@ html,body{width:100%;min-height:100%;background:
 .ab-check{display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:10px;background:var(--bg3);border:1px solid rgba(255,255,255,0.08);font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer;user-select:none;}
 .ab-check input{accent-color:var(--purple);width:16px;height:16px;margin:0;cursor:pointer;}
 .ab-check.on{border-color:var(--purple-border);background:rgba(145,71,255,0.12);color:var(--text);}
+.ab-varbar{display:flex;gap:6px;flex-wrap:wrap;}
+.ab-presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;}
+.ab-preset{display:flex;flex-direction:column;gap:6px;padding:6px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:var(--bg3);cursor:pointer;font-family:var(--sans);}
+.ab-preset:hover{border-color:var(--purple-border);}
+.ab-preset.on{border-color:#ffd23f99;box-shadow:0 0 0 1px #ffd23f55;}
+.ab-pn{font-size:11px;font-weight:700;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ab-preset.on .ab-pn{color:var(--text);}
+.ab-pv{position:relative;height:48px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;background:#1a1530;overflow:hidden;}
+.ab-pv-l1{width:62%;height:7px;border-radius:4px;background:var(--a);}
+.ab-pv-l2{width:40%;height:5px;border-radius:3px;background:var(--t);opacity:.75;}
+.ab-pv-tarjeta{background:linear-gradient(160deg,#20143a,#0e0a1a);box-shadow:inset 0 0 0 2px var(--a);}
+.ab-pv-telarana{background:radial-gradient(circle at 0 0,transparent 18px,rgba(255,255,255,.18) 19px,transparent 20px),radial-gradient(circle at 0 0,transparent 30px,rgba(255,255,255,.14) 31px,transparent 32px),linear-gradient(160deg,#2a1248,#12081f);box-shadow:inset 0 0 0 2px var(--a);}
+.ab-pv-neon{background:#06060f;box-shadow:inset 0 0 0 2px var(--a),inset 0 0 12px var(--a);}
+.ab-pv-arcade{background:#0b0b1a;border-radius:0;box-shadow:inset 0 0 0 3px var(--a),inset 0 0 0 5px #0b0b1a,inset 0 0 0 7px #fff;}
+.ab-pv-cristal{background:linear-gradient(135deg,rgba(255,255,255,.28),rgba(255,255,255,.06)),linear-gradient(135deg,#3b2a63,#123a4a);box-shadow:inset 0 0 0 1px rgba(255,255,255,.6);}
+.ab-pv-fuego{background:linear-gradient(180deg,#3a0a00,#1a0500);box-shadow:inset 0 0 0 2px var(--a),inset 0 -10px 18px #ff5a0099;}
+.ab-pv-kawaii{background:linear-gradient(160deg,#fff0f7,#ffd9ec);border-radius:14px;box-shadow:inset 0 0 0 3px var(--a);}
+.ab-pv-cyber{background:linear-gradient(135deg,#002828,#05081a);border-radius:0;clip-path:polygon(9px 0,100% 0,100% calc(100% - 9px),calc(100% - 9px) 100%,0 100%,0 9px);box-shadow:inset 0 0 0 2px var(--a);}
+.ab-pv-oro{background:linear-gradient(160deg,#151109,#060503);box-shadow:inset 0 0 0 1px #d4af37,inset 0 0 0 4px #060503,inset 0 0 0 5px #d4af3799;}
+.ab-pv-limpio{background:linear-gradient(135deg,#3b2a63,#123a4a);}
+.ab-pv-limpio .ab-pv-l1{box-shadow:0 2px 0 #000;}
+.ab-varchip{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:var(--bg3);color:var(--text-muted);font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);}
+.ab-varchip small{font-size:10px;opacity:.75;font-weight:700;}
+.ab-varchip.on{border-color:#ffd23f80;background:rgba(255,210,63,0.12);color:var(--text);}
+.ab-varchip.off{opacity:.5;}
+.ab-varchip.add{border-style:dashed;color:var(--purple-light);border-color:var(--purple-border);background:none;}
+.ab-varhead{margin-top:12px;padding:14px;border-radius:12px;border:1px solid rgba(255,210,63,0.25);background:rgba(255,210,63,0.05);}
 .ab-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px;align-items:start;}
 .ab-preview-wrap{position:sticky;top:12px;}
 .ab-stage{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);
@@ -1752,6 +1779,15 @@ const AB_SAMPLE = { follow:{ user:'Silkly_Fan' }, sub:{ user:'Silkly_Fan', tier:
 const AB_SUB_SAMPLE = { sub:'+5 min al subatón', resub:'+5 min al subatón', gift:'+25 min al subatón', bits:'+5 min al subatón', raid:'+4 min al subatón', tip:'+5 min al subatón' };
 const AB_FONTS = ['Inter','Poppins','Fredoka','Bangers','Luckiest Guy','Press Start 2P'];
 let abState = null, abCur = 'follow', abSaveTimer = null, abFrameReady = false;
+// Variaciones: abVar = null → alerta principal; número → esa variación
+let abVar = null;
+const AB_EVENT_KEYS = ['enabled','min','show_message','show_subathon','show_goal','tts','tts_min']; // estos son de la alerta principal, no de cada variación
+const AB_DESIGN_KEYS = ['text','image','image_type','sound','sound_url','volume','duration','layout','style','anim','effect','font','color_accent','color_text','custom','html','css','js'];
+const AB_VAR_COND = { sub:{ label:'Cuando la sub sea', tiers:true }, resub:{ label:'Desde cuántos meses', unit:'meses', def:12 }, gift:{ label:'Desde cuántas subs regaladas', unit:'subs', def:10 },
+  bits:{ label:'Desde cuántos bits', unit:'bits', def:1000 }, raid:{ label:'Desde cuántas personas', unit:'personas', def:50 }, tip:{ label:'Desde qué monto', unit:'', def:20 } };
+function abTarget() { const m = abState.events[abCur]; return abVar !== null && m.variations?.[abVar] ? m.variations[abVar] : m; }
+function abObj(field) { return AB_EVENT_KEYS.includes(field) ? abState.events[abCur] : abTarget(); }
+function abVarLabel(ev, v) { const k = AB_VAR_COND[ev]; return k?.tiers ? v.cond : `${Number(v.cond).toLocaleString('es')}+ ${k?.unit || ''}`.trim(); }
 
 function abDefaults(ev) {
   return { enabled:false, text:AB_TEXT[ev], image:'', image_type:'image', sound:'campanita', sound_url:'', volume:70, duration:7, layout:'arriba', style:'tarjeta',
@@ -1760,8 +1796,11 @@ function abDefaults(ev) {
 }
 function abLoad() {
   const src = streamerData.alert_box || {};
-  abState = { enabled: !!src.enabled, events: {} };
-  AB_EVENTS.forEach(([ev]) => { abState.events[ev] = { ...abDefaults(ev), ...((src.events || {})[ev] || {}) }; });
+  abState = { enabled: !!src.enabled, events: {}, tts: { voice:'es-MX-DaliaNeural', volume:80, say_name:true, ...(src.tts || {}) } };
+  AB_EVENTS.forEach(([ev]) => {
+    abState.events[ev] = { ...abDefaults(ev), ...((src.events || {})[ev] || {}) };
+    if (!Array.isArray(abState.events[ev].variations)) abState.events[ev].variations = [];
+  });
 }
 function initAlertBoxSection() {
   if (!abState) abLoad();
@@ -1770,7 +1809,7 @@ function initAlertBoxSection() {
   const fr = document.getElementById('abFrame');
   if (!fr.src) fr.src = `/overlay/alerts/${encodeURIComponent((userData.username||'').toLowerCase())}?preview=1`;
   abFit();
-  abRenderChecks(); abRenderTabs(); abRenderForm();
+  abRenderChecks(); abRenderTabs(); abRenderForm(); abRenderTts(); tkRender();
 }
 function abRenderChecks() {
   document.getElementById('abChecks').innerHTML = AB_EVENTS.map(([ev, ic, name]) => {
@@ -1785,7 +1824,7 @@ function abRenderChecks() {
 }
 function abCheck(ev, on) {
   abState.events[ev].enabled = on;
-  if (on) abCur = ev; // abre esa alerta para diseñarla
+  if (on) { abCur = ev; abVar = null; } // abre esa alerta para diseñarla
   abRenderChecks(); abRenderTabs(); abRenderForm(); abPreview('still');
   abQueueSave(true);
 }
@@ -1796,17 +1835,23 @@ function abFit() {
   const sc = st.clientWidth / 1920 || 0.3;
   fr.style.transform = `scale(${sc})`;
 }
-window.addEventListener('resize', () => { if (document.getElementById('sec-alertbox')?.classList.contains('active')) abFit(); });
+window.addEventListener('resize', () => { if (document.getElementById('sec-alertbox')?.classList.contains('active')) { abFit(); tkFit(); } });
 window.addEventListener('message', (e) => {
   if (e.origin !== location.origin || e.data?.kind !== 'alertbox-ready') return;
   abFrameReady = true; abFit(); abPreview('still');
 });
 function abAlert() {
-  const c = abState.events[abCur];
+  const m = abState.events[abCur], t = abTarget();
+  const c = { ...m }; AB_DESIGN_KEYS.forEach(k => { c[k] = t[k]; }); delete c.variations;
+  const sample = { ...AB_SAMPLE[abCur] };
+  if (t !== m) { // datos de ejemplo que cumplan la condición de la variación
+    if (abCur === 'sub') sample.tier = t.cond; else if (abCur === 'gift') sample.count = t.cond; else if (abCur === 'resub') sample.months = t.cond;
+    else if (abCur === 'raid') sample.viewers = t.cond; else sample.amount = t.cond;
+  }
   const chips = [];
-  if (c.show_subathon && AB_SUB_SAMPLE[abCur]) chips.push(AB_SUB_SAMPLE[abCur]);
-  if (c.show_goal && ['sub','resub','gift','bits','tip'].includes(abCur)) chips.push('🎯 Meta: 46%');
-  return { type:'box', event:abCur, cfg:c, ...AB_SAMPLE[abCur], message: c.show_message ? (AB_SAMPLE[abCur].message || '') : '', chips };
+  if (m.show_subathon && AB_SUB_SAMPLE[abCur]) chips.push(AB_SUB_SAMPLE[abCur]);
+  if (m.show_goal && ['sub','resub','gift','bits','tip'].includes(abCur)) chips.push('🎯 Meta: 46%');
+  return { type:'box', event:abCur, cfg:c, ...sample, message: m.show_message ? (sample.message || '') : '', chips };
 }
 function abPreview(mode) {
   const fr = document.getElementById('abFrame');
@@ -1817,30 +1862,82 @@ function abPlay() { abFit(); abPreview('play'); }
 
 function abRenderTabs() {
   document.getElementById('abTabs').innerHTML = AB_EVENTS.map(([ev, ic, name]) =>
-    `<button class="ab-tab ${ev===abCur?'active':''} ${abState.events[ev].enabled?'':'off'}" onclick="abPick('${ev}')"><span class="ab-dot"></span>${ic} ${name}</button>`).join('');
+    `<button class="ab-tab ${ev===abCur?'active':''} ${abState.events[ev].enabled?'':'off'}" onclick="abPick('${ev}')"><span class="ab-dot"></span>${ic} ${name}${(abState.events[ev].variations||[]).length?`<span style="font-size:10px;opacity:.7;">+${abState.events[ev].variations.length}</span>`:''}</button>`).join('');
 }
-function abPick(ev) { abCur = ev; abRenderTabs(); abRenderForm(); abPreview('still'); }
+function abPick(ev) { abCur = ev; abVar = null; abRenderTabs(); abRenderForm(); abPreview('still'); }
+function abPickVar(i) { abVar = i; abRenderForm(); abPreview('still'); }
+function abAddVar() {
+  const m = abState.events[abCur];
+  if (m.variations.length >= 5) { showToast('Máximo 5 variaciones por alerta', 'error'); return; }
+  const k = AB_VAR_COND[abCur], v = { id: 'v' + Date.now().toString(36), name: 'Épica', enabled: true, cond: k.tiers ? 'Tier 3' : k.def };
+  AB_DESIGN_KEYS.forEach(key => { v[key] = m[key]; });
+  // que se note la diferencia desde el principio
+  v.effect = 'confeti'; v.color_accent = '#ffd23f';
+  if (!k.tiers) { const used = m.variations.map(x => Number(x.cond)); while (used.includes(Number(v.cond))) v.cond = Number(v.cond) * 2; }
+  m.variations.push(v); abVar = m.variations.length - 1;
+  abRenderTabs(); abRenderForm(); abPreview('still'); abQueueSave(true);
+}
+function abDelVar() {
+  const m = abState.events[abCur];
+  if (abVar === null || !confirm(`¿Borrar la variación "${m.variations[abVar]?.name || ''}"?`)) return;
+  m.variations.splice(abVar, 1); abVar = null;
+  abRenderTabs(); abRenderForm(); abPreview('still'); abQueueSave(true);
+}
+function abVarSet(field, value) {
+  const v = abTarget(); if (v === abState.events[abCur]) return;
+  v[field] = value;
+  if (field !== 'name') { abRenderForm(); abPreview('still'); } else { const ch = document.querySelector('.ab-varchip.on .ab-vn'); if (ch) ch.textContent = value || 'Variación'; }
+  abQueueSave();
+}
+function abVarBar() {
+  if (!AB_VAR_COND[abCur]) return '';
+  const m = abState.events[abCur], k = AB_VAR_COND[abCur];
+  const chips = [`<button class="ab-varchip ${abVar===null?'on':''}" onclick="abPickVar(null)">⭐ Principal</button>`]
+    .concat(m.variations.map((v, i) => `<button class="ab-varchip ${abVar===i?'on':''} ${v.enabled?'':'off'}" onclick="abPickVar(${i})"><span class="ab-vn">${escCmdHtml(v.name)}</span> <small>${escCmdHtml(abVarLabel(abCur, v))}</small></button>`))
+    .concat(m.variations.length < 5 ? [`<button class="ab-varchip add" onclick="abAddVar()">➕ Agregar variación</button>`] : []);
+  let head = '';
+  if (abVar !== null && !m.variations[abVar]) abVar = null;
+  if (abVar !== null) {
+    const v = m.variations[abVar];
+    const condInput = k.tiers
+      ? `<select class="form-input" onchange="abVarSet('cond',this.value)">${['Prime','Tier 1','Tier 2','Tier 3'].map(t => `<option ${v.cond===t?'selected':''}>${t}</option>`).join('')}</select>`
+      : `<div style="display:flex;align-items:center;gap:8px;"><input type="number" class="form-input" min="1" value="${Number(v.cond)||1}" onchange="abVarSet('cond',Math.max(1,parseInt(this.value)||1))" style="max-width:140px;"><span style="font-size:12px;color:var(--text-muted);">${k.unit || (streamerData.tips_config?.currency || 'USD')}</span></div>`;
+    head = `<div class="ab-varhead">
+      <div class="ab-row2">
+        <div class="ab-field"><div class="ab-label">🏷️ Nombre</div><input class="form-input" maxlength="30" value="${escCmdHtml(v.name)}" oninput="abVarSet('name',this.value)"></div>
+        <div class="ab-field"><div class="ab-label">🎯 ${k.label}</div>${condInput}</div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" ${v.enabled?'checked':''} onchange="abVarSet('enabled',this.checked)" style="accent-color:var(--purple);width:16px;height:16px;"> Variación activa</label>
+        <button class="btn btn-danger btn-sm" onclick="abDelVar()">🗑️ Borrar variación</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6;">${k.tiers ? 'Sale en vez de la principal cuando la sub sea de ese tipo.' : 'Sale en vez de la principal cuando se llega a ese número. Si hay varias, gana la del número más alto que se cumpla.'} Abajo diseñas cómo se ve y suena esta variación.</div>
+    </div>`;
+  }
+  return `<div class="ab-field"><div class="ab-label">🎭 Variaciones <span style="text-transform:none;font-weight:600;">· alertas distintas según la cantidad</span></div><div class="ab-varbar">${chips.join('')}</div>${head}</div>`;
+}
 
 function abSeg(field, opts) {
-  const c = abState.events[abCur];
+  const c = abObj(field);
   return `<div class="ab-seg">${opts.map(([v,l]) => `<button class="${c[field]===v?'on':''}" onclick="abSet('${field}','${v}',true)">${l}</button>`).join('')}</div>`;
 }
 function abSelect(field, opts) {
-  const c = abState.events[abCur];
+  const c = abObj(field);
   return `<select class="form-input" onchange="abSet('${field}',this.value,true)">${opts.map(([v,l]) => `<option value="${escCmdHtml(v)}" ${c[field]===v?'selected':''}>${l}</option>`).join('')}</select>`;
 }
 function abToggle(field, label, sub) {
-  const c = abState.events[abCur];
+  const c = abObj(field);
   return `<div class="toggle-row" style="padding:10px 0;"><div><div class="toggle-label" style="font-size:13px;">${label}</div>${sub?`<div class="toggle-sub">${sub}</div>`:''}</div>
     <label class="toggle"><input type="checkbox" ${c[field]?'checked':''} onchange="abSet('${field}',this.checked,true)"><span class="toggle-slider"></span></label></div>`;
 }
 function abRenderForm() {
-  const ev = abCur, c = abState.events[ev], name = AB_EVENTS.find(x => x[0] === ev)[2];
+  const ev = abCur, m = abState.events[ev], c = abTarget(), isMain = c === m, name = AB_EVENTS.find(x => x[0] === ev)[2];
   const isVid = c.image && c.image_type === 'video';
   const minLabel = { bits:'Mínimo de bits', raid:'Mínimo de personas en la raid', tip:'Monto mínimo' }[ev];
   const soundOpts = [['campanita','🔔 Campanita de Muffet'],['archivo','🎵 Mi sonido'],['ninguno','🔇 Sin sonido']].concat(isVid ? [['video','🎬 El sonido del video']] : []);
   document.getElementById('abForm').innerHTML = `
-    ${abToggle('enabled', `Mostrar la alerta de ${name}`, '')}
+    ${isMain ? abToggle('enabled', `Mostrar la alerta de ${name}`, '') : ''}
+    ${abVarBar()}
     ${abToggle('custom', '🧑‍💻 Usar mi propio código (HTML, CSS y JS)', 'Para quien sabe programar: diseña la alerta 100% a tu gusto')}
     ${c.custom ? abCodeEditor(c) : ''}
     <div class="ab-field" style="margin-top:12px;">
@@ -1848,8 +1945,10 @@ function abRenderForm() {
       <input class="form-input" id="abText" maxlength="150" value="${escCmdHtml(c.text)}" oninput="abSet('text',this.value)">
       <div class="ab-vars">${AB_VARS[ev].map(v => `<button onclick="abInsertVar('${v}')" title="Insertar">{${v}}</button>`).join('')}</div>
     </div>
-    ${minLabel ? `<div class="ab-field"><div class="ab-label">${minLabel}</div><input type="number" class="form-input" min="0" value="${c.min||0}" onchange="abSet('min',Math.max(0,Number(this.value)||0),true)" style="max-width:160px;"><div style="font-size:11px;color:var(--text-dim);margin-top:5px;">0 = todas salen</div></div>` : ''}
-    ${['resub','bits','tip'].includes(ev) ? abToggle('show_message', 'Mostrar el mensaje del viewer', '') : ''}
+    ${minLabel && isMain ? `<div class="ab-field"><div class="ab-label">${minLabel}</div><input type="number" class="form-input" min="0" value="${m.min||0}" onchange="abSet('min',Math.max(0,Number(this.value)||0),true)" style="max-width:160px;"><div style="font-size:11px;color:var(--text-dim);margin-top:5px;">0 = todas salen</div></div>` : ''}
+    ${['resub','bits','tip'].includes(ev) && isMain ? abToggle('show_message', 'Mostrar el mensaje del viewer', '') : ''}
+    ${['resub','bits','tip'].includes(ev) && isMain ? abToggle('tts', '🗣️ Leer el mensaje en voz alta', 'Con la voz que elegiste arriba') : ''}
+    ${['bits','tip'].includes(ev) && isMain && m.tts ? `<div class="ab-field"><div class="ab-label">🗣️ Leer solo desde</div><div style="display:flex;align-items:center;gap:8px;"><input type="number" class="form-input" min="0" value="${m.tts_min||0}" onchange="abSet('tts_min',Math.max(0,Number(this.value)||0))" style="max-width:140px;"><span style="font-size:12px;color:var(--text-muted);">${ev==='bits'?'bits':(streamerData.tips_config?.currency||'USD')} · 0 = siempre</span></div></div>` : ''}
     <div class="ab-field" style="margin-top:10px;">
       <div class="ab-label">🖼️ Imagen, GIF o video</div>
       <div class="ab-media">
@@ -1868,8 +1967,16 @@ function abRenderForm() {
     ${isVid && !c.custom ? `<div class="ab-field"><div class="ab-label">⏱️ Duración</div><div style="font-size:13px;color:var(--text-muted);">🎬 Lo que dure el video completo (máximo 30 s)</div></div>`
       : `<div class="ab-field"><div class="ab-label">⏱️ Duración</div><div class="ab-range"><input type="range" min="3" max="20" value="${c.duration}" oninput="document.getElementById('abDur').textContent=this.value+' s'" onchange="abSet('duration',parseInt(this.value))"><span class="ab-val" id="abDur">${c.duration} s</span></div></div>`}
     ${c.custom ? '' : `
+    <div class="ab-field">
+      <div class="ab-label" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">📚 Plantillas listas
+        <label style="text-transform:none;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="abPresetAll" style="accent-color:var(--purple);"> Aplicar a todas las alertas</label></div>
+      <div class="ab-presets">${AB_PRESETS.map((p, i) => `<button class="ab-preset ${c.style===p.style&&c.font===p.font?'on':''}" onclick="abApplyPreset(${i})" title="${p.name}">
+        <span class="ab-pv ab-pv-${p.style}" style="--a:${p.accent};--t:${p.text};"><span class="ab-pv-l1"></span><span class="ab-pv-l2"></span></span>
+        <span class="ab-pn">${p.emoji} ${p.name}</span></button>`).join('')}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Cambian el estilo, la letra, los colores, la animación y el efecto. Tu texto, imagen y sonido no cambian.</div>
+    </div>
     <div class="ab-field"><div class="ab-label">📐 Diseño</div>${abSeg('layout', [['arriba','Imagen arriba'],['lado','Al lado'],['texto','Solo texto']])}</div>
-    <div class="ab-field"><div class="ab-label">🎨 Estilo</div>${abSeg('style', [['tarjeta','Tarjeta'],['neon','Neón'],['limpio','Limpio']])}</div>
+    <div class="ab-field"><div class="ab-label">🎨 Estilo</div>${abSelect('style', AB_PRESETS.map(p => [p.style, p.name]))}</div>
     <div class="ab-row2">
       <div class="ab-field"><div class="ab-label">✨ Entrada</div>${abSelect('anim', [['rebote','Rebote'],['zoom','Zoom'],['deslizar','Deslizar'],['caer','Caer'],['aparecer','Aparecer']])}</div>
       <div class="ab-field"><div class="ab-label">🎉 Efecto</div>${abSelect('effect', [['ninguno','Ninguno'],['confeti','Confeti'],['brillos','Brillos']])}</div>
@@ -1881,9 +1988,98 @@ function abRenderForm() {
         <label><input type="color" value="${c.color_text}" oninput="abSet('color_text',this.value)"> Texto</label></div></div>
     </div>
     `}
-    ${ev !== 'follow' ? abToggle('show_subathon', '⏱️ Mostrar el tiempo que sumó al subatón', 'Ej: “+5 min al subatón”') : ''}
-    ${['sub','resub','gift','bits','tip'].includes(ev) ? abToggle('show_goal', '🎯 Mostrar cómo va tu meta', 'Si la meta cuenta este tipo de apoyo') : ''}
-    <div class="ab-actions"><button class="btn btn-secondary" onclick="abCopyStyle()">🎨 Usar este estilo en todas las alertas</button></div>`;
+    ${ev !== 'follow' && isMain ? abToggle('show_subathon', '⏱️ Mostrar el tiempo que sumó al subatón', 'Ej: “+5 min al subatón”') : ''}
+    ${['sub','resub','gift','bits','tip'].includes(ev) && isMain ? abToggle('show_goal', '🎯 Mostrar cómo va tu meta', 'Si la meta cuenta este tipo de apoyo') : ''}
+    ${isMain ? `<div class="ab-actions"><button class="btn btn-secondary" onclick="abCopyStyle()">🎨 Usar este estilo en todas las alertas</button></div>` : ''}`;
+}
+
+
+// ── Voz (TTS) ──
+const AB_VOICES = [['es-DO-RamonaNeural','🇩🇴 Ramona (Rep. Dominicana)'],['es-DO-EmilioNeural','🇩🇴 Emilio (Rep. Dominicana)'],['es-MX-DaliaNeural','🇲🇽 Dalia (México)'],['es-MX-JorgeNeural','🇲🇽 Jorge (México)'],
+  ['es-ES-ElviraNeural','🇪🇸 Elvira (España)'],['es-ES-AlvaroNeural','🇪🇸 Álvaro (España)'],['es-AR-ElenaNeural','🇦🇷 Elena (Argentina)'],['es-AR-TomasNeural','🇦🇷 Tomás (Argentina)'],
+  ['es-CO-SalomeNeural','🇨🇴 Salomé (Colombia)'],['es-CO-GonzaloNeural','🇨🇴 Gonzalo (Colombia)'],['es-US-PalomaNeural','🇺🇸 Paloma (latino EE.UU.)'],['es-US-AlonsoNeural','🇺🇸 Alonso (latino EE.UU.)'],
+  ['en-US-AriaNeural','🇺🇸 Aria (inglés)'],['en-US-GuyNeural','🇺🇸 Guy (inglés)']];
+let abTtsAudio = null;
+function abRenderTts() {
+  const t = abState.tts, el = document.getElementById('abTtsPanel'); if (!el) return;
+  el.innerHTML = `
+    <div class="ab-row2">
+      <div class="ab-field"><div class="ab-label">🎙️ Voz</div><select class="form-input" onchange="abTtsSet('voice',this.value)">${AB_VOICES.map(([v,l]) => `<option value="${v}" ${t.voice===v?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div class="ab-field"><div class="ab-label">🔉 Volumen de la voz</div><div class="ab-range"><input type="range" min="0" max="100" value="${t.volume}" oninput="document.getElementById('abTtsVol').textContent=this.value+'%'" onchange="abTtsSet('volume',parseInt(this.value))"><span class="ab-val" id="abTtsVol">${t.volume}%</span></div></div>
+    </div>
+    <div class="ab-field"><div class="ab-label">🧪 Probar</div><div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input class="form-input" id="abTtsText" maxlength="200" value="¡Hola! Así sueno cuando leo los mensajes de tu chat." style="flex:1;min-width:200px;">
+      <button class="btn btn-primary" id="abTtsBtn" onclick="abTtsTest()">▶ Escuchar</button></div></div>
+    <div class="toggle-row" style="padding:10px 0;"><div><div class="toggle-label" style="font-size:13px;">Decir el nombre antes del mensaje</div><div class="toggle-sub">Ej: “Ana dice: ¡hola!”</div></div>
+      <label class="toggle"><input type="checkbox" ${t.say_name?'checked':''} onchange="abTtsSet('say_name',this.checked)"><span class="toggle-slider"></span></label></div>
+    <div style="font-size:11px;color:var(--text-dim);line-height:1.6;">La voz se prende en cada alerta que tiene mensaje (<b>Resub</b>, <b>Bits</b> y <b>Propina</b>) con el interruptor 🗣️. No lee links, recorta letras repetidas y cambia por “piii” las palabras prohibidas de tu <a href="#" onclick="showSection('moderation');return false;" style="color:var(--purple-light);">Moderación</a>. Lee hasta 200 letras.</div>`;
+}
+function abTtsSet(k, v) { abState.tts[k] = v; abQueueSave(); }
+async function abTtsTest() {
+  const btn = document.getElementById('abTtsBtn'); if (btn) { btn.disabled = true; btn.textContent = '⏳ Generando…'; }
+  try {
+    if (abTtsAudio) { abTtsAudio.pause(); abTtsAudio = null; }
+    const res = await fetch('/api/tts/preview', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ voice: abState.tts.voice, text: document.getElementById('abTtsText')?.value || '' }) });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); showToast(d.error || 'No se pudo generar la voz', 'error'); return; }
+    if (res.headers.get('X-TTS-Engine') === 'google') showToast('La voz elegida no respondió: usé la de respaldo (Google)', 'error');
+    abTtsAudio = new Audio(URL.createObjectURL(await res.blob())); abTtsAudio.volume = Math.min(1, (abState.tts.volume ?? 80) / 100);
+    abTtsAudio.play().catch(() => {});
+  } catch (e) { showToast('Error de conexión', 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '▶ Escuchar'; } }
+}
+
+
+// ── Overlay de últimos apoyos (ticker) ──
+const TK_ITEMS = [['follow','💜 Follow'],['sub','⭐ Sub'],['gift','🎁 Regalo'],['bits','💎 Bits'],['tip','💸 Propina'],['raid','🚀 Raid']];
+const TK_SIZES = { rotar:'640 × 110', barra:'1920 × 60', tarjetas:'440 × 520' };
+function tkCfg() {
+  if (!abState.ticker) abState.ticker = { estilo:'rotar', color:'#b794ff', mostrar:TK_ITEMS.map(x => x[0]), ...(streamerData.alert_box?.ticker || {}) };
+  return abState.ticker;
+}
+function tkUrl(preview) {
+  const t = tkCfg(), q = new URLSearchParams({ estilo: t.estilo, mostrar: t.mostrar.join(','), color: t.color.replace('#','') });
+  if (preview) q.set('preview', '1');
+  return `${preview ? '' : location.origin}/overlay/ultimos/${encodeURIComponent((userData.username||'').toLowerCase())}?${q}`;
+}
+function tkRender() {
+  const t = tkCfg(), el = document.getElementById('tkForm'); if (!el) return;
+  el.innerHTML = `
+    <div class="ab-field"><div class="ab-label">📐 Estilo</div><div class="ab-seg">${[['rotar','🔄 Una a la vez'],['barra','➖ Barra'],['tarjetas','🗂️ Lista']].map(([v,l]) => `<button class="${t.estilo===v?'on':''}" onclick="tkSet('estilo','${v}')">${l}</button>`).join('')}</div></div>
+    <div class="ab-field"><div class="ab-label">✅ Qué mostrar</div><div class="ab-checks">${TK_ITEMS.map(([k,l]) => `<label class="ab-check ${t.mostrar.includes(k)?'on':''}"><input type="checkbox" ${t.mostrar.includes(k)?'checked':''} onchange="tkToggle('${k}',this.checked)">${l}</label>`).join('')}</div></div>
+    <div class="ab-field"><div class="ab-label">🌈 Color</div><div class="ab-colors"><label><input type="color" value="${t.color}" onchange="tkSet('color',this.value)"> Resaltado</label></div></div>
+    <div class="ab-field"><div class="ab-label">📺 URL para OBS · Browser Source ${TK_SIZES[t.estilo]}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;"><input class="form-input" readonly value="${escCmdHtml(tkUrl(false))}" style="flex:1;min-width:200px;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+      <button class="btn btn-secondary" onclick="navigator.clipboard.writeText('${tkUrl(false).replace(/'/g,'')}');showToast('URL copiada ✓')">📋 Copiar</button></div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Si cambias el estilo, los colores o lo que se muestra, vuelve a copiar la URL y pégala en OBS.</div></div>`;
+  const fr = document.getElementById('tkFrame'), src = tkUrl(true);
+  if (fr && fr.getAttribute('src') !== src) fr.setAttribute('src', src);
+  tkFit();
+}
+function tkFit() { const st = document.getElementById('tkStage'), fr = document.getElementById('tkFrame'); if (st && fr) fr.style.transform = `scale(${st.clientWidth / 1920 || 0.3})`; }
+function tkSet(k, v) { tkCfg()[k] = v; tkRender(); abQueueSave(); }
+function tkToggle(k, on) { const t = tkCfg(); t.mostrar = TK_ITEMS.map(x => x[0]).filter(x => x === k ? on : t.mostrar.includes(x)); tkRender(); abQueueSave(); }
+
+// ── Plantillas listas ──
+const AB_PRESETS = [
+  { name:'Clásica', emoji:'💜', style:'tarjeta', font:'Inter', accent:'#b794ff', text:'#ffffff', anim:'rebote', effect:'confeti', layout:'arriba' },
+  { name:'Telaraña', emoji:'🕷️', style:'telarana', font:'Fredoka', accent:'#c86bff', text:'#ffffff', anim:'caer', effect:'brillos', layout:'arriba' },
+  { name:'Neón', emoji:'🌃', style:'neon', font:'Bangers', accent:'#00f0ff', text:'#ffffff', anim:'zoom', effect:'brillos', layout:'lado' },
+  { name:'Arcade', emoji:'👾', style:'arcade', font:'Press Start 2P', accent:'#39ff14', text:'#ffffff', anim:'aparecer', effect:'ninguno', layout:'arriba' },
+  { name:'Cristal', emoji:'🫧', style:'cristal', font:'Poppins', accent:'#ffffff', text:'#ffffff', anim:'aparecer', effect:'brillos', layout:'arriba' },
+  { name:'Fuego', emoji:'🔥', style:'fuego', font:'Bangers', accent:'#ffb300', text:'#ffffff', anim:'rebote', effect:'confeti', layout:'arriba' },
+  { name:'Kawaii', emoji:'💖', style:'kawaii', font:'Fredoka', accent:'#ff5fa2', text:'#5a2a48', anim:'rebote', effect:'brillos', layout:'arriba' },
+  { name:'Cyber', emoji:'🤖', style:'cyber', font:'Poppins', accent:'#00ffd0', text:'#e6fffb', anim:'deslizar', effect:'ninguno', layout:'lado' },
+  { name:'Oro', emoji:'👑', style:'oro', font:'Poppins', accent:'#ffd700', text:'#ffffff', anim:'zoom', effect:'brillos', layout:'arriba' },
+  { name:'Limpia', emoji:'✨', style:'limpio', font:'Luckiest Guy', accent:'#ffd23f', text:'#ffffff', anim:'rebote', effect:'ninguno', layout:'arriba' },
+];
+function abApplyPreset(i) {
+  const p = AB_PRESETS[i]; if (!p) return;
+  const put = (t) => { t.style = p.style; t.font = p.font; t.color_accent = p.accent; t.color_text = p.text; t.anim = p.anim; t.effect = p.effect; t.layout = p.layout; t.custom = false; };
+  if (document.getElementById('abPresetAll')?.checked) {
+    AB_EVENTS.forEach(([ev]) => { put(abState.events[ev]); (abState.events[ev].variations || []).forEach(put); });
+    showToast(`Plantilla ${p.name} en todas las alertas ✓`);
+  } else put(abTarget());
+  abRenderForm(); abPreview('still'); abQueueSave(true); // quieta y sin sonido: para escucharla está "Reproducir aquí"
 }
 
 // ── Código propio de cada alerta ──
@@ -1933,7 +2129,7 @@ function abCodeEditor(c) {
     <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6;">Las variables entre llaves funcionan en el HTML. En el JS tienes todo en el objeto <code>alerta</code>. Al terminar el tiempo, el <code>body</code> recibe la clase <code>salir</code> para tu animación de salida. Tu código corre aislado: puede dibujar lo que quieras, pero no puede tocar cuentas ni el dashboard. El sonido y la duración se eligen abajo.</div>
   </div>`;
 }
-function abCodeInput(v) { abState.events[abCur][abCodeTab] = v.slice(0, 20000); abQueueSave(); clearTimeout(abPvTimer); abPvTimer = setTimeout(() => abPreview('still'), 450); }
+function abCodeInput(v) { abTarget()[abCodeTab] = v.slice(0, 20000); abQueueSave(); clearTimeout(abPvTimer); abPvTimer = setTimeout(() => abPreview('still'), 450); }
 function abCodeInsert(txt) {
   const el = document.getElementById('abCode'); if (!el) return;
   const a = el.selectionStart, b = el.selectionEnd;
@@ -1942,13 +2138,13 @@ function abCodeInsert(txt) {
 }
 function abCodeKey(e) { if (e.key === 'Tab') { e.preventDefault(); abCodeInsert('  '); } }
 function abLoadExample() {
-  const c = abState.events[abCur];
+  const c = abTarget();
   if ((c.html || c.css || c.js) && !confirm('¿Reemplazar tu código con el ejemplo?')) return;
   Object.assign(c, AB_EXAMPLE); abRenderForm(); abPreview('still'); abQueueSave(true);
 }
 // Escuchar el sonido elegido al volumen elegido
 function abListen() {
-  const c = abState.events[abCur], vol = Math.min(1, Math.max(0, (c.volume ?? 70) / 100));
+  const c = abTarget(), vol = Math.min(1, Math.max(0, (c.volume ?? 70) / 100));
   if (abListenAudio) { try { abListenAudio.pause(); } catch(e) {} abListenAudio = null; }
   if (c.sound === 'campanita') {
     try {
@@ -1975,15 +2171,15 @@ function abInsertVar(v) {
   abSet('text', el.value);
 }
 function abSet(field, value, rerender) {
-  abState.events[abCur][field] = value;
+  abObj(field)[field] = value;
   if (field === 'enabled') { abRenderTabs(); abRenderChecks(); }
-  if (rerender && ['sound','layout','style','enabled','custom'].includes(field)) abRenderForm();
+  if (rerender && ['sound','layout','style','enabled','custom','tts'].includes(field)) abRenderForm();
   abPreview('still');
   abQueueSave();
 }
 function abSetGlobal(on) { abState.enabled = on; abRenderChecks(); abQueueSave(true); }
 function abCopyStyle() {
-  const c = abState.events[abCur];
+  const c = abTarget();
   if (!confirm('¿Poner este diseño (estilo, letra, colores, animación, efecto, duración y sonido) en todas las alertas? Los textos e imágenes de cada una no cambian.')) return;
   AB_EVENTS.forEach(([ev]) => {
     const t = abState.events[ev];
@@ -2013,14 +2209,14 @@ async function abUpload(input, kind) {
   if (!file) return;
   const isImg = file.type.startsWith('image/');
   if (file.size > (isImg ? 5 : 15) * 1024 * 1024) { showToast(isImg ? 'La imagen supera los 5MB' : 'El archivo supera los 15MB', 'error'); return; }
-  const ev = abCur;
+  const ev = abCur, target = abTarget();
   showToast('Subiendo…');
   try {
     const base64 = await new Promise((ok, fail) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = fail; r.readAsDataURL(file); });
     const res = await fetch('/api/media-alerts/upload', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ filename: file.name, mime: file.type, data: base64 }) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { showToast(data.error || 'Error al subir', 'error'); return; }
-    const c = abState.events[ev];
+    const c = target;
     if (kind === 'image') {
       if (data.type === 'audio') { showToast('Eso es un audio: súbelo en Sonido 🔊', 'error'); return; }
       c.image = data.url; c.image_type = data.type === 'video' ? 'video' : 'image';
@@ -2038,7 +2234,7 @@ async function abTestObs() {
   clearTimeout(abSaveTimer);
   if (!(await abSave())) return;
   try {
-    const res = await fetch('/api/alert-box/test', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ event: abCur }) });
+    const res = await fetch('/api/alert-box/test', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ event: abCur, ...(abVar !== null ? { variation: abVar } : {}) }) });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) showToast(data.error || 'Error al probar', 'error');
     else if (!data.sent) showToast('No hay ningún OBS conectado con la URL de alertas', 'error');
@@ -5095,6 +5291,11 @@ function renderMain() {
     </div>
 
     <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🗣️ Voz que lee los mensajes</span></div>
+      <div class="panel-body" id="abTtsPanel"></div>
+    </div>
+
+    <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🎨 Diseña cada alerta</span><span id="abSaveState" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
       <div class="panel-body">
         <div class="ab-tabs" id="abTabs"></div>
@@ -5108,6 +5309,19 @@ function renderMain() {
               <button class="btn btn-secondary" onclick="abTestObs()">📺 Probar en OBS</button>
             </div>
             <div style="font-size:11px;color:var(--text-dim);margin-top:10px;line-height:1.6;">Los cambios se guardan solos. Los avisos de <b>+min al subatón</b> y <b>🎯 meta</b> solo salen si tienes un subatón o una meta activos (aquí se ven de ejemplo).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📰 Overlay de últimos apoyos</span><span style="margin-left:auto;font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;background:rgba(64,208,144,0.15);color:#40d090;">NUEVO</span></div>
+      <div class="panel-body">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;line-height:1.6;">Muestra en tu stream el último follow, sub, regalo, bits, propina y raid. Se actualiza solo y resalta lo nuevo. Funciona aunque no uses las alertas de arriba.</div>
+        <div class="ab-grid">
+          <div id="tkForm"></div>
+          <div class="ab-preview-wrap">
+            <div class="ab-label">👀 Vista previa</div>
+            <div class="ab-stage" id="tkStage"><iframe id="tkFrame" title="Vista previa del ticker"></iframe></div>
           </div>
         </div>
       </div>
