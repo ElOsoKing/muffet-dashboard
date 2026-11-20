@@ -476,6 +476,23 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
   #sec-tips .panel-body > div[style*="grid-template-columns"], #sec-goals .panel-body > div[style*="grid-template-columns"]{grid-template-columns:1fr !important;}
   #sec-tips .stats-grid{grid-template-columns:1fr 1fr !important;}
 }
+/* Pestañas dentro de una sección larga */
+.sec-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px;padding:5px;background:var(--bg2,rgba(255,255,255,0.03));border:1px solid rgba(255,255,255,0.06);border-radius:12px;position:sticky;top:0;z-index:20;backdrop-filter:blur(8px);}
+.sec-tab{flex:1;min-width:110px;background:transparent;border:0;color:var(--text-dim);font-weight:600;font-size:13px;font-family:inherit;padding:9px 12px;border-radius:9px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.sec-tab:hover{color:var(--text);background:rgba(255,255,255,0.04);}
+.sec-tab.on{color:#fff;background:var(--purple,#9147ff);box-shadow:0 4px 14px rgba(145,71,255,0.35);}
+.tab-hidden{display:none !important;}
+@media (max-width:700px){.sec-tab{min-width:0;font-size:12px;padding:8px 6px;white-space:normal;line-height:1.25;}#syscmdsGrid{grid-template-columns:minmax(0,1fr) !important;}}
+/* Inicio: tarjetas de "Ahora mismo" */
+.ov-live{background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm,10px);padding:14px;cursor:pointer;transition:border-color .15s,transform .15s;}
+.ov-live:hover{border-color:var(--purple-border);transform:translateY(-2px);}
+.ov-live-top{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600;color:var(--text-muted);}
+.ov-pill{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.06);color:var(--text-dim);}
+.ov-pill.on{background:rgba(64,208,144,0.15);color:#40d090;}
+.ov-pill.warn{background:rgba(240,192,96,0.15);color:#f0c060;}
+.ov-live-val{font-size:22px;font-weight:700;margin-top:10px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+.ov-live-sub{font-size:11px;color:var(--text-dim);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+@media (max-width:700px){.ov-live-grid{grid-template-columns:1fr !important;}}
 </style>
 </head>
 <body>
@@ -507,24 +524,31 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
       <div class="nav-item active" onclick="showSection('overview')"><span class="nav-icon">🏠</span> Inicio</div>
       <div class="nav-item" onclick="showSection('personality')"><span class="nav-icon">🕷️</span> Personalidad</div>
     </div>
-    <div class="nav-section collapsible active" onclick="toggleNav(this)">Bot <span class="nav-arrow">▾</span></div>
+    <div class="nav-section collapsible active" onclick="toggleNav(this)">Chat <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
       <div class="nav-item" onclick="showSection('commands')"><span class="nav-icon">⚡</span> Comandos</div>
       <div class="nav-item" onclick="showSection('automessages')"><span class="nav-icon">💬</span> Auto mensajes</div>
       <div class="nav-item" onclick="showSection('moderation')"><span class="nav-icon">🛡️</span> Moderación</div>
     </div>
-    <div class="nav-section collapsible active" onclick="toggleNav(this)">Herramientas <span class="nav-arrow">▾</span></div>
+    <div class="nav-section collapsible active" onclick="toggleNav(this)">Juegos y comunidad <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
-      <div class="nav-item" onclick="showSection('music')"><span class="nav-icon">🎵</span> Música <span class="pro-badge" id="badge-music" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('points')"><span class="nav-icon">🏆</span> Puntos</div>
       <div class="nav-item" onclick="showSection('raffle')"><span class="nav-icon">🎉</span> Sorteos</div>
       <div class="nav-item" onclick="showSection('primerin')"><span class="nav-icon">🥇</span> Primerin <span class="pro-badge" id="badge-primerin" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('emojigame')"><span class="nav-icon">🎮</span> Mini juegos <span class="pro-badge" id="badge-emojigame" style="display:none;">PRO</span></div>
+    </div>
+    <div class="nav-section collapsible active" onclick="toggleNav(this)">En vivo <span class="nav-arrow">▾</span></div>
+    <div class="nav-group">
+      <div class="nav-item" onclick="showSection('music')"><span class="nav-icon">🎵</span> Música <span class="pro-badge" id="badge-music" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('mediaalerts')"><span class="nav-icon">🔊</span> Alertas multimedia <span class="pro-badge" id="badge-mediaalerts" style="display:none;">PRO</span></div>
+      <div class="nav-item" onclick="showSection('live')"><span class="nav-icon">🔴</span> Anuncios y agradecimientos</div>
+      <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
+      <div class="nav-item" onclick="showSection('subathon')"><span class="nav-icon">⏱️</span> Subatón <span class="pro-badge" id="badge-subathon" style="display:none;">PRO</span></div>
+    </div>
+    <div class="nav-section collapsible active" onclick="toggleNav(this)">Apoyos 💸 <span class="nav-arrow">▾</span></div>
+    <div class="nav-group">
       <div class="nav-item" onclick="showSection('tips')"><span class="nav-icon">💸</span> Propinas</div>
       <div class="nav-item" onclick="showSection('goals')"><span class="nav-icon">🎯</span> Metas</div>
-      <div class="nav-item" onclick="showSection('subathon')"><span class="nav-icon">⏱️</span> Subatón <span class="pro-badge" id="badge-subathon" style="display:none;">PRO</span></div>
-      <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Análisis <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
@@ -532,10 +556,10 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
     </div>
     <div class="nav-section collapsible active" onclick="toggleNav(this)">Cuenta <span class="nav-arrow">▾</span></div>
     <div class="nav-group">
-      <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
       <div class="nav-item" onclick="showSection('profile')"><span class="nav-icon">🌐</span> Perfil público</div>
       <div class="nav-item" onclick="showSection('theme')"><span class="nav-icon">🎨</span> Tema</div>
       <div class="nav-item" onclick="showSection('settings')"><span class="nav-icon">⚙️</span> Configuración</div>
+      <div class="nav-item" onclick="window.location='/plans'"><span class="nav-icon">💎</span> Planes</div>
       <div class="nav-item" onclick="window.open('/guia','_blank')"><span class="nav-icon">📖</span> Guía rápida</div>
       <div id="adminNavItem" style="display:none;" class="nav-item" onclick="window.location='/admin'"><span class="nav-icon">👑</span> Admin</div>
     </div>
@@ -661,6 +685,7 @@ async function loadData() {
 
   if (userData.role === 'admin') document.getElementById('adminNavItem').style.display = 'flex';
   renderMain();
+  setTimeout(loadOverviewLive, 50);
   // Mostrar badges Pro en sidebar si es Free
   if (streamerData.plan !== 'pro') {
     ['music','primerin'].forEach(id => {
@@ -1345,6 +1370,94 @@ async function loadCustomBotBadgeStatus() {
   } catch(e) {}
 }
 
+
+// ── Pestañas para las secciones largas ──
+// Cada pestaña muestra algunos bloques de la sección (por posición). El encabezado y los bloques que no estén en ninguna pestaña se ven siempre.
+const SECTION_TABS = {
+  subathon:  [['🎮 En vivo', [1, 2]], ['🎨 Estilo', [3]], ['⚙️ Minutos por evento', [4]]],
+  shoutout:  [['⚙️ General', [1, 3]], ['🎨 Estilo', [2]], ['📺 OBS', [4]]],
+  raffle:    [['🎉 Sorteo actual', [1, 3]], ['⚙️ Configuración', [2]]],
+  variables: [['🔤 Variables', [2, 3, 4, 5]], ['💬 Comandos especiales', [6, 7, 8, 9, 10, 11]], ['💡 Cómo usarlas', [12]]],
+};
+function setupSectionTabs(name) {
+  const def = SECTION_TABS[name], sec = document.getElementById('sec-' + name);
+  if (!def || !sec) return;
+  const kids = [...sec.children].filter(c => !c.classList.contains('sec-tabs'));
+  let bar = sec.querySelector(':scope > .sec-tabs');
+  if (!bar) {
+    bar = document.createElement('div'); bar.className = 'sec-tabs';
+    def.forEach(([label], i) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'sec-tab'; b.textContent = label; b.onclick = () => showSectionTab(name, i); bar.appendChild(b); });
+    const header = kids[0];
+    header.after(bar);
+  }
+  let saved = 0; try { saved = parseInt(localStorage.getItem('tab_' + name)) || 0; } catch (e) {}
+  showSectionTab(name, Math.min(saved, def.length - 1));
+}
+function showSectionTab(name, idx) {
+  const def = SECTION_TABS[name], sec = document.getElementById('sec-' + name);
+  if (!def || !sec) return;
+  const kids = [...sec.children].filter(c => !c.classList.contains('sec-tabs'));
+  const inAny = new Set(def.flatMap(([, ix]) => ix));
+  const show = new Set(def[idx][1]);
+  kids.forEach((c, i) => c.classList.toggle('tab-hidden', inAny.has(i) && !show.has(i)));
+  sec.querySelectorAll(':scope > .sec-tabs .sec-tab').forEach((b, i) => b.classList.toggle('on', i === idx));
+  try { localStorage.setItem('tab_' + name, idx); } catch (e) {}
+}
+
+
+// ── Inicio: "Ahora mismo" (subatón, meta y propinas) ──
+let ovTimer = null;
+function fmtDur(sec) { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = sec % 60; return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`; }
+function renderOverviewSubathon() {
+  const sc = streamerData?.subathon_config || {};
+  const st = document.getElementById('ovSubState'), val = document.getElementById('ovSubVal'), sub = document.getElementById('ovSubSub');
+  if (!st) return;
+  clearInterval(ovTimer);
+  if (!sc.enabled) { st.textContent = 'Apagado'; st.className = 'ov-pill'; val.textContent = '—'; sub.textContent = 'Actívalo en Subatón'; return; }
+  if (sc.running && sc.target_end_time) {
+    st.textContent = 'Corriendo'; st.className = 'ov-pill on'; sub.textContent = 'tiempo restante';
+    const end = Date.parse(sc.target_end_time);
+    const tick = () => { val.textContent = fmtDur((end - Date.now()) / 1000); };
+    tick(); ovTimer = setInterval(() => { if (!document.getElementById('ovSubVal')) return clearInterval(ovTimer); tick(); }, 1000);
+  } else {
+    st.textContent = (sc.remaining_seconds || 0) > 0 ? 'En pausa' : 'Listo'; st.className = 'ov-pill warn';
+    val.textContent = fmtDur(sc.remaining_seconds || 0); sub.textContent = (sc.remaining_seconds || 0) > 0 ? 'pausado' : 'sin iniciar';
+  }
+}
+async function loadOverviewLive() {
+  renderOverviewSubathon();
+  const u = encodeURIComponent(streamerData?.twitch_username || '');
+  // Meta
+  try {
+    const g = await (await fetch(`/api/goal/state/${u}`)).json();
+    const pct = document.getElementById('ovGoalPct'), val = document.getElementById('ovGoalVal'), fill = document.getElementById('ovGoalFill');
+    if (pct) {
+      if (g?.enabled) {
+        const f = v => g.type === 'money' ? Number(v).toFixed(0) : Math.floor(v);
+        val.textContent = `${g.title} · ${f(g.current)}/${f(g.target)} ${g.type === 'money' ? g.currency : g.unit}`;
+        pct.textContent = g.done ? '¡Cumplida!' : g.expired ? 'Vencida' : g.percent + '%'; pct.className = 'ov-pill ' + (g.done ? 'on' : '');
+        fill.style.width = Math.min(100, g.current / g.target * 100) + '%';
+      } else { val.textContent = 'Sin meta'; pct.textContent = 'Crear'; pct.className = 'ov-pill'; fill.style.width = '0%'; }
+    }
+  } catch (e) {}
+  // Propinas
+  try {
+    const t = await (await fetch('/api/tips')).json();
+    const st = document.getElementById('ovTipState'), val = document.getElementById('ovTipVal'), sub = document.getElementById('ovTipSub');
+    if (st) {
+      const on = !!streamerData?.tips_config?.enabled;
+      st.textContent = on ? 'Activas' : 'Apagadas'; st.className = 'ov-pill ' + (on ? 'on' : '');
+      const list = (t.tips || []).filter(x => x.status === 'completed');
+      if (!list.length) { val.textContent = '0'; sub.textContent = on ? 'todavía ninguna — ¡comparte tu enlace!' : 'Actívalas en Propinas'; }
+      else {
+        const totals = {}; list.forEach(x => { totals[x.currency] = (totals[x.currency] || 0) + Number(x.amount); });
+        val.textContent = Object.entries(totals).map(([c, v]) => `${v.toFixed(0)} ${c}`).join(' · ');
+        sub.textContent = `última: ${list[0].name || 'Anónimo'} · ${Number(list[0].amount).toFixed(2)} ${list[0].currency}`;
+      }
+    }
+  } catch (e) {}
+}
+
 function showSection(name) {
   if (document.getElementById('cbBadgeStatus')) loadCustomBotBadgeStatus();
   if (document.getElementById('chBotStatus')) loadChannelBotStatus();
@@ -1366,6 +1479,8 @@ function showSection(name) {
   if(name === 'primerin') renderPrimerinRanking();
   if(name === 'emojigame') renderPokedleRanking();
   if(name === 'mediaalerts') initMediaAlertsSection();
+  setupSectionTabs(name);
+  if(name === 'overview') loadOverviewLive();
   if(name === 'tips') initTipsSection();
   if(name === 'goals') initGoalsSection();
   if(name === 'subathon') initSubathonSection();
@@ -2040,16 +2155,39 @@ function renderMain() {
 
     <!-- Estado del bot con accesos rápidos -->
     <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📡 Ahora mismo</span></div>
+      <div class="panel-body">
+        <div class="ov-live-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+          <div class="ov-live" onclick="showSection('subathon')">
+            <div class="ov-live-top"><span>⏱️ Subatón</span><span id="ovSubState" class="ov-pill">—</span></div>
+            <div class="ov-live-val" id="ovSubVal">—</div>
+            <div class="ov-live-sub" id="ovSubSub">Toca para controlarlo</div>
+          </div>
+          <div class="ov-live" onclick="showSection('goals')">
+            <div class="ov-live-top"><span>🎯 Meta</span><span id="ovGoalPct" class="ov-pill">—</span></div>
+            <div class="ov-live-val" id="ovGoalVal" style="font-size:16px;">Sin meta</div>
+            <div style="height:6px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;margin-top:8px;"><div id="ovGoalFill" style="height:100%;width:0%;background:linear-gradient(90deg,#9147ff,#ff6fb5);border-radius:999px;transition:width .6s;"></div></div>
+          </div>
+          <div class="ov-live" onclick="showSection('tips')">
+            <div class="ov-live-top"><span>💸 Propinas</span><span id="ovTipState" class="ov-pill">—</span></div>
+            <div class="ov-live-val" id="ovTipVal">—</div>
+            <div class="ov-live-sub" id="ovTipSub">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🚀 Accesos rápidos</span></div>
       <div class="panel-body">
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
           ${[
             ['showSection(\'commands\')', '⚡', 'Comandos', 'Gestiona tus comandos'],
             ['showSection(\'raffle\')', '🎉', 'Sorteos', 'Crear un sorteo ahora'],
-            ['showSection(\'spotify\')', '🎵', 'Spotify', 'Música en el chat'],
-            ['showSection(\'points\')', '🏆', 'Puntos', 'Ver el ranking'],
-            [`window.open('/canal/${userData.username}','_blank')`, '🌐', 'Página pública', 'Ver tu página'],
-            ['showSection(\'socials\')', '🔗', 'Redes', 'Gestionar links'],
+            ['showSection(\'music\')', '🎵', 'Música', 'Spotify y YouTube en el chat'],
+            ['showSection(\'tips\')', '💸', 'Propinas', 'Tu página y lo recibido'],
+            ['showSection(\'subathon\')', '⏱️', 'Subatón', 'Controlar el contador'],
+            ['showSection(\'profile\')', '🔗', 'Perfil y redes', 'Tu página pública y links'],
           ].map(([action, icon, label, desc]) => `
             <div onclick="${action}" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:var(--radius-sm);padding:14px 12px;cursor:pointer;transition:all 0.15s;text-align:center;"
               onmouseover="this.style.borderColor='var(--purple-border)';this.style.background='var(--purple-dim)'"
@@ -2468,7 +2606,7 @@ function renderMain() {
     <div style="margin-bottom:16px;">
       <button class="btn" onclick="showSection('commands')" style="background:var(--bg3);border:1px solid rgba(255,255,255,0.08);color:var(--text-dim);font-size:12px;padding:7px 14px;">← Volver a Comandos</button>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;" id="syscmdsGrid">
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;" id="syscmdsGrid">
       ${(()=>{
         const sys = s.system_commands || {};
         const cmds = [
@@ -5331,6 +5469,14 @@ function renderMain() {
       </div>
     </div>`:''}
 
+  </div>
+
+  <div id="sec-live" class="section">
+    <div class="page-header">
+      <div class="page-title">🔴 Anuncios y agradecimientos</div>
+      <div class="page-subtitle">Lo que Muffet dice sola en tu chat: el aviso cuando empiezas el stream y las gracias por follows, subs y bits</div>
+    </div>
+
     <div class="panel ${s.plan!=='pro'?'pro-lock':''}">
       <div class="panel-header"><span class="panel-title-text">📢 Anuncio cuando vas en vivo</span></div>
       ${s.plan!=='pro'&&s.plan!=='admin'?`
@@ -5360,7 +5506,7 @@ function renderMain() {
     </div>
 
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">🔔 Alertas del canal</span></div>
+      <div class="panel-header"><span class="panel-title-text">🔔 Agradecimientos automáticos</span></div>
       <div class="panel-body">
         <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px;line-height:1.6;">
           El bot agradece automáticamente los follows, suscripciones y bits con la personalidad de tu canal. Con los interruptores puedes apagar el agradecimiento de cada uno — el subatón sigue sumando tiempo aunque lo apagues.
