@@ -1581,7 +1581,8 @@ const TTS_VOICES = {
 };
 const TTS_DEFAULT_VOICE = 'es-MX-DaliaNeural';
 const EDGE_TOKEN = '6A5AA1D4EAFF4E9FB37E23D68491D6F4';
-const EDGE_VERSION = '130.0.2849.68';
+const EDGE_VERSION = '143.0.3650.75'; // como el proyecto edge-tts (nov 2026). Si Microsoft lo cambia, se actualiza aquí
+let edgeClockSkew = 0; // segundos: si el reloj del servidor está corrido, Microsoft rechaza el token
 
 // Cliente WebSocket mínimo (sin dependencias): Edge exige cabeceras (Origin, User-Agent) que el WebSocket de Node no deja poner
 function miniWebSocket(urlStr, headers, onMessage, timeoutMs) {
@@ -1612,7 +1613,11 @@ function miniWebSocket(urlStr, headers, onMessage, timeoutMs) {
       if (!open) {
         const end = buf.indexOf('\r\n\r\n'); if (end < 0) return;
         const status = buf.slice(0, end).toString().split('\r\n')[0];
-        if (!/ 101 /.test(status)) return finish(new Error('handshake: ' + status));
+        if (!/ 101 /.test(status)) {
+          const err = new Error('handshake: ' + status);
+          const dm = buf.slice(0, end).toString().match(/\r\ndate:\s*([^\r\n]+)/i); err.serverDate = dm ? dm[1] : null; err.code403 = / 403 /.test(status);
+          return finish(err);
+        }
         open = true; buf = buf.slice(end + 4);
         try { onMessage(null, null, api); } catch (e) { return finish(e); } // conectado: avisar para mandar los mensajes
       }
@@ -1641,17 +1646,29 @@ function miniWebSocket(urlStr, headers, onMessage, timeoutMs) {
 }
 
 const xmlEsc = (t) => String(t).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
-async function edgeTTS(text, voice, wsBase) {
+async function edgeTTS(text, voice, wsBase, retry = true) {
+  try { return await edgeTTSOnce(text, voice, wsBase); }
+  catch (e) {
+    // 403 por reloj corrido: se ajusta con la hora que manda Microsoft y se reintenta una vez
+    if (retry && e.code403 && e.serverDate && !isNaN(Date.parse(e.serverDate))) {
+      edgeClockSkew += (Date.parse(e.serverDate) - Date.now()) / 1000;
+      return edgeTTS(text, voice, wsBase, false);
+    }
+    throw e;
+  }
+}
+async function edgeTTSOnce(text, voice, wsBase) {
   // Sec-MS-GEC: SHA-256 de (tiempo de Windows redondeado a 5 min + token), como lo hace el navegador Edge
-  let ticks = Math.floor(Date.now() / 1000) + 11644473600; ticks -= ticks % 300;
+  let ticks = Math.floor(Date.now() / 1000 + edgeClockSkew) + 11644473600; ticks -= ticks % 300;
   const gec = crypto.createHash('sha256').update(`${ticks}0000000${EDGE_TOKEN}`).digest('hex').toUpperCase();
   const connId = crypto.randomUUID().replace(/-/g, '');
-  const url = `${wsBase || 'wss://speech.platform.bing.com'}/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${EDGE_TOKEN}&Sec-MS-GEC=${gec}&Sec-MS-GEC-Version=1-${EDGE_VERSION}&ConnectionId=${connId}`;
+  const url = `${wsBase || 'wss://speech.platform.bing.com'}/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${EDGE_TOKEN}&Sec-MS-GEC=${gec}&Sec-MS-GEC-Version=2-${EDGE_VERSION}&ConnectionId=${connId}`;
   const lang = voice.split('-').slice(0, 2).join('-'), short = voice.split('-').slice(2).join('-');
   const date = new Date().toUTCString();
   const parts = [];
   await miniWebSocket(url, {
     'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold', 'Pragma': 'no-cache', 'Cache-Control': 'no-cache',
+    'Accept-Language': 'en-US,en;q=0.9', 'Cookie': `muid=${crypto.randomBytes(16).toString('hex').toUpperCase()};`,
     'User-Agent': `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${EDGE_VERSION.split('.')[0]}.0.0.0 Safari/537.36 Edg/${EDGE_VERSION.split('.')[0]}.0.0.0`,
   }, (isBin, data, ws) => {
     if (data === null) { // recién conectado
@@ -1679,12 +1696,13 @@ async function googleTTS(text, voice) {
   if (b.length < 500) throw new Error('Google no devolvió audio');
   return b;
 }
+let lastEdgeError = '';
 let edgeDownUntil = 0; // si Edge falla, se prueba de nuevo en 10 min (mientras tanto, Google)
-async function makeTTS(text, voice) {
+async function makeTTS(text, voice, { tryEdge = false } = {}) {
   voice = TTS_VOICES[voice] ? voice : TTS_DEFAULT_VOICE;
-  if (Date.now() > edgeDownUntil) {
+  if (tryEdge || Date.now() > edgeDownUntil) {
     try { return { audio: await edgeTTS(text, voice), engine: 'edge' }; }
-    catch (e) { console.error('[tts] Edge falló, uso Google:', e.message); edgeDownUntil = Date.now() + 10 * 60000; }
+    catch (e) { console.error('[tts] Edge falló, uso Google:', e.message); edgeDownUntil = Date.now() + 10 * 60000; lastEdgeError = e.message; }
   }
   return { audio: await googleTTS(text, voice), engine: 'google' };
 }
@@ -1719,8 +1737,8 @@ app.post('/api/tts/preview', requireAuth, async (req, res) => {
     if (Date.now() - (ttsTestLimit.get(uid) || 0) < 2500) return res.status(429).json({ error: 'Espera un segundo…' });
     ttsTestLimit.set(uid, Date.now());
     const text = cleanTTSText(req.body?.text || '¡Hola! Así sueno cuando leo los mensajes de tu chat.', []) || 'Hola';
-    const { audio, engine } = await makeTTS(text, req.body?.voice);
-    res.set({ 'Content-Type': 'audio/mpeg', 'X-TTS-Engine': engine, 'Cache-Control': 'no-store' });
+    const { audio, engine } = await makeTTS(text, req.body?.voice, { tryEdge: true }); // al probar siempre se intenta con Edge
+    res.set({ 'Content-Type': 'audio/mpeg', 'X-TTS-Engine': engine, 'X-TTS-Error': engine === 'google' ? encodeURIComponent(lastEdgeError.slice(0, 120)) : '', 'Cache-Control': 'no-store' });
     res.send(audio);
   } catch (e) { res.status(502).json({ error: 'No se pudo generar la voz ahora. Intenta en un rato.' }); }
 });
