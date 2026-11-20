@@ -143,11 +143,17 @@ async function poll() {
   pollT = setTimeout(poll, 5000);
 }
 if (params.get('preview') === '1') {
+  // Vista previa del dashboard: si el canal ya tiene apoyos reales, se muestran esos; si no, unos de ejemplo
+  fetch(`/api/recent/${encodeURIComponent(username)}`, { cache: 'no-store' }).then(r => r.json()).then(real => {
+    if (real && SHOW.some(k => real[k])) render(real, true); else showDemo();
+  }).catch(showDemo);
+} else poll();
+function showDemo() {
   const now = Date.now(), ts = (i) => new Date(now - i * 60000).toISOString();
   const demo = { follow: { user: 'Silkly_Fan', ts: ts(1) }, sub: { user: 'Ana_Gamer', tier: 'Tier 1', months: 7, ts: ts(2) }, gift: { user: 'Beto', count: 5, ts: ts(3) },
     bits: { user: 'Carla', amount: 1000, ts: ts(4) }, tip: { user: 'Eli', amount: 10, currency: 'USD', ts: ts(5) }, raid: { user: 'Fer_TV', viewers: 120, ts: ts(6) } };
   render(demo, true);
-} else poll();
+}
 document.addEventListener('visibilitychange', () => { if (!document.hidden && params.get('preview') !== '1') poll(); });
 </script>
 </body>
