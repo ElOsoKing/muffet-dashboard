@@ -471,6 +471,11 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
   cursor:pointer;box-shadow:0 0 6px rgba(255,0,0,0.5);
 }
 .yt-volume-slider::-moz-range-track{background:transparent;}
+/* Propinas y Metas en celular: los campos en fila pasan a una columna */
+@media (max-width:700px){
+  #sec-tips .panel-body > div[style*="grid-template-columns"], #sec-goals .panel-body > div[style*="grid-template-columns"]{grid-template-columns:1fr !important;}
+  #sec-tips .stats-grid{grid-template-columns:1fr 1fr !important;}
+}
 </style>
 </head>
 <body>
@@ -517,6 +522,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
       <div class="nav-item" onclick="showSection('emojigame')"><span class="nav-icon">🎮</span> Mini juegos <span class="pro-badge" id="badge-emojigame" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('mediaalerts')"><span class="nav-icon">🔊</span> Alertas multimedia <span class="pro-badge" id="badge-mediaalerts" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('tips')"><span class="nav-icon">💸</span> Propinas</div>
+      <div class="nav-item" onclick="showSection('goals')"><span class="nav-icon">🎯</span> Metas</div>
       <div class="nav-item" onclick="showSection('subathon')"><span class="nav-icon">⏱️</span> Subatón <span class="pro-badge" id="badge-subathon" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
     </div>
@@ -1361,6 +1367,7 @@ function showSection(name) {
   if(name === 'emojigame') renderPokedleRanking();
   if(name === 'mediaalerts') initMediaAlertsSection();
   if(name === 'tips') initTipsSection();
+  if(name === 'goals') initGoalsSection();
   if(name === 'subathon') initSubathonSection();
   if(name === 'points') { renderRewardsList(); renderLevelsList(); loadRedeemRequests(); }
   if(name === 'raffle') { loadRaffleStatus(); startRafflePolling(); }
@@ -1640,12 +1647,17 @@ async function saveSubathonConfig() {
 }
 
 // ── Propinas (PayPal) ──
+function initGoalsSection() {
+  const u = streamerData?.twitch_username || '';
+  document.getElementById('goalOverlayUrl').value = `${location.origin}/overlay/goal/${u}`;
+  const ge = document.getElementById('goalEnds'); if (ge) ge.value = isoToLocalInput(streamerData?.tips_config?.goal?.ends_at);
+  goalTypeChanged();
+  loadGoalProgress();
+}
 async function initTipsSection() {
   const u = streamerData?.twitch_username || '';
   document.getElementById('tipsPageUrl').value = `${location.origin}/tip/${u}`;
   document.getElementById('tipsOverlayUrl').value = `${location.origin}/overlay/alerts/${u}`;
-  document.getElementById('goalOverlayUrl').value = `${location.origin}/overlay/goal/${u}`;
-  const ge = document.getElementById('goalEnds'); if (ge) ge.value = isoToLocalInput(streamerData?.tips_config?.goal?.ends_at);
   loadGoalProgress();
   const mc = document.getElementById('tipManCurrency'); if (mc && streamerData?.tips_config?.currency) mc.value = streamerData.tips_config.currency;
   loadTipsList();
@@ -1662,7 +1674,11 @@ async function saveTipsConfig() {
   try {
     const res = await fetch('/api/tips-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tips_config }) });
     const d = await res.json().catch(() => ({}));
-    if (res.ok) { streamerData.tips_config = d.tips_config || tips_config; showToast('Guardado ✓'); }
+    if (res.ok) {
+      streamerData.tips_config = { ...(d.tips_config || tips_config), goal: streamerData.tips_config?.goal }; showToast('Guardado ✓');
+      const st = document.getElementById('tipsStatState'); if (st) { st.textContent = tips_config.enabled ? 'Activas' : 'Apagadas'; st.className = 'stat-value ' + (tips_config.enabled ? 'on' : 'off'); }
+      const sm = document.getElementById('tipsStatMethods'); if (sm) sm.textContent = [tips_config.paypal_email ? 'PayPal' : null, tips_config.mp_link ? 'Mercado Pago' : null].filter(Boolean).join(' + ') || 'Sin método de pago';
+    }
     else showToast(d.error || 'Error al guardar', 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
@@ -1672,11 +1688,32 @@ async function testTipAlert() {
     showToast(d.sent ? 'Alerta de prueba enviada ✓' : 'No hay overlay de alertas abierto en OBS', d.sent ? undefined : 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
+function renderGoalPreview(st, f) {
+  const card = document.getElementById('tipsStatGoal');
+  if (card) card.textContent = st?.enabled ? (st.done ? '¡Cumplida! 🎉' : st.expired ? 'Vencida ⌛' : st.percent + '%') : 'Sin meta';
+  const box = document.getElementById('goalPreview'), empty = document.getElementById('goalPreviewEmpty');
+  if (!box) return;
+  if (!st?.enabled) { box.style.display = 'none'; empty.style.display = 'block'; return; }
+  box.style.display = 'block'; empty.style.display = 'none';
+  const unit = st.type === 'money' ? st.currency : st.unit;
+  document.getElementById('goalPvTitle').textContent = '🎯 ' + st.title;
+  document.getElementById('goalPvCur').textContent = f(st.current);
+  document.getElementById('goalPvTarget').textContent = f(st.target) + ' ' + unit;
+  document.getElementById('goalPvPct').textContent = st.percent + '%';
+  document.getElementById('goalPvFill').style.width = Math.min(100, st.current / st.target * 100) + '%';
+  document.getElementById('goalPvReward').textContent = st.reward ? '🎁 Reto: ' + st.reward : '';
+  let t = '';
+  if (st.done) t = '¡Meta cumplida! 🎉';
+  else if (st.expired) t = '⌛ Tiempo terminado';
+  else if (st.ends_at) { const ms = Date.parse(st.ends_at) - Date.now(), dd = Math.floor(ms / 86400000), hh = Math.floor(ms / 3600000) % 24, mm = Math.floor(ms / 60000) % 60; t = `⏳ Quedan ${dd ? dd + 'd ' : ''}${hh}h ${mm}m`; }
+  document.getElementById('goalPvTime').textContent = t;
+}
 async function loadGoalProgress() {
-  const el = document.getElementById('goalProgress'); if (!el) return;
+  const el = document.getElementById('goalProgress') || document.createElement('span');
   try {
     const st = await (await fetch(`/api/goal/state/${encodeURIComponent(streamerData?.twitch_username || '')}`)).json();
     const f = v => st.type === 'money' ? Number(v).toFixed(2) : Math.floor(v);
+    renderGoalPreview(st, f);
     el.textContent = st?.enabled ? `${f(st.current)} / ${f(st.target)} ${st.type === 'money' ? st.currency : st.unit} · ${st.percent}%${st.done ? ' 🎉' : st.expired ? ' ⌛ vencida' : ''}` : '';
   } catch(e) { el.textContent = ''; }
 }
@@ -1735,10 +1772,18 @@ async function loadTipsList() {
     document.getElementById('tipsSandbox').style.display = d.paypal_ready && d.sandbox ? 'block' : 'none';
     document.getElementById('tipsNotReady').style.display = d.paypal_ready ? 'none' : 'block';
     const list = d.tips || [];
-    if (!list.length) { box.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Todavía no hay propinas. ¡Comparte tu enlace! 💜</div>'; document.getElementById('tipsTotal').textContent = ''; return; }
+    if (!list.length) {
+      box.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Todavía no hay propinas. ¡Comparte tu enlace! 💜</div>'; document.getElementById('tipsTotal').textContent = '';
+      ['tipsStatTotal','tipsStatCount'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = '0'; });
+      const sL = document.getElementById('tipsStatLast'); if (sL) sL.textContent = 'todavía ninguna';
+      return;
+    }
     const totals = {};
     list.filter(t => t.status === 'completed').forEach(t => { totals[t.currency] = (totals[t.currency] || 0) + Number(t.amount); });
     document.getElementById('tipsTotal').textContent = 'Total (últimas 50): ' + Object.entries(totals).map(([c, v]) => `${v.toFixed(2)} ${c}`).join(' · ');
+    const sT = document.getElementById('tipsStatTotal'); if (sT) { const e = Object.entries(totals); sT.textContent = e.length ? e.map(([c, v]) => `${v.toFixed(0)} ${c}`).join(' · ') : '0'; if (e.length > 1) sT.style.fontSize = '20px'; }
+    const sC = document.getElementById('tipsStatCount'); if (sC) sC.textContent = list.length;
+    const sL = document.getElementById('tipsStatLast'); if (sL) sL.textContent = 'última: ' + new Date(list[0].created_at).toLocaleDateString('es', { day:'2-digit', month:'short' });
     box.innerHTML = list.map(t => `
       <div style="display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
         <div style="font-weight:800;color:#7dffb2;min-width:92px;">${Number(t.amount).toFixed(2)} ${escCmdHtml(t.currency)}</div>
@@ -4383,17 +4428,42 @@ function renderMain() {
     <div id="tipsSandbox" style="display:none;background:rgba(255,190,60,.1);border:1px solid rgba(255,190,60,.35);color:#ffd27a;font-size:12px;border-radius:10px;padding:10px 14px;margin-bottom:14px;">🧪 Las propinas están en <b>modo de prueba</b>: los pagos todavía no son reales.</div>
     <div id="tipsNotReady" style="display:none;background:rgba(255,107,138,.1);border:1px solid rgba(255,107,138,.35);color:#ffb3c4;font-size:12px;border-radius:10px;padding:10px 14px;margin-bottom:14px;">⚠️ Las propinas todavía no están disponibles en SilklyBot. Puedes dejar todo configurado y se activarán solas.</div>
 
+    <div class="stats-grid" style="margin-bottom:16px;">
+      <div class="stat-card">
+        <div class="stat-top"><span class="stat-label">Estado</span><div class="stat-icon">💸</div></div>
+        <div class="stat-value ${s.tips_config?.enabled?'on':'off'}" id="tipsStatState">${s.tips_config?.enabled?'Activas':'Apagadas'}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;" id="tipsStatMethods">${[s.tips_config?.paypal_email?'PayPal':null,s.tips_config?.mp_link?'Mercado Pago':null].filter(Boolean).join(' + ')||'Sin método de pago'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><span class="stat-label">Recibido</span><div class="stat-icon">💰</div></div>
+        <div class="stat-value" id="tipsStatTotal">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;">últimas 50 propinas</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-top"><span class="stat-label">Propinas</span><div class="stat-icon">🧾</div></div>
+        <div class="stat-value" id="tipsStatCount">—</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;" id="tipsStatLast">—</div>
+      </div>
+      <div class="stat-card" onclick="showSection('goals')" style="cursor:pointer;">
+        <div class="stat-top"><span class="stat-label">Meta</span><div class="stat-icon">🎯</div></div>
+        <div class="stat-value" id="tipsStatGoal" style="font-size:22px;">—</div>
+        <div style="font-size:11px;color:var(--purple-light);margin-top:6px;">Ver metas →</div>
+      </div>
+    </div>
+
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">⚙️ Configuración</span></div>
+      <div class="panel-header"><span class="panel-title-text">💳 Cómo te pagan</span></div>
       <div class="panel-body">
         <div class="toggle-row" style="margin-bottom:16px;">
           <div><div class="toggle-label">Recibir propinas</div><div class="toggle-sub">Activa tu página de propinas y el comando !propina</div></div>
           <label class="toggle"><input type="checkbox" id="tipsEnabled" ${s.tips_config?.enabled?'checked':''}><span class="toggle-slider"></span></label>
         </div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin:4px 0 10px;">🅿️ PayPal <span style="font-weight:500;color:var(--text-dim);font-size:11px;">— pago automático, sale solo en el stream</span></div>
         <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Correo de tu cuenta PayPal</div>
         <input type="email" id="tipsEmail" class="form-input" placeholder="tucorreo@ejemplo.com" value="${String(s.tips_config?.paypal_email||'').replace(/[^a-zA-Z0-9@._+\-]/g,'')}">
         <div style="font-size:11px;color:var(--text-dim);margin:6px 0 16px;line-height:1.5;">Es donde te llega el dinero. Quien te dé una propina verá este correo en PayPal, igual que con un PayPal.me.</div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Link de Mercado Pago (opcional)</div>
+        <div style="font-size:12px;font-weight:700;color:var(--text);margin:18px 0 10px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">💙 Mercado Pago <span style="font-weight:500;color:var(--text-dim);font-size:11px;">— opcional, lo confirmas tú</span></div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Link de Mercado Pago</div>
         <input type="url" id="tipsMpLink" class="form-input" placeholder="https://mpago.la/..." value="${String(s.tips_config?.mp_link||'').replace(/[<>"']/g,'')}">
         <div style="font-size:11px;color:var(--text-dim);margin:6px 0 16px;line-height:1.5;">Si tienes Mercado Pago, crea un <b>link de cobro</b> en su app y pégalo aquí: tu página mostrará un botón "Pagar con Mercado Pago". Ese pago no avisa solo — cuando te llegue, regístralo abajo en <b>Registrar propina</b> para que salga en el stream.</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
@@ -4416,76 +4486,23 @@ function renderMain() {
     </div>
 
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">🎯 Meta de propinas</span><span id="goalProgress" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
+      <div class="panel-header"><span class="panel-title-text">📣 Compartir y OBS</span></div>
       <div class="panel-body">
-        <div class="toggle-row" style="margin-bottom:16px;">
-          <div><div class="toggle-label">Mostrar una meta</div><div class="toggle-sub">Una barra en OBS que se llena con propinas, subs o bits — con reto y fecha límite si quieres</div></div>
-          <label class="toggle"><input type="checkbox" id="goalEnabled" ${s.tips_config?.goal?.enabled?'checked':''}><span class="toggle-slider"></span></label>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">¿Qué cuenta?</div>
-            <select id="goalType" class="form-input" onchange="goalTypeChanged()">${[['money','💸 Propinas (dinero)'],['subs','⭐ Subs'],['bits','💎 Bits']].map(([v,l])=>`<option value="${v}" ${(s.tips_config?.goal?.type||'money')===v?'selected':''}>${l}</option>`).join('')}</select>
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Fecha límite (opcional)</div>
-            <div style="display:flex;gap:6px;"><input type="datetime-local" id="goalEnds" class="form-input" style="flex:1;" value=""><button class="btn btn-secondary" title="Sin fecha límite" onclick="document.getElementById('goalEnds').value=''">✕</button></div>
-          </div>
-        </div>
-        <div style="margin-bottom:14px;">
-          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">🎁 Reto al cumplirla (opcional)</div>
-          <input type="text" id="goalReward" class="form-input" maxlength="80" placeholder="Me rapo la cabeza, juego en dificultad máxima…" value="${String(s.tips_config?.goal?.reward||'').replace(/[<>"]/g,'')}">
-        </div>
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin-bottom:14px;">
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Nombre de la meta</div>
-            <input type="text" id="goalTitle" class="form-input" maxlength="40" placeholder="Nueva silla, 50 subs…" value="${String(s.tips_config?.goal?.title||'').replace(/[<>"]/g,'')}">
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;" id="goalTargetLabel">Meta (${s.tips_config?.goal?.type==='subs'?'subs':s.tips_config?.goal?.type==='bits'?'bits':(s.tips_config?.currency||'USD')})</div>
-            <input type="number" id="goalTarget" class="form-input" min="1" step="1" placeholder="120" value="${s.tips_config?.goal?.target||''}">
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Estilo</div>
-            <select id="goalTheme" class="form-input">${[['clasico','Clásico'],['neon','Neón'],['minimal','Minimal']].map(([v,l])=>`<option value="${v}" ${(s.tips_config?.goal?.theme||'clasico')===v?'selected':''}>${l}</option>`).join('')}</select>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="saveTipsGoal(false)">Guardar</button>
-          <button class="btn btn-secondary" onclick="saveTipsGoal(true)">🔄 Empezar de nuevo (desde 0)</button>
-        </div>
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin:18px 0 6px;">Overlay para OBS (Browser Source 640×160)</div>
-        <div style="display:flex;gap:8px;">
-          <input class="form-input" id="goalOverlayUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
-          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('goalOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
-          <button class="btn btn-secondary" onclick="window.open(document.getElementById('goalOverlayUrl').value+'?preview=1','_blank')">👁️ Vista previa</button>
-        </div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6;">💸 <b>Propinas:</b> PayPal y las registradas a mano, en tu moneda. ⭐ <b>Subs:</b> cada sub, resub o sub regalada cuenta 1 (Prime incluido). 💎 <b>Bits:</b> se suman todos.<br>Cuenta desde que creaste o reiniciaste la meta (cambiar el tipo la reinicia). Con fecha límite, al vencer deja de contar. Las subs/bits del chat compartido no cuentan.<br>En el chat, <b>!meta</b> dice cómo va, y Muffet avisa cuando se cumple 🎉 <i>(las metas de subs/bits necesitan correr <b>metas.sql</b> en Supabase una vez)</i></div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">🔗 Tu página de propinas</span></div>
-      <div class="panel-body">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">🔗 Tu página de propinas</div>
         <div style="display:flex;gap:8px;">
           <input class="form-input" id="tipsPageUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
           <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('tipsPageUrl').value);showToast('Enlace copiado ✓')">📋 Copiar</button>
           <button class="btn btn-secondary" onclick="window.open(document.getElementById('tipsPageUrl').value,'_blank')">↗ Abrir</button>
         </div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;">Ponlo en tus paneles de Twitch o en tus redes. En el chat, <b>!propina</b> (o !tip / !donar) responde con este enlace.</div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">📺 Alerta en OBS</span></div>
-      <div class="panel-body">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin:20px 0 6px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);">📺 Alerta en OBS</div>
         <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">Las propinas salen en el overlay de <b>alertas</b>. Si ya lo tienes en OBS, no hagas nada. Si no, agrégalo como <strong style="color:var(--text);">Browser Source</strong> (1920x1080):</div>
         <div style="display:flex;gap:8px;">
           <input class="form-input" id="tipsOverlayUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
           <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('tipsOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
           <button class="btn btn-secondary" onclick="testTipAlert()">🧪 Probar</button>
         </div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;">⏱️ Si tienes el subatón activo, las propinas también suman tiempo (se configura en la sección Subatón).</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;">⏱️ Las propinas también suman tiempo al <a href="#" onclick="showSection('subathon');return false;" style="color:var(--purple-light);">Subatón</a> y cuentan para tu <a href="#" onclick="showSection('goals');return false;" style="color:var(--purple-light);">Meta</a>.</div>
       </div>
     </div>
 
@@ -4506,6 +4523,83 @@ function renderMain() {
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">🧾 Últimas propinas</span><span id="tipsTotal" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
       <div class="panel-body" id="tipsList"><div style="color:var(--text-dim);font-size:13px;">Cargando…</div></div>
+    </div>
+  </div>
+
+  <div id="sec-goals" class="section">
+    <div class="page-header">
+      <div class="page-title">🎯 Metas</div>
+      <div class="page-subtitle">Una barra en tu stream que se llena con propinas, subs o bits — con reto y fecha límite si quieres</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📊 Cómo va</span></div>
+      <div class="panel-body">
+        <div id="goalPreviewEmpty" style="color:var(--text-dim);font-size:13px;">No tienes una meta activa. Créala abajo 👇</div>
+        <div id="goalPreview" style="display:none;">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:10px;">
+            <div style="font-size:18px;font-weight:800;" id="goalPvTitle">🎯 Meta</div>
+            <div style="font-size:15px;font-weight:700;"><span id="goalPvCur" style="color:#7dffb2;">0</span> / <span id="goalPvTarget">0</span> <span id="goalPvPct" style="color:var(--text-dim);font-weight:600;"></span></div>
+          </div>
+          <div style="height:16px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;"><div id="goalPvFill" style="height:100%;width:0%;background:linear-gradient(90deg,#9147ff,#c86bff,#ff6fb5);border-radius:999px;transition:width .6s;"></div></div>
+          <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:12px;color:var(--text-dim);"><span id="goalPvReward"></span><span id="goalPvTime"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Configurar la meta</span><span id="goalProgress" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
+      <div class="panel-body">
+        <div class="toggle-row" style="margin-bottom:16px;">
+          <div><div class="toggle-label">Mostrar una meta</div><div class="toggle-sub">Una barra en OBS que se llena con propinas, subs o bits — con reto y fecha límite si quieres</div></div>
+          <label class="toggle"><input type="checkbox" id="goalEnabled" ${s.tips_config?.goal?.enabled?'checked':''}><span class="toggle-slider"></span></label>
+        </div>
+        <div style="display:grid;grid-template-columns:1.2fr 2fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">¿Qué cuenta?</div>
+            <select id="goalType" class="form-input" onchange="goalTypeChanged()">${[['money','💸 Propinas (dinero)'],['subs','⭐ Subs'],['bits','💎 Bits']].map(([v,l])=>`<option value="${v}" ${(s.tips_config?.goal?.type||'money')===v?'selected':''}>${l}</option>`).join('')}</select>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Nombre de la meta</div>
+            <input type="text" id="goalTitle" class="form-input" maxlength="40" placeholder="Nueva silla, 50 subs…" value="${String(s.tips_config?.goal?.title||'').replace(/[<>"]/g,'')}">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;" id="goalTargetLabel">Meta (${s.tips_config?.goal?.type==='subs'?'subs':s.tips_config?.goal?.type==='bits'?'bits':(s.tips_config?.currency||'USD')})</div>
+            <input type="number" id="goalTarget" class="form-input" min="1" step="1" placeholder="120" value="${s.tips_config?.goal?.target||''}">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Estilo</div>
+            <select id="goalTheme" class="form-input">${[['clasico','Clásico'],['neon','Neón'],['minimal','Minimal']].map(([v,l])=>`<option value="${v}" ${(s.tips_config?.goal?.theme||'clasico')===v?'selected':''}>${l}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px;">
+          <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">🎁 Reto al cumplirla (opcional)</div>
+          <input type="text" id="goalReward" class="form-input" maxlength="80" placeholder="Me rapo la cabeza, juego en dificultad máxima…" value="${String(s.tips_config?.goal?.reward||'').replace(/[<>"]/g,'')}">
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Fecha límite (opcional)</div>
+            <div style="display:flex;gap:6px;"><input type="datetime-local" id="goalEnds" class="form-input" style="flex:1;" value=""><button class="btn btn-secondary" title="Sin fecha límite" onclick="document.getElementById('goalEnds').value=''">✕</button></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="saveTipsGoal(false)">Guardar</button>
+          <button class="btn btn-secondary" onclick="saveTipsGoal(true)">🔄 Empezar de nuevo (desde 0)</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:14px;line-height:1.6;">💸 <b>Propinas:</b> PayPal y las registradas a mano, en tu moneda. ⭐ <b>Subs:</b> cada sub, resub o sub regalada cuenta 1 (Prime incluido). 💎 <b>Bits:</b> se suman todos.<br>Cuenta desde que creaste o reiniciaste la meta (cambiar el tipo la reinicia). Con fecha límite, al vencer deja de contar. Las subs/bits del chat compartido no cuentan.<br>En el chat, <b>!meta</b> dice cómo va, y Muffet avisa cuando se cumple 🎉 <i>(las metas de subs/bits necesitan correr <b>metas.sql</b> en Supabase una vez)</i></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">📺 Overlay para OBS</span></div>
+      <div class="panel-body">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin:0 0 6px;">Browser Source · 640×160</div>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="goalOverlayUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('goalOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
+          <button class="btn btn-secondary" onclick="window.open(document.getElementById('goalOverlayUrl').value+'?preview=1','_blank')">👁️ Vista previa</button>
+        </div>
+      </div>
     </div>
   </div>
 
