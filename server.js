@@ -1522,7 +1522,8 @@ function cleanAlertBox(input, channel) {
     };
   };
   const out = { enabled: !!input?.enabled, events: {},
-    tts: { voice: TTS_VOICES[input?.tts?.voice] ? input.tts.voice : TTS_DEFAULT_VOICE, volume: num(input?.tts?.volume, 0, 100, 80), say_name: input?.tts?.say_name !== false },
+    tts: { voice: TTS_VOICES[input?.tts?.voice] ? input.tts.voice : TTS_DEFAULT_VOICE, volume: num(input?.tts?.volume, 0, 100, 80), say_name: input?.tts?.say_name !== false,
+      lang: input?.tts?.lang === 'random' || TTS_LANGS[input?.tts?.lang] ? input.tts.lang : 'es' },
     // Opciones del overlay de últimos apoyos (solo para recordar lo que eligió en el dashboard; el overlay las lee de su URL)
     ticker: { estilo: pick(input?.ticker?.estilo, ['rotar', 'barra', 'tarjetas'], 'rotar'), color: hex(input?.ticker?.color, '#b794ff'),
       mostrar: (Array.isArray(input?.ticker?.mostrar) ? input.ticker.mostrar : ['follow', 'sub', 'gift', 'bits', 'tip', 'raid']).filter(k => ['follow', 'sub', 'gift', 'bits', 'tip', 'raid'].includes(k)) } };
@@ -1582,6 +1583,10 @@ const TTS_VOICES = {
   'en-US-AriaNeural': 'Aria (inglés)', 'en-US-GuyNeural': 'Guy (inglés)',
 };
 const TTS_DEFAULT_VOICE = 'es-MX-DaliaNeural';
+// Voz básica (Google Traductor): se puede elegir el idioma de la voz. Con texto en español y voz japonesa sale el "japonés intentando hablar español" 😂
+const TTS_LANGS = { es: 'Español', en: 'Inglés', ja: 'Japonés', ko: 'Coreano', 'zh-CN': 'Chino', ru: 'Ruso', de: 'Alemán', fr: 'Francés', it: 'Italiano',
+  pt: 'Portugués', ar: 'Árabe', hi: 'Hindi', tr: 'Turco', nl: 'Holandés', pl: 'Polaco', sv: 'Sueco', el: 'Griego', th: 'Tailandés', vi: 'Vietnamita', id: 'Indonesio' };
+const pickLang = (l) => l === 'random' ? Object.keys(TTS_LANGS)[Math.floor(Math.random() * Object.keys(TTS_LANGS).length)] : (TTS_LANGS[l] ? l : 'es');
 const AZURE_KEY = process.env.AZURE_SPEECH_KEY || '', AZURE_REGION = (process.env.AZURE_SPEECH_REGION || '').replace(/[^a-z0-9]/gi, '');
 const azureReady = () => !!(AZURE_KEY && AZURE_REGION);
 const xmlEsc = (t) => String(t).replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c]));
@@ -1598,8 +1603,8 @@ async function azureTTS(text, voice) {
   if (b.length < 500) throw new Error('Azure no devolvió audio');
   return b;
 }
-async function googleTTS(text, voice) {
-  const tl = String(voice || 'es').startsWith('en') ? 'en' : 'es';
+async function googleTTS(text, lang) {
+  const tl = pickLang(lang);
   const r = await fetch(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${tl}&q=${encodeURIComponent(text.slice(0, 200))}`, {
     headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' }, signal: AbortSignal.timeout(7000) });
   if (!r.ok) throw new Error('Google TTS ' + r.status);
@@ -1608,13 +1613,14 @@ async function googleTTS(text, voice) {
   return b;
 }
 let lastAzureError = '';
-async function makeTTS(text, voice) {
+// voice = voz de Azure (si está configurado); lang = idioma de la voz básica (o 'random' = uno distinto cada vez)
+async function makeTTS(text, voice, lang) {
   voice = TTS_VOICES[voice] ? voice : TTS_DEFAULT_VOICE;
-  if (azureReady()) {
+  if (azureReady() && lang !== 'random' && (!lang || lang === 'es')) {
     try { return { audio: await azureTTS(text, voice), engine: 'azure' }; }
     catch (e) { console.error('[tts] Azure falló, uso Google:', e.message); lastAzureError = e.message; }
   }
-  return { audio: await googleTTS(text, voice), engine: 'google' };
+  return { audio: await googleTTS(text, lang || 'es'), engine: 'google' };
 }
 const ttsStore = new Map(); // id -> { audio, ts }
 function storeTTS(audio) {
@@ -1647,12 +1653,12 @@ app.post('/api/tts/preview', requireAuth, async (req, res) => {
     if (Date.now() - (ttsTestLimit.get(uid) || 0) < 2500) return res.status(429).json({ error: 'Espera un segundo…' });
     ttsTestLimit.set(uid, Date.now());
     const text = cleanTTSText(req.body?.text || '¡Hola! Así sueno cuando leo los mensajes de tu chat.', []) || 'Hola';
-    const { audio, engine } = await makeTTS(text, req.body?.voice);
+    const { audio, engine } = await makeTTS(text, req.body?.voice, req.body?.lang);
     res.set({ 'Content-Type': 'audio/mpeg', 'X-TTS-Engine': engine, 'X-TTS-Error': engine === 'google' && azureReady() ? encodeURIComponent(lastAzureError.slice(0, 120)) : '', 'Cache-Control': 'no-store' });
     res.send(audio);
   } catch (e) { res.status(502).json({ error: 'No se pudo generar la voz ahora. Intenta en un rato.' }); }
 });
-app.get('/api/tts-voices', (req, res) => res.json({ voices: TTS_VOICES, default: TTS_DEFAULT_VOICE, voices_available: azureReady() }));
+app.get('/api/tts-voices', (req, res) => res.json({ voices: TTS_VOICES, default: TTS_DEFAULT_VOICE, voices_available: azureReady(), langs: TTS_LANGS }));
 
 // "+90 s" / "+5 min" / "+1 h 20 min"
 function fmtSubathonChip(min) {
@@ -1711,7 +1717,7 @@ async function sendBoxAlert(channel, d, { force = false, variation = null } = {}
   if (base.tts && ttsText && ttsAmountOk) {
     try {
       const say = ttsCfg.say_name && d.user ? `${clip(d.user, 30)} dice: ${ttsText}` : ttsText;
-      const { audio } = await Promise.race([makeTTS(say, ttsCfg.voice), new Promise((_, rej) => setTimeout(() => rej(new Error('lento')), 12000))]);
+      const { audio } = await Promise.race([makeTTS(say, ttsCfg.voice, ttsCfg.lang), new Promise((_, rej) => setTimeout(() => rej(new Error('lento')), 12000))]);
       tts_url = `/api/tts/${storeTTS(audio)}`; tts_volume = ttsCfg.volume;
     } catch (e) { console.error('[tts]', e.message); } // sin voz, la alerta sale igual
   }
