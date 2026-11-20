@@ -2244,16 +2244,19 @@ function renderMain() {
       </div>
       <div class="panel-body" style="padding:0;">
         ${(() => { const update = {
-            version: 'v3.4',
-            date: '1 Noviembre 2026',
+            version: 'v3.5',
+            date: '20 Noviembre 2026',
             badge: 'nuevo',
             items: [
-              '📥 Importa tus comandos y timers de Nightbot o StreamElements con un clic: las variables se traducen solas y revisas todo antes de guardar',
-              '🔤 Comandos sin "!": una palabra suelta (como F) puede activar una respuesta, y {cmdcount} cuenta cuántas veces se ha usado',
-              '⏱️ Tiempo de espera propio por comando',
-              '🧩 Variables nuevas: {args}, {1}–{9}, {points}, {pointsname}, {viewers}, {time} y {date}, todas explicadas en Comandos → Variables',
-              '📣 Los mensajes automáticos ahora también entienden variables',
-              '🛡️ Moderación del bot (borrar mensajes y timeouts) más estable',
+              '💸 Propinas con PayPal o tarjeta: tu página silklybot.com/tip/tucanal — el dinero va directo a tu PayPal, sale la alerta en OBS y Muffet agradece',
+              '💙 Mercado Pago: pega tu link de cobro y registra a mano las propinas que te lleguen para que salgan en el stream',
+              '🎯 Metas: una barra en OBS que se llena con propinas, subs o bits, con reto ("50 subs y me rapo") y fecha límite — !meta en el chat',
+              '⏱️ Subatón: las propinas suman tiempo y las subs Prime cuentan siempre',
+              '🤝 Stream Together: las subs y bits del otro canal ya no suman a tu subatón',
+              '🎰 !apostar todo y !slots todo para jugarte todo el saldo',
+              '⏻ Apaga o enciende a Muffet desde Inicio, sin comandos',
+              '🗂️ Dashboard reorganizado: menú por categorías, pestañas en las páginas largas e Inicio con lo que pasa "ahora mismo"',
+              '⚡ Overlays más ligeros para OBS (Spotify, Subatón y Contadores)',
             ]
           }; return `
           <div style="padding:16px 20px;">
