@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Últimos apoyos — SilklyBot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:transparent;overflow:hidden;font-family:'Inter',system-ui,sans-serif;color:#fff;width:100vw;height:100vh}
+:root{--a:#b794ff;--glow:rgba(183,148,255,.5)}
+.lbl{font-size:12px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--a);white-space:nowrap}
+.val{font-size:20px;font-weight:800;white-space:nowrap;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.val .x{color:#7dffb2;margin-left:6px}
+.ic{display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.hidden{display:none!important}
+@keyframes flash{0%{box-shadow:0 0 0 0 var(--glow),0 0 30px var(--a)}100%{box-shadow:0 0 0 0 transparent}}
+.new{animation:flash 1.6s ease-out}
+
+/* ── Barra: todo en una fila, se desliza sola si no cabe ── */
+#barra{position:absolute;left:0;top:0;width:100%;height:58px;display:flex;align-items:center;overflow:hidden;
+  background:linear-gradient(90deg,rgba(18,10,34,.94),rgba(32,18,60,.94));border-bottom:2px solid var(--a);box-shadow:0 0 22px var(--glow)}
+#barra .track{display:flex;align-items:center;gap:0;white-space:nowrap;will-change:transform}
+#barra .it{display:flex;align-items:center;gap:10px;padding:0 26px;height:58px;border-right:1px solid rgba(255,255,255,.12);border-radius:8px}
+#barra .ic{font-size:24px}
+#barra .lbl{font-size:11px}
+#barra .val{font-size:19px}
+#barra.scroll .track{animation:marquee var(--dur,30s) linear infinite}
+@keyframes marquee{to{transform:translateX(-50%)}}
+
+/* ── Rotar: una cosa a la vez ── */
+#rotar{position:absolute;left:16px;top:16px;height:76px;min-width:340px;max-width:620px;display:flex;align-items:center;gap:14px;padding:0 22px 0 12px;border-radius:999px;
+  background:linear-gradient(160deg,rgba(32,20,58,.94),rgba(16,10,30,.94));border:2px solid var(--a);box-shadow:0 0 26px var(--glow),0 10px 30px rgba(0,0,0,.4);overflow:hidden}
+#rotar .ic{width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid var(--a);font-size:28px}
+#rotar .txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+#rotar .val{font-size:24px;overflow:hidden;text-overflow:ellipsis}
+#rotar .slide{display:flex;align-items:center;gap:14px;transition:transform .45s cubic-bezier(.2,.9,.2,1),opacity .45s}
+#rotar .slide.out{transform:translateY(-120%);opacity:0}
+#rotar .slide.in{transform:translateY(120%);opacity:0}
+
+/* ── Tarjetas: lista hacia abajo ── */
+#tarjetas{position:absolute;left:16px;top:16px;width:400px;display:flex;flex-direction:column;gap:10px}
+#tarjetas .it{display:flex;align-items:center;gap:12px;padding:10px 16px 10px 10px;border-radius:16px;
+  background:linear-gradient(160deg,rgba(32,20,58,.92),rgba(16,10,30,.92));border:1px solid rgba(255,255,255,.12);border-left:4px solid var(--a)}
+#tarjetas .ic{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,.07);font-size:22px}
+#tarjetas .txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+#tarjetas .val{font-size:18px;overflow:hidden;text-overflow:ellipsis}
+</style>
+</head>
+<body>
+<div id="barra" class="hidden"><div class="track"></div></div>
+<div id="rotar" class="hidden"><div class="slide"><div class="ic"></div><div class="txt"><div class="lbl"></div><div class="val"></div></div></div></div>
+<div id="tarjetas" class="hidden"></div>
+<script>
+const params = new URLSearchParams(location.search);
+const username = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '').toLowerCase();
+const ESTILO = ['barra', 'rotar', 'tarjetas'].includes(params.get('estilo')) ? params.get('estilo') : 'rotar';
+const KEYS = ['follow', 'sub', 'gift', 'bits', 'tip', 'raid'];
+const SHOW = (params.get('mostrar') || KEYS.join(',')).split(',').filter(k => KEYS.includes(k));
+const color = /^[0-9a-fA-F]{6}$/.test(params.get('color') || '') ? '#' + params.get('color') : '#b794ff';
+document.documentElement.style.setProperty('--a', color);
+document.documentElement.style.setProperty('--glow', color + '80');
+const META = {
+  follow: { ic: '💜', lbl: 'Último follow' }, sub: { ic: '⭐', lbl: 'Última sub' }, gift: { ic: '🎁', lbl: 'Último regalo' },
+  bits: { ic: '💎', lbl: 'Últimos bits' }, tip: { ic: '💸', lbl: 'Última propina' }, raid: { ic: '🚀', lbl: 'Última raid' }
+};
+const SYM = { USD: '$', EUR: '€', MXN: '$', CAD: '$', GBP: '£' };
+function extra(k, it) {
+  if (k === 'gift') return '×' + (it.count || 1);
+  if (k === 'bits') return Number(it.amount || 0).toLocaleString('es');
+  if (k === 'tip') return (SYM[it.currency] || '') + (Number(it.amount) % 1 ? Number(it.amount).toFixed(2) : Number(it.amount || 0)) + (it.currency ? ' ' + it.currency : '');
+  if (k === 'raid') return Number(it.viewers || 0).toLocaleString('es') + ' 👥';
+  if (k === 'sub' && it.months > 1) return it.months + ' meses';
+  return '';
+}
+// Arma el elemento con textContent (los nombres vienen del chat: nunca como HTML)
+function itemEl(k, it, cls) {
+  const d = document.createElement('div'); d.className = cls || 'it'; d.dataset.k = k;
+  const ic = document.createElement('div'); ic.className = 'ic'; ic.textContent = META[k].ic;
+  const t = document.createElement('div'); t.className = 'txt';
+  const l = document.createElement('div'); l.className = 'lbl'; l.textContent = META[k].lbl;
+  const v = document.createElement('div'); v.className = 'val'; v.textContent = it ? it.user : '—';
+  const x = it && extra(k, it); if (x) { const s = document.createElement('span'); s.className = 'x'; s.textContent = x; v.appendChild(s); }
+  t.append(l, v); d.append(ic, t);
+  return d;
+}
+
+let data = {}, lastTs = {}, rotIdx = 0, rotTimer = null;
+const avail = () => SHOW.filter(k => data[k]);
+
+function renderBarra(newKeys) {
+  const el = document.getElementById('barra'), track = el.querySelector('.track');
+  el.classList.remove('hidden');
+  const keys = avail(); track.textContent = '';
+  if (!keys.length) { el.classList.add('hidden'); return; }
+  const build = () => keys.forEach(k => { const n = itemEl(k, data[k]); if (newKeys.includes(k)) n.classList.add('new'); track.appendChild(n); });
+  build();
+  el.classList.remove('scroll'); track.style.transform = '';
+  requestAnimationFrame(() => {
+    const w = track.scrollWidth;
+    if (w > el.clientWidth) { build(); el.style.setProperty('--dur', Math.max(15, w / 60) + 's'); el.classList.add('scroll'); }
+  });
+}
+function renderTarjetas(newKeys) {
+  const el = document.getElementById('tarjetas'); el.classList.remove('hidden'); el.textContent = '';
+  avail().forEach(k => { const n = itemEl(k, data[k]); if (newKeys.includes(k)) n.classList.add('new'); el.appendChild(n); });
+}
+function showRot(k, isNew) {
+  const box = document.getElementById('rotar'), old = box.querySelector('.slide');
+  const it = data[k]; if (!it) return;
+  const n = itemEl(k, it, 'slide in');
+  box.appendChild(n);
+  old.classList.add('out'); setTimeout(() => old.remove(), 460);
+  requestAnimationFrame(() => requestAnimationFrame(() => n.classList.remove('in')));
+  if (isNew) { box.classList.remove('new'); void box.offsetWidth; box.classList.add('new'); }
+}
+function renderRotar(newKeys) {
+  const box = document.getElementById('rotar');
+  const keys = avail();
+  if (!keys.length) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  if (newKeys.length) { rotIdx = Math.max(0, keys.indexOf(newKeys[0])); showRot(keys[rotIdx], true); restartRot(); }
+  else if (!rotTimer) { showRot(keys[rotIdx % keys.length], false); restartRot(); }
+}
+function restartRot() {
+  clearInterval(rotTimer);
+  rotTimer = setInterval(() => { const keys = avail(); if (keys.length < 2) return; rotIdx = (rotIdx + 1) % keys.length; showRot(keys[rotIdx], false); }, 5000);
+}
+function render(d, first) {
+  data = d || {};
+  // ¿Qué llegó nuevo desde la última vez? (para resaltarlo)
+  const newKeys = first ? [] : SHOW.filter(k => data[k] && data[k].ts !== lastTs[k]);
+  SHOW.forEach(k => { lastTs[k] = data[k]?.ts; });
+  if (!first && !newKeys.length) return; // nada cambió: no redibujar (así la barra no se reinicia)
+  if (ESTILO === 'barra') renderBarra(newKeys);
+  else if (ESTILO === 'tarjetas') renderTarjetas(newKeys);
+  else renderRotar(newKeys);
+}
+let pollT = null, first = true;
+async function poll() {
+  clearTimeout(pollT);
+  if (document.hidden) { pollT = setTimeout(poll, 15000); return; }
+  try { const r = await fetch(`/api/recent/${encodeURIComponent(username)}`, { cache: 'no-store' }); render(await r.json(), first); first = false; } catch (e) {}
+  pollT = setTimeout(poll, 5000);
+}
+if (params.get('preview') === '1') {
+  const now = Date.now(), ts = (i) => new Date(now - i * 60000).toISOString();
+  const demo = { follow: { user: 'Silkly_Fan', ts: ts(1) }, sub: { user: 'Ana_Gamer', tier: 'Tier 1', months: 7, ts: ts(2) }, gift: { user: 'Beto', count: 5, ts: ts(3) },
+    bits: { user: 'Carla', amount: 1000, ts: ts(4) }, tip: { user: 'Eli', amount: 10, currency: 'USD', ts: ts(5) }, raid: { user: 'Fer_TV', viewers: 120, ts: ts(6) } };
+  render(demo, true);
+} else poll();
+document.addEventListener('visibilitychange', () => { if (!document.hidden && params.get('preview') !== '1') poll(); });
+</script>
+</body>
+</html>
