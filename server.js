@@ -1779,15 +1779,45 @@ async function recordRecent(channel, d) {
 const _serverLocks = {};
 function withServerLock(k, fn) { const prev = _serverLocks[k] || Promise.resolve(); const next = prev.then(fn, fn); _serverLocks[k] = next.catch(() => {}); return next; }
 
+// Último follow desde Twitch (para canales que todavía no tienen uno anotado). Se intenta como mucho 1 vez por hora por canal.
+const followBackfillTried = new Map();
+async function backfillFollow(u, rec) {
+  if (Date.now() - (followBackfillTried.get(u) || 0) < 3600000) return;
+  followBackfillTried.set(u, Date.now());
+  try {
+    const st = (await (await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${u}&select=twitch_id,access_token,refresh_token&limit=1`, { headers: sbHeaders })).json())?.[0];
+    const token = await getFreshTwitchToken(st);
+    if (!token) return;
+    const r = await fetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${st.twitch_id}&first=1`, { headers: { 'Authorization': `Bearer ${token}`, 'Client-Id': TWITCH_CLIENT_ID }, signal: AbortSignal.timeout(6000) });
+    const f = (await r.json().catch(() => ({})))?.data?.[0];
+    if (!f) return;
+    rec.follow = { user: String(f.user_name || f.user_login).slice(0, 30), ts: f.followed_at };
+    await withServerLock('recent:' + u, async () => {
+      const cur = recentMem.get(u) || (await (await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${u}&select=alert_recent&limit=1`, { headers: sbHeaders })).json())?.[0]?.alert_recent || {};
+      if (cur.follow) return; // mientras tanto llegó uno nuevo por EventSub: ese gana
+      const next = { ...cur, follow: rec.follow };
+      recentMem.set(u, next);
+      await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${u}`, { method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ alert_recent: next }) });
+    });
+  } catch (e) { console.error('[recent] follow de Twitch:', e.message); }
+}
+
 app.get('/api/recent/:username', async (req, res) => {
   try {
     const u = String(req.params.username || '').toLowerCase();
     if (!/^[a-z0-9_]{3,25}$/.test(u)) return res.status(400).json({});
     const data = await ttlCache('recent:' + u, 3000, async () => {
-      if (recentMem.has(u)) return recentMem.get(u);
+      if (recentMem.has(u)) { const m = { ...recentMem.get(u) }; if (!m.follow) await backfillFollow(u, m); return m; }
       const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${u}&select=alert_recent&limit=1`, { headers: sbHeaders });
       const rows = await r.json().catch(() => []);
-      return (Array.isArray(rows) && rows[0]?.alert_recent) || {};
+      const rec = { ...((Array.isArray(rows) && rows[0]?.alert_recent) || {}) };
+      // Las propinas sí tienen historial (tabla tips): si todavía no hay "última propina" anotada, se toma de ahí
+      if (!rec.tip) {
+        const t = await fetch(`${SUPABASE_URL}/rest/v1/tips?streamer=eq.${u}&status=eq.completed&order=created_at.desc&limit=1&select=name,amount,currency,created_at`, { headers: sbHeaders }).then(x => x.json()).catch(() => []);
+        if (Array.isArray(t) && t[0]) rec.tip = { user: String(t[0].name || 'Anónimo').slice(0, 30), amount: Number(t[0].amount) || 0, currency: t[0].currency || '', ts: t[0].created_at };
+      }
+      if (!rec.follow) await backfillFollow(u, rec);
+      return rec;
     });
     res.set('Cache-Control', 'no-store');
     res.json(data);
