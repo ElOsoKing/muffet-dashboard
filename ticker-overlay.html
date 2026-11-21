@@ -33,8 +33,10 @@ html,body{background:transparent;overflow:hidden;font-family:'Inter',system-ui,s
 #rotar .ic{width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.08);border:2px solid var(--a);font-size:28px}
 #rotar .txt{display:flex;flex-direction:column;gap:3px;min-width:0}
 #rotar .val{font-size:24px;overflow:hidden;text-overflow:ellipsis}
+#rotar{transition:width .45s cubic-bezier(.2,.9,.2,1)}
 #rotar .slide{display:flex;align-items:center;gap:14px;transition:transform .45s cubic-bezier(.2,.9,.2,1),opacity .45s}
-#rotar .slide.out{transform:translateY(-120%);opacity:0}
+/* La que se va queda encima (posición absoluta) para no empujar a la nueva */
+#rotar .slide.out{position:absolute;left:12px;top:0;bottom:0;transform:translateY(-120%);opacity:0}
 #rotar .slide.in{transform:translateY(120%);opacity:0}
 
 /* ── Tarjetas: lista hacia abajo ── */
@@ -107,9 +109,15 @@ function renderTarjetas(newKeys) {
 function showRot(k, isNew) {
   const box = document.getElementById('rotar'), old = box.querySelector('.slide');
   const it = data[k]; if (!it) return;
+  // El ancho de la pastilla se anima de lo viejo a lo nuevo en vez de saltar
+  const from = box.getBoundingClientRect().width;
+  box.querySelectorAll('.slide.out').forEach(x => x.remove());
   const n = itemEl(k, it, 'slide in');
+  old.classList.add('out');
   box.appendChild(n);
-  old.classList.add('out'); setTimeout(() => old.remove(), 460);
+  box.style.width = 'auto'; const to = box.getBoundingClientRect().width;
+  box.style.width = from + 'px'; void box.offsetWidth; box.style.width = to + 'px';
+  setTimeout(() => { old.remove(); box.style.width = ''; }, 470);
   requestAnimationFrame(() => requestAnimationFrame(() => n.classList.remove('in')));
   if (isNew) { box.classList.remove('new'); void box.offsetWidth; box.classList.add('new'); }
 }
