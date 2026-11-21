@@ -1620,6 +1620,7 @@ function showSection(name) {
 let mediaAlertRewards = null; // cache de recompensas de Twitch
 
 async function initMediaAlertsSection() {
+  renderEventsubBanner('maEventsubBanner', 'channel.channel_points_custom_reward_redemption.add');
   const urlInput = document.getElementById('mediaAlertsOverlayUrl');
   if (urlInput) urlInput.value = `${window.location.origin}/overlay/alerts/${(userData.username||'').toLowerCase()}`;
   renderMediaAlertsList();
@@ -1812,6 +1813,7 @@ function initAlertBoxSection() {
   if (!fr.src) fr.src = `/overlay/alerts/${encodeURIComponent((userData.username||'').toLowerCase())}?preview=1`;
   abFit();
   abRenderChecks(); abRenderTabs(); abRenderForm(); abRenderTts(); tkRender();
+  if (abState.events.follow?.enabled) renderEventsubBanner('abEventsubBanner', 'channel.follow'); else { const b = document.getElementById('abEventsubBanner'); if (b) b.innerHTML = ''; }
 }
 function abRenderChecks() {
   document.getElementById('abChecks').innerHTML = AB_EVENTS.map(([ev, ic, name]) => {
@@ -1827,6 +1829,7 @@ function abRenderChecks() {
 function abCheck(ev, on) {
   abState.events[ev].enabled = on;
   if (on) { abCur = ev; abVar = null; } // abre esa alerta para diseñarla
+  if (ev === 'follow') { if (on) renderEventsubBanner('abEventsubBanner', 'channel.follow'); else { const b = document.getElementById('abEventsubBanner'); if (b) b.innerHTML = ''; } }
   abRenderChecks(); abRenderTabs(); abRenderForm(); abPreview('still');
   abQueueSave(true);
 }
@@ -4227,6 +4230,7 @@ function renderMain() {
       <div class="page-title">🔊 Alertas multimedia</div>
       <div class="page-subtitle">Tus viewers canjean puntos del canal y suena un audio o video (memes) en tu stream</div>
     </div>
+    <div id="maEventsubBanner"></div>
 
     <!-- Cómo funciona — 3 pasos -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
@@ -5280,6 +5284,7 @@ function renderMain() {
       <div class="page-title">🔔 Alertas</div>
       <div class="page-subtitle">Follows, subs, bits, raids y propinas en tu stream — gratis, con tu diseño, y conectadas con tu subatón y tus metas</div>
     </div>
+    <div id="abEventsubBanner"></div>
 
     <div class="panel">
       <div class="panel-body">
@@ -7167,6 +7172,53 @@ async function registerAlerts() {
   showToast(`Twitch rechazó: ${names}${detail}. Cierra sesión y vuelve a entrar con Twitch para renovar permisos.`, 'error');
   btn.textContent = failed.length === (json.results||[]).length ? '🔔 Activar alertas' : '⚠️ Reintentar alertas';
   btn.disabled = false;
+}
+
+
+// ── ¿Twitch le avisa a Muffet? Aviso en Alertas multimedia (canjes) y en Alertas (follows) ──
+const EVENTSUB_TEXT = {
+  'channel.channel_points_custom_reward_redemption.add': { what: 'los canjes de puntos', why: 'tus alertas multimedia no van a sonar cuando alguien canjee (la prueba del dashboard sí suena, porque no pasa por Twitch)', ok: 'Canjes conectados con Twitch' },
+  'channel.follow': { what: 'los follows', why: 'la alerta de follow no va a salir en OBS', ok: 'Follows conectados con Twitch' },
+};
+async function renderEventsubBanner(elId, type, fresh) {
+  const el = document.getElementById(elId); if (!el) return;
+  const t = EVENTSUB_TEXT[type];
+  let sub = null;
+  try {
+    const r = await fetch('/api/eventsub/status' + (fresh ? '?t=' + Date.now() : ''));
+    const j = await r.json();
+    sub = (j.subs || []).find(x => x.type === type);
+  } catch (e) {}
+  if (!sub) { el.innerHTML = ''; return; } // si no se pudo revisar, no molestar
+  if (sub.status === 'ok') {
+    el.innerHTML = `<div style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#40d090;background:rgba(64,208,144,0.08);border:1px solid rgba(64,208,144,0.25);border-radius:999px;padding:5px 12px;margin-bottom:14px;">✅ ${t.ok}</div>`;
+    return;
+  }
+  if (sub.status === 'pending') {
+    el.innerHTML = `<div style="font-size:12px;color:var(--text-muted);background:var(--bg3);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:10px 14px;margin-bottom:14px;">⏳ Twitch está terminando de conectar ${t.what}. Vuelve a abrir esta sección en un minuto.</div>`;
+    return;
+  }
+  const broken = sub.status === 'broken';
+  el.innerHTML = `<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:rgba(240,192,96,0.08);border:1px solid rgba(240,192,96,0.35);border-radius:12px;padding:12px 16px;margin-bottom:14px;">
+    <div style="flex:1;min-width:220px;font-size:13px;line-height:1.6;color:var(--text);">⚠️ <b>Twitch ${broken ? 'dejó de avisarle' : 'todavía no le avisa'} a Muffet de ${t.what}</b> de tu canal, así que ${t.why}.
+      ${broken ? `<br><span style="font-size:12px;color:var(--text-muted);">Pasa cuando se quita un permiso en Twitch. Si al activar te sale error, <a href="/auth/twitch" style="color:var(--purple-light);">reconecta tu cuenta de Twitch</a> y vuelve a darle.</span>` : ''}</div>
+    <button class="btn btn-primary" onclick="activateEventsubFrom('${elId}','${type}',this)">🔔 Activar ahora</button>
+  </div>`;
+}
+async function activateEventsubFrom(elId, type, btn) {
+  btn.disabled = true; btn.textContent = 'Activando…';
+  try {
+    const res = await fetch('/api/eventsub/register', { method: 'POST' });
+    const json = await res.json().catch(() => ({}));
+    const mine = (json.results || []).find(r => r.type === type);
+    if (mine && mine.status === 'failed') {
+      showToast(`Twitch no lo aceptó${mine.message ? ' (' + mine.message + ')' : ''}. Reconecta tu cuenta de Twitch y vuelve a intentar.`, 'error');
+      btn.disabled = false; btn.textContent = '🔔 Activar ahora'; return;
+    }
+    if (!res.ok && !json.results) throw new Error(json.error || 'Error');
+    showToast('¡Listo! Muffet ya recibe los avisos de Twitch 🔔');
+    setTimeout(() => renderEventsubBanner(elId, type, true), 1500);
+  } catch (e) { showToast('Error al activar alertas: ' + e.message, 'error'); btn.disabled = false; btn.textContent = '🔔 Activar ahora'; }
 }
 
 // ── PALABRAS CLAVE ──
