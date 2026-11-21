@@ -2524,10 +2524,41 @@ async function registerEventSub(broadcasterId, appToken) {
   return results;
 }
 
+// ¿Twitch le avisa a Muffet de los follows y canjes de este canal? (para avisar en el dashboard si falta activarlo)
+// ok = activa · pending = Twitch la está verificando · missing = nunca se activó · broken = Twitch la cortó (permiso revocado, etc.)
+app.get('/api/eventsub/status', requireAuth, async (req, res) => {
+  try {
+    const uid = String(req.session.user.id);
+    const data = await ttlCache('eventsub-status:' + uid, 60000, async () => {
+      const appToken = await getTwitchAppToken();
+      if (!appToken) throw new Error('sin token de app');
+      const found = {};
+      let cursor = '';
+      for (let page = 0; page < 5; page++) {
+        const r = await fetch(`https://api.twitch.tv/helix/eventsub/subscriptions?user_id=${uid}${cursor ? '&after=' + cursor : ''}`, {
+          headers: { 'Authorization': `Bearer ${appToken}`, 'Client-Id': TWITCH_CLIENT_ID }, signal: AbortSignal.timeout(8000) });
+        if (!r.ok) throw new Error('Twitch ' + r.status);
+        const j = await r.json();
+        for (const sub of j.data || []) {
+          if (!EVENTSUB_LABELS[sub.type] || !String(sub.transport?.callback || '').endsWith('/webhook/twitch')) continue;
+          const st = sub.status === 'enabled' ? 'ok' : String(sub.status).includes('pending') ? 'pending' : 'broken';
+          // Si hay varias (dominios viejos y nuevos), gana la mejor
+          const rank = { ok: 3, pending: 2, broken: 1 };
+          if (!found[sub.type] || rank[st] > rank[found[sub.type].status]) found[sub.type] = { status: st, twitch_status: sub.status };
+        }
+        cursor = j.pagination?.cursor; if (!cursor) break;
+      }
+      return Object.keys(EVENTSUB_LABELS).map(type => ({ type, label: EVENTSUB_LABELS[type], status: found[type]?.status || 'missing', twitch_status: found[type]?.twitch_status || null }));
+    });
+    res.json({ success: true, subs: data });
+  } catch (err) { res.status(502).json({ error: 'No se pudo revisar con Twitch ahora' }); }
+});
+
 app.post('/api/eventsub/register', requireAuth, async (req, res) => {
   try {
     const appToken = await getTwitchAppToken();
     if (!appToken) return res.status(502).json({ error: 'No se pudo conectar con Twitch' });
+    _ttlCache.delete('eventsub-status:' + String(req.session.user.id));
     const results = await registerEventSub(req.session.user.id, appToken);
     const failed = results.filter(r => r.status === 'failed');
     res.json({ success: failed.length === 0, results, failed: failed.length });
