@@ -1402,6 +1402,7 @@ const MEDIA_ALERT_TYPES = { 'audio/mpeg':'mp3', 'audio/ogg':'ogg', 'audio/wav':'
   'image/png':'png', 'image/gif':'gif', 'image/webp':'webp', 'image/jpeg':'jpg' }; // imágenes y GIF para la caja de alertas
 const MEDIA_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const MEDIA_ALERT_MAX_BYTES = 15 * 1024 * 1024;
+const MEDIA_IMPORT_VIDEO_MAX_BYTES = 50 * 1024 * 1024; // videos traídos de StreamElements (allá se permiten más grandes)
 let alertsBucketReady = false;
 
 async function ensureAlertsBucket() {
@@ -1409,13 +1410,13 @@ async function ensureAlertsBucket() {
   try {
     const created = await fetch(`${SUPABASE_URL}/storage/v1/bucket`, {
       method: 'POST', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: 'alerts', name: 'alerts', public: true, file_size_limit: MEDIA_ALERT_MAX_BYTES })
+      body: JSON.stringify({ id: 'alerts', name: 'alerts', public: true, file_size_limit: MEDIA_IMPORT_VIDEO_MAX_BYTES })
     });
     if (!created.ok) {
       // Ya existía (posiblemente con el límite viejo de 5MB) — actualizarlo
       await fetch(`${SUPABASE_URL}/storage/v1/bucket/alerts`, {
         method: 'PUT', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ public: true, file_size_limit: MEDIA_ALERT_MAX_BYTES })
+        body: JSON.stringify({ public: true, file_size_limit: MEDIA_IMPORT_VIDEO_MAX_BYTES })
       }).catch(() => {});
     }
   } catch(e) {}
@@ -2105,14 +2106,15 @@ async function copySEMedia(url, channel) {
       break;
     }
     if (!r || !r.ok) return null;
-    if (Number(r.headers.get('content-length') || 0) > MEDIA_ALERT_MAX_BYTES) return null;
+    if (Number(r.headers.get('content-length') || 0) > MEDIA_IMPORT_VIDEO_MAX_BYTES) return null;
     let mime = String(r.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
     if (!MEDIA_ALERT_TYPES[mime]) {
       const byExt = { png: 'image/png', gif: 'image/gif', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', webm: 'video/webm', mp4: 'video/mp4', mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav' }[seExt(u.pathname)];
       if (!byExt) return null; mime = byExt;
     }
     const buf = Buffer.from(await r.arrayBuffer());
-    if (buf.length > MEDIA_ALERT_MAX_BYTES || (mime.startsWith('image/') && buf.length > MEDIA_IMAGE_MAX_BYTES)) return null;
+    const maxFor = mime.startsWith('video/') ? MEDIA_IMPORT_VIDEO_MAX_BYTES : mime.startsWith('image/') ? MEDIA_IMAGE_MAX_BYTES * 2 : MEDIA_ALERT_MAX_BYTES;
+    if (buf.length > maxFor) { console.error(`[se-alerts] archivo muy grande (${Math.round(buf.length / 1048576)} MB): ${u.pathname}`); return null; }
     await ensureAlertsBucket();
     const name = (u.pathname.split('/').pop() || 'archivo').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 50);
     const path = `${channel}/${Date.now()}_se_${name.includes('.') ? name : name + '.' + MEDIA_ALERT_TYPES[mime]}`;
