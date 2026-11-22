@@ -117,6 +117,11 @@
   body.lite #box::before, body.lite #box::after { animation:none; }
 
   /* Código propio del streamer: iframe aislado del tamaño de todo el overlay */
+  /* Marca del plan gratis: esquina de abajo a la derecha, solo mientras hay una alerta */
+  #sbBrand { position:absolute; right:18px; bottom:16px; z-index:50; font:600 13px/1 Inter,system-ui,sans-serif; color:rgba(255,255,255,.85);
+    background:rgba(10,8,20,.55); padding:6px 11px; border-radius:11px; opacity:0; transition:opacity .4s; pointer-events:none; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+  #sbBrand b { color:#c9a7ff; font-weight:800; }
+  #sbBrand.on { opacity:1; }
   #custom { position:absolute; inset:0; width:100%; height:100%; border:0; background:transparent; pointer-events:none; }
   .burst { position:absolute; width:12px; height:12px; border-radius:3px; pointer-events:none; animation:fly 1.8s ease-out forwards; }
   .spark { position:absolute; pointer-events:none; font-size:26px; animation:spark 1.4s ease-out forwards; }
@@ -130,6 +135,7 @@
   <video id="player" playsinline></video>
   <audio id="audioPlayer"></audio>
   <div id="box"><div class="media"></div><div class="txt"><div class="title"></div><div class="msg"></div><div class="chips"></div></div></div>
+  <div id="sbBrand" translate="no">🕷️ <b>SilklyBot</b></div>
   <div id="tip" class="hidden"><div class="ic">💸</div><div class="who"></div><div class="msg"></div></div>
 </div>
 <script>
@@ -216,7 +222,10 @@ function chime(vol = 1) {
     setTimeout(() => ctx.close(), 1500);
   } catch (e) {}
 }
+const sbBrand = document.getElementById('sbBrand');
+function brand(a) { sbBrand.classList.toggle('on', !!(a && a.brand)); }
 function showTip(t) {
+  brand(t);
   const money = (SYM[t.currency] || '') + Number(t.amount || 0).toFixed(2) + ' ' + String(t.currency || '');
   const who = tipEl.querySelector('.who'); who.textContent = '';
   const n = document.createElement('span'); n.textContent = String(t.name || 'Anónimo');
@@ -228,6 +237,7 @@ function showTip(t) {
   chime();
   setTimeout(() => {
     tipEl.classList.remove('show');
+    brand(null);
     setTimeout(() => { tipEl.classList.add('hidden'); playing = false; setTimeout(processQueue, 800); }, 400);
   }, 7000);
 }
@@ -367,6 +377,7 @@ async function showBox(a, { still = false, silent = false } = {}) {
   const run = ++boxRun;
   const c = a.cfg || {};
   removeCustom(); box.className = '';
+  brand(a);
   if (c.custom) {
     renderCustom(a, still);
     if (still) return;
@@ -383,7 +394,7 @@ async function showBox(a, { still = false, silent = false } = {}) {
     if (boxSound) { const s = boxSound; let v = s.volume; const fd = setInterval(() => { v -= .1; if (v <= 0) { clearInterval(fd); s.pause(); } else s.volume = v; }, 50); boxSound = null; }
     await new Promise(r => setTimeout(r, 600));
     if (run !== boxRun) return;
-    removeCustom(); if (!PREVIEW) { playing = false; setTimeout(processQueue, 800); }
+    removeCustom(); brand(null); if (!PREVIEW) { playing = false; setTimeout(processQueue, 800); }
     return;
   }
   const vid = await renderBox(a);
@@ -417,7 +428,7 @@ async function showBox(a, { still = false, silent = false } = {}) {
   setTimeout(() => effect(c.effect || 'ninguno', c.color_accent || '#b794ff'), 250);
   await Promise.all([new Promise(r => { hideTimer = setTimeout(r, ms); }), (!silent && a.tts_url) ? playTTS(a) : null]);
   if (run !== boxRun) return;
-  box.classList.add('out');
+  box.classList.add('out'); brand(null);
   if (boxSound) { const s = boxSound; let v = s.volume; const f = setInterval(() => { v -= .1; if (v <= 0) { clearInterval(f); s.pause(); } else s.volume = v; }, 50); boxSound = null; }
   await new Promise(r => setTimeout(r, 520));
   if (run !== boxRun) return;
