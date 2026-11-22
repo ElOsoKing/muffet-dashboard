@@ -52,10 +52,12 @@ html,body{background:transparent;overflow:hidden;font-family:'Inter',system-ui,s
 <div id="barra" class="hidden"><div class="track"></div></div>
 <div id="rotar" class="hidden"><div class="slide"><div class="ic"></div><div class="txt"><div class="lbl"></div><div class="val"></div></div></div></div>
 <div id="tarjetas" class="hidden"></div>
+<script src="/brand.js"></script>
 <script>
 const params = new URLSearchParams(location.search);
 const username = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '').toLowerCase();
-const ESTILO = ['barra', 'rotar', 'tarjetas'].includes(params.get('estilo')) ? params.get('estilo') : 'rotar';
+let ESTILO = ['barra', 'rotar', 'tarjetas'].includes(params.get('estilo')) ? params.get('estilo') : 'rotar';
+const TICKER_FREE = ['rotar', 'barra']; // "tarjetas" es de Pro
 const KEYS = ['follow', 'sub', 'gift', 'bits', 'tip', 'raid'];
 const SHOW = (params.get('mostrar') || KEYS.join(',')).split(',').filter(k => KEYS.includes(k));
 const color = /^[0-9a-fA-F]{6}$/.test(params.get('color') || '') ? '#' + params.get('color') : '#b794ff';
@@ -150,12 +152,24 @@ async function poll() {
   try { const r = await fetch(`/api/recent/${encodeURIComponent(username)}`, { cache: 'no-store' }); render(await r.json(), first); first = false; } catch (e) {}
   pollT = setTimeout(poll, 5000);
 }
+function start() {
 if (params.get('preview') === '1') {
   // Vista previa del dashboard: si el canal ya tiene apoyos reales, se muestran esos; si no, unos de ejemplo
   fetch(`/api/recent/${encodeURIComponent(username)}`, { cache: 'no-store' }).then(r => r.json()).then(real => {
     if (real && SHOW.some(k => real[k])) render(real, true); else showDemo();
   }).catch(showDemo);
 } else poll();
+}
+// Plan gratis: estilos básicos y la marquita de SilklyBot pegada al ticker
+SilklyBrand.info.then(d => {
+  if (!d.pro && !TICKER_FREE.includes(ESTILO)) ESTILO = 'rotar';
+  start();
+  if (!d.brand) return;
+  if (ESTILO === 'tarjetas') return SilklyBrand.attach(document.getElementById('tarjetas'));
+  const b = SilklyBrand.make();
+  Object.assign(b.style, ESTILO === 'barra' ? { top: '64px', right: '10px', bottom: 'auto' } : { top: '98px', left: '30px', right: 'auto', bottom: 'auto' });
+  document.body.appendChild(b);
+});
 function showDemo() {
   const now = Date.now(), ts = (i) => new Date(now - i * 60000).toISOString();
   const demo = { follow: { user: 'Silkly_Fan', ts: ts(1) }, sub: { user: 'Ana_Gamer', tier: 'Tier 1', months: 7, ts: ts(2) }, gift: { user: 'Beto', count: 5, ts: ts(3) },
