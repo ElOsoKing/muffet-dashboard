@@ -89,6 +89,20 @@ html,body{width:100%;min-height:100%;background:
 }
 .btn-logout:hover{border-color:var(--pink);color:var(--pink);}
 
+/* Candado chico: una parte de una sección que es de Pro (el resto se usa gratis) */
+.pro-only{position:relative;}
+.pro-only.locked>*:not(.pro-tag){opacity:.45;pointer-events:none;filter:grayscale(.3);}
+.pro-tag{position:absolute;top:-6px;right:0;z-index:5;display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;
+  color:#1a1300;background:var(--yellow);padding:3px 9px;border-radius:12px;text-decoration:none;box-shadow:0 2px 8px rgba(0,0,0,.35);}
+.pro-tag:hover{opacity:.9;}
+.plan-note{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:linear-gradient(135deg,rgba(240,192,96,0.08),rgba(240,192,96,0.02));
+  border:1px solid rgba(240,192,96,0.25);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;font-size:12px;color:var(--text-dim);line-height:1.5;}
+.plan-note b{color:var(--text);}
+.plan-note>span:nth-child(2){flex:1;min-width:240px;}
+.plan-note a{margin-left:auto;font-size:12px;padding:6px 14px;border-radius:16px;text-decoration:none;background:rgba(240,192,96,0.15);border:1px solid rgba(240,192,96,0.3);color:var(--yellow);font-weight:600;white-space:nowrap;}
+.style-pro{position:relative;}
+.style-pro::after{content:"⭐ Pro";position:absolute;top:4px;right:4px;font-size:9px;font-weight:800;color:#1a1300;background:var(--yellow);padding:2px 6px;border-radius:8px;}
+
 /* Pro lock */
 .pro-lock{
   position:relative;overflow:hidden;
@@ -775,7 +789,7 @@ async function loadData() {
   setTimeout(loadOverviewLive, 50);
   // Mostrar badges Pro en sidebar si es Free
   if (streamerData.plan !== 'pro') {
-    ['music','primerin'].forEach(id => {
+    ['primerin'].forEach(id => { // música y alertas multimedia ya son gratis (con límites)
       const badge = document.getElementById(`badge-${id}`);
       if (badge) badge.style.display = 'inline-flex';
     });
@@ -900,8 +914,8 @@ function renderYouTubeConfig() {
           <label class="toggle"><input type="checkbox" id="ytEnabled" ${yt.enabled?'checked':''} onchange="saveYouTubeConfig()"><span class="toggle-slider"></span></label>
         </div>
 
-        <!-- Playlist base -->
-        <div>
+        <!-- Playlist base (Pro) -->
+        ${proOpen()}<div>
           <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">🎵 Playlist base</div>
           <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">El overlay reproducirá esta playlist cuando la cola de viewers esté vacía. Los viewers interrumpen con !yt.</div>
           <div style="display:flex;gap:8px;">
@@ -924,10 +938,10 @@ function renderYouTubeConfig() {
               <label class="toggle"><input type="checkbox" id="ytLoop" ${yt.playlist_loop!==false?'checked':''} onchange="saveYouTubeConfig()"><span class="toggle-slider"></span></label>
             </div>
           </div>
-        </div>
+        </div></div>
 
-        <!-- Permisos -->
-        <div>
+        <!-- Permisos (Pro) -->
+        ${proOpen()}<div>
           <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">¿Quién puede pedir canciones?</div>
           <div style="display:flex;flex-wrap:wrap;gap:8px;">
             ${['everyone','sub','vip','mod'].map(p => {
@@ -939,7 +953,7 @@ function renderYouTubeConfig() {
               </label>`;
             }).join('')}
           </div>
-        </div>
+        </div></div>
       </div>
     </div>
 
@@ -948,14 +962,14 @@ function renderYouTubeConfig() {
       <div class="panel-header"><div class="panel-title">🔒 Límites</div></div>
       <div class="panel-body">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-          <div>
+          ${proOpen()}<div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Máx. canciones por usuario</div>
             <input type="number" id="ytMaxPerUser" class="form-input" min="1" max="10" value="${yt.max_per_user||3}" onchange="saveYouTubeConfig()">
-          </div>
+          </div></div>
           <div>
             <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Duración máxima (minutos)</div>
             <input type="number" id="ytMaxDuration" class="form-input" min="1" max="180" value="${yt.max_duration_min||10}" onchange="saveYouTubeConfig()" placeholder="10">
-            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Videos más largos serán rechazados</div>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">Videos más largos serán rechazados${userIsPro() ? '' : ` · En el plan gratis el máximo es ${PLAN_LIMITS.free.music_max_min} min`}</div>
           </div>
         </div>
       </div>
@@ -1634,12 +1648,36 @@ async function initMediaAlertsSection() {
   }
 }
 
+// ── Planes: lo mismo que PLAN_LIMITS en server.js (el servidor es el que manda; esto es para mostrarlo) ──
+const PLAN_LIMITS = {
+  free: { music_queue: 10, music_per_user: 1, music_max_min: 6, media_alerts: 5, ab_variations: 2, upload_mb: 10, storage_mb: 100, commands: 15 },
+  pro:  { music_queue: 50, music_per_user: 10, music_max_min: 180, media_alerts: 20, ab_variations: 5, upload_mb: 15, storage_mb: 1024, commands: 50 },
+};
+const AB_FREE_STYLES = ['tarjeta', 'neon', 'limpio', 'telarana'];
+const TICKER_FREE_STYLES = ['rotar', 'barra'];
+function userIsPro() { return !!streamerData && (streamerData.plan === 'pro' || streamerData.plan === 'admin'); }
+function planLim() { return PLAN_LIMITS[userIsPro() ? 'pro' : 'free']; }
+// Envuelve una parte que es de Pro: en gratis se ve apagada con una etiqueta "⭐ Pro" que lleva a /plans
+function proWrap(inner, extraStyle = '') {
+  const pro = userIsPro();
+  return `<div class="pro-only ${pro ? '' : 'locked'}" style="${extraStyle}">${pro ? '' : '<a class="pro-tag" href="/plans" title="Función del plan Pro">⭐ Pro</a>'}${inner}</div>`;
+}
+// Lo mismo pero en dos partes, para envolver HTML que ya tiene plantillas adentro: ${proOpen()} ... </div>
+function proOpen(extraStyle = '') {
+  const pro = userIsPro();
+  return `<div class="pro-only ${pro ? '' : 'locked'}" style="${extraStyle}">${pro ? '' : '<a class="pro-tag" href="/plans" title="Función del plan Pro">⭐ Pro</a>'}`;
+}
+// Aviso de qué incluye el plan gratis en una sección
+function planNote(html) {
+  return userIsPro() ? '' : `<div class="plan-note"><span>🆓</span><span>${html}</span><a href="/plans">⭐ Ver Pro</a></div>`;
+}
+
 function renderMediaAlertsList() {
   const el = document.getElementById('mediaAlertsList');
   if (!el) return;
   const alerts = (streamerData.media_alerts?.alerts) || [];
   const counter = document.getElementById('mediaAlertsCount');
-  if (counter) counter.textContent = alerts.length ? `${alerts.length}/20` : '';
+  if (counter) counter.textContent = alerts.length ? `${alerts.length}/${planLim().media_alerts}` : '';
   if (!alerts.length) {
     el.innerHTML = `
       <div style="text-align:center;padding:36px 20px;">
@@ -1656,8 +1694,10 @@ function renderMediaAlertsList() {
   el.innerHTML = alerts.map((a, i) => {
     const ready = a.media_url && a.reward_id;
     const isVideo = a.media_type === 'video';
+    const overFree = !userIsPro() && i >= PLAN_LIMITS.free.media_alerts; // bajó de Pro: estas quedan guardadas pero no suenan
     return `
-    <div style="background:var(--bg3);border:1px solid ${ready?'rgba(64,208,144,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:16px;margin-bottom:12px;transition:border-color 0.2s;">
+    ${overFree && i === PLAN_LIMITS.free.media_alerts ? `<div class="plan-note"><span>⭐</span><span>En el plan gratis suenan las primeras <b>${PLAN_LIMITS.free.media_alerts}</b> alertas. Las de abajo quedan guardadas y vuelven a sonar con Pro.</span><a href="/plans">⭐ Ver Pro</a></div>` : ''}
+    <div style="background:var(--bg3);border:1px solid ${ready?'rgba(64,208,144,0.2)':'rgba(255,255,255,0.06)'};border-radius:var(--radius);padding:16px;margin-bottom:12px;transition:border-color 0.2s;${overFree?'opacity:.55;':''}">
       <div style="display:flex;gap:12px;align-items:center;margin-bottom:14px;">
         <div style="width:44px;height:44px;border-radius:12px;background:${isVideo?'rgba(255,100,130,0.12)':'rgba(96,165,250,0.12)'};border:1px solid ${isVideo?'rgba(255,100,130,0.25)':'rgba(96,165,250,0.25)'};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${a.media_url?(isVideo?'🎥':'🔉'):'📂'}</div>
         <input class="form-input" placeholder="Nombre (ej. Meme del gato)" value="${(a.name||'').replace(/"/g,'&quot;')}" onchange="updateMediaAlert(${i},'name',this.value)" style="flex:1;font-size:13px;font-weight:600;">
@@ -1694,7 +1734,8 @@ function renderMediaAlertsList() {
 function addMediaAlert() {
   if (!streamerData.media_alerts) streamerData.media_alerts = { enabled: true, alerts: [] };
   if (!streamerData.media_alerts.alerts) streamerData.media_alerts.alerts = [];
-  if (streamerData.media_alerts.alerts.length >= 20) { showToast('Máximo 20 alertas', 'error'); return; }
+  const maMax = planLim().media_alerts;
+  if (streamerData.media_alerts.alerts.length >= maMax) { showToast(userIsPro() ? `Máximo ${maMax} alertas` : `El plan gratis permite ${maMax} alertas — con Pro tienes hasta ${PLAN_LIMITS.pro.media_alerts} ⭐`, 'error'); return; }
   streamerData.media_alerts.alerts.push({ name: '', reward_id: '', media_url: '', media_type: 'audio', volume: 80 });
   renderMediaAlertsList();
 }
@@ -1716,7 +1757,8 @@ function removeMediaAlert(i) {
 async function uploadMediaAlertFile(i, input) {
   const file = input.files?.[0];
   if (!file) return;
-  if (file.size > 15 * 1024 * 1024) { showToast('El archivo supera los 15MB', 'error'); input.value=''; return; }
+  const upMax = planLim().upload_mb;
+  if (file.size > upMax * 1024 * 1024) { showToast(userIsPro() ? `El archivo supera los ${upMax}MB` : `El plan gratis permite archivos de hasta ${upMax}MB — con Pro hasta ${PLAN_LIMITS.pro.upload_mb}MB ⭐`, 'error'); input.value=''; return; }
   showToast('Subiendo archivo...');
   try {
     const base64 = await new Promise((res, rej) => {
@@ -1856,7 +1898,7 @@ function abAlert() {
   const chips = [];
   if (m.show_subathon && AB_SUB_SAMPLE[abCur]) chips.push(AB_SUB_SAMPLE[abCur]);
   if (m.show_goal && ['sub','resub','gift','bits','tip'].includes(abCur)) chips.push('🎯 Meta: 46%');
-  return { type:'box', event:abCur, cfg:c, ...sample, message: m.show_message ? (sample.message || '') : '', chips };
+  return { type:'box', event:abCur, cfg:c, ...sample, message: m.show_message ? (sample.message || '') : '', chips, brand: !userIsPro() };
 }
 function abPreview(mode) {
   const fr = document.getElementById('abFrame');
@@ -1873,7 +1915,8 @@ function abPick(ev) { abCur = ev; abVar = null; abRenderTabs(); abRenderForm(); 
 function abPickVar(i) { abVar = i; abRenderForm(); abPreview('still'); }
 function abAddVar() {
   const m = abState.events[abCur];
-  if (m.variations.length >= 5) { showToast('Máximo 5 variaciones por alerta', 'error'); return; }
+  const vMax = planLim().ab_variations;
+  if (m.variations.length >= vMax) { showToast(userIsPro() ? `Máximo ${vMax} variaciones por alerta` : `El plan gratis permite ${vMax} variaciones por alerta — con Pro tienes ${PLAN_LIMITS.pro.ab_variations} ⭐`, 'error'); return; }
   const k = AB_VAR_COND[abCur], v = { id: 'v' + Date.now().toString(36), name: 'Épica', enabled: true, cond: k.tiers ? 'Tier 3' : k.def };
   AB_DESIGN_KEYS.forEach(key => { v[key] = m[key]; });
   // que se note la diferencia desde el principio
@@ -1898,8 +1941,10 @@ function abVarBar() {
   if (!AB_VAR_COND[abCur]) return '';
   const m = abState.events[abCur], k = AB_VAR_COND[abCur];
   const chips = [`<button class="ab-varchip ${abVar===null?'on':''}" onclick="abPickVar(null)">⭐ Principal</button>`]
-    .concat(m.variations.map((v, i) => `<button class="ab-varchip ${abVar===i?'on':''} ${v.enabled?'':'off'}" onclick="abPickVar(${i})"><span class="ab-vn">${escCmdHtml(v.name)}</span> <small>${escCmdHtml(abVarLabel(abCur, v))}</small></button>`))
-    .concat(m.variations.length < 5 ? [`<button class="ab-varchip add" onclick="abAddVar()">➕ Agregar variación</button>`] : []);
+    .concat(m.variations.map((v, i) => `<button class="ab-varchip ${abVar===i?'on':''} ${v.enabled && (userIsPro() || i < PLAN_LIMITS.free.ab_variations)?'':'off'}" onclick="abPickVar(${i})"><span class="ab-vn">${escCmdHtml(v.name)}</span> <small>${escCmdHtml(abVarLabel(abCur, v))}</small>${!userIsPro() && i >= PLAN_LIMITS.free.ab_variations ? ' <small>⭐ Pro</small>' : ''}</button>`))
+    .concat(m.variations.length < PLAN_LIMITS.pro.ab_variations ? [m.variations.length < planLim().ab_variations
+      ? `<button class="ab-varchip add" onclick="abAddVar()">➕ Agregar variación</button>`
+      : `<a class="ab-varchip add" href="/plans" style="text-decoration:none;" title="El plan gratis tiene ${PLAN_LIMITS.free.ab_variations} variaciones por alerta">⭐ Más variaciones con Pro</a>`] : []);
   let head = '';
   if (abVar !== null && !m.variations[abVar]) abVar = null;
   if (abVar !== null) {
@@ -1961,7 +2006,7 @@ function abRenderForm() {
         <label class="btn btn-secondary" style="font-size:12px;cursor:pointer;">📁 ${c.image?'Cambiar':'Subir'}<input type="file" accept="image/png,image/gif,image/webp,image/jpeg,video/webm,video/mp4" style="display:none;" onchange="abUpload(this,'image')"></label>
         ${c.image ? `<button class="btn btn-secondary" style="font-size:12px;" onclick="abSet('image','',true);abSet('image_type','image',true);abRenderForm()">✕ Quitar</button>` : ''}
       </div>
-      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">PNG, GIF, WebP o JPG hasta 5MB · WebM o MP4 hasta 15MB. Sin imagen sale un emoji animado.</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">PNG, GIF, WebP o JPG hasta 5MB · WebM o MP4 hasta ${planLim().upload_mb}MB. Sin imagen sale un emoji animado.</div>
     </div>
     <div class="ab-row2">
       <div class="ab-field"><div class="ab-label">🔊 Sonido</div>${abSelect('sound', soundOpts)}
@@ -1975,13 +2020,14 @@ function abRenderForm() {
     <div class="ab-field">
       <div class="ab-label" style="display:flex;justify-content:space-between;align-items:center;gap:8px;">📚 Plantillas listas
         <label style="text-transform:none;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" id="abPresetAll" style="accent-color:var(--purple);"> Aplicar a todas las alertas</label></div>
-      <div class="ab-presets">${AB_PRESETS.map((p, i) => `<button class="ab-preset ${c.style===p.style&&c.font===p.font?'on':''}" onclick="abApplyPreset(${i})" title="${p.name}">
+      <div class="ab-presets">${AB_PRESETS.map((p, i) => `<button class="ab-preset ${c.style===p.style&&c.font===p.font?'on':''} ${!userIsPro() && !AB_FREE_STYLES.includes(p.style) ? 'style-pro' : ''}" onclick="abApplyPreset(${i})" title="${p.name}">
         <span class="ab-pv ab-pv-${p.style}" style="--a:${p.accent};--t:${p.text};"><span class="ab-pv-l1"></span><span class="ab-pv-l2"></span></span>
         <span class="ab-pn">${p.emoji} ${p.name}</span></button>`).join('')}</div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Cambian el estilo, la letra, los colores, la animación y el efecto. Tu texto, imagen y sonido no cambian.</div>
     </div>
     <div class="ab-field"><div class="ab-label">📐 Diseño</div>${abSeg('layout', [['arriba','Imagen arriba'],['lado','Al lado'],['texto','Solo texto']])}</div>
-    <div class="ab-field"><div class="ab-label">🎨 Estilo</div>${abSelect('style', AB_PRESETS.map(p => [p.style, p.name]))}</div>
+    <div class="ab-field"><div class="ab-label">🎨 Estilo</div>${abSelect('style', AB_PRESETS.map(p => [p.style, p.name + (!userIsPro() && !AB_FREE_STYLES.includes(p.style) ? ' ⭐ Pro' : '')]))}
+      ${!userIsPro() && !AB_FREE_STYLES.includes(c.style) ? `<div style="font-size:11px;color:var(--yellow);margin-top:6px;">⭐ Este estilo es de Pro: en tu stream sale con el estilo Clásica. <a href="/plans" style="color:var(--yellow);">Ver Pro</a></div>` : ''}</div>
     <div class="ab-row2">
       <div class="ab-field"><div class="ab-label">✨ Entrada</div>${abSelect('anim', [['rebote','Rebote'],['zoom','Zoom'],['deslizar','Deslizar'],['caer','Caer'],['aparecer','Aparecer']])}</div>
       <div class="ab-field"><div class="ab-label">🎉 Efecto</div>${abSelect('effect', [['ninguno','Ninguno'],['confeti','Confeti'],['brillos','Brillos']])}</div>
@@ -2017,7 +2063,7 @@ function abRenderTts() {
         <div style="font-size:11px;color:var(--text-dim);margin-top:5px;">Lee el mensaje en español, pero con la voz de ese idioma. El japonés leyendo español es muy gracioso 😂</div></div>
       <div class="ab-field"><div class="ab-label">🔉 Volumen de la voz</div><div class="ab-range"><input type="range" min="0" max="100" value="${t.volume}" oninput="document.getElementById('abTtsVol').textContent=this.value+'%'" onchange="abTtsSet('volume',parseInt(this.value))"><span class="ab-val" id="abTtsVol">${t.volume}%</span></div></div>
     </div>
-    ${abVoicesOk && (t.lang||'es') === 'es' ? `<div class="ab-field"><div class="ab-label">🎙️ Voz en español</div><select class="form-input" onchange="abTtsSet('voice',this.value)">${AB_VOICES.map(([v,l]) => `<option value="${v}" ${t.voice===v?'selected':''}>${l}</option>`).join('')}</select></div>` : ''}
+    ${abVoicesOk && (t.lang||'es') === 'es' ? proWrap(`<div class="ab-field"><div class="ab-label">🎙️ Voz premium en español</div><select class="form-input" onchange="abTtsSet('voice',this.value)">${AB_VOICES.map(([v,l]) => `<option value="${v}" ${t.voice===v?'selected':''}>${l}</option>`).join('')}</select></div>`) : ''}
     <div class="ab-field"><div class="ab-label">🧪 Probar</div><div style="display:flex;gap:8px;flex-wrap:wrap;">
       <input class="form-input" id="abTtsText" maxlength="200" value="¡Hola! Así sueno cuando leo los mensajes de tu chat." style="flex:1;min-width:200px;">
       <button class="btn btn-primary" id="abTtsBtn" onclick="abTtsTest()">▶ Escuchar</button></div></div>
@@ -2056,7 +2102,8 @@ function tkUrl(preview) {
 function tkRender() {
   const t = tkCfg(), el = document.getElementById('tkForm'); if (!el) return;
   el.innerHTML = `
-    <div class="ab-field"><div class="ab-label">📐 Estilo</div><div class="ab-seg">${[['rotar','🔄 Una a la vez'],['barra','➖ Barra'],['tarjetas','🗂️ Lista']].map(([v,l]) => `<button class="${t.estilo===v?'on':''}" onclick="tkSet('estilo','${v}')">${l}</button>`).join('')}</div></div>
+    <div class="ab-field"><div class="ab-label">📐 Estilo</div><div class="ab-seg">${[['rotar','🔄 Una a la vez'],['barra','➖ Barra'],['tarjetas','🗂️ Lista']].map(([v,l]) => `<button class="${t.estilo===v?'on':''}" onclick="tkSet('estilo','${v}')">${l}${!userIsPro() && !TICKER_FREE_STYLES.includes(v) ? ' ⭐' : ''}</button>`).join('')}</div>
+      ${!userIsPro() ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">🆓 En el plan gratis el ticker lleva una marquita chiquita de SilklyBot. Con <a href="/plans" style="color:var(--yellow);">Pro ⭐</a> sale sin marca y tienes el estilo Lista.</div>` : ''}</div>
     <div class="ab-field"><div class="ab-label">✅ Qué mostrar</div><div class="ab-checks">${TK_ITEMS.map(([k,l]) => `<label class="ab-check ${t.mostrar.includes(k)?'on':''}"><input type="checkbox" ${t.mostrar.includes(k)?'checked':''} onchange="tkToggle('${k}',this.checked)">${l}</label>`).join('')}</div></div>
     <div class="ab-field"><div class="ab-label">🌈 Color</div><div class="ab-colors"><label><input type="color" value="${t.color}" onchange="tkSet('color',this.value)"> Resaltado</label></div></div>
     <div class="ab-field"><div class="ab-label">📺 URL para OBS · Browser Source ${TK_SIZES[t.estilo]}</div>
@@ -2068,7 +2115,10 @@ function tkRender() {
   tkFit();
 }
 function tkFit() { const st = document.getElementById('tkStage'), fr = document.getElementById('tkFrame'); if (st && fr) fr.style.transform = `scale(${st.clientWidth / 1920 || 0.3})`; }
-function tkSet(k, v) { tkCfg()[k] = v; tkRender(); abQueueSave(); }
+function tkSet(k, v) {
+  if (k === 'estilo' && !userIsPro() && !TICKER_FREE_STYLES.includes(v)) { showToast('El estilo Lista es del plan Pro ⭐', 'error'); return; }
+  tkCfg()[k] = v; tkRender(); abQueueSave();
+}
 function tkToggle(k, on) { const t = tkCfg(); t.mostrar = TK_ITEMS.map(x => x[0]).filter(x => x === k ? on : t.mostrar.includes(x)); tkRender(); abQueueSave(); }
 
 
@@ -2164,6 +2214,7 @@ const AB_PRESETS = [
 ];
 function abApplyPreset(i) {
   const p = AB_PRESETS[i]; if (!p) return;
+  if (!userIsPro() && !AB_FREE_STYLES.includes(p.style)) { showToast(`La plantilla ${p.name} es del plan Pro ⭐`, 'error'); return; }
   const put = (t) => { t.style = p.style; t.font = p.font; t.color_accent = p.accent; t.color_text = p.text; t.anim = p.anim; t.effect = p.effect; t.layout = p.layout; t.custom = false; };
   if (document.getElementById('abPresetAll')?.checked) {
     AB_EVENTS.forEach(([ev]) => { put(abState.events[ev]); (abState.events[ev].variations || []).forEach(put); });
@@ -2261,6 +2312,7 @@ function abInsertVar(v) {
   abSet('text', el.value);
 }
 function abSet(field, value, rerender) {
+  if (field === 'style' && !userIsPro() && !AB_FREE_STYLES.includes(value)) { showToast('Ese estilo es del plan Pro ⭐', 'error'); abRenderForm(); return; }
   abObj(field)[field] = value;
   if (field === 'enabled') { abRenderTabs(); abRenderChecks(); }
   if (rerender && ['sound','layout','style','enabled','custom','tts'].includes(field)) abRenderForm();
@@ -2298,7 +2350,8 @@ async function abUpload(input, kind) {
   const file = input.files?.[0]; input.value = '';
   if (!file) return;
   const isImg = file.type.startsWith('image/');
-  if (file.size > (isImg ? 5 : 15) * 1024 * 1024) { showToast(isImg ? 'La imagen supera los 5MB' : 'El archivo supera los 15MB', 'error'); return; }
+  const upMb = isImg ? 5 : planLim().upload_mb;
+  if (file.size > upMb * 1024 * 1024) { showToast(isImg ? 'La imagen supera los 5MB' : (userIsPro() ? `El archivo supera los ${upMb}MB` : `El plan gratis permite archivos de hasta ${upMb}MB — con Pro hasta ${PLAN_LIMITS.pro.upload_mb}MB ⭐`), 'error'); return; }
   const ev = abCur, target = abTarget();
   showToast('Subiendo…');
   try {
@@ -3010,7 +3063,7 @@ function renderMain() {
           <span class="panel-title-text">Mis comandos</span>
           <span id="cmdCount" style="font-size:11px;background:var(--purple-dim);color:var(--purple-light);padding:2px 8px;border-radius:10px;font-weight:600;">${Object.keys(commands).length}</span>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button onclick="openImportModal('commands')" title="Trae tus comandos de Nightbot, StreamElements u otro bot" style="padding:6px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">📥 Importar de otro bot</button><button class="btn btn-success btn-sm" onclick="openCmdModal()">+ Nuevo comando</button></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><button onclick="openImportModal('commands')" title="Trae tus comandos de Nightbot, StreamElements u otro bot" style="padding:6px 12px;background:var(--purple-dim);border:1px solid var(--purple-border);border-radius:6px;color:var(--purple-light);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--sans);">📥 Importar de otro bot</button><span style="font-size:11px;color:var(--text-muted);">${Object.keys(s.commands||{}).length}/${planLim().commands}${userIsPro()?'':' · <a href="/plans" style="color:var(--yellow);">más con Pro ⭐</a>'}</span><button class="btn btn-success btn-sm" onclick="openCmdModal()">+ Nuevo comando</button></div>
       </div>
 
       <!-- Buscador -->
@@ -4297,23 +4350,18 @@ function renderMain() {
   </div>
 
   <!-- ALERTAS MULTIMEDIA -->
-  <div id="sec-mediaalerts" class="section ${s.plan!=='pro'?'pro-lock':''}">
-    ${s.plan!=='pro'&&s.plan!=='admin'?`
-    <div class="pro-lock-overlay">
-      <div class="pro-lock-badge">⭐ Función Pro</div>
-      <div class="pro-lock-text">Las alertas con audio y video son exclusivas del plan Pro.</div>
-      <a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
-    </div>`:''}
+  <div id="sec-mediaalerts" class="section">
     <div class="page-header">
       <div class="page-title">🔊 Alertas multimedia</div>
       <div class="page-subtitle">Tus viewers canjean puntos del canal y suena un audio o video (memes) en tu stream</div>
     </div>
+    ${planNote(`Plan gratis: hasta <b>${PLAN_LIMITS.free.media_alerts} alertas</b> y archivos de hasta <b>${PLAN_LIMITS.free.upload_mb}MB</b>. Con Pro: ${PLAN_LIMITS.pro.media_alerts} alertas y ${PLAN_LIMITS.pro.upload_mb}MB.`)}
     <div id="maEventsubBanner"></div>
 
     <!-- Cómo funciona — 3 pasos -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
       ${[
-        ['1','📁','Sube tu meme','Audio o video corto (5-10 seg, hasta 15 MB) en una alerta nueva'],
+        ['1','📁','Sube tu meme',`Audio o video corto (5-10 seg, hasta ${planLim().upload_mb} MB) en una alerta nueva`],
         ['2','🎁','Crea la recompensa','Con ✨ Crear en la alerta (Muffet la crea en tu Twitch) o elige una que ya tengas'],
         ['3','🔔','Activa las alertas','Una sola vez: Configuración del canal → 🔔 Activar alertas, para que Muffet detecte los canjes'],
         ['4','🎉','¡A disfrutar!','Cuando la canjeen, el meme suena en tu stream. Ten el overlay abierto en OBS'],
@@ -4348,7 +4396,7 @@ function renderMain() {
       <div class="panel-body">
         <div id="mediaAlertsList"></div>
         <button class="btn btn-primary" onclick="addMediaAlert()" style="margin-top:14px;width:100%;border:1px dashed rgba(145,71,255,0.4);background:rgba(145,71,255,0.06);color:var(--purple-light);">+ Nueva alerta</button>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center;">Formatos: MP3, OGG, WAV, MP4, WebM · Máximo 15MB por archivo · Hasta 20 alertas</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:10px;text-align:center;">Formatos: MP3, OGG, WAV, MP4, WebM · Máximo ${planLim().upload_mb}MB por archivo · Hasta ${planLim().media_alerts} alertas</div>
       </div>
     </div>
   </div>
@@ -4490,17 +4538,12 @@ function renderMain() {
   </div>
 
   <!-- MÚSICA -->
-  <div id="sec-music" class="section ${s.plan!=='pro'?'pro-lock':''}">
-    ${s.plan!=='pro'&&s.plan!=='admin'?`
-    <div class="pro-lock-overlay">
-      <div class="pro-lock-badge">⭐ Función Pro</div>
-      <div class="pro-lock-text">Spotify, overlay para OBS, historial, lista negra y votos para saltar son exclusivos del plan Pro.</div>
-      <a href="/plans" class="pro-lock-btn">☕ Obtener Pro — $5/mes</a>
-    </div>`:''}
+  <div id="sec-music" class="section">
     <div class="page-header">
       <div class="page-title">🎵 Música</div>
       <div class="page-subtitle">Conecta Spotify o YouTube para que tu chat pida canciones</div>
     </div>
+    ${planNote(`Plan gratis: <b>1 canción por persona</b>, cola de <b>${PLAN_LIMITS.free.music_queue}</b> y canciones de hasta <b>${PLAN_LIMITS.free.music_max_min} min</b>. Con Pro: eliges cuántas por persona, cola de ${PLAN_LIMITS.pro.music_queue}, quién puede pedir, votos para saltar y playlist de fondo.`)}
 
     <!-- Pestañas Spotify / YouTube -->
     <div style="display:flex;gap:8px;margin-bottom:20px;">
@@ -4707,7 +4750,7 @@ function renderMain() {
           <div><div style="font-size:13px;font-weight:500;color:var(--text);">Solicitudes activas</div><div style="font-size:11px;color:var(--text-dim);margin-top:2px;">Chat usa !cancion para pedir</div></div>
           <label class="toggle"><input type="checkbox" id="spotifyEnabled" ${s.spotify_config?.enabled?'checked':''} onchange="saveSpotifyConfig()"><span class="toggle-slider"></span></label>
         </div>
-        <div style="margin-bottom:14px;">
+        ${proOpen()}<div style="margin-bottom:14px;">
           <div style="font-size:11px;font-weight:500;color:var(--text-dim);margin-bottom:8px;">¿Quién puede pedir?</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;">
             ${['everyone','sub','vip','mod'].map(p => {
@@ -4721,7 +4764,8 @@ function renderMain() {
             }).join('')}
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+        </div>
+        ${proOpen()}<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
           <div>
             <div style="font-size:11px;font-weight:500;color:var(--text-dim);margin-bottom:5px;">Máx. por usuario</div>
             <input class="form-input" type="number" id="spotifyMaxQueue" value="${s.spotify_config?.max_per_user||3}" min="1" max="10" style="font-size:12px;">
@@ -4730,7 +4774,7 @@ function renderMain() {
             <div style="font-size:11px;font-weight:500;color:var(--text-dim);margin-bottom:5px;">Votos para !vskip</div>
             <input class="form-input" id="skipVotes" type="number" min="2" max="50" value="${s.spotify_config?.skip_votes||5}" style="font-size:12px;" onchange="saveSpotifyConfig()">
           </div>
-        </div>
+        </div></div>
         <button onclick="saveSpotifyConfig()" style="width:100%;padding:8px;border-radius:var(--radius-sm);background:rgba(30,215,96,0.12);border:1px solid rgba(30,215,96,0.25);color:#1ed760;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;font-family:var(--sans);" onmouseover="this.style.background='rgba(30,215,96,0.2)'" onmouseout="this.style.background='rgba(30,215,96,0.12)'">Guardar configuración</button>
       </div>
     </div>
@@ -5363,6 +5407,7 @@ function renderMain() {
       <div class="page-subtitle">Follows, subs, bits, raids y propinas en tu stream — gratis, con tu diseño, y conectadas con tu subatón y tus metas</div>
     </div>
     <div id="abEventsubBanner"></div>
+    ${planNote(`Plan gratis: <b>4 estilos</b>, <b>${PLAN_LIMITS.free.ab_variations} variaciones</b> por alerta y una marquita chiquita de SilklyBot en la esquina mientras sale la alerta. Con Pro: los 10 estilos, ${PLAN_LIMITS.pro.ab_variations} variaciones, voces premium y sin marca.`)}
 
     <div class="panel">
       <div class="panel-body">
@@ -6990,6 +7035,11 @@ async function saveCmdModal() {
   // Si editamos y cambió el nombre, eliminar el anterior
   if (cmdModalEditing && cmdModalEditing !== trigger) delete commands[cmdModalEditing];
 
+  const isNew = !(streamerData.commands || {})[trigger] && !cmdModalEditing;
+  const cmdMax = planLim().commands;
+  if (isNew && Object.keys(commands).length >= cmdMax) {
+    showToast(userIsPro() ? `Máximo ${cmdMax} comandos` : `El plan gratis permite ${cmdMax} comandos — con Pro tienes hasta ${PLAN_LIMITS.pro.commands} ⭐`, 'error'); return;
+  }
   commands[trigger] = { response, perms: perms.length ? perms : ['everyone'] };
   if (cooldown !== null) commands[trigger].cooldown = cooldown;
 
@@ -6999,7 +7049,7 @@ async function saveCmdModal() {
     closeCmdModal();
     renderCommandsList();
     showToast(`${trigger} guardado ✓`);
-  } else showToast('Error al guardar','error');
+  } else { const j = await res.json().catch(() => ({})); showToast(j.error || 'Error al guardar','error'); }
 }
 
 async function deleteCommandCard(trigger) {
