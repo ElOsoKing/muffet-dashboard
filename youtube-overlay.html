@@ -363,6 +363,7 @@ html.demo #videoZone { display: none; }
   </div>
 </div>
 
+<script src="/brand.js"></script>
 <script>
 const params = new URLSearchParams(location.search);
 const channel = params.get('channel') || 'elosoking1';
@@ -938,6 +939,8 @@ if (demoTheme) {
 } else {
   init();
 }
+// Plan gratis: marquita de SilklyBot
+SilklyBrand.attach(document.getElementById('overlay'), 'top');
 </script>
 </body>
 </html>
