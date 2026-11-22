@@ -2029,10 +2029,9 @@ function seMapAlertBox(widget) {
     events[ev] = { ...main, variations: [] };
     const vlist = Array.isArray(a.variations) ? a.variations : [];
     for (const v of vlist.slice(0, 12)) {
-      if (v?.enabled === false) { skipped.push(`${seKey}: variación "${v?.name || ''}" estaba apagada`); continue; }
       const c = seVarCond(v, seKey);
       const m = seMapOne(v, c.kind || ev);
-      m.enabled = true;
+      m.enabled = v?.enabled !== false; // las que estaban apagadas en StreamElements se traen apagadas (las prendes cuando quieras)
       if (c.kind === 'resub' && !c.min) { events.resub = { ...m, variations: events.resub?.variations || [] }; continue; }          // resub general
       if (c.kind === 'gift' && c.single) { events.gift = { ...m, variations: events.gift?.variations || [] }; continue; }         // regalo de 1 sub
       if (c.kind === 'sub' && c.tier) { events.sub.variations.push({ name: c.name || c.tier, cond: c.tier, ...m }); continue; }
