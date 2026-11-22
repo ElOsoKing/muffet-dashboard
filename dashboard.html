@@ -2270,11 +2270,11 @@ function abSet(field, value, rerender) {
 function abSetGlobal(on) { abState.enabled = on; abRenderChecks(); abQueueSave(true); }
 function abCopyStyle() {
   const c = abTarget();
-  if (!confirm('¿Poner este diseño (estilo, letra, colores, animación, efecto, duración y sonido) en todas las alertas? Los textos e imágenes de cada una no cambian.')) return;
+  if (!confirm('¿Poner este estilo (diseño, letra, colores, animación y efecto) en todas las alertas? El texto, la imagen, el sonido y la duración de cada una no cambian.')) return;
+  // Solo lo visual: el sonido, la duración y el volumen son de cada alerta (si no, todas terminan sonando igual)
   AB_EVENTS.forEach(([ev]) => {
     const t = abState.events[ev];
-    ['layout','style','anim','effect','font','color_accent','color_text','duration','volume'].forEach(k => t[k] = c[k]);
-    if (c.sound !== 'video') { t.sound = c.sound; t.sound_url = c.sound_url; }
+    ['layout','style','anim','effect','font','color_accent','color_text'].forEach(k => t[k] = c[k]);
   });
   abQueueSave(true); showToast('Estilo aplicado a todas ✓');
 }
