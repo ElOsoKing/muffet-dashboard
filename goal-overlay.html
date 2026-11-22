@@ -57,6 +57,7 @@ body.lite .shine,body.paused .shine{animation:none;display:none}
   <div class="track"><div class="fill" id="fill"><div class="shine"></div></div><div class="done-msg">¡META CUMPLIDA! 🎉</div></div>
   <div class="sub" id="sub"><span class="reward hidden" id="reward"></span><span class="timer hidden" id="timer"></span></div>
 </div>
+<script src="/brand.js"></script>
 <script>
 const params = new URLSearchParams(location.search);
 const username = decodeURIComponent(location.pathname.split('/').filter(Boolean).pop() || '').toLowerCase();
@@ -127,6 +128,8 @@ if (params.get('preview') === '1') {
   setInterval(() => { v = v >= 50 ? 20 : Math.min(50, v + 10); render(demo(v)); }, 2500);
 } else poll();
 document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+// Plan gratis: marquita de SilklyBot
+SilklyBrand.attach(document.getElementById('goal'));
 </script>
 </body>
 </html>
