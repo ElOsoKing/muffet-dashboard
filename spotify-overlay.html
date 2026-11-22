@@ -660,6 +660,7 @@ body.demo { align-items: center; justify-content: center; min-height: 100vh; pad
   <div class="pill-btn"><span class="ico-pause">&#10074;&#10074;</span><span class="ico-play">&#9654;</span></div>
 </div>
 
+<script src="/brand.js"></script>
 <script>
 const username = window.location.pathname.split('/overlay/spotify/')[1];
 let currentTrack = '';
@@ -863,6 +864,8 @@ if (demoTheme) {
   // Iniciar
   fetchStatus();
 }
+// Plan gratis: marquita de SilklyBot
+SilklyBrand.attach(document.getElementById('widget'), 'top');
 </script>
 </body>
 </html>
