@@ -2071,6 +2071,83 @@ function tkFit() { const st = document.getElementById('tkStage'), fr = document.
 function tkSet(k, v) { tkCfg()[k] = v; tkRender(); abQueueSave(); }
 function tkToggle(k, on) { const t = tkCfg(); t.mostrar = TK_ITEMS.map(x => x[0]).filter(x => x === k ? on : t.mostrar.includes(x)); tkRender(); abQueueSave(); }
 
+
+// ── Traer alertas de StreamElements ──
+let seBoxes = null, seSel = 0;
+const SE_EV_NAMES = { follow:'💜 Follow', sub:'⭐ Sub', resub:'🔁 Resub', gift:'🎁 Regalo', bits:'💎 Bits', raid:'🚀 Raid', tip:'💸 Propina' };
+function seToggle() { const p = document.getElementById('sePanel'); const open = p.style.display === 'none'; p.style.display = open ? '' : 'none'; document.getElementById('seArrow').textContent = open ? '▾' : '▸'; }
+async function seFind() {
+  const token = document.getElementById('seToken').value.trim();
+  if (!token) { showToast('Pega tu token primero', 'error'); return; }
+  const btn = document.getElementById('seFindBtn'); btn.disabled = true; btn.textContent = '⏳ Buscando…';
+  try {
+    const r = await fetch('/api/alert-box/import/se/preview', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ token }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.error || 'No se pudo leer de StreamElements', 'error'); return; }
+    seBoxes = j.boxes || []; seSel = 0;
+    if (!seBoxes.length) { document.getElementById('seResult').innerHTML = `<div style="font-size:13px;color:var(--text-muted);">🤷 ${escCmdHtml(j.message || 'No encontré alertas')}</div>`; return; }
+    seRender();
+  } catch (e) { showToast('Error de conexión', 'error'); }
+  finally { btn.disabled = false; btn.textContent = '🔎 Buscar mis alertas'; }
+}
+function seMediaThumb(e) {
+  if (!e.image) return `<div class="ab-thumb" style="width:52px;height:52px;font-size:22px;">—</div>`;
+  return `<div class="ab-thumb" style="width:52px;height:52px;">${e.image_type === 'video' ? `<video src="${escCmdHtml(e.image)}#t=0.1" muted playsinline preload="metadata"></video>` : `<img src="${escCmdHtml(e.image)}" alt="">`}</div>`;
+}
+function seRender() {
+  const box = seBoxes[seSel], el = document.getElementById('seResult');
+  const pick = seBoxes.length > 1 ? `<div class="ab-field"><div class="ab-label">Encontré ${seBoxes.length} AlertBox — ¿cuál traigo?</div><select class="form-input" onchange="seSel=parseInt(this.value);seRender()">${seBoxes.map((b, i) => `<option value="${i}" ${i===seSel?'selected':''}>${escCmdHtml(b.overlay)}</option>`).join('')}</select></div>` : `<div class="ab-label">AlertBox de “${escCmdHtml(box.overlay)}”</div>`;
+  const rows = Object.entries(box.events).filter(([ev]) => SE_EV_NAMES[ev]).map(([ev, e]) => `
+    <div style="display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid rgba(255,255,255,0.08);border-radius:12px;background:var(--bg3);margin-bottom:8px;">
+      <input type="checkbox" data-se-ev="${ev}" ${e.enabled ? 'checked' : ''} style="accent-color:var(--purple);width:18px;height:18px;margin-top:4px;flex-shrink:0;">
+      ${seMediaThumb(e)}
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:800;margin-bottom:4px;">${SE_EV_NAMES[ev]} ${e.enabled ? '' : '<span style="font-size:11px;color:var(--text-dim);font-weight:600;">(estaba apagada en StreamElements)</span>'}</div>
+        ${e.text_se ? `<div style="font-size:11px;color:var(--text-dim);margin-bottom:4px;">StreamElements: <code>${escCmdHtml(e.text_se)}</code></div>` : ''}
+        <input class="form-input" data-se-text="${ev}" value="${escCmdHtml(e.text)}" placeholder="(texto de Muffet por defecto)" style="font-size:12px;padding:7px 10px;">
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;">
+          <span>${e.sound_url ? `🔊 <a href="#" onclick="seListen('${escCmdHtml(e.sound_url).replace(/'/g,'')}',${e.volume ?? 70});return false;" style="color:var(--purple-light);">escuchar sonido</a>` : e.sound === 'video' ? '🔊 sonido del video' : '🔔 campanita de Muffet'}</span>
+          ${e.duration ? `<span>⏱️ ${e.duration} s</span>` : ''}${e.volume !== null && e.volume !== undefined ? `<span>🔉 ${e.volume}%</span>` : ''}
+          ${(e.variations || []).length ? `<span>🎭 ${e.variations.length} variación(es): ${e.variations.map(v => escCmdHtml(v.name + ' (' + v.cond + ')')).join(', ')}</span>` : ''}
+        </div>
+        ${(e.notes || []).map(n => `<div style="font-size:11px;color:#f0c060;margin-top:4px;">⚠ ${escCmdHtml(n)}</div>`).join('')}
+      </div>
+    </div>`).join('');
+  el.innerHTML = `${pick}${rows}
+    ${(box.skipped || []).length ? `<div style="font-size:11px;color:#f0c060;margin:4px 0 10px;line-height:1.6;">No se pueden traer: ${box.skipped.map(escCmdHtml).join(' · ')}</div>` : ''}
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;line-height:1.6;">Se marcan solo las que tenías prendidas. Lo que traigas reemplaza el texto, la imagen y el sonido de esa alerta en Muffet (el estilo y los colores se quedan). Después la puedes ajustar como quieras.</div>
+    <div class="ab-actions">
+      <button class="btn btn-primary" id="seApplyBtn" onclick="seApply()">📥 Traer las marcadas</button>
+      <button class="btn btn-secondary" onclick="seCopyRaw()" title="Si algo no salió bien, manda esto a soporte">📋 Copiar datos técnicos</button>
+    </div>`;
+}
+let seAudio = null;
+function seListen(url, vol) { try { if (seAudio) seAudio.pause(); seAudio = new Audio(url); seAudio.volume = Math.min(1, (vol ?? 70) / 100); seAudio.play().catch(() => {}); setTimeout(() => { if (seAudio) seAudio.pause(); }, 8000); } catch (e) {} }
+function seCopyRaw() { const raw = seBoxes?.[seSel]?.raw || ''; navigator.clipboard.writeText(raw).then(() => showToast('Datos copiados ✓'), () => showToast('No se pudo copiar', 'error')); }
+async function seApply() {
+  const box = seBoxes[seSel], events = {};
+  document.querySelectorAll('[data-se-ev]').forEach(cb => {
+    if (!cb.checked) return;
+    const ev = cb.dataset.seEv, e = box.events[ev];
+    const txt = document.querySelector(`[data-se-text="${ev}"]`)?.value.trim() || '';
+    events[ev] = { ...e, text: txt, enabled: true };
+  });
+  if (!Object.keys(events).length) { showToast('No marcaste ninguna', 'error'); return; }
+  const btn = document.getElementById('seApplyBtn'); btn.disabled = true; btn.textContent = '⏳ Copiando archivos…';
+  try {
+    const r = await fetch('/api/alert-box/import/se/apply', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ events }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.error || 'No se pudo importar', 'error'); return; }
+    streamerData.alert_box = j.alert_box; abState = null; abLoad();
+    initAlertBoxSection();
+    document.getElementById('seResult').innerHTML = `<div style="font-size:13px;color:#40d090;line-height:1.7;">✅ Listo: traje ${j.imported} alerta(s) y ${j.files} archivo(s). Ya están marcadas arriba y puedes probarlas con “📺 Probar en OBS”.<br><span style="color:var(--text-dim);font-size:12px;">Recuerda apagarlas en StreamElements para que no salgan dobles, y reiniciar tu token allá.</span></div>
+      ${(j.report || []).map(x => `<div style="font-size:11px;color:#f0c060;margin-top:4px;">⚠ ${escCmdHtml(x)}</div>`).join('')}`;
+    document.getElementById('seToken').value = '';
+    showToast('Alertas importadas ✓');
+  } catch (e) { showToast('Error de conexión', 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '📥 Traer las marcadas'; } }
+}
+
 // ── Plantillas listas ──
 const AB_PRESETS = [
   { name:'Clásica', emoji:'💜', style:'tarjeta', font:'Inter', accent:'#b794ff', text:'#ffffff', anim:'rebote', effect:'confeti', layout:'arriba' },
@@ -5301,6 +5378,19 @@ function renderMain() {
           <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('abOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
         </div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.6;">💡 Es la <b>misma URL</b> de las Alertas multimedia: si ya la tienes en OBS, no agregues otra. Los agradecimientos de Muffet en el chat se configuran en <a href="#" onclick="showSection('live');return false;" style="color:var(--purple-light);">Anuncios y agradecimientos</a>.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header" style="cursor:pointer;" onclick="seToggle()"><span class="panel-title-text">📥 Traer mis alertas de StreamElements</span><span id="seArrow" style="margin-left:auto;color:var(--text-dim);">▸</span></div>
+      <div class="panel-body" id="sePanel" style="display:none;">
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:10px;">Muffet lee tus AlertBox de StreamElements y pasa las <b>imágenes, GIF, videos, sonidos, textos, duración, volumen y variaciones</b>. Los archivos se copian a SilklyBot, así que no dependes de StreamElements. Antes de guardar te muestra todo para que elijas.</div>
+        <div style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;padding:10px 12px;background:var(--bg3);border-radius:10px;">En StreamElements entra a <b>Account → Canales</b> (<i>Mis canales</i>). Busca <b>JWT Token</b> (no el "Overlay Token"), muéstralo y cópialo completo. Solo lo usamos para leer tus alertas y <b>no se guarda</b>. Ese token da control total de tu cuenta de StreamElements: cuando termines, reinícialo allá.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input id="seToken" type="password" autocomplete="off" spellcheck="false" placeholder="Pega tu token de StreamElements" class="form-input" style="flex:1;min-width:220px;font-size:12px;">
+          <button class="btn btn-primary" id="seFindBtn" onclick="seFind()">🔎 Buscar mis alertas</button>
+        </div>
+        <div id="seResult" style="margin-top:16px;"></div>
       </div>
     </div>
 
