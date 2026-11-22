@@ -2108,7 +2108,7 @@ function seRender() {
         <div style="font-size:11px;color:var(--text-muted);margin-top:6px;display:flex;gap:10px;flex-wrap:wrap;">
           <span>${e.sound_url ? `🔊 <a href="#" onclick="seListen('${escCmdHtml(e.sound_url).replace(/'/g,'')}',${e.volume ?? 70});return false;" style="color:var(--purple-light);">escuchar sonido</a>` : e.sound === 'video' ? '🔊 sonido del video' : '🔔 campanita de Muffet'}</span>
           ${e.duration ? `<span>⏱️ ${e.duration} s</span>` : ''}${e.volume !== null && e.volume !== undefined ? `<span>🔉 ${e.volume}%</span>` : ''}
-          ${(e.variations || []).length ? `<span>🎭 ${e.variations.length} variación(es): ${e.variations.map(v => escCmdHtml(v.name + ' (' + v.cond + ')')).join(', ')}</span>` : ''}
+          ${(e.variations || []).length ? `<span>🎭 ${e.variations.length} variación(es): ${e.variations.map(v => escCmdHtml(v.name + ' (' + v.cond + ')') + (v.enabled === false ? ' <i>apagada</i>' : '')).join(', ')}</span>` : ''}
         </div>
         ${e.custom ? `<div style="font-size:11px;color:#40d090;margin-top:4px;">🧑‍💻 Trae su código propio (HTML, CSS y JS)${(e.variations||[]).some(v => v.custom) ? ', también en sus variaciones' : ''}</div>` : ''}
         ${(e.notes || []).map(n => `<div style="font-size:11px;color:#f0c060;margin-top:4px;">⚠ ${escCmdHtml(n)}</div>`).join('')}
