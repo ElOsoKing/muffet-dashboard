@@ -100,6 +100,8 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:v
   <div class="brand"><span class="logo">🕷️</span><b>SilklyBot</b></div>
   <small>Guía rápida para empezar</small>
   <a href="#inicio">🚀 Primeros pasos</a>
+  <a href="#alertas">🔔 Alertas en pantalla</a>
+  <a href="#propinas">💸 Propinas y metas</a>
   <a href="#comandos">⚡ Comandos propios</a>
   <a href="#puntos">🏆 Puntos y juegos</a>
   <a href="#sorteos">🎉 Sorteos y encuestas</a>
@@ -120,6 +122,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:v
   <p>Muffet es un bot de chat para Twitch con personalidad propia: responde, modera, reparte puntos, pone música y anima tus streams. Esta guía te lleva de cero a tener lo básico funcionando.</p>
   <div class="quick">
     <a href="#inicio"><b>🚀 Quiero empezar ya</b><span>Entrar, darle mod al bot y probarlo</span></a>
+    <a href="#alertas"><b>🔔 Quiero alertas</b><span>Follows, subs, bits y raids en pantalla</span></a>
     <a href="#musica"><b>🎵 Quiero música</b><span>YouTube, Spotify y el panel de OBS</span></a>
     <a href="#moderacion"><b>🛡️ Quiero moderación</b><span>Links, palabras, spam y más</span></a>
     <a href="#problemas"><b>🔧 Algo no funciona</b><span>Las causas más comunes</span></a>
@@ -147,6 +150,73 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:v
       <li><b>Reparte puntos y niveles</b> por participar en el chat (más abajo).</li>
     </ul>
   </div>
+</section>
+
+<!-- ───────── ALERTAS ───────── -->
+<section id="alertas">
+  <h2><span class="ic">🔔</span> Alertas en pantalla</h2>
+  <p class="lead">Tus propias alertas en el stream para <b>follows, subs, resubs, regalos de subs, bits, raids y propinas</b>. Gratis, con imagen, GIF o video, sonido y voz.</p>
+  <div class="card">
+    <ol class="steps">
+      <li>En la sección <b>Alertas</b> marca las que quieras. Todas empiezan apagadas. Si alguna ya la tienes en otro programa de alertas, déjala sin marcar para que no salga doble.</li>
+      <li>Copia la <b>URL para OBS</b> y agrégala en OBS como <b>Fuente de navegador</b> (<b>1920 × 1080</b>). Es la misma URL de las Alertas multimedia: si ya la tienes, no agregues otra.</li>
+      <li>En <b>🎨 Diseña cada alerta</b> elige una plantilla y cambia lo que quieras: texto, imagen, sonido, duración, colores y animación.</li>
+      <li>Prueba con <b>▶️ Reproducir aquí</b> (en el dashboard) o <b>Probar en OBS</b> (sale en tu stream).</li>
+    </ol>
+  </div>
+  <div class="note warn"><span class="e">⚠️</span><div>Si en la sección ves un aviso con el botón <b>🔔 Activar alertas</b>, púlsalo. Sin eso Twitch no avisa de los follows ni de los canjes de puntos, y esas alertas no salen.</div></div>
+  <h3>Lo que puedes poner en el texto</h3>
+  <div class="tbl"><table>
+    <tr><th>Variable</th><th>Qué pone</th><th>En qué alertas</th></tr>
+    <tr><td><code>{usuario}</code></td><td>Quien te apoyó</td><td>Todas</td></tr>
+    <tr><td><code>{cantidad}</code></td><td>Bits, subs regalados o el monto de la propina</td><td>Bits, regalos, propinas</td></tr>
+    <tr><td><code>{meses}</code></td><td>Cuántos meses lleva suscrito</td><td>Resub</td></tr>
+    <tr><td><code>{nivel}</code></td><td>Tier de la sub</td><td>Sub</td></tr>
+    <tr><td><code>{viewers}</code></td><td>Cuántas personas trajo la raid</td><td>Raid</td></tr>
+    <tr><td><code>{destinatario}</code></td><td>A quién le regalaron la sub</td><td>Regalos</td></tr>
+  </table></div>
+  <div class="card"><ul class="dots">
+    <li><b>Variaciones:</b> una alerta distinta según la cantidad o el Tier. Por ejemplo, otra imagen y sonido para 1000 bits o más, o para subs Tier 3.</li>
+    <li><b>🗣️ Voz:</b> lee en voz alta el mensaje de bits, resubs y propinas. Puedes elegir entre 20 idiomas, o que salga uno al azar (es gracioso escuchar a una voz japonesa leyendo en español).</li>
+    <li><b>Código propio:</b> si sabes HTML, CSS o JavaScript, puedes hacer tu alerta desde cero.</li>
+  </ul></div>
+  <h3>Traer tus alertas de StreamElements</h3>
+  <p class="lead" style="margin-bottom:10px">Si ya tienes tus alertas armadas en StreamElements, las pasas en un minuto con imágenes, videos, sonidos, textos, variaciones y código.</p>
+  <div class="card">
+    <ol class="steps">
+      <li>En StreamElements entra a <b>Account → Canales</b> y copia tu <b>JWT Token</b> (no el “Overlay Token”).</li>
+      <li>En <b>Alertas</b> abre <b>📥 Traer mis alertas de StreamElements</b>, pega el token y pulsa <b>🔎 Buscar mis alertas</b>.</li>
+      <li>Revisa la vista previa, marca las que quieres y pulsa <b>📥 Traer las marcadas</b>.</li>
+      <li>Apaga las alertas en StreamElements (o quita su fuente de OBS) para que no salgan dobles.</li>
+    </ol>
+  </div>
+  <div class="note warn"><span class="e">🔒</span><div>El JWT Token da control total de tu cuenta de StreamElements. Solo se usa para leer tus alertas y no se guarda, pero <b>reinícialo en StreamElements cuando termines</b> y no lo muestres en pantalla.</div></div>
+  <h3>Alertas multimedia (canjes de puntos)</h3>
+  <div class="card">
+    <p>En <b>Alertas multimedia</b> creas recompensas de puntos del canal que reproducen un audio o un video corto (memes) en tu stream. Subes el archivo, eliges o creas la recompensa de Twitch y listo. Usan la misma URL de OBS que las alertas.</p>
+  </div>
+  <h3>Últimos apoyos</h3>
+  <div class="card">
+    <p>En <b>Alertas → 📰 Overlay de últimos apoyos</b> tienes un overlay con el último follow, sub, bits, raid y propina. Copia su link y ponlo en OBS como fuente de navegador. El último follow lo trae de Twitch, aunque haya sido antes de empezar a usar SilklyBot.</p>
+  </div>
+</section>
+
+<!-- ───────── PROPINAS ───────── -->
+<section id="propinas">
+  <h2><span class="ic">💸</span> Propinas y metas</h2>
+  <p class="lead">Tus viewers te dejan propinas con PayPal o tarjeta. El dinero va directo a tu PayPal y sale la alerta en tu stream.</p>
+  <div class="card">
+    <ol class="steps">
+      <li>En <b>Propinas</b> activa <b>Recibir propinas</b> y pon el correo de tu cuenta PayPal (ahí te llega el dinero).</li>
+      <li>Comparte tu página: <code>/tip/tu_usuario</code>. En el chat, <code>!propina</code> (también <code>!tip</code> o <code>!donar</code>) pasa el enlace.</li>
+      <li>Para que salga en pantalla, marca <b>Propinas</b> en la sección <b>Alertas</b>.</li>
+    </ol>
+  </div>
+  <div class="card"><ul class="dots">
+    <li><b>Mercado Pago</b> (opcional): pega tu link de cobro y la página muestra el botón. Ese pago no avisa solo: cuando te llegue, lo registras a mano en Propinas.</li>
+    <li>Si tienes un <b>subatón</b> activo, las propinas también le suman tiempo.</li>
+    <li><b>🎯 Metas:</b> una barra en OBS que se llena con propinas, subs o bits, con un reto (“50 subs y me rapo”) y fecha límite. En el chat se ve con <code>!meta</code>.</li>
+  </ul></div>
 </section>
 
 <!-- ───────── COMANDOS ───────── -->
@@ -221,8 +291,9 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:v
 
 <!-- ───────── MÚSICA ───────── -->
 <section id="musica">
-  <h2><span class="ic">🎵</span> Música <span class="pro">PRO</span></h2>
+  <h2><span class="ic">🎵</span> Música</h2>
   <p class="lead">Muffet puede poner la música de tu stream con YouTube o Spotify, mostrarla en un overlay y dejarte controlarla desde OBS.</p>
+  <div class="note tip"><span class="e">🆓</span><div><b>Gratis:</b> 1 canción por persona, cola de 10 y canciones de hasta 6 minutos. Con <span class="pro">PRO</span> eliges cuántas por persona y quién puede pedir, la cola llega a 50, y tienes votos para saltar (<code>!vskip</code>) y una playlist de fondo.</div></div>
   <div class="tbl"><table>
     <tr><th>Quieres…</th><th>Usa</th></tr>
     <tr><td>Que el chat pida música de YouTube</td><td><code>!yt nombre o link</code> — entra en una cola, con playlists, aleatorio y repetir. Lo configuras en <b>Música</b></td></tr>
@@ -256,6 +327,7 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:v
     </ol>
   </div>
   <div class="note warn"><span class="e">🔒</span><div>Cada link lleva tu clave personal. <b>No lo muestres en pantalla ni lo compartas</b>.</div></div>
+  <div class="note tip"><span class="e">🕷️</span><div>En el plan gratis, los overlays llevan una marquita pequeña de SilklyBot. En las alertas sale en la esquina solo mientras se ve la alerta. Con <span class="pro">PRO</span> salen sin marca.</div></div>
   <h3>Estilos para los overlays de música</h3>
   <div class="card"><ul class="dots">
     <li><b>Galería de estilos:</b> en Música, abre la galería y verás una vista previa de cada estilo (Cristal, Píldora, Synthwave, Neon City, Cyber, Telaraña, Rey Pixel y más).</li>
@@ -323,9 +395,10 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:v
   <h2><span class="ic">⭐</span> Free y Pro</h2>
   <p class="lead">En el menú del dashboard, lo que lleva la etiqueta <span class="pro">PRO</span> es de pago. Lo demás es gratis.</p>
   <div class="card"><ul class="dots">
-    <li><b>Gratis:</b> el bot con personalidad, comandos propios, auto mensajes, puntos y niveles, <code>!slots</code>, <code>!apostar</code>, canjes, sorteos por chat, DBDle, shoutout, estadísticas y la moderación por palabras, links, spam y modo lento.</li>
-    <li><b>Pro:</b> música (YouTube y Spotify, con sus overlays y el dock), subatón, Emoji Game, Pokédle, Primerin, duelos, encuestas, moderación con IA, alertas multimedia, overlay del sorteo, perfil público y un bot con nombre propio.</li>
+    <li><b>Gratis:</b> el bot con personalidad, hasta 15 comandos propios, auto mensajes, puntos y niveles, <code>!slots</code>, <code>!apostar</code>, canjes, sorteos por chat, DBDle, shoutout, estadísticas y la moderación por palabras, links, spam y modo lento. Además: <b>alertas</b> (4 estilos y 2 variaciones por alerta), <b>propinas</b>, últimos apoyos, metas, <b>música</b> (1 canción por persona, cola de 10), <b>alertas multimedia</b> (hasta 5) y traer tus alertas de StreamElements.</li>
+    <li><b>Pro:</b> todo sin la marca de SilklyBot, los 10 estilos de alertas y 5 variaciones, voces premium, música completa (quién pide, <code>!vskip</code>, playlist de fondo, cola de 50), hasta 20 alertas multimedia, 50 comandos, subatón, Emoji Game, Pokédle, Primerin, duelos, encuestas, moderación con IA, overlay del sorteo, perfil público y un bot con nombre propio.</li>
   </ul></div>
+  <div class="note tip"><span class="e">💡</span><div>Si tu Pro vence, no pierdes nada: tu configuración queda guardada y lo que es de Pro se pausa hasta que renueves.</div></div>
   <div class="note tip"><span class="e">💡</span><div>La lista puede cambiar con el tiempo. Lo que ves marcado como <b>PRO</b> en el menú del dashboard es siempre lo que vale.</div></div>
 </section>
 
@@ -348,6 +421,14 @@ footer{margin-top:60px;padding-top:20px;border-top:1px solid var(--line);color:v
   <details><summary>El overlay sale en blanco en OBS</summary>
     <div class="body"><p>Comprueba que pegaste el link completo en la fuente de navegador y que el ancho y alto no sean 0. Pulsa <b>Actualizar caché del navegador</b> en las propiedades de la fuente.</p>
     <p>Si es el overlay de música, asegúrate de tener algo sonando y de haber conectado tu Spotify o activado YouTube en Música.</p></div></details>
+
+  <details><summary>Las alertas no salen en OBS</summary>
+    <div class="body"><p>Revisa que esa alerta esté <b>marcada</b> en la sección <b>Alertas</b> y que la URL de OBS sea la que copiaste de ahí. Prueba con <b>Probar en OBS</b>: si así sale, el overlay está bien puesto.</p>
+    <p>Si las que fallan son los <b>follows o los canjes</b>, mira si aparece el botón <b>🔔 Activar alertas</b> y púlsalo.</p>
+    <p>Si sale la imagen pero no el sonido, en las propiedades de la fuente de navegador activa <b>Controlar audio mediante OBS</b> y revisa que no esté silenciada en el mezclador.</p></div></details>
+
+  <details><summary>Las alertas salen dobles</summary>
+    <div class="body"><p>Tienes la misma alerta encendida en otro programa (StreamElements, Streamlabs…). Apágala allá, o déjala sin marcar en SilklyBot.</p></div></details>
 
   <details><summary>El dock de música no deja pausar o dar play</summary>
     <div class="body"><p><b>Spotify:</b> necesita Premium y la app abierta. Si se durmió por estar mucho rato en pausa, toca ▶ para despertarla. Si el mensaje dice que no encuentra Spotify, ábrelo en el celular o la computadora.</p>
