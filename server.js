@@ -1881,6 +1881,251 @@ app.post('/api/alert-box/test', requireAuth, async (req, res) => {
 });
 
 // ══════════════════════════════════════════
+//  IMPORTAR ALERTAS DESDE STREAMELEMENTS (token JWT del streamer: solo lectura, se usa una vez y NO se guarda)
+//  1) /preview lee los overlays del streamer, busca sus AlertBox y los traduce a las alertas de Muffet (sin guardar nada)
+//  2) /apply copia las imágenes, GIF, videos y sonidos a nuestro almacenamiento y guarda las alertas
+//  StreamElements no publica cómo guarda cada opción por dentro, así que la lectura es "a prueba de cambios":
+//  busca en todo el objeto de cada alerta los links de archivos, el texto con {name}, la duración y el volumen.
+// ══════════════════════════════════════════
+const SE_EVENT_MAP = { follower: 'follow', subscriber: 'sub', cheer: 'bits', raid: 'raid', tip: 'tip' };
+const SE_MEDIA_EXT = { png: 'image', gif: 'image', webp: 'image', jpg: 'image', jpeg: 'image', webm: 'video', mp4: 'video', mp3: 'audio', ogg: 'audio', wav: 'audio' };
+const SE_MEDIA_HOST = /(^|\.)(streamelements\.com|giphy\.com|tenor\.com)$/i; // de dónde dejamos copiar archivos (nada de links internos)
+
+async function seApi(path, jwt) {
+  const r = await fetch('https://api.streamelements.com/kappa/v2/' + path, { headers: { Authorization: 'Bearer ' + jwt, Accept: 'application/json' }, signal: AbortSignal.timeout(12000) });
+  if (r.status === 401 || r.status === 403) { const e = new Error('token'); e.code = 'token'; throw e; }
+  if (!r.ok) { const e = new Error('SE ' + r.status); e.code = 'se'; throw e; }
+  return r.json();
+}
+
+// Recorre el objeto y junta links, textos con variables y números, con la "ruta" de cada uno (ej: graphics.src)
+function seWalk(obj, path = '', out = { urls: [], texts: [], nums: [] }, depth = 0) {
+  if (obj === null || obj === undefined || depth > 8) return out;
+  if (typeof obj === 'string') {
+    const s = obj.trim();
+    if (/^https?:\/\/\S+$/i.test(s)) out.urls.push({ url: s, path });
+    else if (/\{[a-z]+\}/i.test(s) && s.length < 300) out.texts.push({ s, path });
+    return out;
+  }
+  if (typeof obj === 'number') { out.nums.push({ n: obj, path }); return out; }
+  if (Array.isArray(obj)) { obj.forEach((v, i) => { if (!/variations?$/i.test(path)) seWalk(v, path + '.' + i, out, depth + 1); }); return out; }
+  if (typeof obj === 'object') for (const k of Object.keys(obj)) { if (/^variations?$/i.test(k)) continue; seWalk(obj[k], path ? path + '.' + k : k, out, depth + 1); }
+  return out;
+}
+const seExt = (u) => (String(u).split('?')[0].match(/\.([a-z0-9]{2,5})$/i) || [])[1]?.toLowerCase() || '';
+
+// {name} → {usuario}, etc. El significado de {amount} depende de la alerta
+function seText(text, ev) {
+  if (!text) return '';
+  const amount = { bits: '{cantidad}', tip: '{cantidad}', gift: '{cantidad}', resub: '{meses}', raid: '{viewers}', sub: '', follow: '' }[ev] ?? '';
+  let t = String(text)
+    .replace(/\{currency\}\s*/gi, '')                       // la cantidad de Muffet ya trae el símbolo de la moneda
+    .replace(/[:\-–—]?\s*\{message\}/gi, '')                // el mensaje del viewer Muffet lo muestra aparte
+    .replace(/\{(name|username|user|sender|displayname)\}/gi, '{usuario}')
+    .replace(/\{amount\}/gi, amount)
+    .replace(/\{(count|gifts|giftcount)\}/gi, '{cantidad}')
+    .replace(/\{months\}/gi, '{meses}')
+    .replace(/\{tier\}/gi, '{nivel}')
+    .replace(/\{(viewers|raiders)\}/gi, '{viewers}');
+  const unknown = (t.match(/\{(?!usuario\}|cantidad\}|meses\}|viewers\}|nivel\})[a-z_]+\}/gi) || []);
+  t = t.replace(/\{(?!usuario\}|cantidad\}|meses\}|viewers\}|nivel\})[a-z_]+\}/gi, '').replace(/\s{2,}/g, ' ').trim();
+  return { text: t.slice(0, 150), unknown };
+}
+
+// Una alerta de StreamElements (o una variación) → diseño de Muffet
+function seMapOne(a, ev) {
+  const w = seWalk(a);
+  const notes = [];
+  const isAudio = (x) => SE_MEDIA_EXT[seExt(x.url)] === 'audio' || (/(sound|audio)/i.test(x.path) && !SE_MEDIA_EXT[seExt(x.url)]);
+  const isVisual = (x) => ['image', 'video'].includes(SE_MEDIA_EXT[seExt(x.url)]) || (/(image|graphic|video|gif|media|animation)/i.test(x.path) && !/(sound|audio|font|css)/i.test(x.path) && !seExt(x.url).match(/^(woff2?|ttf|css|js)$/));
+  const visual = w.urls.find(isVisual), sound = w.urls.find(isAudio);
+  const num = (re) => { const x = w.nums.find(n => re.test(n.path)); return x ? x.n : null; };
+  let volume = num(/volume/i); if (volume !== null) volume = volume <= 1 ? Math.round(volume * 100) : Math.round(volume);
+  let duration = num(/(^|\.)(duration|alertDuration|alert_duration|time)$/i); if (duration !== null && duration > 60) duration = duration / 1000;
+  const textCand = w.texts.find(x => /(message|text|title|template)/i.test(x.path) && /\{(name|username|sender)\}/i.test(x.s)) || w.texts.find(x => /\{(name|username|sender)\}/i.test(x.s)) || w.texts[0];
+  const conv = textCand ? seText(textCand.s, ev) : null;
+  if (conv?.unknown?.length) notes.push('Variables que Muffet no tiene (se quitaron): ' + conv.unknown.join(' '));
+  const vType = visual ? (SE_MEDIA_EXT[seExt(visual.url)] === 'video' ? 'video' : 'image') : 'image';
+  if (visual && !SE_MEDIA_HOST.test(new URL(visual.url).hostname)) notes.push('La imagen está en otra página y no se puede copiar');
+  if (sound && !SE_MEDIA_HOST.test(new URL(sound.url).hostname)) notes.push('El sonido está en otra página y no se puede copiar');
+  const custom = w.texts.some(x => /(html|css|js)$/i.test(x.path)) || Object.keys(a || {}).some(k => /custom/i.test(k) && a[k] === true);
+  if (custom) notes.push('Esta alerta usaba código propio de StreamElements: se importa la imagen y el sonido, pero el diseño queda con el estilo de Muffet');
+  return {
+    enabled: a?.enabled !== false && a?.active !== false,
+    text_se: textCand?.s || '', text: conv?.text || '',
+    image: visual?.url || '', image_type: vType,
+    sound_url: sound?.url || '', sound: sound ? 'archivo' : (vType === 'video' && visual ? 'video' : 'campanita'),
+    volume: volume ?? null, duration: duration ? Math.max(3, Math.min(20, Math.round(duration))) : null,
+    notes,
+  };
+}
+
+// Condición de una variación: número (desde X) o tipo (resub / regalo / tier)
+function seVarCond(v) {
+  const w = seWalk(v);
+  const strs = JSON.stringify(v?.condition ?? v?.conditions ?? v?.type ?? v?.requirement ?? '').toLowerCase();
+  const kind = /gift|community/.test(strs) ? 'gift' : /resub|months|streak/.test(strs) ? 'resub' : null;
+  const tier = /prime/.test(strs) ? 'Prime' : /3000|tier ?3/.test(strs) ? 'Tier 3' : /2000|tier ?2/.test(strs) ? 'Tier 2' : null;
+  const n = w.nums.find(x => /(amount|requirement|condition|min|value|count|threshold)/i.test(x.path) && !/(volume|duration|delay|size|width|height|opacity)/i.test(x.path));
+  return { kind, tier, min: n ? n.n : null, name: String(v?.name || v?.title || '').slice(0, 30) };
+}
+
+function seMapAlertBox(widget) {
+  const vars = widget.variables || widget.settings || {};
+  const listeners = widget.listeners || {};
+  const events = {}, skipped = [];
+  for (const [seKey, ev] of Object.entries(SE_EVENT_MAP)) {
+    const a = vars[seKey]; if (!a || typeof a !== 'object') continue;
+    const main = seMapOne(a, ev);
+    if (listeners[seKey + '-latest'] === false) main.enabled = false;
+    events[ev] = { ...main, variations: [] };
+    const vlist = Array.isArray(a.variations) ? a.variations : [];
+    for (const v of vlist.slice(0, 12)) {
+      const c = seVarCond(v), m = seMapOne(v, c.kind || ev);
+      if (ev === 'sub' && c.kind) { // en StreamElements resubs y regalos son variaciones de la sub; en Muffet son alertas propias
+        const target = c.kind;
+        if (!events[target] || (!events[target].image && !events[target].sound_url)) { events[target] = { ...m, text: m.text || '', variations: [] }; continue; }
+      }
+      if (ev === 'sub' && c.tier) { events.sub.variations.push({ name: c.name || c.tier, cond: c.tier, ...m }); continue; }
+      if (['bits', 'tip', 'raid', 'gift', 'resub'].includes(c.kind || ev) && c.min > 0) {
+        const tgt = events[c.kind || ev] || events[ev];
+        tgt.variations.push({ name: c.name || `Desde ${c.min}`, cond: Math.round(c.min), ...m }); continue;
+      }
+      skipped.push(`${seKey}: variación "${c.name || 'sin nombre'}" (condición que Muffet no entiende)`);
+    }
+    events[ev].variations = events[ev].variations.slice(0, 5);
+  }
+  // Si en StreamElements la sub no tenía variación de resub/regalo, se usa la misma alerta de sub
+  if (events.sub && !events.resub) events.resub = { ...events.sub, text: seText(events.sub.text_se, 'resub').text || '', variations: [] };
+  if (events.sub && !events.gift) events.gift = { ...events.sub, text: '', variations: [], enabled: events.sub.enabled };
+  // La sub nueva no tiene meses: si el texto tenía {amount} (meses) queda raro, mejor el texto de Muffet
+  if (events.sub && /\{amount\}/i.test(events.sub.text_se)) events.sub.text = '';
+  return { events, skipped };
+}
+
+// Un resumen chiquito de lo que leímos (para mejorar el traductor si algo no sale bien)
+const seRawSummary = (widget) => { try { return JSON.stringify(widget.variables || widget.settings || {}).slice(0, 40000); } catch (e) { return ''; } };
+
+const seImportLimit = new Map();
+app.post('/api/alert-box/import/se/preview', requireAuth, async (req, res) => {
+  try {
+    const uid = String(req.session.user.id);
+    if (Date.now() - (seImportLimit.get(uid) || 0) < 5000) return res.status(429).json({ error: 'Espera unos segundos…' });
+    seImportLimit.set(uid, Date.now());
+    const jwt = String(req.body?.token || '').trim();
+    if (!/^[A-Za-z0-9._-]{20,4000}$/.test(jwt)) return res.status(400).json({ error: 'Ese token no parece válido' });
+    const me = await seApi('channels/me', jwt);
+    const channelId = String(me?._id || '').replace(/[^a-zA-Z0-9]/g, '');
+    if (!channelId) return res.status(502).json({ error: 'No pude leer tu canal de StreamElements' });
+    const list = await seApi(`overlays/${channelId}?limit=100`, jwt);
+    const overlays = (Array.isArray(list) ? list : list?.docs || list?.overlays || list?.data || []).slice(0, 30);
+    const boxes = [];
+    for (const ov of overlays) {
+      const oid = String(ov?._id || ov?.id || '').replace(/[^a-zA-Z0-9]/g, ''); if (!oid) continue;
+      let full = ov;
+      if (!Array.isArray(ov.widgets)) { try { full = await seApi(`overlays/${channelId}/${oid}`, jwt); } catch (e) { continue; } }
+      for (const wdg of full?.widgets || []) {
+        if (!/alert-?box/i.test(String(wdg?.type || ''))) continue;
+        const mapped = seMapAlertBox(wdg);
+        if (!Object.keys(mapped.events).length) continue;
+        boxes.push({ overlay: String(full.name || ov.name || 'Overlay').slice(0, 60), overlay_id: oid, widget_id: String(wdg.id ?? ''), ...mapped, raw: seRawSummary(wdg) });
+      }
+    }
+    if (!boxes.length) return res.json({ ok: true, boxes: [], message: 'No encontré ningún AlertBox en tus overlays de StreamElements' });
+    res.json({ ok: true, boxes });
+  } catch (err) {
+    if (err.code === 'token') return res.status(400).json({ error: 'StreamElements no aceptó el token. Cópialo de nuevo, completo' });
+    console.error('[se-alerts] preview:', err.message);
+    res.status(502).json({ error: 'No se pudo leer de StreamElements ahora. Intenta de nuevo' });
+  }
+});
+
+// Descarga un archivo de StreamElements (o Giphy/Tenor) y lo sube a nuestro almacenamiento. Devuelve la URL nueva o null.
+async function copySEMedia(url, channel) {
+  try {
+    let u = new URL(url);
+    if (u.protocol !== 'https:' || !SE_MEDIA_HOST.test(u.hostname)) return null;
+    let r;
+    for (let hop = 0; hop < 3; hop++) { // seguir redirecciones solo hacia sitios permitidos
+      r = await fetch(u.href, { redirect: 'manual', signal: AbortSignal.timeout(20000) });
+      if (r.status >= 300 && r.status < 400 && r.headers.get('location')) {
+        u = new URL(r.headers.get('location'), u);
+        if (u.protocol !== 'https:' || !SE_MEDIA_HOST.test(u.hostname)) return null;
+        continue;
+      }
+      break;
+    }
+    if (!r || !r.ok) return null;
+    if (Number(r.headers.get('content-length') || 0) > MEDIA_ALERT_MAX_BYTES) return null;
+    let mime = String(r.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    if (!MEDIA_ALERT_TYPES[mime]) {
+      const byExt = { png: 'image/png', gif: 'image/gif', webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', webm: 'video/webm', mp4: 'video/mp4', mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav' }[seExt(u.pathname)];
+      if (!byExt) return null; mime = byExt;
+    }
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.length > MEDIA_ALERT_MAX_BYTES || (mime.startsWith('image/') && buf.length > MEDIA_IMAGE_MAX_BYTES)) return null;
+    await ensureAlertsBucket();
+    const name = (u.pathname.split('/').pop() || 'archivo').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 50);
+    const path = `${channel}/${Date.now()}_se_${name.includes('.') ? name : name + '.' + MEDIA_ALERT_TYPES[mime]}`;
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/alerts/${path}`, { method: 'POST', headers: { ...sbHeaders, 'Content-Type': mime, 'x-upsert': 'true' }, body: buf });
+    if (!up.ok) { console.error('[se-alerts] subida falló', up.status); return null; }
+    return { url: `${SUPABASE_URL}/storage/v1/object/public/alerts/${path}`, type: mime.startsWith('video') ? 'video' : mime.startsWith('image') ? 'image' : 'audio' };
+  } catch (e) { return null; }
+}
+
+app.post('/api/alert-box/import/se/apply', requireAuth, express.json({ limit: '300kb' }), async (req, res) => {
+  try {
+    const channel = String(req.session.user.username || '').toLowerCase();
+    const incoming = req.body?.events;
+    if (!isValidObject(incoming)) return res.status(400).json({ error: 'Nada para importar' });
+    const row = await alertBoxRow(channel).catch(() => null);
+    const box = JSON.parse(JSON.stringify(row?.alert_box || { enabled: true, events: {} }));
+    box.events = box.events || {};
+    const report = [];
+    const copied = new Map(); // el mismo archivo usado en varias alertas se copia una sola vez
+    const copy = async (u) => { if (!u) return null; if (!copied.has(u)) copied.set(u, await copySEMedia(u, channel)); return copied.get(u); };
+    // Diseño importado encima de lo que ya había (estilo, letra y colores de Muffet se conservan)
+    const applyDesign = async (target, src, label) => {
+      if (src.text) target.text = String(src.text).slice(0, 150);
+      if (src.duration) target.duration = src.duration;
+      if (src.volume !== null && src.volume !== undefined) target.volume = Math.max(0, Math.min(100, Number(src.volume) || 0));
+      if (src.image) {
+        const m = await copy(src.image);
+        if (m && m.type !== 'audio') { target.image = m.url; target.image_type = m.type; } else report.push(`${label}: no se pudo copiar la imagen`);
+      }
+      if (src.sound_url) {
+        const m = await copy(src.sound_url);
+        if (m && m.type === 'audio') { target.sound_url = m.url; target.sound = 'archivo'; } else report.push(`${label}: no se pudo copiar el sonido`);
+      } else if (src.sound === 'video' && target.image_type === 'video') target.sound = 'video';
+    };
+    let n = 0;
+    for (const ev of ALERT_EVENTS) {
+      const src = incoming[ev]; if (!src || typeof src !== 'object') continue;
+      const target = box.events[ev] = { ...(box.events[ev] || {}) };
+      target.enabled = src.enabled !== false;
+      await applyDesign(target, src, ev);
+      if (Array.isArray(src.variations) && src.variations.length) {
+        target.variations = [];
+        for (const v of src.variations.slice(0, 5)) {
+          const nv = { id: 'se' + Math.random().toString(36).slice(2, 8), name: String(v.name || 'Variación').slice(0, 30), enabled: v.enabled !== false, cond: v.cond,
+            style: target.style, font: target.font, layout: target.layout, anim: target.anim, color_accent: target.color_accent, color_text: target.color_text, effect: 'confeti', text: target.text };
+          await applyDesign(nv, v, `${ev} / ${nv.name}`);
+          target.variations.push(nv);
+        }
+      }
+      n++;
+    }
+    box.enabled = true;
+    const alert_box = cleanAlertBox(box, channel);
+    await sbUpdate('streamers', { alert_box }, { twitch_id: req.session.user.id });
+    _ttlCache.delete('alertbox:' + channel);
+    console.log(`[se-alerts] ${channel} importó ${n} alertas de StreamElements (${copied.size} archivos)`);
+    res.json({ success: true, alert_box, imported: n, files: [...copied.values()].filter(Boolean).length, report });
+  } catch (err) { console.error('[se-alerts] apply:', err.message); res.status(500).json({ error: 'No se pudo importar' }); }
+});
+
+
+// ══════════════════════════════════════════
 //  PROPINAS CON PAYPAL
 //  El dinero va DIRECTO a la cuenta PayPal del streamer (payee = su correo). SilklyBot no toca el dinero:
 //  solo crea la orden, confirma con PayPal que se pagó y dispara alerta, mensaje en el chat y tiempo al subatón.
