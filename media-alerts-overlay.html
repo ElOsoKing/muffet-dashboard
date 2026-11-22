@@ -252,13 +252,13 @@ function fillTitle(el, a) {
   const vals = {
     usuario: a.user || 'Anónimo',
     cantidad: a.event === 'tip' ? fmtMoney(a.amount, a.currency) : a.event === 'gift' ? String(a.count || 1) : Number(a.amount || 0).toLocaleString('es'),
-    meses: String(a.months || 0), viewers: Number(a.viewers || 0).toLocaleString('es'), nivel: a.tier || ''
+    meses: String(a.months || 0), viewers: Number(a.viewers || 0).toLocaleString('es'), nivel: a.tier || '', destinatario: a.recipient || ''
   };
   el.textContent = '';
   let text = String(a.cfg.text || '');
   if (a.event === 'gift' && (a.count || 1) === 1) text = text.replace(/\{cantidad\}\s+subs\b/gi, '{cantidad} sub');
   if (a.event === 'resub' && a.months === 1) text = text.replace(/\{meses\}\s+meses\b/gi, '{meses} mes');
-  text.split(/(\{(?:usuario|cantidad|meses|viewers|nivel)\})/).forEach(part => {
+  text.split(/(\{(?:usuario|cantidad|meses|viewers|nivel|destinatario)\})/).forEach(part => {
     const m = part.match(/^\{(\w+)\}$/);
     if (m) { const s = document.createElement('span'); s.className = 'hl'; s.textContent = vals[m[1]]; el.appendChild(s); }
     else if (part) el.appendChild(document.createTextNode(part));
@@ -311,7 +311,7 @@ function alertVals(a) {
   return {
     usuario: a.user || 'Anónimo',
     cantidad: a.event === 'tip' ? fmtMoney(a.amount, a.currency) : a.event === 'gift' ? String(a.count || 1) : Number(a.amount || 0).toLocaleString('es'),
-    meses: String(a.months || 0), viewers: Number(a.viewers || 0).toLocaleString('es'), nivel: a.tier || ''
+    meses: String(a.months || 0), viewers: Number(a.viewers || 0).toLocaleString('es'), nivel: a.tier || '', destinatario: a.recipient || ''
   };
 }
 function plainTitle(a) { const t = document.createElement('div'); fillTitle(t, a); return t.textContent; }
@@ -320,7 +320,7 @@ function renderCustom(a, still) {
   removeCustom();
   const c = a.cfg || {}, v = alertVals(a);
   const vars = { ...v, mensaje: a.message || '', imagen: c.image || '', texto: plainTitle(a), avisos: (a.chips || []).join(' · '), evento: a.event };
-  const html = String(c.html || '').replace(/\{(usuario|cantidad|meses|viewers|nivel|mensaje|imagen|texto|avisos|evento)\}/g, (m, k) => escH(vars[k]));
+  const html = String(c.html || '').replace(/\{(usuario|cantidad|meses|viewers|nivel|mensaje|imagen|texto|avisos|evento|destinatario)\}/g, (m, k) => escH(vars[k]));
   const data = { evento: a.event, ...vars, monto: Number(a.amount) || 0, moneda: a.currency || '', subs: a.count || 0, color: c.color_accent, color_texto: c.color_text,
     duracion: Number(c.duration) || 7, vista_previa: !!PREVIEW || !!still };
   const json = JSON.stringify(data).replace(/</g, '\\u003c');
@@ -375,7 +375,7 @@ async function showBox(a, { still = false, silent = false } = {}) {
       if (c.sound === 'archivo' && c.sound_url) { boxSound = new Audio(c.sound_url); boxSound.volume = vol; boxSound.play().catch(() => {}); }
       else if (c.sound === 'campanita') chime(vol);
     }
-    const ms = Math.min(20, Math.max(3, Number(c.duration) || 7)) * 1000;
+    const ms = Math.min(60, Math.max(3, Number(c.duration) || 7)) * 1000;
     await Promise.all([new Promise(r => { hideTimer = setTimeout(r, ms); }), (!silent && a.tts_url) ? playTTS(a) : null]);
     if (run !== boxRun) return;
     // Avisa al código del streamer para que haga su animación de salida (body.salir), y medio segundo después se quita
@@ -400,7 +400,7 @@ async function showBox(a, { still = false, silent = false } = {}) {
     if (c.sound === 'archivo' && c.sound_url) { boxSound = new Audio(c.sound_url); boxSound.volume = vol; boxSound.play().catch(() => {}); }
     else if (c.sound === 'campanita') chime(vol);
   }
-  let ms = Math.min(20, Math.max(3, Number(c.duration) || 7)) * 1000;
+  let ms = Math.min(60, Math.max(3, Number(c.duration) || 7)) * 1000;
   if (vid) {
     // Con video: la alerta dura lo que dura el video completo (máx 30 s), y suena si eligió "el sonido del video"
     vid.muted = silent || c.sound !== 'video';
