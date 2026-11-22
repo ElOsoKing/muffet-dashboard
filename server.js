@@ -1514,7 +1514,7 @@ function cleanAlertBox(input, channel) {
       text: String(e.text ?? AB_DEFAULT_TEXT[ev]).replace(/[\r\n]+/g, ' ').slice(0, 150) || AB_DEFAULT_TEXT[ev],
       image, image_type: image && e.image_type === 'video' ? 'video' : 'image',
       sound: pick(e.sound, AB_SOUNDS, 'campanita'), sound_url: url(e.sound_url),
-      volume: num(e.volume, 0, 100, 70), duration: num(e.duration, 3, 20, 7),
+      volume: num(e.volume, 0, 100, 70), duration: num(e.duration, 3, 60, 7),
       layout: pick(e.layout, AB_LAYOUTS, 'arriba'), style: pick(e.style, AB_STYLES, 'tarjeta'),
       anim: pick(e.anim, AB_ANIMS, 'rebote'), effect: pick(e.effect, AB_EFFECTS, ['gift', 'bits', 'raid', 'tip'].includes(ev) ? 'confeti' : 'ninguno'), font: pick(e.font, AB_FONTS, 'Inter'),
       color_accent: hex(e.color_accent, '#b794ff'), color_text: hex(e.color_text, '#ffffff'),
@@ -1726,7 +1726,7 @@ async function sendBoxAlert(channel, d, { force = false, variation = null } = {}
   return pushMediaAlert(channel, {
     type: 'box', event: d.event, cfg, variation: v ? v.name : null, tts_url, tts_volume,
     user: clip(d.user || 'Anónimo', 30), amount, currency: clip(d.currency, 3), viewers,
-    months: parseInt(d.months) || 0, count: parseInt(d.count) || 0, tier: clip(d.tier, 10),
+    months: parseInt(d.months) || 0, count: parseInt(d.count) || 0, tier: clip(d.tier, 10), recipient: clip(d.recipient, 30),
     message: cfg.show_message ? clip(d.message, 200) : '',
     chips: chips.filter(Boolean),
   });
@@ -1851,7 +1851,7 @@ app.post('/api/alert-box', requireAuth, express.json({ limit: '2mb' }), async (r
 const AB_SAMPLES = {
   follow: { user: 'Silkly_Fan' }, sub: { user: 'Silkly_Fan', tier: 'Tier 1', subathon_min: 5 },
   resub: { user: 'Silkly_Fan', months: 7, message: '¡7 meses ya! Me encanta este canal 🕷️', subathon_min: 5 },
-  gift: { user: 'Silkly_Fan', count: 5, subathon_min: 25 }, bits: { user: 'Silkly_Fan', amount: 500, message: '¡Toma bits! 💎', subathon_min: 5 },
+  gift: { user: 'Silkly_Fan', count: 1, recipient: 'Viewer_Suertudo', subathon_min: 5 }, bits: { user: 'Silkly_Fan', amount: 500, message: '¡Toma bits! 💎', subathon_min: 5 },
   raid: { user: 'Silkly_Fan', viewers: 42, subathon_min: 4 }, tip: { user: 'Silkly_Fan', amount: 5, currency: 'USD', message: '¡Una propina de prueba! 💸', subathon_min: 5 },
 };
 app.post('/api/alert-box/test', requireAuth, async (req, res) => {
@@ -1921,53 +1921,101 @@ function seText(text, ev) {
   let t = String(text)
     .replace(/\{currency\}\s*/gi, '')                       // la cantidad de Muffet ya trae el símbolo de la moneda
     .replace(/[:\-–—]?\s*\{message\}/gi, '')                // el mensaje del viewer Muffet lo muestra aparte
-    .replace(/\{(name|username|user|sender|displayname)\}/gi, '{usuario}')
+    .replace(/\{sender\}/gi, '{usuario}')
+    .replace(/\{(name|username|user|displayname)\}/gi, ev === 'gift' && /\{sender\}/i.test(text) ? '{destinatario}' : '{usuario}')
     .replace(/\{amount\}/gi, amount)
     .replace(/\{(count|gifts|giftcount)\}/gi, '{cantidad}')
     .replace(/\{months\}/gi, '{meses}')
     .replace(/\{tier\}/gi, '{nivel}')
     .replace(/\{(viewers|raiders)\}/gi, '{viewers}');
-  const unknown = (t.match(/\{(?!usuario\}|cantidad\}|meses\}|viewers\}|nivel\})[a-z_]+\}/gi) || []);
-  t = t.replace(/\{(?!usuario\}|cantidad\}|meses\}|viewers\}|nivel\})[a-z_]+\}/gi, '').replace(/\s{2,}/g, ' ').trim();
+  const unknown = (t.match(/\{(?!usuario\}|cantidad\}|meses\}|viewers\}|nivel\}|destinatario\})[a-z_]+\}/gi) || []);
+  t = t.replace(/\{(?!usuario\}|cantidad\}|meses\}|viewers\}|nivel\}|destinatario\})[a-z_]+\}/gi, '').replace(/\s{2,}/g, ' ').trim();
   return { text: t.slice(0, 150), unknown };
 }
 
-// Una alerta de StreamElements (o una variación) → diseño de Muffet
-function seMapOne(a, ev) {
+// Variables del código propio de StreamElements ({{name}}, {{amount}}…) → las de SilklyBot ({usuario}, {cantidad}…).
+// Los valores de los Fields ({{someColor}}…) se ponen directo, porque SilklyBot no tiene Fields.
+function seCodeConvert(src, ev) {
+  const fields = (src.fieldData && typeof src.fieldData === 'object') ? src.fieldData : {};
+  const amountVar = { bits: '{cantidad}', tip: '{cantidad}', gift: '{cantidad}', resub: '{meses}', raid: '{viewers}', sub: '{meses}', follow: '' }[ev] ?? '';
+  const evVars = { name: ev === 'gift' ? '{destinatario}' : '{usuario}', username: '{usuario}', sender: '{usuario}', amount: amountVar, count: '{cantidad}',
+    message: '{mensaje}', image: '{imagen}', video: '{imagen}', months: '{meses}', tier: '{nivel}', currency: '' };
+  const esc = (v) => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const unknown = new Set();
+  const conv = (str, isHtml) => String(str || '')
+    .replace(/\{\{\s*currency\s*\}\}\s*\{\{\s*amount\s*\}\}/gi, isHtml ? '{cantidad}' : '$&')
+    .replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (m, k) => {
+      if (Object.prototype.hasOwnProperty.call(fields, k)) return isHtml ? esc(fields[k]) : String(fields[k]);
+      if (isHtml && Object.prototype.hasOwnProperty.call(evVars, k.toLowerCase())) return evVars[k.toLowerCase()];
+      if (isHtml) unknown.add(k);
+      return m;
+    });
+  return { html: conv(src.html, true).slice(0, 20000), css: conv(src.css, false).slice(0, 20000), js: conv(src.js, false).slice(0, 20000), unknown: [...unknown] };
+}
+
+// Una alerta de StreamElements (o una variación) → diseño de SilklyBot
+// Forma conocida: { duration, text:{message}, graphics:{src,type,volume}, audio:{src,volume}, enableCustomCss, html, css, js, fieldData }
+// Si algo no está ahí, se busca en todo el objeto (por si StreamElements cambia cómo lo guarda).
+function seMapOne(a0, ev) {
+  const a = (a0 && typeof a0.settings === 'object') ? a0.settings : (a0 || {});
   const w = seWalk(a);
   const notes = [];
   const isAudio = (x) => SE_MEDIA_EXT[seExt(x.url)] === 'audio' || (/(sound|audio)/i.test(x.path) && !SE_MEDIA_EXT[seExt(x.url)]);
   const isVisual = (x) => ['image', 'video'].includes(SE_MEDIA_EXT[seExt(x.url)]) || (/(image|graphic|video|gif|media|animation)/i.test(x.path) && !/(sound|audio|font|css)/i.test(x.path) && !seExt(x.url).match(/^(woff2?|ttf|css|js)$/));
-  const visual = w.urls.find(isVisual), sound = w.urls.find(isAudio);
+  const visualUrl = (typeof a.graphics?.src === 'string' && a.graphics.src) || w.urls.find(isVisual)?.url || '';
+  let soundUrl = (typeof a.audio?.src === 'string' && a.audio.src) || (a.audio ? '' : (w.urls.find(isAudio)?.url || ''));
+  const soundDefault = /\/static\/alertbox\/default\./i.test(soundUrl); // el sonido de fábrica de StreamElements
+  if (soundDefault) soundUrl = '';
   const num = (re) => { const x = w.nums.find(n => re.test(n.path)); return x ? x.n : null; };
-  let volume = num(/volume/i); if (volume !== null) volume = volume <= 1 ? Math.round(volume * 100) : Math.round(volume);
-  let duration = num(/(^|\.)(duration|alertDuration|alert_duration|time)$/i); if (duration !== null && duration > 60) duration = duration / 1000;
-  const textCand = w.texts.find(x => /(message|text|title|template)/i.test(x.path) && /\{(name|username|sender)\}/i.test(x.s)) || w.texts.find(x => /\{(name|username|sender)\}/i.test(x.s)) || w.texts[0];
-  const conv = textCand ? seText(textCand.s, ev) : null;
-  if (conv?.unknown?.length) notes.push('Variables que Muffet no tiene (se quitaron): ' + conv.unknown.join(' '));
-  const vType = visual ? (SE_MEDIA_EXT[seExt(visual.url)] === 'video' ? 'video' : 'image') : 'image';
-  if (visual && !SE_MEDIA_HOST.test(new URL(visual.url).hostname)) notes.push('La imagen está en otra página y no se puede copiar');
-  if (sound && !SE_MEDIA_HOST.test(new URL(sound.url).hostname)) notes.push('El sonido está en otra página y no se puede copiar');
-  const custom = w.texts.some(x => /(html|css|js)$/i.test(x.path)) || Object.keys(a || {}).some(k => /custom/i.test(k) && a[k] === true);
-  if (custom) notes.push('Esta alerta usaba código propio de StreamElements: se importa la imagen y el sonido, pero el diseño queda con el estilo de Muffet');
-  return {
-    enabled: a?.enabled !== false && a?.active !== false,
-    text_se: textCand?.s || '', text: conv?.text || '',
-    image: visual?.url || '', image_type: vType,
-    sound_url: sound?.url || '', sound: sound ? 'archivo' : (vType === 'video' && visual ? 'video' : 'campanita'),
-    volume: volume ?? null, duration: duration ? Math.max(3, Math.min(20, Math.round(duration))) : null,
-    notes,
+  let volume = typeof a.audio?.volume === 'number' ? a.audio.volume : num(/volume/i);
+  if (volume !== null) volume = volume <= 1 ? Math.round(volume * 100) : Math.round(volume);
+  let duration = typeof a.duration === 'number' ? a.duration : num(/(^|\.)(duration|alertDuration|alert_duration)$/i);
+  if (duration !== null && duration > 120) duration = duration / 1000;
+  const msg = typeof a.text?.message === 'string' ? a.text.message : (w.texts.find(x => /(message|text|title|template)/i.test(x.path) && /\{(name|username|sender)\}/i.test(x.s)) || w.texts[0])?.s || '';
+  const conv = msg ? seText(msg, ev) : null;
+  if (conv?.unknown?.length) notes.push('Variables que SilklyBot no tiene (se quitaron): ' + conv.unknown.join(' '));
+  const vType = visualUrl ? ((a.graphics?.type === 'video' || SE_MEDIA_EXT[seExt(visualUrl)] === 'video') ? 'video' : 'image') : 'image';
+  try { if (visualUrl && !SE_MEDIA_HOST.test(new URL(visualUrl).hostname)) notes.push('La imagen está en otra página y no se puede copiar'); } catch (e) {}
+  try { if (soundUrl && !SE_MEDIA_HOST.test(new URL(soundUrl).hostname)) notes.push('El sonido está en otra página y no se puede copiar'); } catch (e) {}
+  // Sonido: el propio; si no hay, el del video (si suena) o nada si en StreamElements estaba mudo
+  const videoVol = typeof a.graphics?.volume === 'number' ? a.graphics.volume : 0;
+  let sound = soundUrl ? 'archivo' : (vType === 'video' && visualUrl && videoVol > 0 ? 'video' : (soundDefault && !(a.audio?.volume > 0) ? 'ninguno' : 'campanita'));
+  if (sound === 'video') volume = Math.round(videoVol <= 1 ? videoVol * 100 : videoVol); // el volumen que cuenta es el del video
+  const out = {
+    enabled: a.enabled !== false && a0?.enabled !== false && a.active !== false,
+    text_se: msg, text: conv?.text || '',
+    image: visualUrl, image_type: vType, sound_url: soundUrl, sound,
+    volume: volume ?? null, duration: duration ? Math.max(3, Math.min(60, Math.round(duration))) : null,
+    custom: false, notes,
   };
+  const hasCode = a.enableCustomCss === true && [a.html, a.css, a.js].some(x => typeof x === 'string' && x.trim());
+  if (hasCode) {
+    const c = seCodeConvert(a, ev);
+    Object.assign(out, { custom: true, html: c.html, css: c.css, js: c.js });
+    if (c.unknown.length) notes.push('Su código usa variables que SilklyBot no tiene: ' + c.unknown.map(k => '{{' + k + '}}').join(' '));
+  }
+  return out;
 }
 
-// Condición de una variación: número (desde X) o tipo (resub / regalo / tier)
-function seVarCond(v) {
+// Condición de una variación de StreamElements: { type: 'amount'|'gift'|'communityGift'|'tier'…, condition: 'ATLEAST'|'EXACT', requirement }
+function seVarCond(v, seKey) {
+  const type = String(v?.type || '').toLowerCase();
+  const req = Number(v?.requirement);
+  const name = String(v?.name || '').slice(0, 30);
+  if (seKey === 'subscriber') {
+    if (type === 'communitygift') return { kind: 'gift', min: Math.max(2, req || 0), name, community: true };
+    if (type === 'gift') return { kind: 'gift', min: null, name, single: true };
+    if (type === 'amount') return { kind: 'resub', min: req > 2 ? req : null, name };           // meses
+    if (type === 'tier' || /prime|tier/.test(type)) {
+      const t = String(v?.requirement ?? v?.tier ?? '').toLowerCase();
+      return { kind: 'sub', tier: /prime/.test(t + type) ? 'Prime' : /3000|3/.test(t) ? 'Tier 3' : /2000|2/.test(t) ? 'Tier 2' : 'Tier 1', name };
+    }
+  }
+  if (type === 'amount') return { kind: SE_EVENT_MAP[seKey], min: req > 0 ? req : null, name };
+  // Forma desconocida: se intenta adivinar
   const w = seWalk(v);
-  const strs = JSON.stringify(v?.condition ?? v?.conditions ?? v?.type ?? v?.requirement ?? '').toLowerCase();
-  const kind = /gift|community/.test(strs) ? 'gift' : /resub|months|streak/.test(strs) ? 'resub' : null;
-  const tier = /prime/.test(strs) ? 'Prime' : /3000|tier ?3/.test(strs) ? 'Tier 3' : /2000|tier ?2/.test(strs) ? 'Tier 2' : null;
-  const n = w.nums.find(x => /(amount|requirement|condition|min|value|count|threshold)/i.test(x.path) && !/(volume|duration|delay|size|width|height|opacity)/i.test(x.path));
-  return { kind, tier, min: n ? n.n : null, name: String(v?.name || v?.title || '').slice(0, 30) };
+  const n = w.nums.find(x => /(amount|requirement|min|value|count|threshold)/i.test(x.path) && !/(volume|duration|delay|size|width|height|opacity|chance)/i.test(x.path));
+  return { kind: SE_EVENT_MAP[seKey], min: n ? n.n : null, name, guess: true };
 }
 
 function seMapAlertBox(widget) {
@@ -1981,30 +2029,32 @@ function seMapAlertBox(widget) {
     events[ev] = { ...main, variations: [] };
     const vlist = Array.isArray(a.variations) ? a.variations : [];
     for (const v of vlist.slice(0, 12)) {
-      const c = seVarCond(v), m = seMapOne(v, c.kind || ev);
-      if (ev === 'sub' && c.kind) { // en StreamElements resubs y regalos son variaciones de la sub; en Muffet son alertas propias
-        const target = c.kind;
-        if (!events[target] || (!events[target].image && !events[target].sound_url)) { events[target] = { ...m, text: m.text || '', variations: [] }; continue; }
+      if (v?.enabled === false) { skipped.push(`${seKey}: variación "${v?.name || ''}" estaba apagada`); continue; }
+      const c = seVarCond(v, seKey);
+      const m = seMapOne(v, c.kind || ev);
+      m.enabled = true;
+      if (c.kind === 'resub' && !c.min) { events.resub = { ...m, variations: events.resub?.variations || [] }; continue; }          // resub general
+      if (c.kind === 'gift' && c.single) { events.gift = { ...m, variations: events.gift?.variations || [] }; continue; }         // regalo de 1 sub
+      if (c.kind === 'sub' && c.tier) { events.sub.variations.push({ name: c.name || c.tier, cond: c.tier, ...m }); continue; }
+      if (c.min > 0 && ['bits', 'tip', 'raid', 'gift', 'resub'].includes(c.kind)) {
+        if (!events[c.kind]) events[c.kind] = { ...(c.kind === 'gift' || c.kind === 'resub' ? events.sub : main), text: '', variations: [] };
+        events[c.kind].variations.push({ name: c.name || `Desde ${c.min}`, cond: Math.round(c.min), ...m });
+        continue;
       }
-      if (ev === 'sub' && c.tier) { events.sub.variations.push({ name: c.name || c.tier, cond: c.tier, ...m }); continue; }
-      if (['bits', 'tip', 'raid', 'gift', 'resub'].includes(c.kind || ev) && c.min > 0) {
-        const tgt = events[c.kind || ev] || events[ev];
-        tgt.variations.push({ name: c.name || `Desde ${c.min}`, cond: Math.round(c.min), ...m }); continue;
-      }
-      skipped.push(`${seKey}: variación "${c.name || 'sin nombre'}" (condición que Muffet no entiende)`);
+      skipped.push(`${seKey}: variación "${c.name || 'sin nombre'}" (condición que SilklyBot no entiende)`);
     }
-    events[ev].variations = events[ev].variations.slice(0, 5);
   }
   // Si en StreamElements la sub no tenía variación de resub/regalo, se usa la misma alerta de sub
   if (events.sub && !events.resub) events.resub = { ...events.sub, text: seText(events.sub.text_se, 'resub').text || '', variations: [] };
-  if (events.sub && !events.gift) events.gift = { ...events.sub, text: '', variations: [], enabled: events.sub.enabled };
-  // La sub nueva no tiene meses: si el texto tenía {amount} (meses) queda raro, mejor el texto de Muffet
+  if (events.sub && !events.gift) events.gift = { ...events.sub, text: '', variations: [] };
+  // La sub nueva no tiene meses: si el texto tenía {amount} (meses) queda raro, mejor el texto de SilklyBot
   if (events.sub && /\{amount\}/i.test(events.sub.text_se)) events.sub.text = '';
+  for (const ev of Object.keys(events)) events[ev].variations = (events[ev].variations || []).slice(0, 5);
   return { events, skipped };
 }
 
 // Un resumen chiquito de lo que leímos (para mejorar el traductor si algo no sale bien)
-const seRawSummary = (widget) => { try { return JSON.stringify(widget.variables || widget.settings || {}).slice(0, 40000); } catch (e) { return ''; } };
+const seRawSummary = (widget) => { try { return JSON.stringify(widget.variables || widget.settings || {}).slice(0, 150000); } catch (e) { return ''; } };
 
 const seImportLimit = new Map();
 app.post('/api/alert-box/import/se/preview', requireAuth, async (req, res) => {
@@ -2097,6 +2147,9 @@ app.post('/api/alert-box/import/se/apply', requireAuth, express.json({ limit: '3
         const m = await copy(src.sound_url);
         if (m && m.type === 'audio') { target.sound_url = m.url; target.sound = 'archivo'; } else report.push(`${label}: no se pudo copiar el sonido`);
       } else if (src.sound === 'video' && target.image_type === 'video') target.sound = 'video';
+      else if (src.sound === 'ninguno') target.sound = 'ninguno';
+      if (src.custom) { target.custom = true; target.html = String(src.html || ''); target.css = String(src.css || ''); target.js = String(src.js || ''); }
+      else if (src.custom === false && target.custom) target.custom = false;
     };
     let n = 0;
     for (const ev of ALERT_EVENTS) {
