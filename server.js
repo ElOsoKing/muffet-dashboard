@@ -159,6 +159,27 @@ function ttlCache(key, ttlMs, fn) {
   return promise;
 }
 
+// ══════════════════════════════════════════
+//  PLANES: qué tiene el plan gratis y qué el Pro
+//  Los límites se aplican al USAR (no al guardar): si un Pro vence, su configuración queda guardada
+//  y vuelve completa cuando renueva. (Los mismos números están en dashboard.html → PLAN_LIMITS)
+// ══════════════════════════════════════════
+const PLAN_LIMITS = {
+  free: { music_queue: 10, music_per_user: 1, music_max_min: 6, media_alerts: 5, ab_variations: 2, upload_bytes: 10 * 1024 * 1024, storage_bytes: 100 * 1024 * 1024, commands: 15 },
+  pro:  { music_queue: 50, music_per_user: 10, music_max_min: 180, media_alerts: 20, ab_variations: 5, upload_bytes: 15 * 1024 * 1024, storage_bytes: 1024 * 1024 * 1024, commands: 50 },
+};
+const AB_FREE_STYLES = ['tarjeta', 'neon', 'limpio', 'telarana'];
+const TICKER_FREE_STYLES = ['rotar', 'barra'];
+const isProPlan = (p) => p === 'pro' || p === 'admin';
+const limitsFor = (plan) => PLAN_LIMITS[isProPlan(plan) ? 'pro' : 'free'];
+// Plan de un canal por nombre (caché de 1 min; los overlays preguntan seguido)
+const planOf = (channel) => ttlCache('plan:' + String(channel || '').toLowerCase(), 60000, async () => {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(String(channel || '').toLowerCase())}&select=plan&limit=1`, { headers: sbHeaders });
+  const rows = await r.json();
+  return (Array.isArray(rows) && rows[0]?.plan) || 'free';
+});
+const channelIsPro = async (channel) => isProPlan(await planOf(channel).catch(() => 'free'));
+
 async function sbInsert(table, row) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
     method: 'POST',
@@ -821,6 +842,7 @@ app.post('/api/admin/plan/:id', requireAdmin, async (req, res) => {
     if (plan === 'pro' && expires_at) update.plan_expires_at = expires_at;
     if (plan === 'free') { update.plan_expires_at = null; update.lemon_subscription_id = null; }
     const r = await patchStreamerReturning(id, update);
+    if (r?.name) _ttlCache.delete('plan:' + String(r.name).toLowerCase());
     adminLog(req, plan === 'pro' ? 'activar Pro' : 'bajar a Free', r.name, plan === 'pro' && expires_at ? `hasta ${String(expires_at).slice(0, 10)}` : null);
     res.json({ success: true });
   } catch (err) {
@@ -982,7 +1004,10 @@ app.post('/api/commands', requireAuth, async (req, res) => {
   try {
     const { commands } = req.body;
     if (!isValidObject(commands)) return res.status(400).json({ error: 'Comandos inválidos' });
-    if (Object.keys(commands).length > 50) return res.status(400).json({ error: 'Máximo 50 comandos' });
+    // Si bajó de Pro con más comandos de los que permite el gratis, puede seguir editándolos, pero no agregar más
+    const cur = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'plan,commands');
+    const cmdMax = limitsFor(cur?.plan).commands, nNew = Object.keys(commands).length;
+    if (nNew > cmdMax && nNew > Object.keys(cur?.commands || {}).length) return res.status(400).json({ error: cmdMax < PLAN_LIMITS.pro.commands ? `El plan gratis permite hasta ${cmdMax} comandos — con Pro tienes hasta ${PLAN_LIMITS.pro.commands}` : `Máximo ${cmdMax} comandos` });
     // Palabras sueltas (sin "!"): solo letras, números, emojis y espacios — así no rompen la página ni chocan con nada
     const PLAIN_TRIGGER = /^[\p{L}\p{N}\p{Extended_Pictographic} _-]{1,30}$/u;
     for (const [key, val] of Object.entries(commands)) {
@@ -1423,6 +1448,26 @@ async function ensureAlertsBucket() {
   alertsBucketReady = true;
 }
 
+// Cuánto espacio usa un canal en el bucket de alertas (null si no se pudo saber: entonces no se bloquea)
+async function alertsStorageUsed(channel) {
+  try {
+    let total = 0, offset = 0;
+    for (let i = 0; i < 10; i++) {
+      const r = await fetch(`${SUPABASE_URL}/storage/v1/object/list/alerts`, {
+        method: 'POST', headers: { ...sbHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefix: `${channel}/`, limit: 1000, offset }),
+      });
+      if (!r.ok) return null;
+      const items = await r.json();
+      if (!Array.isArray(items)) return null;
+      for (const it of items) total += Number(it?.metadata?.size) || 0;
+      if (items.length < 1000) break;
+      offset += 1000;
+    }
+    return total;
+  } catch (e) { return null; }
+}
+
 app.post('/api/media-alerts/upload', requireAuth, express.json({ limit: '21mb' }), async (req, res) => {
   try {
     const { filename, mime, data } = req.body;
@@ -1430,11 +1475,18 @@ app.post('/api/media-alerts/upload', requireAuth, express.json({ limit: '21mb' }
     const ext = MEDIA_ALERT_TYPES[mime];
     if (!ext) return res.status(400).json({ error: 'Formato no soportado — usa MP3, OGG, WAV, MP4, WebM, PNG, GIF, WebP o JPG' });
     const buffer = Buffer.from(data, 'base64');
-    if (buffer.length > MEDIA_ALERT_MAX_BYTES) return res.status(400).json({ error: 'El archivo supera los 15MB' });
+    const channelName = req.session.user.username?.toLowerCase() || req.session.user.id;
+    const pro = await channelIsPro(channelName);
+    const lim = PLAN_LIMITS[pro ? 'pro' : 'free'];
+    const mb = (b) => Math.round(b / 1024 / 1024);
+    if (buffer.length > Math.min(MEDIA_ALERT_MAX_BYTES, lim.upload_bytes)) return res.status(400).json({ error: pro ? `El archivo supera los ${mb(lim.upload_bytes)}MB` : `El plan gratis permite archivos de hasta ${mb(lim.upload_bytes)}MB — con Pro hasta ${mb(PLAN_LIMITS.pro.upload_bytes)}MB` });
     if (mime.startsWith('image/') && buffer.length > MEDIA_IMAGE_MAX_BYTES) return res.status(400).json({ error: 'La imagen supera los 5MB' });
 
     await ensureAlertsBucket();
-    const channelName = req.session.user.username?.toLowerCase() || req.session.user.id;
+    const used = await alertsStorageUsed(channelName);
+    if (used !== null && used + buffer.length > lim.storage_bytes) {
+      return res.status(400).json({ error: `Te quedaste sin espacio (${mb(used)} de ${mb(lim.storage_bytes)}MB). Borra archivos que no uses${pro ? '' : ` o pásate a Pro para tener ${mb(PLAN_LIMITS.pro.storage_bytes) / 1024}GB`}` });
+    }
     const safeName = `${Date.now()}_${filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`.slice(0, 80);
     const path = `${channelName}/${safeName}`;
 
@@ -1459,6 +1511,12 @@ app.post('/api/media-alerts', requireAuth, async (req, res) => {
     if (!isValidObject(media_alerts)) return res.status(400).json({ error: 'Inválido' });
     if (Array.isArray(media_alerts.alerts) && media_alerts.alerts.length > 20) {
       return res.status(400).json({ error: 'Máximo 20 alertas por canal' });
+    }
+    // Plan gratis: hasta 5 (si bajó de Pro con más, puede editarlas pero no agregar; solo suenan las primeras 5)
+    const cur = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'plan,media_alerts');
+    const maMax = limitsFor(cur?.plan).media_alerts, nNew = (media_alerts.alerts || []).length;
+    if (nNew > maMax && nNew > (cur?.media_alerts?.alerts || []).length) {
+      return res.status(400).json({ error: `El plan gratis permite ${maMax} alertas multimedia — con Pro tienes hasta ${PLAN_LIMITS.pro.media_alerts}` });
     }
     await sbUpdate('streamers', { media_alerts }, { twitch_id: req.session.user.id });
     res.json({ success: true });
@@ -1617,9 +1675,9 @@ async function googleTTS(text, lang) {
 }
 let lastAzureError = '';
 // voice = voz de Azure (si está configurado); lang = idioma de la voz básica (o 'random' = uno distinto cada vez)
-async function makeTTS(text, voice, lang) {
+async function makeTTS(text, voice, lang, { premium = true } = {}) {
   voice = TTS_VOICES[voice] ? voice : TTS_DEFAULT_VOICE;
-  if (azureReady() && lang !== 'random' && (!lang || lang === 'es')) {
+  if (premium && azureReady() && lang !== 'random' && (!lang || lang === 'es')) {
     try { return { audio: await azureTTS(text, voice), engine: 'azure' }; }
     catch (e) { console.error('[tts] Azure falló, uso Google:', e.message); lastAzureError = e.message; }
   }
@@ -1656,8 +1714,9 @@ app.post('/api/tts/preview', requireAuth, async (req, res) => {
     if (Date.now() - (ttsTestLimit.get(uid) || 0) < 2500) return res.status(429).json({ error: 'Espera un segundo…' });
     ttsTestLimit.set(uid, Date.now());
     const text = cleanTTSText(req.body?.text || '¡Hola! Así sueno cuando leo los mensajes de tu chat.', []) || 'Hola';
-    const { audio, engine } = await makeTTS(text, req.body?.voice, req.body?.lang);
-    res.set({ 'Content-Type': 'audio/mpeg', 'X-TTS-Engine': engine, 'X-TTS-Error': engine === 'google' && azureReady() ? encodeURIComponent(lastAzureError.slice(0, 120)) : '', 'Cache-Control': 'no-store' });
+    const premium = await channelIsPro(req.session.user.username);
+    const { audio, engine } = await makeTTS(text, req.body?.voice, req.body?.lang, { premium });
+    res.set({ 'Content-Type': 'audio/mpeg', 'X-TTS-Engine': engine, 'X-TTS-Error': engine === 'google' && azureReady() && premium ? encodeURIComponent(lastAzureError.slice(0, 120)) : '', 'Cache-Control': 'no-store' });
     res.send(audio);
   } catch (e) { res.status(502).json({ error: 'No se pudo generar la voz ahora. Intenta en un rato.' }); }
 });
@@ -1693,10 +1752,14 @@ async function sendBoxAlert(channel, d, { force = false, variation = null } = {}
   if (!force && !box?.enabled) return null;
   const base = cleanAlertBox(box || { enabled: true }, channel).events[d.event];
   if (!force && !base.enabled) return null; // propina sin marcar: sale la tarjeta clásica de propina
+  // Plan gratis: 2 variaciones por alerta y los estilos básicos (lo demás queda guardado para cuando sea Pro)
+  const pro = await channelIsPro(channel);
+  if (!pro) base.variations = (base.variations || []).slice(0, PLAN_LIMITS.free.ab_variations);
   // La variación reemplaza solo el diseño (texto, imagen, sonido...); mínimos y avisos son de la alerta principal
   const v = variation !== null ? (base.variations || [])[variation] || null : pickVariation(base, d);
   const cfg = { ...base, variations: undefined };
   if (v) for (const k of AB_DESIGN_KEYS) cfg[k] = v[k];
+  if (!pro && !AB_FREE_STYLES.includes(cfg.style)) cfg.style = 'tarjeta';
   const amount = Number(d.amount) || 0, viewers = parseInt(d.viewers) || 0;
   if (!force && cfg.min > 0 && ((d.event === 'bits' && amount < cfg.min) || (d.event === 'tip' && amount < cfg.min) || (d.event === 'raid' && viewers < cfg.min))) return false;
 
@@ -1720,7 +1783,7 @@ async function sendBoxAlert(channel, d, { force = false, variation = null } = {}
   if (base.tts && ttsText && ttsAmountOk) {
     try {
       const say = ttsCfg.say_name && d.user ? `${clip(d.user, 30)} dice: ${ttsText}` : ttsText;
-      const { audio } = await Promise.race([makeTTS(say, ttsCfg.voice, ttsCfg.lang), new Promise((_, rej) => setTimeout(() => rej(new Error('lento')), 12000))]);
+      const { audio } = await Promise.race([makeTTS(say, ttsCfg.voice, ttsCfg.lang, { premium: pro }), new Promise((_, rej) => setTimeout(() => rej(new Error('lento')), 12000))]);
       tts_url = `/api/tts/${storeTTS(audio)}`; tts_volume = ttsCfg.volume;
     } catch (e) { console.error('[tts]', e.message); } // sin voz, la alerta sale igual
   }
@@ -1729,7 +1792,7 @@ async function sendBoxAlert(channel, d, { force = false, variation = null } = {}
     user: clip(d.user || 'Anónimo', 30), amount, currency: clip(d.currency, 3), viewers,
     months: parseInt(d.months) || 0, count: parseInt(d.count) || 0, tier: clip(d.tier, 10), recipient: clip(d.recipient, 30),
     message: cfg.show_message ? clip(d.message, 200) : '',
-    chips: chips.filter(Boolean),
+    chips: chips.filter(Boolean), brand: !pro,
   });
 }
 
@@ -1743,7 +1806,7 @@ async function tipAlertFor(channel, tip, { test = false } = {}) {
   if (sc?.enabled) { const unit = Number(sc.tip_unit) > 0 ? Number(sc.tip_unit) : 1; subathon_min = Math.floor(Number(tip.amount) / unit) * (Number(sc.minutes_per_tip_unit ?? 1) || 0); }
   const sent = await sendBoxAlert(channel, { event: 'tip', user: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message, subathon_min }).catch(() => null);
   if (sent !== null) return sent;
-  return pushMediaAlert(channel, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
+  return pushMediaAlert(channel, { type: 'tip', name: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message, brand: !(await channelIsPro(channel)) });
 }
 
 
@@ -1827,6 +1890,16 @@ app.get('/api/recent/:username', async (req, res) => {
   } catch (e) { res.json({}); }
 });
 app.get('/overlay/ultimos/:username', (req, res) => res.sendFile(path.join(__dirname, 'ticker-overlay.html')));
+
+// Marca "SilklyBot" en los overlays del plan gratis (brand.js la pone; Pro no la lleva)
+app.get('/api/brand/:username', async (req, res) => {
+  const u = String(req.params.username || '').toLowerCase();
+  if (!/^[a-z0-9_]{3,25}$/.test(u)) return res.json({ brand: false, pro: false });
+  const pro = await channelIsPro(u);
+  res.set('Cache-Control', 'no-store');
+  res.json({ brand: !pro, pro });
+});
+app.get('/brand.js', (req, res) => { res.set('Cache-Control', 'public, max-age=300'); res.sendFile(path.join(__dirname, 'brand.js')); });
 
 // El bot avisa aquí de subs, resubs, regalos, bits y raids (ya filtró el chat compartido)
 app.post('/api/internal/alert', (req, res) => {
@@ -2661,9 +2734,10 @@ async function handleRewardRedemption(event) {
   if (mediaAlerts.enabled !== false && Array.isArray(mediaAlerts.alerts)) {
     const matched = mediaAlerts.alerts.find(a => a.reward_id === rewardId && a.media_url);
     if (matched) {
-      const isProMedia = streamer.plan === 'pro' || streamer.plan === 'admin';
+      // Plan gratis: suenan las primeras 5 alertas de la lista; las demás son de Pro
+      const allowedMedia = isProPlan(streamer.plan) || mediaAlerts.alerts.indexOf(matched) < PLAN_LIMITS.free.media_alerts;
       let delivered = false;
-      if (isProMedia) {
+      if (allowedMedia) {
         delivered = pushMediaAlert(channelName, { type: 'alert', media_url: matched.media_url, media_type: matched.media_type || 'audio', volume: matched.volume ?? 80, redeemer: username });
         console.log(`[media-alerts] ${username} disparó "${matched.name || 'alerta'}" en #${channelName}`);
       }
@@ -2932,7 +3006,7 @@ app.get('/overlay/spotify/:username', async (req, res) => {
       const data = await result.json();
       return data?.[0]?.plan || null;
     });
-    if (plan !== 'pro' && plan !== 'admin') return proOnlyPage(res);
+    if (!plan) return res.status(404).send('Canal no encontrado');
     res.sendFile(path.join(__dirname, 'spotify-overlay.html'));
   } catch(err) { res.status(500).send('Error'); }
 });
@@ -4037,6 +4111,7 @@ app.get('/api/youtube/playlist', async (req, res) => {
     const url = ycfg.playlist_url || '';
     const m = url.match(/[?&]list=([A-Za-z0-9_-]+)/);
     if (!m) return note({ ok: false, error: 'sinplaylist' });
+    if (!(await channelIsPro(channel))) return note({ ok: false, error: 'pro' }); // la playlist base es de Pro
     const listId = m[1];
     if (/^(RDMM|LM|WL)/.test(listId)) return note({ ok: false, error: 'mix' });
     if (/^RD/.test(listId)) {
@@ -4089,7 +4164,11 @@ app.get('/overlay/youtube/:username', (req, res) => {
 app.get('/api/youtube/config', async (req, res) => {
   const channel = req.query.channel?.toLowerCase();
   if (!channel) return res.json({ config: {} });
-  try { res.json({ config: await ytReadConfig(channel) }); } catch(e) { res.json({ config: {} }); }
+  try {
+    const config = { ...(await ytReadConfig(channel)) };
+    if (!(await channelIsPro(channel))) config.playlist_url = ''; // la playlist base es de Pro
+    res.json({ config });
+  } catch(e) { res.json({ config: {} }); }
 });
 
 app.get('/api/youtube/queue', async (req, res) => {
