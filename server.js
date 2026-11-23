@@ -228,6 +228,94 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// ══════════════════════════════════════════
+//  INVITACIONES: silklybot.com/r/<canal>. Quien se registra con el link gana REF_DAYS de Pro (como prueba)
+//  y quien invitó también (hasta REF_MAX_REWARDS veces). Se anota en feature_flags.referred_by / .referrals
+// ══════════════════════════════════════════
+const REF_DAYS = 14, REF_MAX_REWARDS = 12;
+app.get('/r/:user', async (req, res) => {
+  const u = String(req.params.user || '').toLowerCase();
+  if (/^[a-z0-9_]{3,25}$/.test(u)) {
+    const ok = await sbSelect('streamers', { twitch_username: u, approved: true }, 'twitch_username').catch(() => null);
+    if (ok) { req.session.ref = u; return req.session.save(() => res.redirect('/?invitado=' + encodeURIComponent(u))); }
+  }
+  res.redirect('/');
+});
+async function applyReferral(newRow, refName) {
+  refName = String(refName || '').toLowerCase();
+  if (!refName || refName === String(newRow.twitch_username).toLowerCase()) return null;
+  const ref = await sbSelect('streamers', { twitch_username: refName }, 'id,twitch_username,role,plan,plan_expires_at,feature_flags,lemon_subscription_id');
+  if (!ref || ref.role === 'blocked' || ref.role === 'pending') return null;
+  const now = Date.now(), DAY = 86400000;
+  // El nuevo: Pro por REF_DAYS (cuenta como su prueba, así no la usa dos veces)
+  const ends = new Date(now + REF_DAYS * DAY).toISOString();
+  await sbUpdate('streamers', { plan: 'pro', plan_expires_at: ends, feature_flags: { ...(newRow.feature_flags || {}), referred_by: ref.twitch_username, trial: { started_at: new Date(now).toISOString(), ends_at: ends, via: 'ref' } } }, { id: newRow.id });
+  // Quien invitó: +REF_DAYS de Pro (si no es Pro permanente o admin), como mucho REF_MAX_REWARDS veces
+  const flags = { ...(ref.feature_flags || {}) };
+  const list = Array.isArray(flags.referrals) ? flags.referrals : [];
+  const rewarded = list.filter(r => r.rewarded).length < REF_MAX_REWARDS;
+  const upd = {};
+  if (rewarded && ref.plan !== 'admin' && !(ref.plan === 'pro' && !ref.plan_expires_at)) {
+    const base = effectivePlan(ref) === 'pro' && ref.plan_expires_at ? Math.max(now, Date.parse(ref.plan_expires_at)) : now;
+    upd.plan = 'pro'; upd.plan_expires_at = new Date(base + REF_DAYS * DAY).toISOString();
+  }
+  flags.referrals = [...list, { user: String(newRow.twitch_username).toLowerCase(), ts: new Date(now).toISOString(), rewarded }].slice(-200);
+  await sbUpdate('streamers', { ...upd, feature_flags: flags }, { id: ref.id });
+  _ttlCache.delete('plan:' + ref.twitch_username); _ttlCache.delete('plan:' + String(newRow.twitch_username).toLowerCase());
+  console.log(`[ref] 🤝 ${newRow.twitch_username} llegó invitado por ${ref.twitch_username}${upd.plan_expires_at ? ` (+${REF_DAYS} días Pro hasta ${upd.plan_expires_at})` : ''}`);
+  return ref.twitch_username;
+}
+app.get('/api/referrals', requireAuth, async (req, res) => {
+  try {
+    const row = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'twitch_username,feature_flags');
+    const list = Array.isArray(row?.feature_flags?.referrals) ? row.feature_flags.referrals : [];
+    const base = (process.env.BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+    res.json({ link: `${base}/r/${row?.twitch_username || req.session.user.username}`, days: REF_DAYS, max: REF_MAX_REWARDS,
+      count: list.length, rewarded: list.filter(r => r.rewarded).length, list: list.slice(-20).reverse(), referred_by: row?.feature_flags?.referred_by || null });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════
+//  VITRINA: "Canales que usan SilklyBot" en la página principal (foto, nombre y si está en vivo)
+//  Sale cualquier canal activo, salvo que lo apague en su dashboard (feature_flags.showcase = false)
+// ══════════════════════════════════════════
+const appTokenCached = () => ttlCache('twitch-app-token', 3 * 3600 * 1000, getTwitchAppToken);
+app.get('/api/showcase', async (req, res) => {
+  try {
+    const data = await ttlCache('showcase', 5 * 60 * 1000, async () => {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?approved=eq.true&role=neq.blocked&select=twitch_username,feature_flags,bot_status&limit=500`, { headers: sbHeaders });
+      const rows = (await r.json().catch(() => [])) || [];
+      const cutoff = Date.now() - 45 * 86400000; // con actividad en el chat en los últimos 45 días
+      const logins = (Array.isArray(rows) ? rows : [])
+        .filter(s => s.feature_flags?.showcase !== false && s.bot_status?.last_chat_at && Date.parse(s.bot_status.last_chat_at) > cutoff)
+        .map(s => s.twitch_username.toLowerCase()).slice(0, 100);
+      if (!logins.length) return { channels: [] };
+      const tok = await appTokenCached();
+      const H = { Authorization: `Bearer ${tok}`, 'Client-Id': TWITCH_CLIENT_ID };
+      const q = logins.map(l => 'login=' + encodeURIComponent(l)).join('&');
+      const [users, streams] = await Promise.all([
+        fetch(`https://api.twitch.tv/helix/users?${q}`, { headers: H, signal: AbortSignal.timeout(8000) }).then(x => x.json()).catch(() => ({})),
+        fetch(`https://api.twitch.tv/helix/streams?${q.replace(/login=/g, 'user_login=')}&first=100`, { headers: H, signal: AbortSignal.timeout(8000) }).then(x => x.json()).catch(() => ({})),
+      ]);
+      const live = new Set((streams.data || []).map(s => String(s.user_login).toLowerCase()));
+      const channels = (users.data || []).map(u => ({ login: u.login, name: u.display_name, avatar: u.profile_image_url, live: live.has(String(u.login).toLowerCase()) }))
+        .sort((a, b) => (b.live - a.live) || a.name.localeCompare(b.name));
+      return { channels };
+    });
+    res.set('Cache-Control', 'public, max-age=120');
+    res.json(data);
+  } catch (e) { res.json({ channels: [] }); }
+});
+app.post('/api/showcase-optin', requireAuth, async (req, res) => {
+  try {
+    const row = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'feature_flags');
+    const flags = { ...(row?.feature_flags || {}), showcase: req.body?.show !== false };
+    await sbUpdate('streamers', { feature_flags: flags }, { twitch_id: req.session.user.id });
+    _ttlCache.delete('showcase');
+    res.json({ success: true, show: flags.showcase });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/login', (req, res) => {
   if (req.session.user) return res.redirect('/dashboard');
   res.sendFile(path.join(__dirname, 'login.html'));
@@ -467,6 +555,10 @@ app.get('/auth/twitch/callback', async (req, res) => {
         approved: true,
       });
 
+      // ¿Llegó con link de invitación? Los dos ganan días de Pro
+      const refBy = !isAdmin && streamer?.id ? await applyReferral(streamer, req.session.ref).catch(e => { console.error('[ref]', e.message); return null; }) : null;
+      delete req.session.ref;
+
       // Notificar nuevo registro en Discord
       if (!isAdmin && process.env.DISCORD_WEBHOOK_URL) {
         fetch(process.env.DISCORD_WEBHOOK_URL, {
@@ -479,7 +571,7 @@ app.get('/auth/twitch/callback', async (req, res) => {
               color: 0x9147ff,
               fields: [
                 { name: 'Canal', value: `[twitch.tv/${twitchUser.login}](https://twitch.tv/${twitchUser.login})`, inline: true },
-                { name: 'Plan', value: '🆓 Free', inline: true },
+                { name: 'Plan', value: refBy ? `🎁 Pro ${REF_DAYS} días (invitado por ${refBy})` : '🆓 Free', inline: true },
               ],
               thumbnail: { url: twitchUser.profile_image_url },
               timestamp: new Date().toISOString(),
@@ -489,7 +581,10 @@ app.get('/auth/twitch/callback', async (req, res) => {
         }).catch(e => console.error('[Discord webhook]', e.message));
       }
     } else {
-      await sbUpdate('streamers', { access_token: tokenData.access_token, refresh_token: tokenData.refresh_token }, { twitch_id: twitchUser.id });
+      const upd = { access_token: tokenData.access_token, refresh_token: tokenData.refresh_token };
+      // Ya no hay aprobación manual: las cuentas viejas que quedaron "pendientes" entran directo (las bloqueadas no)
+      if (streamer.role === 'pending') { upd.role = 'streamer'; upd.approved = true; streamer.role = 'streamer'; streamer.approved = true; }
+      await sbUpdate('streamers', upd, { twitch_id: twitchUser.id });
     }
 
     if (!streamer?.id) { console.error('Streamer null'); return res.redirect('/?error=auth'); }
@@ -860,7 +955,7 @@ app.post('/api/admin/flags/:id', requireAdmin, async (req, res) => {
     if (!f || typeof f !== 'object') return res.status(400).json({ error: 'Inválido' });
     const prevFlags = (await sbSelect('streamers', { id: req.params.id }, 'feature_flags').catch(() => null))?.feature_flags || {};
     const flags = {
-      ...(prevFlags.trial ? { trial: prevFlags.trial } : {}), // la prueba de Pro no se toca desde aquí
+      ...prevFlags, // prueba, invitaciones, vitrina… no se tocan desde aquí
       dbdle: f.dbdle !== false,
       themes: Array.isArray(f.themes) ? f.themes.filter(t => FLAG_THEMES.includes(t)) : []
     };
