@@ -120,6 +120,18 @@ h1 .grad{background:linear-gradient(135deg,#ffffff 20%,var(--purple-light) 60%,v
 /* TESTIMONIOS */
 .testi-section{padding:100px 24px;background:var(--bg2);border-top:1px solid rgba(255,255,255,0.04);}
 .testi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:1100px;margin:56px auto 0;}
+.invite-banner{display:none;margin:0 auto 18px;max-width:560px;background:linear-gradient(135deg,rgba(240,192,96,0.14),rgba(145,71,255,0.12));border:1px solid rgba(240,192,96,0.35);border-radius:14px;padding:12px 18px;font-size:14px;color:var(--text);line-height:1.5;}
+.invite-banner b{color:var(--yellow);}
+.showcase{max-width:1100px;margin:44px auto 0;text-align:center;}
+.showcase-title{font-size:15px;font-weight:700;color:var(--text-dim);margin-bottom:16px;}
+.showcase-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:14px;}
+.sc-item{display:flex;flex-direction:column;align-items:center;gap:6px;width:86px;text-decoration:none;color:var(--text);}
+.sc-av{position:relative;width:60px;height:60px;border-radius:50%;border:2px solid rgba(145,71,255,0.35);overflow:visible;}
+.sc-av img{width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;}
+.sc-item.live .sc-av{border-color:#ff4d6d;box-shadow:0 0 0 3px rgba(255,77,109,0.18);}
+.sc-live{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#ff2d55;color:#fff;font-size:9px;font-weight:800;padding:1px 6px;border-radius:6px;letter-spacing:.4px;}
+.sc-name{font-size:11px;color:var(--text-dim);max-width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sc-item:hover .sc-name{color:var(--text);}
 .tcard{background:var(--bg3);border:1px solid rgba(255,255,255,0.05);border-radius:var(--radius);padding:24px;transition:border-color 0.2s;}
 .tcard:hover{border-color:var(--purple-border);}
 .tcard-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
@@ -177,6 +189,7 @@ footer{padding:40px 32px;border-top:1px solid rgba(255,255,255,0.05);display:fle
   <div class="hero-bg"></div>
   <div class="hero-grid"></div>
   <div class="hero-inner">
+    <div class="invite-banner" id="inviteBanner">🎁 <b translate="no" id="inviteName"></b> te invitó: regístrate y tienes <b>14 días de Pro gratis</b> ⭐</div>
     <div class="hero-badge"><span class="hero-badge-dot"></span>🕷️ El bot de Twitch con personalidad</div>
     <h1><span class="grad">Tu bot de Twitch<br>con alma propia</span></h1>
     <p class="hero-desc">Muffet aprende tu estilo, anima tu chat y nunca se pierde un momento. IA, sorteos, música con Spotify, puntos y mucho más — todo desde un dashboard.</p>
@@ -421,6 +434,10 @@ footer{padding:40px 32px;border-top:1px solid rgba(255,255,255,0.05);display:fle
       <div class="tquote">"MeruBot_ llena de energía cada stream con su personalidad única. Los viewers la adoran."</div>
     </div>
   </div>
+  <div class="showcase" id="showcase" style="display:none;">
+    <div class="showcase-title">🕷️ Canales que usan SilklyBot</div>
+    <div class="showcase-grid" id="showcaseGrid"></div>
+  </div>
 </section>
 
 <!-- CTA FINAL -->
@@ -448,5 +465,23 @@ footer{padding:40px 32px;border-top:1px solid rgba(255,255,255,0.05);display:fle
   <div class="footer-copy">© 2026 SilklyBot — Hecho con 🕷️</div>
 </footer>
 
+<script>
+// Llegó con link de invitación (/r/<canal>)
+(function () {
+  const inv = new URLSearchParams(location.search).get('invitado');
+  if (inv && /^[a-z0-9_]{3,25}$/i.test(inv)) { document.getElementById('inviteName').textContent = inv; document.getElementById('inviteBanner').style.display = 'block'; }
+})();
+// Vitrina: canales que usan SilklyBot (los que están en vivo primero)
+fetch('/api/showcase').then(r => r.json()).then(d => {
+  const list = (d && d.channels) || [];
+  if (list.length < 3) return; // con muy pocos no luce
+  const esc = v => String(v || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  document.getElementById('showcaseGrid').innerHTML = list.slice(0, 40).map(c =>
+    `<a class="sc-item ${c.live ? 'live' : ''}" href="https://twitch.tv/${esc(c.login)}" target="_blank" rel="noopener" title="${esc(c.name)}${c.live ? ' — en vivo' : ''}">
+      <div class="sc-av"><img src="${esc(c.avatar)}" alt="" loading="lazy">${c.live ? '<span class="sc-live">EN VIVO</span>' : ''}</div>
+      <div class="sc-name" translate="no">${esc(c.name)}</div></a>`).join('');
+  document.getElementById('showcase').style.display = 'block';
+}).catch(() => {});
+</script>
 </body>
 </html>
