@@ -232,7 +232,11 @@ app.get('/', (req, res) => {
 //  INVITACIONES: silklybot.com/r/<canal>. Quien se registra con el link gana REF_DAYS de Pro (como prueba)
 //  y quien invitó también (hasta REF_MAX_REWARDS veces). Se anota en feature_flags.referred_by / .referrals
 // ══════════════════════════════════════════
-const REF_DAYS = 14, REF_MAX_REWARDS = 12;
+const REF_DAYS = 14, REF_MAX_REWARDS = 12, REF_MIN_ACCOUNT_DAYS = 30;
+// Contra cuentas falsas: el invitado gana sus días al registrarse, pero quien invitó gana los suyos solo cuando
+// el invitado hace su PRIMER STREAM con el bot dentro de su chat y encendido, y su cuenta de Twitch tiene al menos REF_MIN_ACCOUNT_DAYS días.
+// Estado en el invitado: feature_flags.ref_status = 'pending' (esperando stream) | 'young' (cuenta nueva: no cuenta)
+//                        | 'paid' (premio dado) | 'cap' (quien invitó ya llegó al tope)
 app.get('/r/:user', async (req, res) => {
   const u = String(req.params.user || '').toLowerCase();
   if (/^[a-z0-9_]{3,25}$/.test(u)) {
@@ -241,37 +245,76 @@ app.get('/r/:user', async (req, res) => {
   }
   res.redirect('/');
 });
-async function applyReferral(newRow, refName) {
+async function applyReferral(newRow, refName, accountCreatedAt) {
   refName = String(refName || '').toLowerCase();
   if (!refName || refName === String(newRow.twitch_username).toLowerCase()) return null;
   const ref = await sbSelect('streamers', { twitch_username: refName }, 'id,twitch_username,role,plan,plan_expires_at,feature_flags,lemon_subscription_id');
   if (!ref || ref.role === 'blocked' || ref.role === 'pending') return null;
   const now = Date.now(), DAY = 86400000;
+  const nowIso = new Date(now).toISOString();
+  // ¿La cuenta de Twitch del invitado tiene la antigüedad mínima? (si Twitch no dijo la fecha, se deja pasar)
+  const ageDays = accountCreatedAt && !isNaN(Date.parse(accountCreatedAt)) ? (now - Date.parse(accountCreatedAt)) / DAY : Infinity;
+  const status = ageDays >= REF_MIN_ACCOUNT_DAYS ? 'pending' : 'young';
   // El nuevo: Pro por REF_DAYS (cuenta como su prueba, así no la usa dos veces)
   const ends = new Date(now + REF_DAYS * DAY).toISOString();
-  await sbUpdate('streamers', { plan: 'pro', plan_expires_at: ends, feature_flags: { ...(newRow.feature_flags || {}), referred_by: ref.twitch_username, trial: { started_at: new Date(now).toISOString(), ends_at: ends, via: 'ref' } } }, { id: newRow.id });
-  // Quien invitó: +REF_DAYS de Pro (si no es Pro permanente o admin), como mucho REF_MAX_REWARDS veces
+  await sbUpdate('streamers', { plan: 'pro', plan_expires_at: ends, feature_flags: { ...(newRow.feature_flags || {}), referred_by: ref.twitch_username, ref_status: status, ref_ts: nowIso, trial: { started_at: nowIso, ends_at: ends, via: 'ref' } } }, { id: newRow.id });
+  // Quien invitó: se anota; sus días llegan con el primer stream del invitado (payReferralRewards)
   const flags = { ...(ref.feature_flags || {}) };
   const list = Array.isArray(flags.referrals) ? flags.referrals : [];
-  const rewarded = list.filter(r => r.rewarded).length < REF_MAX_REWARDS;
-  const upd = {};
-  if (rewarded && ref.plan !== 'admin' && !(ref.plan === 'pro' && !ref.plan_expires_at)) {
-    const base = effectivePlan(ref) === 'pro' && ref.plan_expires_at ? Math.max(now, Date.parse(ref.plan_expires_at)) : now;
-    upd.plan = 'pro'; upd.plan_expires_at = new Date(base + REF_DAYS * DAY).toISOString();
-  }
-  flags.referrals = [...list, { user: String(newRow.twitch_username).toLowerCase(), ts: new Date(now).toISOString(), rewarded }].slice(-200);
-  await sbUpdate('streamers', { ...upd, feature_flags: flags }, { id: ref.id });
-  _ttlCache.delete('plan:' + ref.twitch_username); _ttlCache.delete('plan:' + String(newRow.twitch_username).toLowerCase());
-  console.log(`[ref] 🤝 ${newRow.twitch_username} llegó invitado por ${ref.twitch_username}${upd.plan_expires_at ? ` (+${REF_DAYS} días Pro hasta ${upd.plan_expires_at})` : ''}`);
+  flags.referrals = [...list, { user: String(newRow.twitch_username).toLowerCase(), ts: nowIso, rewarded: false, status }].slice(-200);
+  await sbUpdate('streamers', { feature_flags: flags }, { id: ref.id });
+  _ttlCache.delete('plan:' + String(newRow.twitch_username).toLowerCase());
+  console.log(`[ref] 🤝 ${newRow.twitch_username} llegó invitado por ${ref.twitch_username} (${status === 'young' ? `cuenta de ${Math.floor(ageDays)} días: no cuenta para el premio` : 'esperando su primer stream'})`);
   return ref.twitch_username;
 }
+// Revisa invitados pendientes: si ya hicieron stream después de registrarse, quien invitó gana sus días
+async function payReferralRewards() {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?feature_flags->>ref_status=eq.pending&select=id,twitch_username,feature_flags,live_announcement&limit=200`, { headers: sbHeaders });
+    const rows = await r.json().catch(() => []);
+    if (!Array.isArray(rows)) return;
+    const DAY = 86400000;
+    for (const inv of rows) {
+      const f = inv.feature_flags || {}, started = inv.live_announcement?.last_seen_started_at;
+      if (!started || !f.ref_ts || Date.parse(started) < Date.parse(f.ref_ts)) continue; // todavía no hizo stream desde que llegó
+      if (inv.live_announcement?.bot_in_chat !== true) continue; // hizo stream, pero sin el bot en su chat (o apagado): no cuenta
+      const name = String(inv.twitch_username).toLowerCase();
+      await withServerLock('ref:' + f.referred_by, async () => {
+        const ref = await sbSelect('streamers', { twitch_username: f.referred_by }, 'id,twitch_username,role,plan,plan_expires_at,feature_flags');
+        let outcome = 'paid';
+        if (ref && ref.role !== 'blocked') {
+          const rf = { ...(ref.feature_flags || {}) };
+          const list = Array.isArray(rf.referrals) ? rf.referrals.map(x => ({ ...x })) : [];
+          const upd = {};
+          if (list.filter(x => x.rewarded).length >= REF_MAX_REWARDS) outcome = 'cap';
+          else if (ref.plan !== 'admin' && !(ref.plan === 'pro' && !ref.plan_expires_at)) {
+            const now = Date.now();
+            const base = effectivePlan(ref) === 'pro' && ref.plan_expires_at ? Math.max(now, Date.parse(ref.plan_expires_at)) : now;
+            upd.plan = 'pro'; upd.plan_expires_at = new Date(base + REF_DAYS * DAY).toISOString();
+          }
+          const e = list.find(x => x.user === name && !x.rewarded);
+          if (e) { e.rewarded = outcome === 'paid'; e.status = outcome; e.paid_at = new Date().toISOString(); }
+          rf.referrals = list;
+          await sbUpdate('streamers', { ...upd, feature_flags: rf }, { id: ref.id });
+          _ttlCache.delete('plan:' + ref.twitch_username);
+          console.log(`[ref] ✅ ${name} hizo su primer stream → ${outcome === 'paid' ? `${ref.twitch_username} gana ${REF_DAYS} días de Pro${upd.plan_expires_at ? ' (hasta ' + upd.plan_expires_at + ')' : ' (ya tenía Pro permanente)'}` : `${ref.twitch_username} ya llegó al tope de ${REF_MAX_REWARDS}`}`);
+        }
+        await sbUpdate('streamers', { feature_flags: { ...f, ref_status: outcome } }, { id: inv.id });
+      });
+    }
+  } catch (e) { console.error('[ref] premios:', e.message); }
+}
+setTimeout(payReferralRewards, 90 * 1000);
+setInterval(payReferralRewards, 10 * 60 * 1000);
 app.get('/api/referrals', requireAuth, async (req, res) => {
   try {
     const row = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'twitch_username,feature_flags');
     const list = Array.isArray(row?.feature_flags?.referrals) ? row.feature_flags.referrals : [];
     const base = (process.env.BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
     res.json({ link: `${base}/r/${row?.twitch_username || req.session.user.username}`, days: REF_DAYS, max: REF_MAX_REWARDS,
-      count: list.length, rewarded: list.filter(r => r.rewarded).length, list: list.slice(-20).reverse(), referred_by: row?.feature_flags?.referred_by || null });
+      count: list.length, rewarded: list.filter(r => r.rewarded).length, min_account_days: REF_MIN_ACCOUNT_DAYS,
+      list: list.slice(-20).reverse().map(r => ({ user: r.user, ts: r.ts, rewarded: !!r.rewarded, status: r.status || (r.rewarded ? 'paid' : 'pending') })),
+      referred_by: row?.feature_flags?.referred_by || null });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -559,7 +602,7 @@ app.get('/auth/twitch/callback', async (req, res) => {
       });
 
       // ¿Llegó con link de invitación? Los dos ganan días de Pro
-      const refBy = !isAdmin && streamer?.id ? await applyReferral(streamer, req.session.ref).catch(e => { console.error('[ref]', e.message); return null; }) : null;
+      const refBy = !isAdmin && streamer?.id ? await applyReferral(streamer, req.session.ref, twitchUser.created_at).catch(e => { console.error('[ref]', e.message); return null; }) : null;
       delete req.session.ref;
 
       // Notificar nuevo registro en Discord
