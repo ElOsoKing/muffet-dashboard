@@ -173,10 +173,12 @@ const TICKER_FREE_STYLES = ['rotar', 'barra'];
 const isProPlan = (p) => p === 'pro' || p === 'admin';
 const limitsFor = (plan) => PLAN_LIMITS[isProPlan(plan) ? 'pro' : 'free'];
 // Plan de un canal por nombre (caché de 1 min; los overlays preguntan seguido)
+// Un Pro vencido (o una prueba terminada) cuenta como gratis aunque el bot todavía no lo haya bajado
+const effectivePlan = (row) => row?.plan === 'pro' && row.plan_expires_at && Date.parse(row.plan_expires_at) < Date.now() ? 'free' : (row?.plan || 'free');
 const planOf = (channel) => ttlCache('plan:' + String(channel || '').toLowerCase(), 60000, async () => {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(String(channel || '').toLowerCase())}&select=plan&limit=1`, { headers: sbHeaders });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(String(channel || '').toLowerCase())}&select=plan,plan_expires_at&limit=1`, { headers: sbHeaders });
   const rows = await r.json();
-  return (Array.isArray(rows) && rows[0]?.plan) || 'free';
+  return effectivePlan(Array.isArray(rows) ? rows[0] : null);
 });
 const channelIsPro = async (channel) => isProPlan(await planOf(channel).catch(() => 'free'));
 
@@ -856,7 +858,9 @@ app.post('/api/admin/flags/:id', requireAdmin, async (req, res) => {
   try {
     const f = req.body?.flags;
     if (!f || typeof f !== 'object') return res.status(400).json({ error: 'Inválido' });
+    const prevFlags = (await sbSelect('streamers', { id: req.params.id }, 'feature_flags').catch(() => null))?.feature_flags || {};
     const flags = {
+      ...(prevFlags.trial ? { trial: prevFlags.trial } : {}), // la prueba de Pro no se toca desde aquí
       dbdle: f.dbdle !== false,
       themes: Array.isArray(f.themes) ? f.themes.filter(t => FLAG_THEMES.includes(t)) : []
     };
@@ -1448,6 +1452,62 @@ async function ensureAlertsBucket() {
   alertsBucketReady = true;
 }
 
+// ══════════════════════════════════════════
+//  PRUEBA DE PRO (7 días, una sola vez por canal) y USO DEL PLAN (tarjeta "Tu plan" del dashboard)
+//  La prueba se anota en feature_flags.trial = { started_at, ends_at } y pone plan=pro con plan_expires_at.
+//  Al vencer, el bot la baja a gratis (checkExpiredPlans) y effectivePlan ya la trata como gratis antes.
+// ══════════════════════════════════════════
+const TRIAL_DAYS = 7;
+function trialInfo(row) {
+  const t = row?.feature_flags?.trial || null;
+  const plan = effectivePlan(row);
+  const active = !!(t && plan === 'pro' && row.plan_expires_at && Date.parse(row.plan_expires_at) > Date.now() && !row.lemon_subscription_id && String(row.plan_expires_at) === String(t.ends_at));
+  return {
+    days: TRIAL_DAYS,
+    used: !!t,
+    active,
+    ends_at: active ? t.ends_at : null,
+    // Puede probar: plan gratis, nunca la usó y nunca pagó
+    eligible: !t && plan === 'free' && row?.plan !== 'admin' && !row?.lemon_customer_id,
+  };
+}
+app.post('/api/trial/start', requireAuth, async (req, res) => {
+  try {
+    const row = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'twitch_username,plan,plan_expires_at,feature_flags,lemon_customer_id,lemon_subscription_id,approved');
+    if (!row) return res.status(404).json({ error: 'Canal no encontrado' });
+    if (!trialInfo(row).eligible) return res.status(400).json({ error: row?.feature_flags?.trial ? 'Ya usaste tu prueba gratis de Pro' : 'Tu canal ya tiene Pro' });
+    const now = new Date(), ends = new Date(now.getTime() + TRIAL_DAYS * 86400000);
+    const flags = { ...(row.feature_flags || {}), trial: { started_at: now.toISOString(), ends_at: ends.toISOString() } };
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_id=eq.${req.session.user.id}`, {
+      method: 'PATCH', headers: { ...sbHeaders, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ plan: 'pro', plan_expires_at: ends.toISOString(), feature_flags: flags })
+    });
+    if (!r.ok) return res.status(500).json({ error: 'No se pudo activar la prueba' });
+    _ttlCache.delete('plan:' + String(row.twitch_username).toLowerCase());
+    console.log(`[trial] 🎁 ${row.twitch_username} empezó su prueba de Pro hasta ${ends.toISOString()}`);
+    res.json({ success: true, plan: 'pro', plan_expires_at: ends.toISOString(), trial: flags.trial });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get('/api/plan/usage', requireAuth, async (req, res) => {
+  try {
+    const row = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'twitch_username,plan,plan_expires_at,feature_flags,lemon_customer_id,lemon_subscription_id,commands,media_alerts,tips_config');
+    if (!row) return res.status(404).json({});
+    const plan = effectivePlan(row);
+    const lim = limitsFor(plan);
+    const used = await alertsStorageUsed(String(row.twitch_username || '').toLowerCase());
+    res.json({
+      plan, pro: isProPlan(plan), plan_expires_at: row.plan_expires_at || null,
+      trial: trialInfo(row),
+      usage: {
+        commands: { used: Object.keys(row.commands || {}).length, max: lim.commands },
+        media_alerts: { used: (row.media_alerts?.alerts || []).length, max: lim.media_alerts },
+        goals: { used: goalsOf(row.tips_config).length, max: lim.goals },
+        storage_mb: { used: used === null ? null : Math.round(used / 1048576 * 10) / 10, max: Math.round(lim.storage_bytes / 1048576) },
+      },
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Cuánto espacio usa un canal en el bucket de alertas (null si no se pudo saber: entonces no se bloquea)
 async function alertsStorageUsed(channel) {
   try {
@@ -1799,7 +1859,7 @@ async function sendBoxAlert(channel, d, { force = false, variation = null } = {}
 // Propinas: si el canal activó la caja de alertas, sale con su diseño; si no, la tarjeta clásica de propina
 async function tipAlertFor(channel, tip, { test = false } = {}) {
   channel = String(channel || '').toLowerCase();
-  if (!test) recordRecent(channel, { event: 'tip', user: tip.name, amount: tip.amount, currency: tip.currency });
+  if (!test) recordRecent(channel, { event: 'tip', user: tip.name, amount: tip.amount, currency: tip.currency, message: tip.message });
   const row = await alertBoxRow(channel).catch(() => null);
   let subathon_min = 0;
   const sc = row?.subathon_config;
@@ -1815,6 +1875,15 @@ async function tipAlertFor(channel, tip, { test = false } = {}) {
 //  Se guarda en streamers.alert_recent (ticker.sql). Se anota aunque la caja de alertas esté apagada.
 // ══════════════════════════════════════════
 const recentMem = new Map(); // canal -> objeto ya cargado
+// Historial de alertas (para repetirlas desde el dashboard): alert_recent._history, las últimas 25
+const ALERT_HISTORY_MAX = 25;
+function historyItem(d) {
+  const clip = (x, n) => String(x ?? '').replace(/[\r\n<>]+/g, ' ').slice(0, n);
+  const data = { user: clip(d.user || 'Anónimo', 30) };
+  for (const k of ['amount', 'count', 'months', 'viewers']) if (d[k] != null && d[k] !== '') data[k] = Number(d[k]) || 0;
+  for (const [k, n] of [['currency', 3], ['tier', 10], ['recipient', 30], ['message', 200]]) if (d[k]) data[k] = clip(d[k], n);
+  return { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), ts: new Date().toISOString(), event: d.event, data };
+}
 async function recordRecent(channel, d) {
   channel = String(channel || '').toLowerCase();
   if (!channel || !ALERT_EVENTS.includes(d.event)) return;
@@ -1834,7 +1903,8 @@ async function recordRecent(channel, d) {
       if (!Array.isArray(rows) || !rows[0]) return; // canal desconocido (o la columna aún no existe)
       cur = rows[0].alert_recent || {};
     }
-    cur = { ...cur, [key]: item };
+    const hist = [historyItem(d), ...(Array.isArray(cur._history) ? cur._history : [])].slice(0, ALERT_HISTORY_MAX);
+    cur = { ...cur, [key]: item, _history: hist };
     recentMem.set(channel, cur);
     _ttlCache.delete('recent:' + channel);
     await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${encodeURIComponent(channel)}`, {
@@ -1886,8 +1956,35 @@ app.get('/api/recent/:username', async (req, res) => {
       return rec;
     });
     res.set('Cache-Control', 'no-store');
-    res.json(data);
+    const { _history, ...pub } = data || {};
+    res.json(pub);
   } catch (e) { res.json({}); }
+});
+
+// Historial de alertas del canal y botón de repetir
+async function alertHistoryOf(u) {
+  if (recentMem.has(u)) return recentMem.get(u)._history || [];
+  const rows = await (await fetch(`${SUPABASE_URL}/rest/v1/streamers?twitch_username=eq.${u}&select=alert_recent&limit=1`, { headers: sbHeaders })).json().catch(() => []);
+  return (Array.isArray(rows) && rows[0]?.alert_recent?._history) || [];
+}
+app.get('/api/alert-history', requireAuth, async (req, res) => {
+  try {
+    const u = String(req.session.user.username || '').toLowerCase();
+    res.set('Cache-Control', 'no-store');
+    res.json({ history: await alertHistoryOf(u) });
+  } catch (e) { res.json({ history: [] }); }
+});
+app.post('/api/alert-history/replay', requireAuth, async (req, res) => {
+  try {
+    const u = String(req.session.user.username || '').toLowerCase();
+    const item = (await alertHistoryOf(u)).find(h => h.id === String(req.body?.id || ''));
+    if (!item) return res.status(404).json({ error: 'Esa alerta ya no está en el historial' });
+    const d = { ...item.data, event: item.event };
+    // Repetir no vuelve a sumar al subatón, a las metas ni a "últimos apoyos": solo la muestra otra vez
+    let sent = await sendBoxAlert(u, d, { force: true }).catch(() => null);
+    if (sent === null && item.event === 'tip') sent = await pushMediaAlert(u, { type: 'tip', name: d.user, amount: d.amount, currency: d.currency, message: d.message, brand: !(await channelIsPro(u)) });
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.get('/overlay/ultimos/:username', (req, res) => res.sendFile(path.join(__dirname, 'ticker-overlay.html')));
 
