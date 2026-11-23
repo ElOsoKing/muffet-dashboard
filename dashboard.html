@@ -1527,6 +1527,7 @@ function renderOverviewSubathon() {
 }
 async function loadOverviewLive() {
   renderOverviewSubathon();
+  loadPlanCard();
   const u = encodeURIComponent(streamerData?.twitch_username || '');
   // Meta
   try {
@@ -1655,7 +1656,12 @@ const PLAN_LIMITS = {
 };
 const AB_FREE_STYLES = ['tarjeta', 'neon', 'limpio', 'telarana'];
 const TICKER_FREE_STYLES = ['rotar', 'barra'];
-function userIsPro() { return !!streamerData && (streamerData.plan === 'pro' || streamerData.plan === 'admin'); }
+function userIsPro() {
+  if (!streamerData) return false;
+  if (streamerData.plan === 'admin') return true;
+  return streamerData.plan === 'pro' && !(streamerData.plan_expires_at && Date.parse(streamerData.plan_expires_at) < Date.now());
+}
+function inProTrial() { const t = streamerData?.feature_flags?.trial; return !!(t && streamerData.plan === 'pro' && streamerData.plan_expires_at === t.ends_at && Date.parse(t.ends_at) > Date.now()); }
 function planLim() { return PLAN_LIMITS[userIsPro() ? 'pro' : 'free']; }
 // Envuelve una parte que es de Pro: en gratis se ve apagada con una etiqueta "⭐ Pro" que lleva a /plans
 function proWrap(inner, extraStyle = '') {
@@ -1670,6 +1676,94 @@ function proOpen(extraStyle = '') {
 // Aviso de qué incluye el plan gratis en una sección
 function planNote(html) {
   return userIsPro() ? '' : `<div class="plan-note"><span>🆓</span><span>${html}</span><a href="/plans">⭐ Ver Pro</a></div>`;
+}
+
+// ── Tarjeta "Tu plan" (Inicio): uso de cada límite y la prueba gratis de Pro ──
+async function loadPlanCard() {
+  const box = document.getElementById('planCard'); if (!box) return;
+  if (viewingAsChannel) { box.innerHTML = ''; return; } // el plan es del dueño del canal
+  let d; try { d = await (await fetch('/api/plan/usage')).json(); } catch (e) { return; }
+  if (!d?.usage) return;
+  const t = d.trial || {}, U = d.usage;
+  const daysLeft = t.active ? Math.max(1, Math.ceil((Date.parse(t.ends_at) - Date.now()) / 86400000)) : 0;
+  const rows = [['⚡ Comandos', U.commands], ['🔊 Alertas multimedia', U.media_alerts], ['🎯 Metas', U.goals], ['💾 Espacio (MB)', U.storage_mb]];
+  let near = false;
+  const bars = rows.map(([label, u]) => {
+    if (!u || u.used === null) return '';
+    const pct = Math.min(100, Math.round(u.used / Math.max(1, u.max) * 100));
+    if (pct >= 80) near = true;
+    const col = u.used > u.max ? 'var(--pink)' : pct >= 80 ? 'var(--yellow)' : 'var(--purple-light)';
+    return `<div style="min-width:0;"><div style="display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-dim);margin-bottom:5px;"><span>${label}</span><b style="color:${col};">${u.used}/${u.max >= 1024 && label.includes('MB') ? (u.max / 1024) + ' GB' : u.max}</b></div>
+      <div style="height:6px;border-radius:99px;background:rgba(255,255,255,0.07);overflow:hidden;"><div style="height:100%;width:${pct}%;background:${col};border-radius:99px;"></div></div></div>`;
+  }).join('');
+  const title = t.active ? `🎁 Prueba Pro · te ${daysLeft === 1 ? 'queda 1 día' : `quedan ${daysLeft} días`}` : d.pro ? '⭐ Tu plan: Pro' : '🆓 Tu plan: Gratis';
+  let cta = '';
+  if (t.eligible) cta = `<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:linear-gradient(135deg,rgba(240,192,96,0.14),rgba(145,71,255,0.10));border:1px solid rgba(240,192,96,0.35);border-radius:12px;padding:14px 16px;margin-bottom:14px;">
+      <span style="font-size:26px;">🎁</span>
+      <div style="flex:1;min-width:220px;"><div style="font-size:14px;font-weight:800;color:var(--text);">Prueba Pro gratis por ${t.days} días</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-top:3px;line-height:1.5;">Sin tarjeta y sin compromiso. Todos los estilos, sin marca, música completa y más. Al terminar vuelves a gratis y no pierdes nada de lo que armaste.</div></div>
+      <button class="btn btn-primary" onclick="startProTrial()" style="white-space:nowrap;">🎁 Empezar prueba</button></div>`;
+  else if (t.active) cta = `<div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Tu prueba termina el <b style="color:var(--text);">${new Date(t.ends_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}</b>. Después vuelves a gratis y lo de Pro queda guardado. <a href="/plans" style="color:var(--yellow);">Quedarme con Pro ⭐</a></div>`;
+  else if (t.used && !d.pro) cta = `<div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">Tu prueba de Pro terminó. Todo lo que armaste sigue guardado y vuelve a funcionar si te pasas a Pro. <a href="/plans" style="color:var(--yellow);">Ver Pro ⭐</a></div>`;
+  else if (!d.pro && near) cta = `<div style="font-size:12px;color:var(--yellow);margin-bottom:12px;">⚠️ Estás cerca de un límite del plan gratis. <a href="/plans" style="color:var(--yellow);font-weight:700;">Con Pro tienes mucho más ⭐</a></div>`;
+  box.innerHTML = `<div class="panel" style="margin-bottom:16px;"><div class="panel-header"><span class="panel-title-text">${title}</span>${!d.pro ? '<a href="/plans" style="margin-left:auto;font-size:12px;color:var(--yellow);text-decoration:none;font-weight:600;">Ver planes →</a>' : ''}</div>
+    <div class="panel-body">${cta}<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;">${bars}</div></div></div>`;
+}
+async function startProTrial() {
+  if (!confirm('¿Empezar tu prueba gratis de Pro por 7 días? Solo se puede usar una vez.')) return;
+  try {
+    const r = await fetch('/api/trial/start', { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) return showToast(d.error || 'No se pudo activar la prueba', 'error');
+    showToast('🎁 ¡Listo! Tienes Pro por 7 días');
+    setTimeout(() => location.reload(), 900); // recargar para que todo el dashboard se vea como Pro
+  } catch (e) { showToast('Error de conexión', 'error'); }
+}
+
+// ── Historial de alertas (sección Alertas): las últimas que salieron, con botón para repetirlas ──
+const AH_EVENT = { follow: ['💜', 'Follow'], sub: ['⭐', 'Sub'], resub: ['⭐', 'Resub'], gift: ['🎁', 'Regalo de subs'], bits: ['💎', 'Bits'], raid: ['🚀', 'Raid'], tip: ['💸', 'Propina'] };
+function ahAgo(ts) {
+  const m = Math.floor((Date.now() - Date.parse(ts)) / 60000);
+  if (m < 1) return 'ahora'; if (m < 60) return `hace ${m} min`;
+  const h = Math.floor(m / 60); if (h < 24) return `hace ${h} h`;
+  return `hace ${Math.floor(h / 24)} d`;
+}
+function ahDetail(e, d) {
+  if (e === 'bits') return `${d.amount || 0} bits`;
+  if (e === 'tip') return `${Number(d.amount || 0).toFixed(2)} ${d.currency || ''}`;
+  if (e === 'raid') return `${d.viewers || 0} viewers`;
+  if (e === 'gift') return `${d.count || 1} sub${(d.count || 1) > 1 ? 's' : ''}${d.recipient && (d.count || 1) === 1 ? ' → ' + d.recipient : ''}`;
+  if (e === 'resub') return `${d.months || 0} meses${d.tier ? ' · ' + d.tier : ''}`;
+  if (e === 'sub') return d.tier || '';
+  return '';
+}
+async function loadAlertHistory() {
+  const box = document.getElementById('ahList'); if (!box) return;
+  if (viewingAsChannel) { document.getElementById('ahPanel').style.display = 'none'; return; }
+  let list = [];
+  try { list = (await (await fetch('/api/alert-history')).json()).history || []; } catch (e) {}
+  if (!list.length) { box.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">Todavía no salió ninguna alerta. Cuando lleguen follows, subs, bits, raids o propinas, aparecen aquí.</div>'; return; }
+  box.innerHTML = list.map(h => {
+    const [ic, name] = AH_EVENT[h.event] || ['🔔', h.event], d = h.data || {};
+    return `<div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <span style="font-size:18px;width:24px;text-align:center;">${ic}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;"><b translate="no">${goalEsc(d.user || 'Anónimo')}</b> <span style="color:var(--text-dim);">· <span>${name}</span>${ahDetail(h.event, d) ? ' · <span>' + goalEsc(ahDetail(h.event, d)) + '</span>' : ''}</span></div>
+        ${d.message ? `<div style="font-size:11px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" translate="no">“${goalEsc(d.message)}”</div>` : ''}
+      </div>
+      <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${ahAgo(h.ts)}</span>
+      <button class="btn btn-secondary btn-sm" onclick="replayAlert('${h.id}', this)" style="white-space:nowrap;">▶️ Repetir</button>
+    </div>`;
+  }).join('');
+}
+async function replayAlert(id, btn) {
+  if (btn) btn.disabled = true;
+  try {
+    const r = await fetch('/api/alert-history/replay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    const d = await r.json().catch(() => ({}));
+    showToast(r.ok ? 'Alerta enviada a OBS ✓' : (d.error || 'No se pudo repetir'), r.ok ? undefined : 'error');
+  } catch (e) { showToast('Error de conexión', 'error'); }
+  setTimeout(() => { if (btn) btn.disabled = false; }, 1500);
 }
 
 function renderMediaAlertsList() {
@@ -1849,6 +1943,7 @@ function abLoad() {
 }
 function initAlertBoxSection() {
   if (!abState) abLoad();
+  loadAlertHistory();
   document.getElementById('abEnabled').checked = abState.enabled;
   document.getElementById('abOverlayUrl').value = `${location.origin}/overlay/alerts/${(userData.username||'').toLowerCase()}`;
   const fr = document.getElementById('abFrame');
@@ -2945,6 +3040,7 @@ function renderMain() {
     <!-- Alerta plan por vencer -->
     ${(()=>{
       if (s.plan !== 'pro' || !s.plan_expires_at) return '';
+      if (s.feature_flags?.trial?.ends_at === s.plan_expires_at) return ''; // la prueba gratis tiene su propia tarjeta
       const daysLeft = Math.ceil((new Date(s.plan_expires_at) - new Date()) / (1000*60*60*24));
       if (daysLeft > 7) return '';
       const isExpired = daysLeft <= 0;
@@ -2958,6 +3054,8 @@ function renderMain() {
       </div>`;
     })()}
 
+    <!-- Tu plan: uso y prueba gratis de Pro -->
+    <div id="planCard"></div>
 
     <div class="stats-grid">
       <div class="stat-card" onclick="showSection('commands')" style="cursor:pointer;">
@@ -5561,6 +5659,10 @@ function renderMain() {
           </div>
         </div>
       </div>
+    </div>
+    <div class="panel" id="ahPanel">
+      <div class="panel-header"><span class="panel-title-text">📜 Últimas alertas</span><span style="font-size:11px;color:var(--text-dim);margin-left:10px;">¿Llegó un raid cuando no mirabas? Repítela en OBS</span><button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="loadAlertHistory()" title="Actualizar">🔄</button></div>
+      <div class="panel-body"><div id="ahList"><div style="color:var(--text-dim);font-size:13px;">Cargando…</div></div></div>
     </div>
     <div class="panel">
       <div class="panel-header"><span class="panel-title-text">📰 Overlay de últimos apoyos</span><span style="margin-left:auto;font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;background:rgba(64,208,144,0.15);color:#40d090;">NUEVO</span></div>
