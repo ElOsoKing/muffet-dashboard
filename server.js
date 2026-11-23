@@ -285,9 +285,11 @@ app.get('/api/showcase', async (req, res) => {
     const data = await ttlCache('showcase', 5 * 60 * 1000, async () => {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?approved=eq.true&role=neq.blocked&select=twitch_username,feature_flags,bot_status&limit=500`, { headers: sbHeaders });
       const rows = (await r.json().catch(() => [])) || [];
-      const cutoff = Date.now() - 45 * 86400000; // con actividad en el chat en los últimos 45 días
+      // Canales activos: con chat en los últimos 45 días, o con el bot dentro de su chat ahora (reporte de los últimos 2 días)
+      const cutoff = Date.now() - 45 * 86400000, recent = Date.now() - 2 * 86400000;
+      const active = (b) => !!b && ((b.last_chat_at && Date.parse(b.last_chat_at) > cutoff) || (b.in_chat && b.updated_at && Date.parse(b.updated_at) > recent));
       const logins = (Array.isArray(rows) ? rows : [])
-        .filter(s => s.feature_flags?.showcase !== false && s.bot_status?.last_chat_at && Date.parse(s.bot_status.last_chat_at) > cutoff)
+        .filter(s => s.feature_flags?.showcase !== false && active(s.bot_status))
         .map(s => s.twitch_username.toLowerCase()).slice(0, 100);
       if (!logins.length) return { channels: [] };
       const tok = await appTokenCached();
