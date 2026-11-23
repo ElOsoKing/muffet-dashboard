@@ -249,8 +249,8 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
       <div class="stat-value green" id="activeCount">—</div>
     </div>
     <div class="stat-card yellow">
-      <div class="stat-icon-wrap yellow">⏳</div>
-      <div class="stat-label">Pendientes</div>
+      <div class="stat-icon-wrap yellow">🆕</div>
+      <div class="stat-label" title="Canales que se registraron en los últimos 7 días">Nuevos (7 días)</div>
       <div class="stat-value yellow" id="pendingCount">—</div>
     </div>
     <div class="stat-card pink">
@@ -269,7 +269,7 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
   <div id="newRegistrations" class="notif">
     <div class="notif-icon">🔔</div>
     <div style="flex:1;">
-      <div style="font-size:13px;font-weight:700;color:var(--yellow);">Nuevos registros pendientes</div>
+      <div style="font-size:13px;font-weight:700;color:var(--yellow);">Cuentas viejas en pendiente (entran solas la próxima vez que inicien sesión)</div>
       <div style="font-size:12px;color:var(--text-dim);margin-top:2px;" id="newRegText"></div>
     </div>
     <button class="notif-btn" onclick="setFilter('pending')">Ver pendientes →</button>
@@ -287,7 +287,6 @@ td{padding:13px 16px;font-size:13px;vertical-align:middle;}
         <input class="search-input" id="searchInput" placeholder="Buscar por nombre..." oninput="filterStreamers()">
       </div>
       <button class="filter-btn active" id="filter-all" onclick="setFilter('all')">Todos</button>
-      <button class="filter-btn" id="filter-pending" onclick="setFilter('pending')">Pendientes</button>
       <button class="filter-btn" id="filter-streamer" onclick="setFilter('streamer')">Activos</button>
       <button class="filter-btn" id="filter-pro" onclick="setFilter('pro')">Pro</button>
       <button class="filter-btn" id="filter-expiring" onclick="setFilter('expiring')">⚠️ Por vencer</button>
@@ -511,12 +510,13 @@ function renderTable(){
   const total = allStreamers.filter(s=>s.role!=='admin').length;
   const active = allStreamers.filter(s=>s.approved&&s.role==='streamer').length;
   const pending = allStreamers.filter(s=>s.role==='pending').length;
+  const nuevos = allStreamers.filter(s=>s.role!=='admin' && s.created_at && Date.now()-new Date(s.created_at) < 7*86400000).length;
   const pro = allStreamers.filter(s=>s.plan==='pro').length;
   const revenue = pro * 5;
 
   document.getElementById('totalCount').textContent=total;
   document.getElementById('activeCount').textContent=active;
-  document.getElementById('pendingCount').textContent=pending;
+  document.getElementById('pendingCount').textContent=nuevos; // ya no hay aprobación manual: se muestran los nuevos
   document.getElementById('proCount').textContent=pro;
   document.getElementById('revenueCount').textContent=`$${revenue}`;
   document.getElementById('tableCount').textContent=`${filtered.length} streamers`;
