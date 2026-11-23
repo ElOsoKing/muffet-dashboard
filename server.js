@@ -165,8 +165,8 @@ function ttlCache(key, ttlMs, fn) {
 //  y vuelve completa cuando renueva. (Los mismos números están en dashboard.html → PLAN_LIMITS)
 // ══════════════════════════════════════════
 const PLAN_LIMITS = {
-  free: { music_queue: 10, music_per_user: 1, music_max_min: 6, media_alerts: 5, ab_variations: 2, upload_bytes: 10 * 1024 * 1024, storage_bytes: 100 * 1024 * 1024, commands: 15 },
-  pro:  { music_queue: 50, music_per_user: 10, music_max_min: 180, media_alerts: 20, ab_variations: 5, upload_bytes: 15 * 1024 * 1024, storage_bytes: 1024 * 1024 * 1024, commands: 50 },
+  free: { music_queue: 10, music_per_user: 1, music_max_min: 6, media_alerts: 5, ab_variations: 2, upload_bytes: 10 * 1024 * 1024, storage_bytes: 100 * 1024 * 1024, commands: 15, goals: 1 },
+  pro:  { music_queue: 50, music_per_user: 10, music_max_min: 180, media_alerts: 20, ab_variations: 5, upload_bytes: 15 * 1024 * 1024, storage_bytes: 1024 * 1024 * 1024, commands: 50, goals: 3 },
 };
 const AB_FREE_STYLES = ['tarjeta', 'neon', 'limpio', 'telarana'];
 const TICKER_FREE_STYLES = ['rotar', 'barra'];
@@ -1770,8 +1770,8 @@ async function sendBoxAlert(channel, d, { force = false, variation = null } = {}
     if (d.goal && Number(d.goal.target) > 0) chips.push(goalChip(d.goal.title, Number(d.goal.after), Number(d.goal.target)));
     else if (d.event === 'tip') {
       invalidateGoal(channel);
-      const st = await goalStateCached(channel).catch(() => null);
-      if (st?.enabled && st.type === 'money') chips.push(goalChip(st.title, st.current, st.target, st.done));
+      const st = await goalOfType(channel, 'money');
+      if (st) chips.push(goalChip(st.title, st.current, st.target, st.done));
     }
   }
   const clip = (s, n) => String(s ?? '').replace(/[\r\n]+/g, ' ').slice(0, n);
@@ -1945,9 +1945,9 @@ app.post('/api/alert-box/test', requireAuth, async (req, res) => {
       }
     }
     if (ev === 'sub' || ev === 'resub' || ev === 'gift' || ev === 'bits') {
-      const st = await goalStateCached(channel).catch(() => null);
       const kind = ev === 'bits' ? 'bits' : 'subs';
-      if (st?.enabled && st.type === kind) sample.goal = { title: st.title, target: st.target, after: st.current + (ev === 'bits' ? 500 : ev === 'gift' ? 5 : 1) };
+      const st = await goalOfType(channel, kind);
+      if (st) sample.goal = { title: st.title, target: st.target, after: st.current + (ev === 'bits' ? 500 : ev === 'gift' ? 5 : 1) };
     }
     const sent = await sendBoxAlert(channel, sample, { force: true, variation: vi });
     res.json({ success: true, sent: !!sent });
@@ -2370,11 +2370,11 @@ app.get('/api/tip/:username/info', async (req, res) => {
     const s = await getTipStreamer(req.params.username);
     if (!s) return res.status(404).json({ error: 'Canal no encontrado' });
     const paypalOn = s.enabled && paypalReady();
-    const [prof, recent, goal] = await Promise.all([twitchProfileFor(s.username), (paypalOn || s.mpLink) ? recentTipsFor(s.username) : [], goalStateCached(s.username).catch(() => null)]);
+    const [prof, recent, goal] = await Promise.all([twitchProfileFor(s.username), (paypalOn || s.mpLink) ? recentTipsFor(s.username) : [], goalOfType(s.username, 'money')]);
     const display = s.display === s.username && prof.display_name ? prof.display_name : s.display;
     if (!paypalOn && !s.mpLink) return res.json({ enabled: false, display, avatar: prof.avatar || null, banner: prof.banner || null });
     const out = { enabled: true, paypal: paypalOn, mp_link: s.mpLink || null, display, username: s.username, currency: s.currency, min: s.min, max: TIP_MAX_AMOUNT,
-      avatar: prof.avatar || null, banner: prof.banner || null, recent, goal: goal?.enabled && goal.type === 'money' ? goal : null };
+      avatar: prof.avatar || null, banner: prof.banner || null, recent, goal: goal || null };
     // merchant: el SDK de PayPal necesita saber a quién se le paga (es el mismo correo que verá quien paga en PayPal)
     if (paypalOn) Object.assign(out, { client_id: process.env.PAYPAL_CLIENT_ID, merchant: s.email, sandbox: PAYPAL_MODE !== 'live' });
     res.json(out);
@@ -2453,79 +2453,147 @@ app.post('/api/tip/:username/capture', async (req, res) => {
 
 
 // ══════════════════════════════════════════
-//  META DE PROPINAS  (tips_config.goal = { enabled, title, target, started_at })
-//  Cuentan las propinas completadas (PayPal y registradas a mano) en la moneda del streamer desde started_at.
+//  METAS  (tips_config.goals = [{ id, enabled, type, title, target, reward, ends_at, theme, started_at }])
+//  Plan gratis: 1 meta · Pro: hasta 3. tips_config.goal (la vieja, una sola) se lee como la primera y se
+//  sigue guardando igual a goals[0] para que nada viejo se rompa.
+//  Propinas: se cuentan las completadas en la moneda del streamer desde started_at.
+//  Subs/bits: los suma el bot en streamers.goal_progress = { counts: { <started_at>: n } }
+//  (formato viejo { goal_id, count } también se entiende).
 // ══════════════════════════════════════════
-async function computeGoalState(username) {
-  const u = String(username || '').toLowerCase();
-  if (!/^[a-z0-9_]{3,25}$/.test(u)) return null;
-  const s = await sbSelect('streamers', { twitch_username: u }, 'twitch_username,tips_config,goal_progress');
-  if (!s) return null;
-  const tc = s.tips_config || {}, g = tc.goal || {};
-  if (!g.enabled || !(Number(g.target) > 0)) return { enabled: false };
-  const type = ['money', 'subs', 'bits'].includes(g.type) ? g.type : 'money';
+const GOAL_TYPES = ['money', 'subs', 'bits'];
+function goalsOf(tc) {
+  tc = tc || {};
+  const list = Array.isArray(tc.goals) ? tc.goals : (tc.goal && (tc.goal.target || tc.goal.enabled) ? [{ id: 'g1', ...tc.goal }] : []);
+  return list.filter(g => g && typeof g === 'object').map((g, i) => ({ ...g, id: String(g.id || 'g' + (i + 1)).slice(0, 12) }));
+}
+function goalCountFromProgress(gp, startedAt) {
+  gp = gp || {};
+  if (gp.counts && typeof gp.counts === 'object' && gp.counts[startedAt] != null) return Number(gp.counts[startedAt]) || 0;
+  return gp.goal_id === startedAt ? Number(gp.count) || 0 : 0;
+}
+async function goalStateOne(u, tc, gp, g) {
+  if (!g?.enabled || !(Number(g.target) > 0)) return { id: g?.id, enabled: false };
+  const type = GOAL_TYPES.includes(g.type) ? g.type : 'money';
   const currency = TIP_CURRENCIES.includes(tc.currency) ? tc.currency : 'USD';
   const since = g.started_at || '1970-01-01T00:00:00Z';
   const endsAt = g.ends_at && !isNaN(Date.parse(g.ends_at)) ? new Date(g.ends_at).toISOString() : null;
   let current = 0;
   if (type === 'money') {
-    // Propinas completadas en la moneda del streamer, desde que empezó la meta (y hasta la fecha límite si hay)
     const until = endsAt ? `&created_at=lte.${encodeURIComponent(endsAt)}` : '';
     const r = await fetch(`${SUPABASE_URL}/rest/v1/tips?streamer=eq.${u}&status=eq.completed&currency=eq.${currency}&created_at=gte.${encodeURIComponent(since)}${until}&select=amount&limit=10000`, { headers: sbHeaders, signal: AbortSignal.timeout(8000) });
     const rows = await r.json().catch(() => []);
     current = Math.round((Array.isArray(rows) ? rows : []).reduce((a, t) => a + (Number(t.amount) || 0), 0) * 100) / 100;
   } else {
-    // Subs y bits los va sumando el bot en goal_progress (solo si es de esta misma meta)
-    const gp = s.goal_progress || {};
-    current = gp.goal_id === since ? Number(gp.count) || 0 : 0;
+    current = goalCountFromProgress(gp, since);
   }
   const target = Math.round(Number(g.target) * 100) / 100;
   const done = current >= target;
   return {
-    enabled: true, type, title: g.title || 'Meta', reward: g.reward || '', target, current,
+    id: g.id, enabled: true, type, title: g.title || 'Meta', reward: g.reward || '', target, current,
     currency: type === 'money' ? currency : null, unit: type === 'subs' ? 'subs' : type === 'bits' ? 'bits' : null,
     percent: Math.min(100, Math.floor(current / target * 100)), done,
     ends_at: endsAt, expired: !!(endsAt && Date.now() > Date.parse(endsAt) && !done),
     theme: g.theme || 'clasico'
   };
 }
-const goalStateCached = (u) => ttlCache('goal:' + String(u).toLowerCase(), 4000, () => computeGoalState(u));
+// Estado de todas las metas del canal (solo las que valen según el plan)
+async function computeGoalsState(username) {
+  const u = String(username || '').toLowerCase();
+  if (!/^[a-z0-9_]{3,25}$/.test(u)) return null;
+  const s = await sbSelect('streamers', { twitch_username: u }, 'twitch_username,tips_config,goal_progress,plan');
+  if (!s) return null;
+  const tc = s.tips_config || {};
+  const goals = goalsOf(tc).slice(0, limitsFor(s.plan).goals);
+  return Promise.all(goals.map(g => goalStateOne(u, tc, s.goal_progress, g)));
+}
+const goalsStateCached = (u) => ttlCache('goal:' + String(u).toLowerCase(), 4000, () => computeGoalsState(u));
 function invalidateGoal(u) { _ttlCache.delete('goal:' + String(u).toLowerCase()); }
+// Una meta: por id, o la primera activa (lo que pedían los overlays y páginas de antes)
+async function goalStateCached(u, id) {
+  const all = await goalsStateCached(u);
+  if (!all) return null;
+  if (id) return all.find(g => g.id === id) || { enabled: false };
+  return all.find(g => g.enabled) || { enabled: false };
+}
+// La primera meta activa de un tipo (para las alertas y la página de propinas)
+async function goalOfType(u, type) {
+  const all = await goalsStateCached(u).catch(() => null);
+  return (all || []).find(g => g.enabled && g.type === type && !g.expired) || null;
+}
+function computeGoalState(u, id) { invalidateGoal(u); return goalStateCached(u, id); }
 
-// Después de registrar una propina: si con esta se cumplió la meta, avisar al bot (Muffet lo anuncia en el chat)
+function botEvent(type, event) {
+  const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
+  fetch(botUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type, event })
+  }).catch(() => {});
+}
+// Después de registrar una propina: avisar al bot si una meta de dinero pasó el 90% o se cumplió
 async function checkGoalReached(username, amountAdded, currency) {
   try {
     invalidateGoal(username);
-    const st = await computeGoalState(username);
-    if (!st?.enabled || st.type !== 'money' || st.currency !== currency) return;
-    if (st.current >= st.target && st.current - amountAdded < st.target) {
-      console.log(`[tips] 🎯 meta cumplida en #${username}: ${st.title}`);
-      const botUrl = `${process.env.BOT_URL || 'http://localhost:' + (process.env.BOT_PORT || 3001)}/event`;
-      fetch(botUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret: process.env.BOT_SECRET || 'muffetbot-internal-2026', type: 'goal.reached', event: { channel: String(username).toLowerCase(), title: st.title, target: st.target, currency: st.currency } })
-      }).catch(() => {});
+    const all = await goalsStateCached(username);
+    for (const st of all || []) {
+      if (!st?.enabled || st.type !== 'money' || st.currency !== currency || st.expired) continue;
+      const before = st.current - amountAdded;
+      const ev = { channel: String(username).toLowerCase(), id: st.id, title: st.title, target: st.target, current: st.current, currency: st.currency, reward: st.reward, unit: st.currency };
+      if (st.current >= st.target && before < st.target) {
+        console.log(`[tips] 🎯 meta cumplida en #${username}: ${st.title}`);
+        botEvent('goal.reached', ev);
+      } else if (st.current >= st.target * 0.9 && before < st.target * 0.9) {
+        botEvent('goal.near', ev);
+      }
     }
   } catch (e) { console.error('[tips] meta:', e.message); }
 }
 
 app.get('/overlay/goal/:username', (req, res) => res.sendFile(path.join(__dirname, 'goal-overlay.html')));
+// ?meta=<id> para una meta concreta; sin nada, la primera activa (como antes)
 app.get('/api/goal/state/:username', async (req, res) => {
   try {
-    const st = await goalStateCached(req.params.username);
+    const st = await goalStateCached(req.params.username, req.query.meta ? String(req.query.meta).slice(0, 12) : null);
     if (!st) return res.status(404).json({ enabled: false });
     res.set('Cache-Control', 'no-store');
     res.json(st);
   } catch (e) { res.status(500).json({ enabled: false }); }
 });
+app.get('/api/goals/state/:username', async (req, res) => {
+  try {
+    const all = await goalsStateCached(req.params.username);
+    if (!all) return res.status(404).json({ goals: [] });
+    res.set('Cache-Control', 'no-store');
+    res.json({ goals: all });
+  } catch (e) { res.status(500).json({ goals: [] }); }
+});
+// Crear / editar / borrar una meta. body: { goal: {...id?}, reset?, remove?: id }
 app.post('/api/tips-goal', requireAuth, async (req, res) => {
   try {
+    const prev = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'tips_config,twitch_username,plan');
+    const tc = prev?.tips_config || {};
+    const uname = prev?.twitch_username || req.session.user.username;
+    let goals = goalsOf(tc);
+    const save = async () => {
+      const first = goals[0] ? { ...goals[0] } : { enabled: false };
+      delete first.id;
+      await sbUpdate('streamers', { tips_config: { ...tc, goals, goal: first } }, { twitch_id: req.session.user.id });
+      invalidateGoal(uname);
+    };
+    if (req.body?.remove) {
+      goals = goals.filter(g => g.id !== String(req.body.remove));
+      await save();
+      return res.json({ success: true, goals, states: await computeGoalsState(uname) });
+    }
     const g = req.body?.goal;
     if (!isValidObject(g)) return res.status(400).json({ error: 'Inválido' });
     const target = Math.round(Number(g.target) * 100) / 100;
     if (g.enabled && !(target > 0 && target <= 10000000)) return res.status(400).json({ error: 'Pon el monto de la meta' });
-    const prev = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'tips_config,twitch_username');
-    const tc = prev?.tips_config || {};
-    const old = tc.goal || {};
+    // Sin id = meta nueva (si viene de la versión vieja del dashboard, edita la primera)
+    let idx = g.id ? goals.findIndex(x => x.id === String(g.id)) : (req.body?.add ? -1 : (goals.length ? 0 : -1));
+    if (idx < 0) {
+      const max = limitsFor(prev?.plan).goals;
+      if (goals.length >= max) return res.status(400).json({ error: max < PLAN_LIMITS.pro.goals ? `El plan gratis tiene ${max} meta — con Pro puedes tener ${PLAN_LIMITS.pro.goals} a la vez` : `Máximo ${max} metas` });
+    }
+    const old = idx >= 0 ? goals[idx] : {};
     let endsAt = null;
     if (g.ends_at) {
       const t = Date.parse(g.ends_at);
@@ -2533,20 +2601,23 @@ app.post('/api/tips-goal', requireAuth, async (req, res) => {
       if (t < Date.now() - 60000 && (req.body?.reset || String(g.ends_at) !== String(old.ends_at))) return res.status(400).json({ error: 'La fecha límite ya pasó' });
       endsAt = new Date(t).toISOString();
     }
+    const type = GOAL_TYPES.includes(g.type) ? g.type : 'money';
+    const id = old.id || ('g' + Date.now().toString(36).slice(-6));
     const goal = {
+      id,
       enabled: !!g.enabled,
-      type: ['money', 'subs', 'bits'].includes(g.type) ? g.type : 'money',
+      type,
       reward: cleanTipText(g.reward, 80),
       ends_at: endsAt,
       title: cleanTipText(g.title, 40) || 'Meta',
       target: target > 0 ? target : (old.target || 0),
       theme: ['clasico', 'neon', 'minimal'].includes(g.theme) ? g.theme : (old.theme || 'clasico'),
-      // Empieza a contar desde ahora si es nueva o si pidieron reiniciarla
-      started_at: (req.body?.reset || !old.started_at || (old.type || 'money') !== (['money', 'subs', 'bits'].includes(g.type) ? g.type : 'money')) ? new Date().toISOString() : old.started_at
+      // Empieza a contar desde ahora si es nueva, si pidieron reiniciarla o si cambió el tipo
+      started_at: (req.body?.reset || !old.started_at || (old.type || 'money') !== type) ? new Date().toISOString() : old.started_at
     };
-    await sbUpdate('streamers', { tips_config: { ...tc, goal } }, { twitch_id: req.session.user.id });
-    invalidateGoal(prev?.twitch_username || req.session.user.username);
-    res.json({ success: true, goal, state: await computeGoalState(prev?.twitch_username || req.session.user.username) });
+    if (idx >= 0) goals[idx] = goal; else goals.push(goal);
+    await save();
+    res.json({ success: true, goal, goals, state: await computeGoalState(uname, id) });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -2567,7 +2638,8 @@ app.post('/api/tips-config', requireAuth, async (req, res) => {
       chat_thanks: t.chat_thanks !== false
     };
     const prev = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'tips_config');
-    if (prev?.tips_config?.goal) clean.goal = prev.tips_config.goal; // la meta se guarda aparte; no se pierde
+    if (prev?.tips_config?.goal) clean.goal = prev.tips_config.goal; // las metas se guardan aparte; no se pierden
+    if (prev?.tips_config?.goals) clean.goals = prev.tips_config.goals;
     await sbUpdate('streamers', { tips_config: clean }, { twitch_id: req.session.user.id });
     res.json({ success: true, tips_config: clean });
   } catch (e) { res.status(500).json({ error: e.message }); }
