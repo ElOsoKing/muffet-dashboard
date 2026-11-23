@@ -114,7 +114,8 @@ async function poll() {
   clearTimeout(timer);
   if (document.hidden) { timer = setTimeout(poll, 15000); return; }
   try {
-    const r = await fetch(`/api/goal/state/${encodeURIComponent(username)}`, { cache: 'no-store' });
+    const meta = params.get('meta') ? '?meta=' + encodeURIComponent(params.get('meta')) : ''; // varias metas: cada overlay muestra la suya
+    const r = await fetch(`/api/goal/state/${encodeURIComponent(username)}${meta}`, { cache: 'no-store' });
     render(await r.json());
   } catch (e) {}
   timer = setTimeout(poll, 8000);
