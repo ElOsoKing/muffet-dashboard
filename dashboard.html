@@ -1650,8 +1650,8 @@ async function initMediaAlertsSection() {
 
 // ── Planes: lo mismo que PLAN_LIMITS en server.js (el servidor es el que manda; esto es para mostrarlo) ──
 const PLAN_LIMITS = {
-  free: { music_queue: 10, music_per_user: 1, music_max_min: 6, media_alerts: 5, ab_variations: 2, upload_mb: 10, storage_mb: 100, commands: 15 },
-  pro:  { music_queue: 50, music_per_user: 10, music_max_min: 180, media_alerts: 20, ab_variations: 5, upload_mb: 15, storage_mb: 1024, commands: 50 },
+  free: { music_queue: 10, music_per_user: 1, music_max_min: 6, media_alerts: 5, ab_variations: 2, upload_mb: 10, storage_mb: 100, commands: 15, goals: 1 },
+  pro:  { music_queue: 50, music_per_user: 10, music_max_min: 180, media_alerts: 20, ab_variations: 5, upload_mb: 15, storage_mb: 1024, commands: 50, goals: 3 },
 };
 const AB_FREE_STYLES = ['tarjeta', 'neon', 'limpio', 'telarana'];
 const TICKER_FREE_STYLES = ['rotar', 'barra'];
@@ -2495,10 +2495,9 @@ async function saveSubathonConfig() {
 
 // ── Propinas (PayPal) ──
 function initGoalsSection() {
-  const u = streamerData?.twitch_username || '';
-  document.getElementById('goalOverlayUrl').value = `${location.origin}/overlay/goal/${u}`;
-  const ge = document.getElementById('goalEnds'); if (ge) ge.value = isoToLocalInput(streamerData?.tips_config?.goal?.ends_at);
-  goalTypeChanged();
+  const n = goalList().length;
+  if (goalSel >= n) goalSel = Math.max(0, n - 1);
+  renderGoalEditor();
   loadGoalProgress();
 }
 async function initTipsSection() {
@@ -2522,7 +2521,7 @@ async function saveTipsConfig() {
     const res = await fetch('/api/tips-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tips_config }) });
     const d = await res.json().catch(() => ({}));
     if (res.ok) {
-      streamerData.tips_config = { ...(d.tips_config || tips_config), goal: streamerData.tips_config?.goal }; showToast('Guardado ✓');
+      streamerData.tips_config = { ...(d.tips_config || tips_config), goal: streamerData.tips_config?.goal, goals: streamerData.tips_config?.goals }; showToast('Guardado ✓');
       const st = document.getElementById('tipsStatState'); if (st) { st.textContent = tips_config.enabled ? 'Activas' : 'Apagadas'; st.className = 'stat-value ' + (tips_config.enabled ? 'on' : 'off'); }
       const sm = document.getElementById('tipsStatMethods'); if (sm) sm.textContent = [tips_config.paypal_email ? 'PayPal' : null, tips_config.mp_link ? 'Mercado Pago' : null].filter(Boolean).join(' + ') || 'Sin método de pago';
     }
@@ -2535,34 +2534,114 @@ async function testTipAlert() {
     showToast(d.sent ? 'Alerta de prueba enviada ✓' : 'No hay overlay de alertas abierto en OBS', d.sent ? undefined : 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
-function renderGoalPreview(st, f) {
+// ── Metas: varias a la vez (gratis 1, Pro hasta 3). tips_config.goals; la vieja tips_config.goal se lee como la primera ──
+let goalSel = 0, goalDraftNew = false, goalStates = [];
+function goalList() {
+  const tc = streamerData?.tips_config || {};
+  if (Array.isArray(tc.goals)) return tc.goals;
+  return tc.goal && (tc.goal.target || tc.goal.enabled) ? [{ id: 'g1', ...tc.goal }] : [];
+}
+const goalEsc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const GOAL_TYPE_LABEL = { money: '💸', subs: '⭐', bits: '💎' };
+function goalFmt(st) { return v => st.type === 'money' ? Number(v).toFixed(2) : Math.floor(v); }
+function goalTimeLeft(st) {
+  if (st.done) return '¡Meta cumplida! 🎉';
+  if (st.expired) return '⌛ Tiempo terminado';
+  if (!st.ends_at) return '';
+  const ms = Date.parse(st.ends_at) - Date.now(), dd = Math.floor(ms / 86400000), hh = Math.floor(ms / 3600000) % 24, mm = Math.floor(ms / 60000) % 60;
+  return `⏳ Quedan ${dd ? dd + 'd ' : ''}${hh}h ${mm}m`;
+}
+function renderGoalPreviews() {
+  const box = document.getElementById('goalPreviewList');
+  const active = goalStates.filter(g => g?.enabled);
   const card = document.getElementById('tipsStatGoal');
-  if (card) card.textContent = st?.enabled ? (st.done ? '¡Cumplida! 🎉' : st.expired ? 'Vencida ⌛' : st.percent + '%') : 'Sin meta';
-  const box = document.getElementById('goalPreview'), empty = document.getElementById('goalPreviewEmpty');
+  if (card) { const st = active.find(g => g.type === 'money') || active[0]; card.textContent = st ? (st.done ? '¡Cumplida! 🎉' : st.expired ? 'Vencida ⌛' : st.percent + '%') : 'Sin meta'; }
   if (!box) return;
-  if (!st?.enabled) { box.style.display = 'none'; empty.style.display = 'block'; return; }
-  box.style.display = 'block'; empty.style.display = 'none';
-  const unit = st.type === 'money' ? st.currency : st.unit;
-  document.getElementById('goalPvTitle').textContent = '🎯 ' + st.title;
-  document.getElementById('goalPvCur').textContent = f(st.current);
-  document.getElementById('goalPvTarget').textContent = f(st.target) + ' ' + unit;
-  document.getElementById('goalPvPct').textContent = st.percent + '%';
-  document.getElementById('goalPvFill').style.width = Math.min(100, st.current / st.target * 100) + '%';
-  document.getElementById('goalPvReward').textContent = st.reward ? '🎁 Reto: ' + st.reward : '';
-  let t = '';
-  if (st.done) t = '¡Meta cumplida! 🎉';
-  else if (st.expired) t = '⌛ Tiempo terminado';
-  else if (st.ends_at) { const ms = Date.parse(st.ends_at) - Date.now(), dd = Math.floor(ms / 86400000), hh = Math.floor(ms / 3600000) % 24, mm = Math.floor(ms / 60000) % 60; t = `⏳ Quedan ${dd ? dd + 'd ' : ''}${hh}h ${mm}m`; }
-  document.getElementById('goalPvTime').textContent = t;
+  if (!active.length) { box.innerHTML = '<div style="color:var(--text-dim);font-size:13px;">No tienes metas activas. Créalas abajo 👇</div>'; return; }
+  box.innerHTML = active.map((st, k) => {
+    const f = goalFmt(st), unit = st.type === 'money' ? st.currency : st.unit;
+    return `<div style="${k ? 'margin-top:18px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);' : ''}">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:10px;">
+        <div style="font-size:16px;font-weight:800;">🎯 ${goalEsc(st.title)}</div>
+        <div style="font-size:14px;font-weight:700;white-space:nowrap;"><span style="color:#7dffb2;">${f(st.current)}</span> / ${f(st.target)} ${goalEsc(unit)} <span style="color:var(--text-dim);font-weight:600;">${st.percent}%</span></div>
+      </div>
+      <div style="height:14px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;"><div style="height:100%;width:${Math.min(100, st.current / st.target * 100)}%;background:linear-gradient(90deg,#9147ff,#c86bff,#ff6fb5);border-radius:999px;transition:width .6s;"></div></div>
+      <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:12px;color:var(--text-dim);"><span>${st.reward ? '🎁 Reto: ' + goalEsc(st.reward) : ''}</span><span>${goalTimeLeft(st)}</span></div>
+    </div>`;
+  }).join('');
 }
 async function loadGoalProgress() {
-  const el = document.getElementById('goalProgress') || document.createElement('span');
   try {
-    const st = await (await fetch(`/api/goal/state/${encodeURIComponent(streamerData?.twitch_username || '')}`)).json();
-    const f = v => st.type === 'money' ? Number(v).toFixed(2) : Math.floor(v);
-    renderGoalPreview(st, f);
-    el.textContent = st?.enabled ? `${f(st.current)} / ${f(st.target)} ${st.type === 'money' ? st.currency : st.unit} · ${st.percent}%${st.done ? ' 🎉' : st.expired ? ' ⌛ vencida' : ''}` : '';
-  } catch(e) { el.textContent = ''; }
+    const d = await (await fetch(`/api/goals/state/${encodeURIComponent(streamerData?.twitch_username || '')}`)).json();
+    goalStates = Array.isArray(d.goals) ? d.goals : [];
+  } catch(e) { goalStates = []; }
+  renderGoalPreviews();
+  const el = document.getElementById('goalProgress');
+  const g = goalList()[goalSel], st = g && goalStates.find(x => x.id === g.id);
+  if (el) el.textContent = st?.enabled ? `${goalFmt(st)(st.current)} / ${goalFmt(st)(st.target)} ${st.type === 'money' ? st.currency : st.unit} · ${st.percent}%${st.done ? ' 🎉' : st.expired ? ' ⌛ vencida' : ''}` : '';
+}
+function goalOverlayUrl(g) {
+  const u = encodeURIComponent(streamerData?.twitch_username || '');
+  return `${location.origin}/overlay/goal/${u}${g?.id ? '?meta=' + encodeURIComponent(g.id) : ''}`;
+}
+function renderGoalEditor() {
+  const box = document.getElementById('goalEditor'); if (!box) return;
+  const list = goalList(), max = planLim().goals;
+  const isNew = goalDraftNew || !list.length;
+  const g = isNew ? { enabled: true, type: 'money', theme: 'clasico' } : list[goalSel] || {};
+  const lbl = 'font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;';
+  const cur = streamerData?.tips_config?.currency || 'USD';
+  const chips = list.map((x, i) => {
+    const off = !userIsPro() && i >= PLAN_LIMITS.free.goals;
+    return `<button class="ab-varchip ${!isNew && goalSel === i ? 'on' : ''} ${x.enabled && !off ? '' : 'off'}" onclick="goalPick(${i})">${GOAL_TYPE_LABEL[x.type] || '💸'} <span class="ab-vn">${goalEsc(x.title || 'Meta')}</span>${off ? ' <small>⭐ Pro</small>' : ''}</button>`;
+  });
+  if (isNew && list.length) chips.push(`<button class="ab-varchip on">➕ Nueva meta</button>`);
+  else if (list.length < max) chips.push(`<button class="ab-varchip add" onclick="goalAdd()">➕ Nueva meta</button>`);
+  else if (!userIsPro()) chips.push(`<a class="ab-varchip add" href="/plans" style="text-decoration:none;" title="El plan gratis tiene ${PLAN_LIMITS.free.goals} meta">⭐ Más metas con Pro</a>`);
+  const overFree = !isNew && !userIsPro() && goalSel >= PLAN_LIMITS.free.goals;
+  box.innerHTML = `
+    ${list.length ? `<div class="ab-varbar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">${chips.join('')}</div>` : ''}
+    ${overFree ? `<div class="plan-note"><span>⭐</span><span>En el plan gratis solo cuenta la primera meta. Esta queda guardada y vuelve a funcionar con Pro.</span><a href="/plans">⭐ Ver Pro</a></div>` : ''}
+    <div class="toggle-row" style="margin-bottom:16px;">
+      <div><div class="toggle-label">${isNew ? 'Nueva meta' : 'Meta activa'}</div><div class="toggle-sub">Apágala para ocultarla sin perderla</div></div>
+      <label class="toggle"><input type="checkbox" id="goalEnabled" ${g.enabled !== false ? 'checked' : ''}><span class="toggle-slider"></span></label>
+    </div>
+    <div style="display:grid;grid-template-columns:1.2fr 2fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div><div style="${lbl}">¿Qué cuenta?</div>
+        <select id="goalType" class="form-input" onchange="goalTypeChanged()">${[['money','💸 Propinas (dinero)'],['subs','⭐ Subs'],['bits','💎 Bits']].map(([v,l])=>`<option value="${v}" ${(g.type||'money')===v?'selected':''}>${l}</option>`).join('')}</select></div>
+      <div><div style="${lbl}">Nombre de la meta</div>
+        <input type="text" id="goalTitle" class="form-input" maxlength="40" placeholder="Nueva silla, 50 subs…" value="${goalEsc(g.title || '')}"></div>
+      <div><div style="${lbl}" id="goalTargetLabel">Meta (${g.type==='subs'?'subs':g.type==='bits'?'bits':cur})</div>
+        <input type="number" id="goalTarget" class="form-input" min="1" step="1" placeholder="120" value="${g.target || ''}"></div>
+      <div><div style="${lbl}">Estilo</div>
+        <select id="goalTheme" class="form-input">${[['clasico','Clásico'],['neon','Neón'],['minimal','Minimal']].map(([v,l])=>`<option value="${v}" ${(g.theme||'clasico')===v?'selected':''}>${l}</option>`).join('')}</select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px;">
+      <div><div style="${lbl}">🎁 Reto al cumplirla (opcional)</div>
+        <input type="text" id="goalReward" class="form-input" maxlength="80" placeholder="Me rapo la cabeza, juego en dificultad máxima…" value="${goalEsc(g.reward || '')}"></div>
+      <div><div style="${lbl}">Fecha límite (opcional)</div>
+        <div style="display:flex;gap:6px;"><input type="datetime-local" id="goalEnds" class="form-input" style="flex:1;" value="${isoToLocalInput(g.ends_at)}"><button class="btn btn-secondary" title="Sin fecha límite" onclick="document.getElementById('goalEnds').value=''">✕</button></div></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="saveTipsGoal(false)">${isNew ? '➕ Crear meta' : 'Guardar'}</button>
+      ${isNew ? (list.length ? `<button class="btn btn-secondary" onclick="goalDraftNew=false;renderGoalEditor()">Cancelar</button>` : '') : `
+      <button class="btn btn-secondary" onclick="saveTipsGoal(true)">🔄 Empezar de nuevo (desde 0)</button>
+      <button class="btn btn-secondary" style="margin-left:auto;color:#ff8fa3;" onclick="goalDelete()">🗑️ Borrar meta</button>`}
+    </div>
+    ${isNew ? '' : `
+    <div style="${lbl}margin-top:20px;">📺 Overlay de esta meta para OBS · Browser Source 640×160</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <input class="form-input" id="goalOverlayUrl" readonly value="${goalEsc(goalOverlayUrl(g))}" style="flex:1;min-width:200px;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+      <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('goalOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
+      <button class="btn btn-secondary" onclick="window.open(document.getElementById('goalOverlayUrl').value+(document.getElementById('goalOverlayUrl').value.includes('?')?'&':'?')+'preview=1','_blank')">👁️ Vista previa</button>
+    </div>
+    ${list.length > 1 ? '<div style="font-size:11px;color:var(--text-dim);margin-top:6px;">Cada meta tiene su propio link: agrega una fuente de navegador en OBS por cada una.</div>' : ''}`}`;
+}
+function goalPick(i) { goalSel = i; goalDraftNew = false; renderGoalEditor(); loadGoalProgress(); }
+function goalAdd() {
+  const max = planLim().goals;
+  if (goalList().length >= max) { showToast(userIsPro() ? `Máximo ${max} metas` : `El plan gratis tiene ${max} meta — con Pro puedes tener ${PLAN_LIMITS.pro.goals} a la vez ⭐`, 'error'); return; }
+  goalDraftNew = true; renderGoalEditor();
 }
 function goalTypeChanged() {
   const t = document.getElementById('goalType').value;
@@ -2570,9 +2649,14 @@ function goalTypeChanged() {
 }
 // datetime-local trabaja en hora local: convertimos ida y vuelta a ISO
 function isoToLocalInput(iso) { if (!iso) return ''; const d = new Date(iso); if (isNaN(d)) return ''; const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+function goalSaved(d) {
+  streamerData.tips_config = { ...(streamerData.tips_config || {}), goals: d.goals, goal: d.goals?.[0] || { enabled: false } };
+}
 async function saveTipsGoal(reset) {
-  if (reset && !confirm('¿Empezar la meta desde 0? Las propinas anteriores ya no contarán para esta meta.')) return;
+  if (reset && !confirm('¿Empezar la meta desde 0? Lo que llevaba ya no contará para esta meta.')) return;
+  const list = goalList(), isNew = goalDraftNew || !list.length;
   const goal = {
+    id: isNew ? undefined : list[goalSel]?.id,
     enabled: document.getElementById('goalEnabled').checked,
     title: document.getElementById('goalTitle').value.trim(),
     type: document.getElementById('goalType').value,
@@ -2582,10 +2666,25 @@ async function saveTipsGoal(reset) {
     theme: document.getElementById('goalTheme').value,
   };
   try {
-    const res = await fetch('/api/tips-goal', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ goal, reset: !!reset }) });
+    const res = await fetch('/api/tips-goal', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ goal, reset: !!reset, add: isNew }) });
     const d = await res.json().catch(() => ({}));
-    if (res.ok) { streamerData.tips_config = { ...(streamerData.tips_config || {}), goal: d.goal }; showToast(reset ? 'Meta reiniciada ✓' : 'Meta guardada ✓'); loadGoalProgress(); }
+    if (res.ok) {
+      goalSaved(d);
+      goalSel = Math.max(0, (d.goals || []).findIndex(x => x.id === d.goal?.id)); goalDraftNew = false;
+      showToast(reset ? 'Meta reiniciada ✓' : isNew ? 'Meta creada ✓' : 'Meta guardada ✓');
+      renderGoalEditor(); loadGoalProgress();
+    }
     else showToast(d.error || 'Error al guardar', 'error');
+  } catch(e) { showToast('Error de conexión', 'error'); }
+}
+async function goalDelete() {
+  const g = goalList()[goalSel]; if (!g) return;
+  if (!confirm(`¿Borrar la meta "${g.title || 'Meta'}"? Si tienes su overlay en OBS, quítalo también.`)) return;
+  try {
+    const res = await fetch('/api/tips-goal', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ remove: g.id }) });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok) { goalSaved(d); goalSel = 0; goalDraftNew = false; showToast('Meta borrada ✓'); renderGoalEditor(); loadGoalProgress(); }
+    else showToast(d.error || 'Error al borrar', 'error');
   } catch(e) { showToast('Error de conexión', 'error'); }
 }
 async function registerManualTip() {
@@ -5484,73 +5583,17 @@ function renderMain() {
       <div class="page-subtitle">Una barra en tu stream que se llena con propinas, subs o bits — con reto y fecha límite si quieres</div>
     </div>
 
+    ${planNote(`Plan gratis: <b>1 meta</b> a la vez. Con Pro: hasta ${PLAN_LIMITS.pro.goals} metas al mismo tiempo (por ejemplo una de subs y otra de propinas), cada una con su overlay.`)}
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">📊 Cómo va</span></div>
-      <div class="panel-body">
-        <div id="goalPreviewEmpty" style="color:var(--text-dim);font-size:13px;">No tienes una meta activa. Créala abajo 👇</div>
-        <div id="goalPreview" style="display:none;">
-          <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin-bottom:10px;">
-            <div style="font-size:18px;font-weight:800;" id="goalPvTitle">🎯 Meta</div>
-            <div style="font-size:15px;font-weight:700;"><span id="goalPvCur" style="color:#7dffb2;">0</span> / <span id="goalPvTarget">0</span> <span id="goalPvPct" style="color:var(--text-dim);font-weight:600;"></span></div>
-          </div>
-          <div style="height:16px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden;"><div id="goalPvFill" style="height:100%;width:0%;background:linear-gradient(90deg,#9147ff,#c86bff,#ff6fb5);border-radius:999px;transition:width .6s;"></div></div>
-          <div style="display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:12px;color:var(--text-dim);"><span id="goalPvReward"></span><span id="goalPvTime"></span></div>
-        </div>
-      </div>
+      <div class="panel-header"><span class="panel-title-text">📊 Cómo van</span></div>
+      <div class="panel-body"><div id="goalPreviewList"><div style="color:var(--text-dim);font-size:13px;">Cargando…</div></div></div>
     </div>
 
     <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">⚙️ Configurar la meta</span><span id="goalProgress" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
+      <div class="panel-header"><span class="panel-title-text">⚙️ Tus metas</span><span id="goalProgress" style="margin-left:auto;font-size:12px;color:var(--text-dim);"></span></div>
       <div class="panel-body">
-        <div class="toggle-row" style="margin-bottom:16px;">
-          <div><div class="toggle-label">Mostrar una meta</div><div class="toggle-sub">Una barra en OBS que se llena con propinas, subs o bits — con reto y fecha límite si quieres</div></div>
-          <label class="toggle"><input type="checkbox" id="goalEnabled" ${s.tips_config?.goal?.enabled?'checked':''}><span class="toggle-slider"></span></label>
-        </div>
-        <div style="display:grid;grid-template-columns:1.2fr 2fr 1fr 1fr;gap:12px;margin-bottom:14px;">
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">¿Qué cuenta?</div>
-            <select id="goalType" class="form-input" onchange="goalTypeChanged()">${[['money','💸 Propinas (dinero)'],['subs','⭐ Subs'],['bits','💎 Bits']].map(([v,l])=>`<option value="${v}" ${(s.tips_config?.goal?.type||'money')===v?'selected':''}>${l}</option>`).join('')}</select>
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Nombre de la meta</div>
-            <input type="text" id="goalTitle" class="form-input" maxlength="40" placeholder="Nueva silla, 50 subs…" value="${String(s.tips_config?.goal?.title||'').replace(/[<>"]/g,'')}">
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;" id="goalTargetLabel">Meta (${s.tips_config?.goal?.type==='subs'?'subs':s.tips_config?.goal?.type==='bits'?'bits':(s.tips_config?.currency||'USD')})</div>
-            <input type="number" id="goalTarget" class="form-input" min="1" step="1" placeholder="120" value="${s.tips_config?.goal?.target||''}">
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Estilo</div>
-            <select id="goalTheme" class="form-input">${[['clasico','Clásico'],['neon','Neón'],['minimal','Minimal']].map(([v,l])=>`<option value="${v}" ${(s.tips_config?.goal?.theme||'clasico')===v?'selected':''}>${l}</option>`).join('')}</select>
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px;">
-          <div>
-          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">🎁 Reto al cumplirla (opcional)</div>
-          <input type="text" id="goalReward" class="form-input" maxlength="80" placeholder="Me rapo la cabeza, juego en dificultad máxima…" value="${String(s.tips_config?.goal?.reward||'').replace(/[<>"]/g,'')}">
-          </div>
-          <div>
-            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Fecha límite (opcional)</div>
-            <div style="display:flex;gap:6px;"><input type="datetime-local" id="goalEnds" class="form-input" style="flex:1;" value=""><button class="btn btn-secondary" title="Sin fecha límite" onclick="document.getElementById('goalEnds').value=''">✕</button></div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="saveTipsGoal(false)">Guardar</button>
-          <button class="btn btn-secondary" onclick="saveTipsGoal(true)">🔄 Empezar de nuevo (desde 0)</button>
-        </div>
-        <div style="font-size:11px;color:var(--text-dim);margin-top:14px;line-height:1.6;">💸 <b>Propinas:</b> PayPal y las registradas a mano, en tu moneda. ⭐ <b>Subs:</b> cada sub, resub o sub regalada cuenta 1 (Prime incluido). 💎 <b>Bits:</b> se suman todos.<br>Cuenta desde que creaste o reiniciaste la meta (cambiar el tipo la reinicia). Con fecha límite, al vencer deja de contar. Las subs/bits del chat compartido no cuentan.<br>En el chat, <b>!meta</b> dice cómo va, y Muffet avisa cuando se cumple 🎉 <i>(las metas de subs/bits necesitan correr <b>metas.sql</b> en Supabase una vez)</i></div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-header"><span class="panel-title-text">📺 Overlay para OBS</span></div>
-      <div class="panel-body">
-        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin:0 0 6px;">Browser Source · 640×160</div>
-        <div style="display:flex;gap:8px;">
-          <input class="form-input" id="goalOverlayUrl" readonly value="" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
-          <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(document.getElementById('goalOverlayUrl').value);showToast('URL copiada ✓')">📋 Copiar</button>
-          <button class="btn btn-secondary" onclick="window.open(document.getElementById('goalOverlayUrl').value+'?preview=1','_blank')">👁️ Vista previa</button>
-        </div>
+        <div id="goalEditor"></div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:14px;line-height:1.6;">💸 <b>Propinas:</b> PayPal y las registradas a mano, en tu moneda. ⭐ <b>Subs:</b> cada sub, resub o sub regalada cuenta 1 (Prime incluido). 💎 <b>Bits:</b> se suman todos.<br>Cada meta cuenta desde que la creaste o reiniciaste (cambiar el tipo la reinicia). Con fecha límite, al vencer deja de contar. Las subs/bits del chat compartido no cuentan.<br>En el chat, <b>!meta</b> dice cómo van. Muffet avisa cuando una meta llega al <b>90%</b> 🔥 y cuando se cumple 🎉</div>
       </div>
     </div>
   </div>
