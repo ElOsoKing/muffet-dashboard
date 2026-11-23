@@ -283,13 +283,14 @@ const appTokenCached = () => ttlCache('twitch-app-token', 3 * 3600 * 1000, getTw
 app.get('/api/showcase', async (req, res) => {
   try {
     const data = await ttlCache('showcase', 5 * 60 * 1000, async () => {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?approved=eq.true&role=neq.blocked&select=twitch_username,feature_flags,bot_status&limit=500`, { headers: sbHeaders });
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/streamers?approved=eq.true&role=neq.blocked&select=twitch_username,feature_flags,live_announcement&limit=500`, { headers: sbHeaders });
       const rows = (await r.json().catch(() => [])) || [];
-      // Canales activos: con chat en los últimos 45 días, o con el bot dentro de su chat ahora (reporte de los últimos 2 días)
-      const cutoff = Date.now() - 45 * 86400000, recent = Date.now() - 2 * 86400000;
-      const active = (b) => !!b && ((b.last_chat_at && Date.parse(b.last_chat_at) > cutoff) || (b.in_chat && b.updated_at && Date.parse(b.updated_at) > recent));
+      // Solo canales que de verdad hacen stream: el bot los vio empezar un directo en los últimos 45 días
+      // (live_announcement.last_seen_started_at lo anota el bot en cada stream nuevo, en todos los planes)
+      const cutoff = Date.now() - 45 * 86400000;
+      const streamed = (la) => !!(la?.last_seen_started_at && Date.parse(la.last_seen_started_at) > cutoff);
       const logins = (Array.isArray(rows) ? rows : [])
-        .filter(s => s.feature_flags?.showcase !== false && active(s.bot_status))
+        .filter(s => s.feature_flags?.showcase !== false && streamed(s.live_announcement))
         .map(s => s.twitch_username.toLowerCase()).slice(0, 100);
       if (!logins.length) return { channels: [] };
       const tok = await appTokenCached();
