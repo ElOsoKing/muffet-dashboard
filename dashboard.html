@@ -1532,6 +1532,7 @@ function renderOverviewSubathon() {
 async function loadOverviewLive() {
   renderOverviewSubathon();
   loadPlanCard();
+  loadRefCard();
   const u = encodeURIComponent(streamerData?.twitch_username || '');
   // Meta
   try {
@@ -1722,6 +1723,38 @@ async function startProTrial() {
     showToast('🎁 ¡Listo! Tienes Pro por 7 días');
     setTimeout(() => location.reload(), 900); // recargar para que todo el dashboard se vea como Pro
   } catch (e) { showToast('Error de conexión', 'error'); }
+}
+
+// ── Invita a un streamer (Inicio): link propio; los dos ganan días de Pro. Y si sale en la vitrina de la página principal ──
+async function loadRefCard() {
+  const box = document.getElementById('refCard'); if (!box) return;
+  if (viewingAsChannel) { box.innerHTML = ''; return; }
+  let d; try { d = await (await fetch('/api/referrals')).json(); } catch (e) { return; }
+  if (!d?.link) return;
+  const show = streamerData?.feature_flags?.showcase !== false;
+  const names = (d.list || []).slice(0, 8).map(r => `<span translate="no" style="display:inline-block;background:var(--bg3);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:3px 9px;font-size:11px;margin:3px 4px 0 0;">${goalEsc(r.user)}</span>`).join('');
+  box.innerHTML = `<div class="panel" style="margin-bottom:16px;"><div class="panel-header"><span class="panel-title-text">🤝 Invita a un streamer</span>${d.count ? `<span style="margin-left:auto;font-size:12px;color:var(--text-dim);">Invitaste a <b style="color:var(--text);">${d.count}</b></span>` : ''}</div>
+    <div class="panel-body">
+      <div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">Comparte tu link. Si un streamer se registra con él, <b style="color:var(--text);">los dos ganan ${d.days} días de Pro</b> ⭐ (tú, hasta ${d.max} veces). En tu chat, <b>!silkly</b> también da tu link.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input class="form-input" id="refLink" readonly value="${goalEsc(d.link)}" style="flex:1;min-width:220px;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);">
+        <button class="btn btn-primary" onclick="navigator.clipboard.writeText(document.getElementById('refLink').value);showToast('Link copiado ✓')">📋 Copiar link</button>
+      </div>
+      ${names ? `<div style="margin-top:12px;font-size:11px;color:var(--text-muted);">Llegaron con tu link:</div><div>${names}</div>` : ''}
+      ${d.referred_by ? `<div style="margin-top:10px;font-size:11px;color:var(--text-muted);">Tú llegaste invitado por <b translate="no">${goalEsc(d.referred_by)}</b> 💜</div>` : ''}
+      <div class="toggle-row" style="margin-top:14px;padding-bottom:0;">
+        <div><div class="toggle-label">Mostrar mi canal en la página de SilklyBot</div><div class="toggle-sub">Sale tu foto en “Canales que usan SilklyBot” y, si estás en vivo, con 🔴</div></div>
+        <label class="toggle"><input type="checkbox" ${show ? 'checked' : ''} onchange="setShowcase(this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+    </div></div>`;
+}
+async function setShowcase(on) {
+  try {
+    const r = await fetch('/api/showcase-optin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ show: on }) });
+    if (!r.ok) throw 0;
+    streamerData.feature_flags = { ...(streamerData.feature_flags || {}), showcase: on };
+    showToast(on ? 'Tu canal sale en la página ✓' : 'Tu canal ya no sale en la página ✓');
+  } catch (e) { showToast('Error al guardar', 'error'); }
 }
 
 // ── Historial de alertas (sección Alertas): las últimas que salieron, con botón para repetirlas ──
@@ -3060,6 +3093,8 @@ function renderMain() {
 
     <!-- Tu plan: uso y prueba gratis de Pro -->
     <div id="planCard"></div>
+    <!-- Invita a un streamer -->
+    <div id="refCard"></div>
 
     <div class="stats-grid">
       <div class="stat-card" onclick="showSection('commands')" style="cursor:pointer;">
