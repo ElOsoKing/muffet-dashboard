@@ -111,7 +111,7 @@ app.post('/webhooks/lemonsqueezy', express.raw({ type: '*/*' }), async (req, res
 const globalJsonParser = express.json({ limit: '50kb' });
 app.use((req, res, next) => {
   // El upload de media alerts usa su propio parser con límite de 8MB — el global lo saltea
-  if (req.path === '/api/media-alerts/upload' || req.path === '/api/alert-box') return next(); // estas traen su propio parser (archivos / código de alertas)
+  if (req.path === '/api/media-alerts/upload' || req.path === '/api/alert-box' || /^\/api\/voz\/[a-z0-9_]+\/note$/i.test(req.path)) return next(); // estas traen su propio parser (archivos / código de alertas / notas de voz)
   return globalJsonParser(req, res, next);
 });
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
@@ -546,6 +546,7 @@ app.get('/auth/twitch/callback', async (req, res) => {
   if (req.query.state && req.session.botAuthState && req.query.state === req.session.botAuthState) {
     delete req.session.botAuthState;
     const kind = req.session.botAuthKind || 'main'; delete req.session.botAuthKind;
+    if (kind === 'viewer') return handleViewerCallback(req, res, code); // login de viewers (notas de voz): no crea cuenta de streamer
     if (kind === 'channelbot') return handleChannelBotCallback(req, res, code);
     return handleBotAuthCallback(req, res, code, kind);
   }
@@ -3024,6 +3025,403 @@ app.post('/api/rewards/create', requireAuth, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ══════════════════════════════════════════
+//  NOTAS DE VOZ — el viewer graba (o escribe para la voz TTS) en /voz/<canal>, canjea "🎙️ Nota de voz"
+//  con sus puntos de Twitch y un mod la aprueba: suena en el overlay de alertas. Si la borran, Twitch
+//  le devuelve los puntos. Se unen por la cuenta de Twitch (quien inició sesión = quien canjeó).
+//  Tabla voice_notes (voz.sql) · streamers.voice_config = { enabled, cost, reward_id, managed_reward_id, allow_tts, volume, bans:[{id,login,ts,by}] }
+//  Estados: awaiting_redemption (audio sin canje) · awaiting_audio (canje sin audio) · pending · approved · deleted · banned · expired
+// ══════════════════════════════════════════
+const VOZ_OPEN = ['awaiting_redemption', 'awaiting_audio', 'pending'];
+const VOZ_WAIT_MIN = 30;           // minutos para completar la otra mitad (audio o canje)
+const VOZ_KEEP_DAYS = 7;           // los audios se borran a los 7 días (menos los favoritos)
+const VOZ_FREE_PER_STREAM = 10;    // plan gratis: notas aprobadas por stream
+const VOZ_MAX_WAV_BYTES = 2.5 * 1024 * 1024;
+const vozDefaults = (c) => ({ enabled: false, cost: 5000, allow_tts: true, volume: 90, bans: [], reward_id: null, managed_reward_id: null, ...(c || {}) });
+const vozCanal = (v) => { const u = String(v || '').toLowerCase(); return /^[a-z0-9_]{3,25}$/.test(u) ? u : null; };
+async function vozRest(method, qs, body, prefer) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/voice_notes${qs ? '?' + qs : ''}`, {
+    method, headers: { ...sbHeaders, 'Content-Type': 'application/json', ...(prefer ? { Prefer: prefer } : {}) },
+    body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(10000),
+  });
+  const t = await r.text();
+  if (!r.ok) throw new Error(`voice_notes ${r.status}: ${t.slice(0, 160)}`);
+  try { return t ? JSON.parse(t) : null; } catch (e) { return null; }
+}
+const vozPatch = (id, data) => vozRest('PATCH', `id=eq.${encodeURIComponent(id)}`, data, 'return=representation').then(r => r?.[0] || null);
+const vozPublicUrl = (path) => path ? `${SUPABASE_URL}/storage/v1/object/public/alerts/${path}` : null;
+async function vozDeleteFile(path) {
+  if (!path) return;
+  await fetch(`${SUPABASE_URL}/storage/v1/object/alerts`, { method: 'DELETE', headers: { ...sbHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify({ prefixes: [path] }) }).catch(() => {});
+}
+async function vozStreamer(canal) {
+  return sbSelect('streamers', { twitch_username: canal }, 'id,twitch_id,twitch_username,plan,plan_expires_at,voice_config,banned_words,live_announcement,access_token,refresh_token');
+}
+function vozBanned(cfg, viewerId, login) {
+  return (cfg.bans || []).some(b => (viewerId && b.id === String(viewerId)) || (login && b.login === String(login).toLowerCase()));
+}
+// Notas aprobadas en este stream (o en las últimas 12 h si no se sabe cuándo empezó)
+async function vozApprovedThisStream(streamer) {
+  const started = streamer.live_announcement?.last_seen_started_at;
+  const since = started && Date.now() - Date.parse(started) < 24 * 3600e3 ? started : new Date(Date.now() - 12 * 3600e3).toISOString();
+  const rows = await vozRest('GET', `streamer=eq.${streamer.twitch_username}&status=eq.approved&decided_at=gte.${encodeURIComponent(since)}&select=id&limit=200`).catch(() => []);
+  return (rows || []).length;
+}
+async function vozLimitReached(streamer) {
+  if (isProPlan(effectivePlan(streamer))) return false;
+  return (await vozApprovedThisStream(streamer)) >= VOZ_FREE_PER_STREAM;
+}
+function vozHasBannedWord(text, words) {
+  const t = String(text || '').toLowerCase();
+  return (Array.isArray(words) ? words : []).some(w => { w = String(w || '').trim().toLowerCase(); return w.length >= 2 && t.includes(w); });
+}
+// WAV PCM limpio (la página lo rehace así antes de mandarlo): devuelve la duración en segundos o null
+function vozWavDuration(buf) {
+  if (buf.length < 44 || buf.toString('ascii', 0, 4) !== 'RIFF' || buf.toString('ascii', 8, 12) !== 'WAVE') return null;
+  let off = 12, fmt = null, dataLen = null;
+  while (off + 8 <= buf.length) {
+    const id = buf.toString('ascii', off, off + 4), len = buf.readUInt32LE(off + 4);
+    if (id === 'fmt ') fmt = { format: buf.readUInt16LE(off + 8), channels: buf.readUInt16LE(off + 10), rate: buf.readUInt32LE(off + 12), byteRate: buf.readUInt32LE(off + 16), bits: buf.readUInt16LE(off + 22) };
+    if (id === 'data') { dataLen = Math.min(len, buf.length - off - 8); break; }
+    off += 8 + len + (len % 2);
+  }
+  if (!fmt || dataLen === null || fmt.format !== 1 || fmt.bits !== 16 || fmt.channels < 1 || fmt.channels > 2 || fmt.rate < 8000 || fmt.rate > 48000 || !fmt.byteRate) return null;
+  return dataLen / fmt.byteRate;
+}
+// Transcripción con Whisper de Groq (si hay GROQ_API_KEY en el servidor). Si falla, la nota queda sin texto.
+async function vozTranscribe(buf, filename) {
+  if (!process.env.GROQ_API_KEY) return null;
+  try {
+    const fd = new FormData();
+    fd.append('file', new Blob([buf], { type: 'audio/wav' }), filename || 'nota.wav');
+    fd.append('model', 'whisper-large-v3-turbo');
+    fd.append('response_format', 'json');
+    const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` }, body: fd, signal: AbortSignal.timeout(20000) });
+    if (!r.ok) { console.error('[voz] transcripción', r.status, (await r.text()).slice(0, 120)); return null; }
+    return String((await r.json()).text || '').trim().slice(0, 400) || null;
+  } catch (e) { console.error('[voz] transcripción:', e.message); return null; }
+}
+function vozPublicNote(n) {
+  return { id: n.id, status: n.status, kind: n.kind, viewer: n.viewer_name || n.viewer_login, viewer_login: n.viewer_login, text: n.text || null, flagged: !!n.flagged,
+    duration: n.duration, url: vozPublicUrl(n.audio_path), favorite: !!n.favorite, created_at: n.created_at, decided_at: n.decided_at, decided_by: n.decided_by, has_redemption: !!n.redemption_id };
+}
+function vozNotifyBot(canal, note) {
+  botEvent('voice.new', { channel: canal, user: note.viewer_name || note.viewer_login });
+}
+
+// ── Login de viewers (para mandar notas o moderarlas). Usa el mismo regreso de Twitch: no hay que tocar la app ──
+app.get('/auth/viewer', (req, res) => {
+  const next = String(req.query.next || '/');
+  const safeNext = /^\/voz\/[a-z0-9_]{3,25}(\/mods)?$/i.test(next) ? next : '/';
+  const state = require('crypto').randomBytes(16).toString('hex');
+  req.session.botAuthState = state;
+  req.session.botAuthKind = 'viewer';
+  req.session.viewerNext = safeNext;
+  const mods = /\/mods$/.test(safeNext);
+  const scopes = mods ? 'user:read:moderated_channels' : '';
+  const url = `https://id.twitch.tv/oauth2/authorize?client_id=${TWITCH_CLIENT_ID}&redirect_uri=${encodeURIComponent(BASE_URL + '/auth/twitch/callback')}&response_type=code&scope=${encodeURIComponent(scopes)}&state=${state}`;
+  req.session.save(() => res.redirect(url));
+});
+app.get('/auth/viewer/logout', (req, res) => {
+  const next = /^\/voz\/[a-z0-9_]{3,25}(\/mods)?$/i.test(String(req.query.next || '')) ? req.query.next : '/';
+  delete req.session.viewer;
+  req.session.save(() => res.redirect(next));
+});
+async function handleViewerCallback(req, res, code) {
+  const next = req.session.viewerNext || '/'; delete req.session.viewerNext;
+  try {
+    const tr = await fetch('https://id.twitch.tv/oauth2/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: TWITCH_CLIENT_ID, client_secret: TWITCH_SECRET, code, grant_type: 'authorization_code', redirect_uri: BASE_URL + '/auth/twitch/callback' }) });
+    const tok = await tr.json();
+    if (!tok.access_token) throw new Error('sin token');
+    const H = { Authorization: `Bearer ${tok.access_token}`, 'Client-Id': TWITCH_CLIENT_ID };
+    const u = (await (await fetch('https://api.twitch.tv/helix/users', { headers: H })).json())?.data?.[0];
+    if (!u) throw new Error('sin usuario');
+    const viewer = { id: u.id, login: u.login.toLowerCase(), name: u.display_name || u.login, avatar: u.profile_image_url || '', mod_of: [] };
+    // ¿De qué canales es moderador? (solo si entró por la página de mods)
+    if (String(tok.scope || '').includes('user:read:moderated_channels') || (Array.isArray(tok.scope) && tok.scope.includes('user:read:moderated_channels'))) {
+      let cursor = '';
+      for (let i = 0; i < 5; i++) {
+        const d = await (await fetch(`https://api.twitch.tv/helix/moderation/channels?user_id=${u.id}&first=100${cursor ? '&after=' + cursor : ''}`, { headers: H })).json().catch(() => ({}));
+        for (const c of d.data || []) viewer.mod_of.push(String(c.broadcaster_login).toLowerCase());
+        cursor = d.pagination?.cursor; if (!cursor) break;
+      }
+    }
+    // El token del viewer no se guarda: solo quién es
+    req.session.viewer = viewer;
+    req.session.save(() => res.redirect(next));
+  } catch (e) {
+    console.error('[voz] login viewer:', e.message);
+    res.redirect(next + (next.includes('?') ? '&' : '?') + 'error=login');
+  }
+}
+// ¿Puede moderar las notas de este canal? (el dueño con su sesión del dashboard, o un mod verificado con Twitch)
+function vozCanModerate(req, canal) {
+  if (req.session?.user && String(req.session.user.username || '').toLowerCase() === canal) return String(req.session.user.username).toLowerCase();
+  const v = req.session?.viewer;
+  if (v && (v.login === canal || (v.mod_of || []).includes(canal))) return v.login;
+  return null;
+}
+
+// ── Páginas ──
+app.get('/voz/:canal', (req, res) => res.sendFile(path.join(__dirname, 'voz.html')));
+app.get('/voz/:canal/mods', (req, res) => res.sendFile(path.join(__dirname, 'voz-mods.html')));
+
+// ── Viewer: info de la página y su nota ──
+app.get('/api/voz/:canal/info', async (req, res) => {
+  try {
+    const canal = vozCanal(req.params.canal); if (!canal) return res.status(404).json({ error: 'Canal no encontrado' });
+    const s = await vozStreamer(canal); if (!s) return res.status(404).json({ error: 'Canal no encontrado' });
+    const cfg = vozDefaults(s.voice_config), v = req.session?.viewer || null;
+    let my = null;
+    if (v) {
+      const rows = await vozRest('GET', `streamer=eq.${canal}&viewer_id=eq.${v.id}&order=created_at.desc&limit=1`).catch(() => []);
+      if (rows?.[0]) my = vozPublicNote(rows[0]);
+    }
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      canal, enabled: !!cfg.enabled && !!cfg.reward_id, cost: cfg.cost, allow_tts: cfg.allow_tts !== false, tts_langs: TTS_LANGS,
+      viewer: v ? { login: v.login, name: v.name, avatar: v.avatar } : null, banned: v ? vozBanned(cfg, v.id, v.login) : false,
+      my_note: my, wait_min: VOZ_WAIT_MIN, twitch_url: `https://www.twitch.tv/${canal}`,
+      can_moderate: !!vozCanModerate(req, canal),
+    });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+// ── Viewer: mandar la nota (audio WAV o texto para la voz) ──
+const vozUploadLimit = new Map();
+app.post('/api/voz/:canal/note', express.json({ limit: '4mb' }), async (req, res) => {
+  try {
+    const canal = vozCanal(req.params.canal); if (!canal) return res.status(404).json({ error: 'Canal no encontrado' });
+    const v = req.session?.viewer; if (!v) return res.status(401).json({ error: 'Inicia sesión con Twitch primero' });
+    if (Date.now() - (vozUploadLimit.get(v.id) || 0) < 5000) return res.status(429).json({ error: 'Espera unos segundos…' });
+    vozUploadLimit.set(v.id, Date.now());
+    const s = await vozStreamer(canal); if (!s) return res.status(404).json({ error: 'Canal no encontrado' });
+    const cfg = vozDefaults(s.voice_config);
+    if (!cfg.enabled || !cfg.reward_id) return res.status(400).json({ error: 'Este canal no está recibiendo notas de voz ahora' });
+    if (vozBanned(cfg, v.id, v.login)) return res.status(403).json({ error: 'No puedes mandar notas de voz en este canal' });
+    if (await vozLimitReached(s)) return res.status(400).json({ error: `Este canal ya llegó al límite de ${VOZ_FREE_PER_STREAM} notas en este stream` });
+    const open = await vozRest('GET', `streamer=eq.${canal}&viewer_id=eq.${v.id}&status=in.(${VOZ_OPEN.join(',')})&order=created_at.desc&limit=5`);
+    const waitingAudio = (open || []).find(n => n.status === 'awaiting_audio');
+    if (!waitingAudio && (open || []).length) return res.status(400).json({ error: 'Ya tienes una nota esperando. Cuando la revisen podrás mandar otra.' });
+
+    const kind = req.body?.kind === 'tts' ? 'tts' : 'audio';
+    let buf, ext, mime, duration = null, text = null, ttsLang = null;
+    if (kind === 'tts') {
+      if (cfg.allow_tts === false) return res.status(400).json({ error: 'Este canal solo acepta notas grabadas' });
+      text = cleanTTSText(String(req.body?.text || ''), s.banned_words);
+      if (text.length < 2) return res.status(400).json({ error: 'Escribe tu mensaje' });
+      ttsLang = TTS_LANGS[req.body?.lang] ? req.body.lang : 'es';
+      const lang = ttsLang === 'random' ? pickLang('random') : ttsLang;
+      buf = (await makeTTS(text, null, lang, { premium: false })).audio;
+      ext = 'mp3'; mime = 'audio/mpeg';
+    } else {
+      const b64 = String(req.body?.data || '').replace(/^data:[^,]+,/, '');
+      buf = Buffer.from(b64, 'base64');
+      if (!buf.length || buf.length > VOZ_MAX_WAV_BYTES) return res.status(400).json({ error: 'El audio es muy grande' });
+      duration = vozWavDuration(buf);
+      if (duration === null) return res.status(400).json({ error: 'Ese archivo no es un audio válido' });
+      if (duration < 0.8 || duration > 15.5) return res.status(400).json({ error: 'La nota tiene que durar entre 1 y 15 segundos' });
+      ext = 'wav'; mime = 'audio/wav';
+    }
+    await ensureAlertsBucket();
+    const fileId = crypto.randomBytes(12).toString('hex');
+    const pathKey = `${canal}/voz/${fileId}.${ext}`;
+    const up = await fetch(`${SUPABASE_URL}/storage/v1/object/alerts/${pathKey}`, { method: 'POST', headers: { ...sbHeaders, 'Content-Type': mime, 'x-upsert': 'true' }, body: buf });
+    if (!up.ok) return res.status(500).json({ error: 'No se pudo guardar el audio' });
+    const base = { kind, audio_path: pathKey, duration: duration ? Math.round(duration * 10) / 10 : null, text, tts_lang: ttsLang,
+      flagged: kind === 'tts' ? false : false, viewer_name: v.name };
+    let note;
+    if (waitingAudio) {
+      note = await vozPatch(waitingAudio.id, { ...base, status: 'pending' });
+      vozNotifyBot(canal, note);
+    } else {
+      note = (await vozRest('POST', '', { streamer: canal, viewer_id: v.id, viewer_login: v.login, ...base, status: 'awaiting_redemption' }, 'return=representation'))?.[0];
+    }
+    console.log(`[voz] ${v.login} mandó una nota (${kind}) a #${canal} → ${note?.status}`);
+    res.json({ success: true, note: vozPublicNote(note) });
+    // Transcribir sin hacer esperar al viewer
+    if (kind === 'audio' && note) {
+      const t = await vozTranscribe(buf, `${fileId}.wav`);
+      if (t) await vozPatch(note.id, { text: t, flagged: vozHasBannedWord(t, s.banned_words) }).catch(() => {});
+    }
+  } catch (e) { console.error('[voz] subir:', e.message); if (!res.headersSent) res.status(500).json({ error: 'Error al mandar la nota' }); }
+});
+// ── Viewer: cancelar su nota que todavía espera el canje ──
+app.post('/api/voz/:canal/cancel', async (req, res) => {
+  try {
+    const canal = vozCanal(req.params.canal), v = req.session?.viewer;
+    if (!canal || !v) return res.status(401).json({ error: 'Inicia sesión' });
+    const rows = await vozRest('GET', `streamer=eq.${canal}&viewer_id=eq.${v.id}&status=eq.awaiting_redemption&limit=5`);
+    for (const n of rows || []) { await vozPatch(n.id, { status: 'expired' }); vozDeleteFile(n.audio_path); }
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Canje de "🎙️ Nota de voz" (lo llama handleRewardRedemption) ──
+async function handleVoiceRedemption(streamer, event) {
+  const canal = String(streamer.twitch_username).toLowerCase();
+  const cfg = vozDefaults(streamer.voice_config);
+  const viewerId = String(event.user_id || ''), login = String(event.user_login || event.user_name || '').toLowerCase();
+  const rewardId = event.reward?.id, redemptionId = event.id;
+  const refund = () => isManagedReward(cfg) ? settleRedemption(streamer, rewardId, redemptionId, 'CANCELED') : null;
+  if (!cfg.enabled || vozBanned(cfg, viewerId, login)) { await refund(); return; }
+  if (await vozLimitReached(streamer)) { await refund(); botEvent('voice.limit', { channel: canal, user: event.user_name || login }); return; }
+  const open = await vozRest('GET', `streamer=eq.${canal}&viewer_id=eq.${viewerId}&status=in.(${VOZ_OPEN.join(',')})&order=created_at.desc&limit=5`).catch(() => []);
+  const waiting = (open || []).find(n => n.status === 'awaiting_redemption');
+  if (waiting) {
+    const note = await vozPatch(waiting.id, { status: 'pending', redemption_id: redemptionId, reward_id: rewardId });
+    console.log(`[voz] canje de ${login} unido a su nota en #${canal}`);
+    vozNotifyBot(canal, note);
+    return;
+  }
+  if ((open || []).length) { await refund(); return; } // ya tiene una nota en revisión: se le devuelven los puntos de este canje
+  await vozRest('POST', '', { streamer: canal, viewer_id: viewerId, viewer_login: login, viewer_name: event.user_name || login, status: 'awaiting_audio', redemption_id: redemptionId, reward_id: rewardId, kind: 'audio' });
+  console.log(`[voz] ${login} canjeó en #${canal}; esperando que suba su audio`);
+}
+
+// ── Mods: cola, decisiones y favoritas ──
+app.get('/api/voz/:canal/queue', async (req, res) => {
+  try {
+    const canal = vozCanal(req.params.canal); if (!canal) return res.status(404).json({ error: 'Canal no encontrado' });
+    const who = vozCanModerate(req, canal); if (!who) return res.status(403).json({ error: 'Solo los mods del canal' });
+    const tab = String(req.query.tab || 'pending');
+    const qs = tab === 'favorites' ? `streamer=eq.${canal}&favorite=eq.true&order=decided_at.desc&limit=60`
+      : tab === 'history' ? `streamer=eq.${canal}&status=in.(approved,deleted,banned)&order=decided_at.desc&limit=60`
+      : `streamer=eq.${canal}&status=in.(pending,awaiting_audio)&order=created_at.asc&limit=60`;
+    const rows = await vozRest('GET', qs);
+    const s = await vozStreamer(canal);
+    const cfg = vozDefaults(s?.voice_config);
+    res.set('Cache-Control', 'no-store');
+    res.json({ notes: (rows || []).map(vozPublicNote), bans: cfg.bans || [], me: who, enabled: !!cfg.enabled,
+      limit: isProPlan(effectivePlan(s)) ? null : { used: await vozApprovedThisStream(s), max: VOZ_FREE_PER_STREAM } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/voz/:canal/decide', async (req, res) => {
+  try {
+    const canal = vozCanal(req.params.canal); if (!canal) return res.status(404).json({ error: 'Canal no encontrado' });
+    const who = vozCanModerate(req, canal); if (!who) return res.status(403).json({ error: 'Solo los mods del canal' });
+    const action = String(req.body?.action || '');
+    const s = await vozStreamer(canal); if (!s) return res.status(404).json({ error: 'Canal no encontrado' });
+    const cfg = vozDefaults(s.voice_config);
+    if (action === 'unban') {
+      const login = String(req.body?.login || '').toLowerCase();
+      cfg.bans = (cfg.bans || []).filter(b => b.login !== login);
+      await sbUpdate('streamers', { voice_config: cfg }, { twitch_username: canal });
+      return res.json({ success: true });
+    }
+    const id = String(req.body?.id || '');
+    const n = (await vozRest('GET', `id=eq.${encodeURIComponent(id)}&streamer=eq.${canal}&limit=1`))?.[0];
+    if (!n) return res.status(404).json({ error: 'Esa nota ya no existe' });
+    const now = new Date().toISOString();
+    const settle = (status) => n.redemption_id && isManagedReward({ reward_id: n.reward_id, managed_reward_id: cfg.managed_reward_id }) ? settleRedemption(s, n.reward_id, n.redemption_id, status) : null;
+    const play = async () => pushMediaAlert(canal, { type: 'voice', url: vozPublicUrl(n.audio_path), name: n.viewer_name || n.viewer_login, text: n.text || '', kind: n.kind,
+      volume: cfg.volume ?? 90, brand: !isProPlan(effectivePlan(s)) });
+    if (action === 'approve') {
+      if (n.status !== 'pending') return res.status(400).json({ error: n.status === 'awaiting_audio' ? 'Todavía no subió su audio' : 'Esa nota ya fue revisada' });
+      if (await vozLimitReached(s)) return res.status(400).json({ error: `Llegaste al límite de ${VOZ_FREE_PER_STREAM} notas en este stream del plan gratis` });
+      await vozPatch(n.id, { status: 'approved', decided_by: who, decided_at: now });
+      await settle('FULFILLED');
+      const sent = await play();
+      console.log(`[voz] ${who} aprobó la nota de ${n.viewer_login} en #${canal}`);
+      return res.json({ success: true, played: !!sent });
+    }
+    if (action === 'delete' || action === 'ban') {
+      if (!['pending', 'awaiting_audio'].includes(n.status)) return res.status(400).json({ error: 'Esa nota ya fue revisada' });
+      await vozPatch(n.id, { status: action === 'ban' ? 'banned' : 'deleted', decided_by: who, decided_at: now });
+      await settle('CANCELED'); // Twitch le devuelve los puntos
+      if (action === 'ban' && !vozBanned(cfg, n.viewer_id, n.viewer_login)) {
+        cfg.bans = [...(cfg.bans || []), { id: n.viewer_id, login: n.viewer_login, ts: now, by: who }].slice(-500);
+        await sbUpdate('streamers', { voice_config: cfg }, { twitch_username: canal });
+      }
+      console.log(`[voz] ${who} ${action === 'ban' ? 'baneó a' : 'borró la nota de'} ${n.viewer_login} en #${canal}`);
+      return res.json({ success: true });
+    }
+    if (action === 'favorite' || action === 'unfavorite') {
+      await vozPatch(n.id, { favorite: action === 'favorite' });
+      return res.json({ success: true });
+    }
+    if (action === 'replay') {
+      if (n.status !== 'approved' || !n.audio_path) return res.status(400).json({ error: 'Solo se pueden repetir notas aprobadas' });
+      const sent = await play();
+      return res.json({ success: true, played: !!sent });
+    }
+    res.status(400).json({ error: 'Acción inválida' });
+  } catch (e) { console.error('[voz] decidir:', e.message); res.status(500).json({ error: 'Error' }); }
+});
+
+// ── Dueño del canal: ajustes y recompensa ──
+app.get('/api/voz-config', requireAuth, async (req, res) => {
+  try {
+    const s = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'twitch_username,plan,plan_expires_at,voice_config');
+    const cfg = vozDefaults(s?.voice_config);
+    const base = (process.env.BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+    res.json({ config: { ...cfg, bans: undefined }, bans: cfg.bans || [], link: `${base}/voz/${s.twitch_username}`, mods_link: `${base}/voz/${s.twitch_username}/mods`,
+      pro: isProPlan(effectivePlan(s)), free_per_stream: VOZ_FREE_PER_STREAM });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/voz-config', requireAuth, async (req, res) => {
+  try {
+    const s = await sbSelect('streamers', { twitch_id: req.session.user.id }, 'id,twitch_id,twitch_username,voice_config,access_token,refresh_token');
+    const cfg = vozDefaults(s?.voice_config), b = req.body || {};
+    if (typeof b.enabled === 'boolean') cfg.enabled = b.enabled;
+    if (typeof b.allow_tts === 'boolean') cfg.allow_tts = b.allow_tts;
+    if (b.volume != null) cfg.volume = Math.max(0, Math.min(100, parseInt(b.volume) || 0));
+    let rewardMsg = null;
+    if (b.cost != null) {
+      const cost = parseInt(b.cost);
+      if (!Number.isInteger(cost) || cost < 1 || cost > 1000000) return res.status(400).json({ error: 'El precio debe ser de 1 punto o más' });
+      if (cost !== cfg.cost && isManagedReward(cfg)) {
+        const tok = await getFreshTwitchToken(s);
+        const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${s.twitch_id}&id=${cfg.reward_id}`, {
+          method: 'PATCH', headers: { Authorization: `Bearer ${tok}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' }, body: JSON.stringify({ cost }) });
+        if (!r.ok) rewardMsg = 'No se pudo cambiar el precio en Twitch';
+      }
+      cfg.cost = cost;
+    }
+    // Pausar/activar la recompensa en Twitch junto con el interruptor
+    if (typeof b.enabled === 'boolean' && isManagedReward(cfg)) {
+      const tok = await getFreshTwitchToken(s);
+      await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${s.twitch_id}&id=${cfg.reward_id}`, {
+        method: 'PATCH', headers: { Authorization: `Bearer ${tok}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' }, body: JSON.stringify({ is_paused: !b.enabled }) }).catch(() => {});
+    }
+    await sbUpdate('streamers', { voice_config: cfg }, { twitch_id: req.session.user.id });
+    res.json({ success: true, config: { ...cfg, bans: undefined }, warning: rewardMsg });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/voz-config/reward', requireAuth, async (req, res) => {
+  try {
+    const s = await sbSelect('streamers', { twitch_id: req.session.user.id });
+    const cfg = vozDefaults(s?.voice_config);
+    const result = await createTwitchReward(s, { title: '🎙️ Nota de voz', cost: cfg.cost || 5000 });
+    if (!result.ok) return res.status(result.status === 401 || result.status === 403 ? result.status : 400).json({ error: friendlyRewardError(result.status, result.message) });
+    cfg.reward_id = result.reward.id; cfg.managed_reward_id = result.reward.id; cfg.enabled = true;
+    await sbUpdate('streamers', { voice_config: cfg }, { twitch_id: req.session.user.id });
+    console.log(`[voz] ${s.twitch_username} creó la recompensa de notas de voz`);
+    res.json({ success: true, config: { ...cfg, bans: undefined } });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Limpieza: notas a medias que vencen (se devuelven los puntos) y audios viejos ──
+async function vozCleanup() {
+  try {
+    const cut = new Date(Date.now() - VOZ_WAIT_MIN * 60000).toISOString();
+    for (const n of await vozRest('GET', `status=eq.awaiting_redemption&created_at=lt.${encodeURIComponent(cut)}&limit=200`) || []) {
+      await vozPatch(n.id, { status: 'expired' }); vozDeleteFile(n.audio_path);
+    }
+    for (const n of await vozRest('GET', `status=eq.awaiting_audio&created_at=lt.${encodeURIComponent(cut)}&limit=200`) || []) {
+      await vozPatch(n.id, { status: 'expired' });
+      const s = await vozStreamer(n.streamer).catch(() => null);
+      if (s && n.redemption_id && isManagedReward({ reward_id: n.reward_id, managed_reward_id: vozDefaults(s.voice_config).managed_reward_id })) await settleRedemption(s, n.reward_id, n.redemption_id, 'CANCELED');
+    }
+    const old = new Date(Date.now() - VOZ_KEEP_DAYS * 86400000).toISOString();
+    for (const n of await vozRest('GET', `favorite=eq.false&audio_path=not.is.null&status=in.(approved,deleted,banned,expired)&created_at=lt.${encodeURIComponent(old)}&limit=200`) || []) {
+      await vozDeleteFile(n.audio_path); await vozPatch(n.id, { audio_path: null });
+    }
+  } catch (e) { if (!/voice_notes 404|relation .*voice_notes/i.test(e.message)) console.error('[voz] limpieza:', e.message); }
+}
+setTimeout(vozCleanup, 2 * 60 * 1000);
+setInterval(vozCleanup, 10 * 60 * 1000);
+
 async function handleRewardRedemption(event) {
   const broadcasterId = event.broadcaster_user_id;
   const rewardId = event.reward?.id;
@@ -3038,6 +3436,12 @@ async function handleRewardRedemption(event) {
   if (!streamer) return;
 
   const channelName = streamer.twitch_username?.toLowerCase();
+
+  // ── Nota de voz ──
+  if (streamer.voice_config?.reward_id && streamer.voice_config.reward_id === rewardId) {
+    await handleVoiceRedemption(streamer, event).catch(e => console.error('[voz] canje:', e.message));
+    return;
+  }
 
   // ── Media Alert (audio/video en overlay) ──
   const mediaAlerts = streamer.media_alerts || {};
