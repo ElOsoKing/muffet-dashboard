@@ -2946,7 +2946,7 @@ function isManagedReward(cfg) {
   return !!(cfg && cfg.reward_id && cfg.reward_id === cfg.managed_reward_id);
 }
 
-async function createTwitchReward(streamer, { title, cost, cooldownSec = 0, maxPerStream = 0 }) {
+async function createTwitchReward(streamer, { title, cost, cooldownSec = 0, maxPerStream = 0, prompt = '' }) {
   const token = await getFreshTwitchToken(streamer);
   if (!token) return { ok: false, status: 401, message: 'sin token' };
   const body = {
@@ -2956,6 +2956,7 @@ async function createTwitchReward(streamer, { title, cost, cooldownSec = 0, maxP
     // Deben quedar pendientes para que Muffet los pueda cumplir o reembolsar él mismo
     should_redemptions_skip_request_queue: false,
   };
+  if (prompt) body.prompt = String(prompt).slice(0, 200); // descripción que ve el viewer al canjear (Twitch permite 200 letras)
   if (cooldownSec > 0) { body.is_global_cooldown_enabled = true; body.global_cooldown_seconds = cooldownSec; }
   if (maxPerStream > 0) { body.is_max_per_stream_enabled = true; body.max_per_stream = maxPerStream; }
   const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${streamer.twitch_id}`, {
@@ -3038,6 +3039,11 @@ const VOZ_KEEP_DAYS = 7;           // los audios se borran a los 7 días (menos 
 const VOZ_FREE_PER_STREAM = 10;    // plan gratis: notas aprobadas por stream
 const VOZ_MAX_WAV_BYTES = 2.5 * 1024 * 1024;
 const vozDefaults = (c) => ({ enabled: false, cost: 5000, allow_tts: true, volume: 90, bans: [], reward_id: null, managed_reward_id: null, ...(c || {}) });
+// Descripción de la recompensa en Twitch: le explica al viewer a dónde ir (máx. 200 letras)
+const vozRewardPrompt = (canal) => {
+  const host = (process.env.BASE_URL || 'https://silklybot.com').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  return `🎙️ Graba tu nota (máx. 15 s) en ${host}/voz/${canal} — antes o después de canjear. Si un mod la aprueba, suena en el stream. Si no, te devuelven los puntos.`.slice(0, 200);
+};
 const vozCanal = (v) => { const u = String(v || '').toLowerCase(); return /^[a-z0-9_]{3,25}$/.test(u) ? u : null; };
 async function vozRest(method, qs, body, prefer) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/voice_notes${qs ? '?' + qs : ''}`, {
@@ -3373,7 +3379,7 @@ app.post('/api/voz-config', requireAuth, async (req, res) => {
       if (cost !== cfg.cost && isManagedReward(cfg)) {
         const tok = await getFreshTwitchToken(s);
         const r = await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${s.twitch_id}&id=${cfg.reward_id}`, {
-          method: 'PATCH', headers: { Authorization: `Bearer ${tok}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' }, body: JSON.stringify({ cost }) });
+          method: 'PATCH', headers: { Authorization: `Bearer ${tok}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' }, body: JSON.stringify({ cost, prompt: vozRewardPrompt(String(s.twitch_username).toLowerCase()) }) });
         if (!r.ok) rewardMsg = 'No se pudo cambiar el precio en Twitch';
       }
       cfg.cost = cost;
@@ -3382,7 +3388,7 @@ app.post('/api/voz-config', requireAuth, async (req, res) => {
     if (typeof b.enabled === 'boolean' && isManagedReward(cfg)) {
       const tok = await getFreshTwitchToken(s);
       await fetch(`https://api.twitch.tv/helix/channel_points/custom_rewards?broadcaster_id=${s.twitch_id}&id=${cfg.reward_id}`, {
-        method: 'PATCH', headers: { Authorization: `Bearer ${tok}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' }, body: JSON.stringify({ is_paused: !b.enabled }) }).catch(() => {});
+        method: 'PATCH', headers: { Authorization: `Bearer ${tok}`, 'Client-Id': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' }, body: JSON.stringify({ is_paused: !b.enabled, prompt: vozRewardPrompt(String(s.twitch_username).toLowerCase()) }) }).catch(() => {});
     }
     await sbUpdate('streamers', { voice_config: cfg }, { twitch_id: req.session.user.id });
     res.json({ success: true, config: { ...cfg, bans: undefined }, warning: rewardMsg });
@@ -3392,7 +3398,7 @@ app.post('/api/voz-config/reward', requireAuth, async (req, res) => {
   try {
     const s = await sbSelect('streamers', { twitch_id: req.session.user.id });
     const cfg = vozDefaults(s?.voice_config);
-    const result = await createTwitchReward(s, { title: '🎙️ Nota de voz', cost: cfg.cost || 5000 });
+    const result = await createTwitchReward(s, { title: '🎙️ Nota de voz', cost: cfg.cost || 5000, prompt: vozRewardPrompt(String(s.twitch_username).toLowerCase()) });
     if (!result.ok) return res.status(result.status === 401 || result.status === 403 ? result.status : 400).json({ error: friendlyRewardError(result.status, result.message) });
     cfg.reward_id = result.reward.id; cfg.managed_reward_id = result.reward.id; cfg.enabled = true;
     await sbUpdate('streamers', { voice_config: cfg }, { twitch_id: req.session.user.id });
