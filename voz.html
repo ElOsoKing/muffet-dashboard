@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="/i18n.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notas de voz — SilklyBot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--purple:#9147ff;--purple-l:#c4a6ff;--pink:#ff6fb5;--green:#40d090;--yellow:#f0c060;--bg:#09090c;--bg2:#121217;--bg3:#1b1b22;--line:rgba(255,255,255,.08);--text:#f1f0f7;--dim:#9a99ad;--err:#ff6b8a}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif}
+body{display:flex;flex-direction:column;align-items:center;padding:28px 16px 30px;
+  background:radial-gradient(900px 500px at 15% -10%,rgba(145,71,255,.22),transparent 60%),radial-gradient(700px 500px at 110% 110%,rgba(255,111,181,.10),transparent 60%),var(--bg)}
+.card{width:100%;max-width:480px;background:linear-gradient(180deg,rgba(28,24,40,.96),rgba(18,18,23,.97));border:1px solid rgba(183,148,255,.16);border-radius:24px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.55)}
+.hero{text-align:center;padding:26px 22px 8px;position:relative}
+.hero .mic{width:78px;height:78px;margin:0 auto;border-radius:50%;display:grid;place-items:center;font-size:36px;background:linear-gradient(135deg,var(--purple),#ff6fb5);box-shadow:0 0 0 4px rgba(183,148,255,.18),0 12px 34px rgba(145,71,255,.45)}
+.hero h1{font-size:22px;font-weight:800;margin-top:14px}
+.hero .chan{display:inline-flex;gap:6px;margin-top:6px;font-size:12px;font-weight:600;color:var(--purple-l);text-decoration:none;background:rgba(145,71,255,.12);border:1px solid rgba(145,71,255,.28);padding:4px 11px;border-radius:999px}
+.hero p{font-size:13px;color:var(--dim);margin-top:10px;line-height:1.5}
+.body{padding:16px 22px 24px}
+.box{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:14px}
+.box h3{font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:12px;padding:12px 16px;font:700 14px 'Inter';cursor:pointer;color:#fff;background:linear-gradient(135deg,var(--purple),#b06bff);box-shadow:0 6px 18px rgba(145,71,255,.35);text-decoration:none;transition:transform .12s,opacity .15s}
+.btn:hover{transform:translateY(-1px)}.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn.sec{background:rgba(255,255,255,.06);border:1px solid var(--line);box-shadow:none;color:var(--text)}
+.btn.red{background:linear-gradient(135deg,#ff4d6d,#ff6fb5)}
+.btn.full{width:100%}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--dim);border-radius:10px;padding:9px 6px;font:700 12px 'Inter';cursor:pointer}
+.tabs button.on{color:#fff;border-color:rgba(145,71,255,.6);background:rgba(145,71,255,.18)}
+.rec{display:flex;flex-direction:column;align-items:center;gap:10px;padding:8px 0}
+.recbtn{width:84px;height:84px;border-radius:50%;border:0;cursor:pointer;font-size:30px;color:#fff;background:linear-gradient(135deg,#ff4d6d,#ff6fb5);box-shadow:0 8px 26px rgba(255,77,109,.4)}
+.recbtn.on{animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,77,109,.55)}50%{box-shadow:0 0 0 14px rgba(255,77,109,0)}}
+.timer{font:800 22px 'Inter';font-variant-numeric:tabular-nums}
+.hint{font-size:12px;color:var(--dim);text-align:center;line-height:1.5}
+.drop{border:2px dashed rgba(255,111,181,.35);border-radius:14px;padding:22px 12px;text-align:center;cursor:pointer;color:var(--dim);font-size:13px}
+.drop:hover{border-color:rgba(255,111,181,.7)}
+textarea,select{width:100%;background:var(--bg3);border:1px solid var(--line);border-radius:12px;color:var(--text);font:500 14px 'Inter';padding:11px 13px;outline:none}
+textarea{resize:none;height:90px;line-height:1.45}
+.checks{list-style:none;margin-top:12px;display:grid;gap:6px}
+.checks li{font-size:12px;color:var(--dim);display:flex;gap:8px;align-items:center}
+.checks li.ok{color:#7dffb2}.checks li.bad{color:var(--err)}
+audio{width:100%;margin-top:10px;height:38px}
+.err{color:var(--err);font-size:13px;margin-top:10px;min-height:18px;text-align:center}
+.status{text-align:center}
+.status .big{font-size:40px}
+.status h2{font-size:18px;font-weight:800;margin-top:6px}
+.status p{font-size:13px;color:var(--dim);margin-top:8px;line-height:1.55}
+.cost{display:inline-block;margin-top:10px;font-weight:800;color:var(--yellow);font-size:15px}
+.steps{list-style:none;display:grid;gap:9px}
+.steps li{display:flex;gap:10px;font-size:13px;line-height:1.45;color:var(--dim)}
+.steps li b{color:var(--text)}
+.steps .n{flex:0 0 22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--purple),var(--pink))}
+.user{display:flex;align-items:center;gap:10px;font-size:13px}
+.user img{width:30px;height:30px;border-radius:50%}
+.user a{margin-left:auto;color:var(--dim);font-size:12px}
+.foot{font-size:11.5px;color:var(--dim);text-align:center;margin-top:16px;line-height:1.5}
+.foot a{color:var(--purple-l)}
+.warn{background:rgba(255,77,109,.08);border:1px solid rgba(255,77,109,.25);color:#ffb3c2;font-size:12px;border-radius:12px;padding:10px 12px;margin-top:14px;line-height:1.5}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="hero">
+    <div class="mic">🎙️</div>
+    <h1>Notas de voz</h1>
+    <a class="chan" id="chan" href="#" target="_blank" rel="noopener" translate="no">twitch.tv/…</a>
+    <p>Manda un audio corto al stream. Los mods lo escuchan antes y, si lo aprueban, <b>suena en directo con tu nombre</b>.</p>
+  </div>
+  <div class="body">
+    <div id="off" class="box status hidden"><div class="big">🔇</div><h2>Ahora no está recibiendo notas</h2><p>Vuelve cuando el canal las active.</p></div>
+
+    <div id="login" class="box hidden" style="text-align:center">
+      <a class="btn full" id="loginBtn" href="#">🟣 Iniciar sesión con Twitch</a>
+      <p class="hint" style="margin-top:10px">Así sabemos que la nota es tuya y tu nombre sale en el stream. No guardamos nada de tu cuenta.</p>
+    </div>
+
+    <div id="who" class="box hidden" style="padding:10px 14px"><div class="user"><img id="whoImg" alt=""><span>Hola, <b id="whoName" translate="no"></b></span><a id="logout" href="#">Salir</a></div></div>
+
+    <div id="status" class="box status hidden"></div>
+
+    <div id="composer" class="box hidden">
+      <h3>Tu nota</h3>
+      <div class="tabs" id="tabs">
+        <button data-t="rec" class="on">🎙️ Grabar</button>
+        <button data-t="file">📁 Subir audio</button>
+        <button data-t="tts" id="tabTts">⌨️ Escribir</button>
+      </div>
+      <div data-p="rec">
+        <div class="rec">
+          <button class="recbtn" id="recBtn" title="Grabar">●</button>
+          <div class="timer" id="timer">0:00 / 0:15</div>
+          <div class="hint">Pulsa para grabar y otra vez para parar. Máximo 15 segundos.</div>
+        </div>
+      </div>
+      <div data-p="file" class="hidden">
+        <label class="drop" id="drop"><input type="file" id="file" accept="audio/*" class="hidden">🎧 <b>Elige o arrastra tu audio</b><br><span style="font-size:11px">MP3, OGG, M4A, WAV, WEBM… · de 1 a 15 segundos</span></label>
+      </div>
+      <div data-p="tts" class="hidden">
+        <textarea id="ttsText" maxlength="200" placeholder="Escribe lo que quieres que diga la voz…"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center"><span class="hint" style="white-space:nowrap">Voz en</span><select id="ttsLang"></select></div>
+        <p class="hint" style="margin-top:8px">Sin micrófono también vale: una voz lee tu mensaje en el idioma que elijas 😄</p>
+      </div>
+      <ul class="checks hidden" id="checks">
+        <li data-c="audio">○ Es un audio de verdad</li>
+        <li data-c="dur">○ Dura entre 1 y 15 segundos</li>
+        <li data-c="clean">○ Rehecho como un audio limpio (sin nada escondido)</li>
+      </ul>
+      <audio id="preview" controls class="hidden"></audio>
+      <div class="err" id="err"></div>
+      <button class="btn full" id="send" disabled>📨 Enviar mi nota</button>
+    </div>
+
+    <div class="box">
+      <h3>Cómo funciona</h3>
+      <ol class="steps">
+        <li><span class="n">1</span><span><b>Graba, sube o escribe</b> tu nota aquí (máximo 15 segundos).</span></li>
+        <li><span class="n">2</span><span>En el chat de Twitch, <b>canjea “🎙️ Nota de voz”</b> con tus puntos del canal (<b id="costTxt">…</b>). Puede ser antes o después de enviarla.</span></li>
+        <li><span class="n">3</span><span><b>Un mod la escucha.</b> Si la aprueba, suena en el stream con tu nombre.</span></li>
+        <li><span class="n">4</span><span>Si no la aprueban, <b>Twitch te devuelve los puntos</b> solo.</span></li>
+      </ol>
+      <div class="warn">⚠️ Nada de insultos ni cosas fuertes: los mods pueden <b>banearte</b> de las notas de voz.</div>
+    </div>
+    <div class="foot" id="modLink"></div>
+    <div class="foot">Hecho con <a href="/" target="_blank">🕷️ SilklyBot</a></div>
+  </div>
+</div>
+<script>
+const canal = decodeURIComponent(location.pathname.split('/')[2] || '').toLowerCase();
+const $ = id => document.getElementById(id);
+let info = null, wavB64 = null, mode = 'rec', poll = null;
+$('chan').textContent = 'twitch.tv/' + canal; $('chan').href = 'https://www.twitch.tv/' + encodeURIComponent(canal);
+$('loginBtn').href = '/auth/viewer?next=' + encodeURIComponent('/voz/' + canal);
+$('logout').href = '/auth/viewer/logout?next=' + encodeURIComponent('/voz/' + canal);
+const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtPts = n => Number(n || 0).toLocaleString();
+
+async function load() {
+  try { info = await (await fetch('/api/voz/' + encodeURIComponent(canal) + '/info', { cache: 'no-store' })).json(); } catch (e) { return; }
+  if (info.error) { $('off').classList.remove('hidden'); $('off').querySelector('h2').textContent = info.error; return; }
+  $('costTxt').textContent = fmtPts(info.cost) + ' puntos';
+  if (info.can_moderate) $('modLink').innerHTML = '🛡️ Eres mod de este canal: <a href="/voz/' + encodeURIComponent(canal) + '/mods">abrir el panel de mods</a>';
+  const sel = $('ttsLang'); if (!sel.options.length) sel.innerHTML = Object.entries(info.tts_langs || { es: 'Español' }).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+  $('tabTts').classList.toggle('hidden', !info.allow_tts);
+  render();
+}
+function render() {
+  const show = (id, on) => $(id).classList.toggle('hidden', !on);
+  show('off', !info.enabled);
+  show('login', info.enabled && !info.viewer);
+  show('who', !!info.viewer);
+  if (info.viewer) { $('whoName').textContent = info.viewer.name; $('whoImg').src = info.viewer.avatar || ''; $('whoImg').style.display = info.viewer.avatar ? '' : 'none'; }
+  const n = info.my_note, st = $('status');
+  let html = '', composer = info.enabled && !!info.viewer && !info.banned;
+  const twitchBtn = `<a class="btn" style="margin-top:12px" href="https://www.twitch.tv/popout/${encodeURIComponent(canal)}/chat" target="_blank" rel="noopener">🟣 Abrir el chat de Twitch para canjear</a>`;
+  if (info.banned) html = `<div class="big">🚫</div><h2>No puedes mandar notas de voz aquí</h2><p>Los mods del canal te bloquearon las notas de voz.</p>`;
+  else if (n && n.status === 'awaiting_redemption') { composer = false; html = `<div class="big">✅</div><h2>¡Tu nota está lista!</h2><p>Ahora <b>canjea “🎙️ Nota de voz”</b> en el chat de Twitch. Tienes ${info.wait_min} minutos; si no, se borra.</p><div class="cost">${fmtPts(info.cost)} puntos</div><br>${twitchBtn}<br><button class="btn sec" style="margin-top:10px" onclick="cancelNote()">Cancelar y grabar otra</button>`; }
+  else if (n && n.status === 'awaiting_audio') html = `<div class="big">👇</div><h2>Ya canjeaste: ahora manda tu audio</h2><p>Graba, sube o escribe tu nota abajo y pulsa Enviar. Si no la mandas en ${info.wait_min} minutos, Twitch te devuelve los puntos.</p>`;
+  else if (n && n.status === 'pending') { composer = false; html = `<div class="big">🎧</div><h2>Un mod la está por escuchar</h2><p>Si la aprueban, suena en el stream con tu nombre. Puedes dejar esta página abierta para ver qué pasa.</p>`; }
+  else if (n && n.status === 'approved' && Date.now() - Date.parse(n.decided_at || n.created_at) < 3600e3) html = `<div class="big">🎉</div><h2>¡Tu nota sonó en el stream!</h2><p>Si quieres, puedes mandar otra.</p>`;
+  else if (n && (n.status === 'deleted') && Date.now() - Date.parse(n.decided_at || n.created_at) < 3600e3) html = `<div class="big">🙈</div><h2>Los mods no aprobaron tu nota</h2><p>Twitch ya te devolvió los puntos. Puedes intentar con otra.</p>`;
+  st.innerHTML = html; show('status', !!html);
+  show('composer', composer);
+  clearInterval(poll);
+  if (n && ['awaiting_redemption', 'awaiting_audio', 'pending'].includes(n.status)) poll = setInterval(load, 5000);
+}
+// ── Pestañas ──
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  mode = b.dataset.t;
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('[data-p]').forEach(p => p.classList.toggle('hidden', p.dataset.p !== mode));
+  resetAudio(); updateSend();
+});
+function resetAudio() { wavB64 = null; $('preview').classList.add('hidden'); $('checks').classList.add('hidden'); $('err').textContent = ''; setCheck('audio', 0); setCheck('dur', 0); setCheck('clean', 0); }
+function setCheck(c, s) { const li = document.querySelector(`[data-c="${c}"]`); li.className = s === 1 ? 'ok' : s === -1 ? 'bad' : ''; li.textContent = (s === 1 ? '✓ ' : s === -1 ? '✕ ' : '○ ') + li.textContent.replace(/^[✓✕○] /, ''); }
+function updateSend() { $('send').disabled = mode === 'tts' ? $('ttsText').value.trim().length < 2 : !wavB64; }
+$('ttsText').oninput = updateSend;
+
+// ── Grabar ──
+let recorder = null, chunks = [], recStart = 0, recTimer = null;
+$('recBtn').onclick = async () => {
+  if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
+  resetAudio();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    chunks = []; recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = e => e.data.size && chunks.push(e.data);
+    recorder.onstop = async () => { stream.getTracks().forEach(t => t.stop()); clearInterval(recTimer); $('recBtn').classList.remove('on'); $('recBtn').textContent = '●'; await processBlob(new Blob(chunks, { type: recorder.mimeType })); };
+    recorder.start(); recStart = Date.now(); $('recBtn').classList.add('on'); $('recBtn').textContent = '■';
+    recTimer = setInterval(() => { const s = Math.floor((Date.now() - recStart) / 1000); $('timer').textContent = `0:${String(Math.min(s, 15)).padStart(2, '0')} / 0:15`; if (Date.now() - recStart >= 15000) recorder.stop(); }, 200);
+  } catch (e) { $('err').textContent = 'No se pudo usar el micrófono. Revisa el permiso del navegador.'; }
+};
+// ── Subir ──
+$('file').onchange = e => { const f = e.target.files[0]; if (f) { resetAudio(); processBlob(f); } };
+const drop = $('drop');
+drop.ondragover = e => { e.preventDefault(); };
+drop.ondrop = e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { resetAudio(); processBlob(f); } };
+
+// Decodifica cualquier audio, revisa la duración y lo rehace como WAV mono limpio (así no viaja nada escondido)
+async function processBlob(blob) {
+  $('checks').classList.remove('hidden');
+  if (blob.size > 8 * 1024 * 1024) { setCheck('audio', -1); $('err').textContent = 'El archivo pesa más de 8 MB.'; return; }
+  let buf;
+  try { const ctx = new (window.AudioContext || window.webkitAudioContext)(); buf = await ctx.decodeAudioData(await blob.arrayBuffer()); ctx.close(); setCheck('audio', 1); }
+  catch (e) { setCheck('audio', -1); $('err').textContent = 'Ese archivo no es un audio que se pueda reproducir.'; return; }
+  if (buf.duration < 1 || buf.duration > 15.3) { setCheck('dur', -1); $('err').textContent = `Tu audio dura ${buf.duration.toFixed(1)} s: tiene que durar entre 1 y 15 segundos.`; return; }
+  setCheck('dur', 1);
+  const rate = 24000, off = new OfflineAudioContext(1, Math.ceil(buf.duration * rate), rate);
+  const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start();
+  const out = await off.startRendering();
+  const wav = encodeWav(out.getChannelData(0), rate);
+  setCheck('clean', 1);
+  $('preview').src = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' })); $('preview').classList.remove('hidden');
+  let bin = ''; const u8 = new Uint8Array(wav); for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+  wavB64 = btoa(bin); updateSend();
+}
+function encodeWav(samples, rate) {
+  const b = new ArrayBuffer(44 + samples.length * 2), v = new DataView(b);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + samples.length * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, samples.length * 2, true);
+  for (let i = 0; i < samples.length; i++) { const s = Math.max(-1, Math.min(1, samples[i])); v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true); }
+  return b;
+}
+// ── Enviar ──
+$('send').onclick = async () => {
+  $('send').disabled = true; $('err').textContent = '';
+  const body = mode === 'tts' ? { kind: 'tts', text: $('ttsText').value.trim(), lang: $('ttsLang').value } : { kind: 'audio', data: wavB64 };
+  try {
+    const r = await fetch('/api/voz/' + encodeURIComponent(canal) + '/note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { $('err').textContent = d.error || 'No se pudo enviar'; $('send').disabled = false; return; }
+    resetAudio(); $('ttsText').value = ''; await load();
+  } catch (e) { $('err').textContent = 'Error de conexión'; $('send').disabled = false; }
+};
+async function cancelNote() { await fetch('/api/voz/' + encodeURIComponent(canal) + '/cancel', { method: 'POST' }); load(); }
+if (new URLSearchParams(location.search).get('error') === 'login') setTimeout(() => alert('No se pudo iniciar sesión con Twitch. Intenta de nuevo.'), 300);
+load();
+</script>
+</body>
+</html>
