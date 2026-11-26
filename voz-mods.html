@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<script src="/i18n.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notas de voz · Mods — SilklyBot</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--purple:#9147ff;--purple-l:#c4a6ff;--pink:#ff6fb5;--green:#40d090;--yellow:#f0c060;--red:#ff5c7a;--bg:#09090c;--bg2:#121217;--bg3:#1b1b22;--line:rgba(255,255,255,.08);--text:#f1f0f7;--dim:#9a99ad}
+html,body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100%}
+body{padding:18px 14px 40px;background:radial-gradient(900px 500px at 15% -10%,rgba(145,71,255,.18),transparent 60%),var(--bg)}
+body.embed{background:transparent;padding:0}
+.wrap{max-width:640px;margin:0 auto}
+header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+header h1{font-size:18px;font-weight:800}
+header .chan{font-size:12px;color:var(--purple-l)}
+header .me{margin-left:auto;font-size:12px;color:var(--dim)}
+header .me a{color:var(--dim)}
+body.embed header{display:none}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button{background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--dim);border-radius:10px;padding:8px 12px;font:700 12px 'Inter';cursor:pointer}
+.tabs button.on{color:#fff;border-color:rgba(145,71,255,.6);background:rgba(145,71,255,.18)}
+.tabs .cnt{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--pink);color:#fff;font-size:10px;line-height:16px}
+.bar{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--dim);margin-bottom:10px;flex-wrap:wrap}
+.bar .lim{background:rgba(240,192,96,.1);border:1px solid rgba(240,192,96,.3);color:var(--yellow);border-radius:999px;padding:3px 10px;font-weight:700}
+.bar .off{background:rgba(255,92,122,.1);border:1px solid rgba(255,92,122,.3);color:#ffb3c2;border-radius:999px;padding:3px 10px;font-weight:700}
+.note{background:linear-gradient(180deg,rgba(28,24,40,.92),rgba(18,18,23,.95));border:1px solid rgba(183,148,255,.14);border-radius:16px;padding:14px;margin-bottom:10px}
+.note.flag{border-color:rgba(255,92,122,.5);box-shadow:0 0 0 1px rgba(255,92,122,.15) inset}
+.note .top{display:flex;align-items:center;gap:8px;font-size:13px}
+.note .top b{font-size:14px}
+.note .top .t{margin-left:auto;font-size:11px;color:var(--dim)}
+.tag{font-size:10px;font-weight:800;letter-spacing:.4px;border-radius:999px;padding:2px 8px;background:rgba(255,255,255,.06);color:var(--dim)}
+.tag.tts{background:rgba(145,71,255,.18);color:var(--purple-l)}
+.tag.flag{background:rgba(255,92,122,.18);color:#ffb3c2}
+.tag.ok{background:rgba(64,208,144,.15);color:#7dffb2}
+.tag.del{background:rgba(255,92,122,.12);color:#ffb3c2}
+.txt{font-size:13px;color:#d8d6e6;margin-top:9px;line-height:1.5;background:rgba(255,255,255,.03);border-radius:10px;padding:8px 10px}
+.txt.none{color:var(--dim);font-style:italic}
+audio{width:100%;height:36px;margin-top:9px}
+.acts{display:flex;gap:7px;margin-top:10px;flex-wrap:wrap}
+.acts button{flex:1;min-width:90px;border:0;border-radius:10px;padding:10px 8px;font:800 13px 'Inter';cursor:pointer;color:#fff}
+.acts .ok{background:linear-gradient(135deg,#2bb673,#40d090)}
+.acts .del{background:rgba(255,255,255,.08);border:1px solid var(--line)}
+.acts .ban{background:rgba(255,92,122,.14);border:1px solid rgba(255,92,122,.4);color:#ffb3c2;flex:0 0 auto;min-width:0;padding:10px 12px}
+.acts .fav{background:rgba(240,192,96,.12);border:1px solid rgba(240,192,96,.35);color:var(--yellow);flex:0 0 auto;min-width:0;padding:10px 12px}
+.acts .rep{background:linear-gradient(135deg,var(--purple),#b06bff)}
+.acts button:disabled{opacity:.5;cursor:wait}
+.wait{font-size:12px;color:var(--dim);margin-top:9px}
+.empty{text-align:center;color:var(--dim);font-size:13px;padding:40px 10px}
+.empty .big{font-size:34px;margin-bottom:8px}
+.login{max-width:420px;margin:60px auto;text-align:center;background:linear-gradient(180deg,rgba(28,24,40,.96),rgba(18,18,23,.97));border:1px solid rgba(183,148,255,.16);border-radius:20px;padding:26px}
+.login h2{font-size:18px;margin:10px 0 8px}
+.login p{font-size:13px;color:var(--dim);line-height:1.5}
+.btn{display:inline-flex;gap:8px;border:0;border-radius:12px;padding:12px 18px;font:700 14px 'Inter';color:#fff;background:linear-gradient(135deg,var(--purple),#b06bff);text-decoration:none;margin-top:16px;cursor:pointer}
+.ban-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:7px;font-size:13px}
+.ban-row span{color:var(--dim);font-size:11px}
+.ban-row button{margin-left:auto;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:6px 10px;font:700 12px 'Inter';cursor:pointer}
+.toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#1d1b26;border:1px solid rgba(183,148,255,.3);border-radius:12px;padding:10px 16px;font-size:13px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.on{opacity:1}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><h1>🎙️ Notas de voz</h1><span class="chan" id="chan" translate="no"></span><span class="me" id="me"></span><span id="langSlot"></span></header>
+  <div id="login" class="login hidden">
+    <div style="font-size:38px">🛡️</div>
+    <h2>Panel de mods</h2>
+    <p id="loginMsg">Inicia sesión con tu cuenta de Twitch. Solo entran los moderadores de este canal.</p>
+    <a class="btn" id="loginBtn" href="#">🟣 Iniciar sesión con Twitch</a>
+  </div>
+  <div id="app" class="hidden">
+    <div class="tabs" id="tabs">
+      <button data-t="pending" class="on">📥 Por revisar<span class="cnt hidden" id="cnt"></span></button>
+      <button data-t="favorites">⭐ Favoritas</button>
+      <button data-t="history">📜 Historial</button>
+      <button data-t="bans">🚫 Baneados</button>
+    </div>
+    <div class="bar" id="bar"></div>
+    <div id="list"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const canal = decodeURIComponent(location.pathname.split('/')[2] || '').toLowerCase();
+const embed = new URLSearchParams(location.search).get('embed') === '1';
+if (embed) { document.body.classList.add('embed'); document.documentElement.style.background = 'transparent'; }
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let tab = 'pending', data = null, timer = null, busy = false;
+$('chan').textContent = '#' + canal;
+$('loginBtn').href = '/auth/viewer?next=' + encodeURIComponent('/voz/' + canal + '/mods');
+function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2600); }
+function ago(iso) {
+  const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
+  if (s < 60) return 'ahora'; if (s < 3600) return `hace ${Math.floor(s / 60)} min`; if (s < 86400) return `hace ${Math.floor(s / 3600)} h`; return `hace ${Math.floor(s / 86400)} d`;
+}
+async function load() {
+  if (busy) return;
+  const r = await fetch(`/api/voz/${encodeURIComponent(canal)}/queue?tab=${tab === 'bans' ? 'pending' : tab}`, { cache: 'no-store' }).catch(() => null);
+  if (!r) return;
+  if (r.status === 403) {
+    $('app').classList.add('hidden'); $('login').classList.remove('hidden');
+    const info = await (await fetch(`/api/voz/${encodeURIComponent(canal)}/info`)).json().catch(() => ({}));
+    if (info.viewer) { $('loginMsg').innerHTML = `Entraste como <b>${esc(info.viewer.name)}</b>, pero no eres mod de <b>${esc(canal)}</b>. Si te acaban de dar mod, vuelve a iniciar sesión.`; $('loginBtn').textContent = '🔄 Volver a iniciar sesión'; }
+    return;
+  }
+  data = await r.json();
+  $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+  $('me').innerHTML = embed ? '' : `${esc(data.me)} · <a href="/auth/viewer/logout?next=${encodeURIComponent('/voz/' + canal + '/mods')}">salir</a>`;
+  render();
+}
+function render() {
+  const bar = [];
+  if (!data.enabled) bar.push('<span class="off">🔇 Las notas de voz están apagadas</span>');
+  if (data.limit) bar.push(`<span class="lim">Plan gratis: ${data.limit.used}/${data.limit.max} notas en este stream</span>`);
+  if (tab === 'pending') bar.push('<span>Al aprobar, suena al instante en el stream. Al borrar, Twitch le devuelve los puntos.</span>');
+  $('bar').innerHTML = bar.join('');
+  if (tab === 'pending') { const n = data.notes.filter(x => x.status === 'pending').length; $('cnt').textContent = n; $('cnt').classList.toggle('hidden', !n); }
+  if (tab === 'bans') {
+    $('list').innerHTML = data.bans.length ? data.bans.slice().reverse().map(b => `<div class="ban-row"><b translate="no">${esc(b.login)}</b><span>por ${esc(b.by || '?')} · ${ago(b.ts)}</span><button onclick="act('unban',null,'${esc(b.login)}')">Quitar ban</button></div>`).join('')
+      : '<div class="empty"><div class="big">😇</div>Nadie está baneado de las notas de voz.</div>';
+    return;
+  }
+  const notes = data.notes;
+  if (!notes.length) {
+    const msg = { pending: ['🎧', 'No hay notas por revisar. Esta página se actualiza sola.'], favorites: ['⭐', 'Todavía no hay favoritas. Marca con ⭐ las mejores para repetirlas cuando quieras.'], history: ['📜', 'Aquí salen las notas ya revisadas.'] }[tab];
+    $('list').innerHTML = `<div class="empty"><div class="big">${msg[0]}</div>${msg[1]}</div>`; return;
+  }
+  $('list').innerHTML = notes.map(n => {
+    const tags = [n.kind === 'tts' ? '<span class="tag tts">⌨️ VOZ</span>' : '', n.flagged ? '<span class="tag flag">⚠️ PALABRA PROHIBIDA</span>' : '',
+      n.status === 'approved' ? '<span class="tag ok">SONÓ</span>' : '', n.status === 'deleted' ? '<span class="tag del">BORRADA</span>' : '', n.status === 'banned' ? '<span class="tag del">BANEADO</span>' : ''].join('');
+    const txt = n.text ? `<div class="txt">${n.kind === 'tts' ? '' : '“'}${esc(n.text)}${n.kind === 'tts' ? '' : '”'}</div>` : (n.url && n.kind === 'audio' ? '<div class="txt none">Sin transcripción: escúchala antes de aprobar.</div>' : '');
+    let acts = '';
+    if (n.status === 'pending') acts = `<div class="acts"><button class="ok" onclick="act('approve','${n.id}')">✅ Aprobar y sonar</button><button class="del" onclick="act('delete','${n.id}')">🗑️ Borrar</button><button class="ban" title="Borrar y no dejarle mandar más" onclick="if(confirm('¿Banear a ${esc(n.viewer_login)} de las notas de voz?'))act('ban','${n.id}')">🚫</button></div>`;
+    else if (n.status === 'awaiting_audio') acts = `<div class="wait">⏳ Canjeó la recompensa pero todavía no sube su audio.</div><div class="acts"><button class="del" onclick="act('delete','${n.id}')">🗑️ Devolver puntos</button></div>`;
+    else if (n.status === 'approved') acts = `<div class="acts">${n.url ? `<button class="rep" onclick="act('replay','${n.id}')">🔁 Volver a sonar</button>` : ''}<button class="fav" title="Favorita" onclick="act('${n.favorite ? 'unfavorite' : 'favorite'}','${n.id}')">${n.favorite ? '★' : '☆'}</button></div>`;
+    return `<div class="note ${n.flagged ? 'flag' : ''}"><div class="top"><b translate="no">${esc(n.viewer)}</b>${tags}<span class="t">${n.duration ? n.duration + ' s · ' : ''}${ago(n.decided_at && tab !== 'pending' ? n.decided_at : n.created_at)}</span></div>
+      ${txt}${n.url ? `<audio controls preload="none" src="${esc(n.url)}"></audio>` : (n.status !== 'awaiting_audio' ? '<div class="wait">El audio ya se borró (se guardan 7 días, menos las favoritas).</div>' : '')}${acts}</div>`;
+  }).join('');
+}
+async function act(action, id, login) {
+  busy = true; document.querySelectorAll('.acts button').forEach(b => b.disabled = true);
+  try {
+    const r = await fetch(`/api/voz/${encodeURIComponent(canal)}/decide`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id, login }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) toast('⚠️ ' + (d.error || 'Error'));
+    else toast({ approve: d.played === false ? '✅ Aprobada (el overlay de alertas no está abierto)' : '✅ ¡Sonando en el stream!', delete: '🗑️ Borrada, puntos devueltos', ban: '🚫 Baneado y puntos devueltos', favorite: '⭐ Guardada en favoritas', unfavorite: 'Quitada de favoritas', replay: d.played === false ? 'El overlay de alertas no está abierto' : '🔁 Sonando otra vez', unban: 'Ban quitado' }[action] || 'Listo');
+  } catch (e) { toast('Error de conexión'); }
+  busy = false; load();
+}
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  tab = b.dataset.t; document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b)); $('list').innerHTML = ''; load();
+});
+load(); timer = setInterval(() => { if (tab === 'pending' && !document.hidden) load(); }, 4000);
+</script>
+</body>
+</html>
