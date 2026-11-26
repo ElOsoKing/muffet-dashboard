@@ -1674,7 +1674,7 @@ function renderVozSettings() {
   const alertsUrl = `${location.origin}/overlay/alerts/${(userData.username || '').toLowerCase()}`;
   const copyRow = (label, val, hint) => `<div style="margin-top:14px;"><div class="form-label">${label}</div><div style="display:flex;gap:8px;"><input class="form-input" readonly value="${esc(val)}" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);"><button class="btn btn-secondary" onclick="navigator.clipboard.writeText('${esc(val)}');showToast('Copiado ✓')">📋 Copiar</button></div>${hint ? `<div style="font-size:11px;color:var(--text-dim);margin-top:5px;">${hint}</div>` : ''}</div>`;
   if (!c.reward_id) {
-    el.innerHTML = `<div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">Primero crea la recompensa en tu Twitch. Después puedes cambiar el precio cuando quieras.</div>
+    el.innerHTML = `<div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">Primero crea la recompensa en tu Twitch. Después puedes cambiar el precio cuando quieras.<br>Ya viene con una descripción que les explica a tus viewers a qué página entrar para grabar su nota.</div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;"><div><div class="form-label">Precio (puntos del canal)</div><input class="form-input" id="vozCost" type="number" min="1" value="${c.cost || 5000}" style="width:160px;"></div>
       <button class="btn btn-primary" id="vozCreateBtn" onclick="vozCreateReward()">✨ Crear “🎙️ Nota de voz” en Twitch</button></div>`;
     return;
