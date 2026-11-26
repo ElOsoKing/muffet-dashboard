@@ -641,6 +641,7 @@ body.read-only-mode button:not([onclick*="showSection"]):not([onclick*="window.l
       <div class="nav-item" onclick="showSection('music')"><span class="nav-icon">🎵</span> Música <span class="pro-badge" id="badge-music" style="display:none;">PRO</span></div>
       <div class="nav-item" onclick="showSection('alertbox')"><span class="nav-icon">🔔</span> Alertas <span style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;background:rgba(64,208,144,0.15);color:#40d090;margin-left:4px;">NUEVO</span></div>
       <div class="nav-item" onclick="showSection('mediaalerts')"><span class="nav-icon">🔊</span> Alertas multimedia <span class="pro-badge" id="badge-mediaalerts" style="display:none;">PRO</span></div>
+      <div class="nav-item" onclick="showSection('voz')"><span class="nav-icon">🎙️</span> Notas de voz <span style="font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;background:rgba(64,208,144,0.15);color:#40d090;margin-left:4px;">NUEVO</span></div>
       <div class="nav-item" onclick="showSection('live')"><span class="nav-icon">🔴</span> Anuncios y agradecimientos</div>
       <div class="nav-item" onclick="showSection('shoutout')"><span class="nav-icon">📣</span> Shoutout</div>
       <div class="nav-item" onclick="showSection('subathon')"><span class="nav-icon">⏱️</span> Subatón <span class="pro-badge" id="badge-subathon" style="display:none;">PRO</span></div>
@@ -1612,6 +1613,7 @@ function showSection(name) {
   if(name === 'primerin') renderPrimerinRanking();
   if(name === 'emojigame') renderPokedleRanking();
   if(name === 'mediaalerts') initMediaAlertsSection();
+  if(name === 'voz') initVozSection();
   setupSectionTabs(name);
   if(name === 'overview') loadOverviewLive();
   if(name === 'tips') initTipsSection();
@@ -1652,6 +1654,60 @@ async function initMediaAlertsSection() {
       else { console.error('[media-alerts] Error al cargar recompensas:', data.error); showToast(data.error || 'No se pudieron cargar las recompensas de Twitch', 'error'); }
     } catch(e) { console.error('[media-alerts] Error de red:', e); showToast('Error de conexión al cargar recompensas', 'error'); }
   }
+}
+
+// ── Notas de voz ──
+let vozCfg = null;
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+async function initVozSection() {
+  renderEventsubBanner('vozEventsubBanner', 'channel.channel_points_custom_reward_redemption.add');
+  const me = (userData.username || '').toLowerCase();
+  const fr = document.getElementById('vozModsFrame');
+  if (fr && !fr.src) fr.src = `/voz/${encodeURIComponent(me)}/mods?embed=1`;
+  document.getElementById('vozModsOpen').href = `/voz/${encodeURIComponent(me)}/mods`;
+  try { const r = await fetch('/api/voz-config'); vozCfg = await r.json(); if (!r.ok) throw new Error(vozCfg.error); }
+  catch (e) { document.getElementById('vozSettings').innerHTML = `<div style="color:#ff6b8a;font-size:13px;">No se pudieron cargar los ajustes: ${esc(e.message || '')}</div>`; return; }
+  renderVozSettings();
+}
+function renderVozSettings() {
+  const c = vozCfg.config || {}, el = document.getElementById('vozSettings');
+  const alertsUrl = `${location.origin}/overlay/alerts/${(userData.username || '').toLowerCase()}`;
+  const copyRow = (label, val, hint) => `<div style="margin-top:14px;"><div class="form-label">${label}</div><div style="display:flex;gap:8px;"><input class="form-input" readonly value="${esc(val)}" style="flex:1;font-size:12px;font-family:var(--mono,monospace);color:var(--purple-light);"><button class="btn btn-secondary" onclick="navigator.clipboard.writeText('${esc(val)}');showToast('Copiado ✓')">📋 Copiar</button></div>${hint ? `<div style="font-size:11px;color:var(--text-dim);margin-top:5px;">${hint}</div>` : ''}</div>`;
+  if (!c.reward_id) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:12px;">Primero crea la recompensa en tu Twitch. Después puedes cambiar el precio cuando quieras.</div>
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;"><div><div class="form-label">Precio (puntos del canal)</div><input class="form-input" id="vozCost" type="number" min="1" value="${c.cost || 5000}" style="width:160px;"></div>
+      <button class="btn btn-primary" id="vozCreateBtn" onclick="vozCreateReward()">✨ Crear “🎙️ Nota de voz” en Twitch</button></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;font-weight:700;"><input type="checkbox" id="vozEnabled" ${c.enabled ? 'checked' : ''} onchange="vozSave({enabled:this.checked})" style="width:18px;height:18px;"> Recibir notas de voz <span style="font-size:12px;font-weight:500;color:var(--text-dim);">(si lo apagas, la recompensa se pausa en Twitch)</span></label>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:16px;">
+      <div><div class="form-label">Precio (puntos del canal)</div><div style="display:flex;gap:6px;"><input class="form-input" id="vozCost" type="number" min="1" value="${c.cost || 5000}"><button class="btn btn-secondary" onclick="vozSave({cost:document.getElementById('vozCost').value})">Guardar</button></div></div>
+      <div><div class="form-label">Volumen: <span id="vozVolTxt">${c.volume ?? 90}</span>%</div><input type="range" min="0" max="100" value="${c.volume ?? 90}" style="width:100%;" oninput="document.getElementById('vozVolTxt').textContent=this.value" onchange="vozSave({volume:this.value})"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;margin-top:14px;"><input type="checkbox" ${c.allow_tts !== false ? 'checked' : ''} onchange="vozSave({allow_tts:this.checked})"> Dejar que escriban un mensaje y lo lea una voz (para quien no tiene micrófono)</label>
+    ${copyRow('🔗 Link para tus viewers', vozCfg.link, 'El bot lo pasa en el chat con <b>!voz</b>.')}
+    ${copyRow('🛡️ Panel para tus mods (sirve en el celular)', vozCfg.mods_link, 'Entran con su cuenta de Twitch: solo pasan los mods de tu canal.')}
+    ${copyRow('📺 Overlay (el mismo de alertas multimedia)', alertsUrl, 'Si ya lo tienes en OBS no tienes que hacer nada. Si no, agrégalo como Browser Source de 1920x1080.')}
+    ${(vozCfg.bans || []).length ? `<div style="font-size:12px;color:var(--text-dim);margin-top:14px;">🚫 ${(vozCfg.bans || []).length} viewer(s) baneado(s) de las notas de voz. Los puedes desbanear en la pestaña “Baneados” del panel de abajo.</div>` : ''}`;
+}
+async function vozCreateReward() {
+  const btn = document.getElementById('vozCreateBtn'); btn.disabled = true;
+  const cost = document.getElementById('vozCost').value;
+  try {
+    await fetch('/api/voz-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cost }) });
+    const r = await fetch('/api/voz-config/reward', { method: 'POST' }); const d = await r.json();
+    if (!r.ok) { showToast(d.error || 'No se pudo crear', 'error'); btn.disabled = false; return; }
+    showToast('🎙️ Recompensa creada y notas de voz activadas ✓'); initVozSection();
+  } catch (e) { showToast('Error de conexión', 'error'); btn.disabled = false; }
+}
+async function vozSave(data) {
+  try {
+    const r = await fetch('/api/voz-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); const d = await r.json();
+    if (!r.ok) { showToast(d.error || 'Error', 'error'); return; }
+    vozCfg.config = d.config; showToast(d.warning ? '⚠️ ' + d.warning : 'Guardado ✓', d.warning ? 'error' : 'success');
+    if ('enabled' in data) { const fr = document.getElementById('vozModsFrame'); if (fr) fr.src = fr.src; }
+  } catch (e) { showToast('Error de conexión', 'error'); }
 }
 
 // ── Planes: lo mismo que PLAN_LIMITS en server.js (el servidor es el que manda; esto es para mostrarlo) ──
@@ -4593,6 +4649,39 @@ function renderMain() {
   </div>
 
   <!-- ALERTAS MULTIMEDIA -->
+  <div id="sec-voz" class="section">
+    <div class="page-header">
+      <div class="page-title">🎙️ Notas de voz</div>
+      <div class="page-subtitle">Tus viewers graban un audio corto, lo pagan con puntos del canal y, si un mod lo aprueba, suena en tu stream con su nombre</div>
+    </div>
+    ${planNote(`Plan gratis: hasta <b>10 notas por stream</b>. Con Pro: sin límite.`)}
+    <div id="vozEventsubBanner"></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px;">
+      ${[
+        ['1','🎁','Crea la recompensa','Con un clic: “🎙️ Nota de voz” aparece en tu Twitch con el precio que elijas'],
+        ['2','🔗','Comparte el link','Con <b>!voz</b> el bot lo pasa en el chat. Ahí graban, suben o escriben su nota'],
+        ['3','🛡️','Tus mods revisan','Aquí abajo o en el celular. Ven lo que dice antes de escucharla'],
+        ['4','🔊','¡Suena!','Al aprobar suena al instante en el overlay de alertas. Si la borran, Twitch devuelve los puntos'],
+      ].map(([num,icon,title,desc])=>`
+      <div style="background:linear-gradient(135deg,rgba(255,111,181,0.06),rgba(145,71,255,0.02));border:1px solid rgba(255,111,181,0.15);border-radius:var(--radius);padding:16px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-8px;right:6px;font-size:52px;font-weight:800;color:rgba(255,111,181,0.08);font-family:var(--sans);">${num}</div>
+        <div style="font-size:24px;margin-bottom:8px;">${icon}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;">${title}</div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.5;">${desc}</div>
+      </div>`).join('')}
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">⚙️ Ajustes</span></div>
+      <div class="panel-body" id="vozSettings"><div style="color:var(--text-dim);font-size:13px;">Cargando…</div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title-text">🛡️ Revisar notas</span><a id="vozModsOpen" href="#" target="_blank" style="margin-left:auto;font-size:12px;color:var(--purple-light);">Abrir en otra pestaña ↗</a></div>
+      <div class="panel-body" style="padding:12px;">
+        <iframe id="vozModsFrame" title="Notas de voz" style="width:100%;height:620px;border:0;border-radius:12px;background:transparent;"></iframe>
+      </div>
+    </div>
+  </div>
+
   <div id="sec-mediaalerts" class="section">
     <div class="page-header">
       <div class="page-title">🔊 Alertas multimedia</div>
