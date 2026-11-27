@@ -766,6 +766,8 @@ function cityNewSong(demo) {
 }
 
 let pollTimer = null;
+let pausedSince = 0;
+const PAUSE_HIDE_MS = 30000; // 30 s en pausa → se esconde
 async function fetchStatus() {
   clearTimeout(pollTimer);
   let next = 15000; // si falla la red, se espera un poco más antes de reintentar
@@ -774,6 +776,7 @@ async function fetchStatus() {
     const data = await res.json();
     updateWidget(data);
     next = Math.min(Math.max(Number(data.next_ms) || 10000, 1500), 15000);
+    if (data.playing && !data.is_playing && pausedSince) next = Math.min(next, Math.max(PAUSE_HIDE_MS - (Date.now() - pausedSince) + 300, 1500));
   } catch(e) {}
   pollTimer = setTimeout(fetchStatus, next);
 }
@@ -786,6 +789,12 @@ function updateWidget(data) {
   const artistEl = document.getElementById('artistName');
   const artEl = document.getElementById('albumArt');
   const progressEl = document.getElementById('progressBar');
+
+  // En pausa Spotify sigue mandando la canción: si lleva un rato pausada, el overlay se esconde igual
+  if (data.playing && !data.is_playing) {
+    if (!pausedSince) pausedSince = Date.now();
+    if (Date.now() - pausedSince >= PAUSE_HIDE_MS) data = { playing: false };
+  } else pausedSince = 0;
 
   if (!data.playing) {
     widget.style.opacity = '';
